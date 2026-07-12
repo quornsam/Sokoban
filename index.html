@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#efe5d4">
+<title>PUSH Sokoban — Bauhaus Edition</title>
+<link rel="stylesheet" href="styles.css">
+<link rel="preload" as="image" href="assets/crate-red.png">
+<link rel="preload" as="image" href="assets/crate-yellow.png">
+<link rel="preload" as="image" href="assets/goal-red.png">
+<link rel="preload" as="image" href="assets/goal-yellow.png">
+<link rel="preload" as="image" href="assets/player-front.png">
+<link rel="preload" as="image" href="assets/player-back.png">
+<link rel="preload" as="image" href="assets/player-left.png">
+<link rel="preload" as="image" href="assets/player-right.png">
+<link rel="preload" as="image" href="assets/walk-front.png">
+<link rel="preload" as="image" href="assets/walk-back.png">
+<link rel="preload" as="image" href="assets/walk-left.png">
+<link rel="preload" as="image" href="assets/walk-right.png">
+<link rel="preload" as="image" href="assets/push-front.png">
+<link rel="preload" as="image" href="assets/push-back.png">
+<link rel="preload" as="image" href="assets/push-left.png">
+<link rel="preload" as="image" href="assets/push-right.png">
+</head>
+<body>
+<main class="app">
+  <section class="play-area">
+    <header class="masthead">
+      <div class="title"><strong>PUSH</strong><span>SOKOBAN</span></div>
+      <div class="collection"><b>BAUHAUS<br>COLLECTION</b><i></i><span id="levelCount">1 / 50</span></div>
+    </header>
+
+    <section class="board-wrap">
+      <div class="deco deco-red"></div>
+      <div class="deco deco-yellow"></div>
+      <div class="stripes stripes-a"></div>
+      <div class="stripes stripes-b"></div>
+      <div class="semicircle"></div>
+      <div id="board" class="board" aria-label="Sokoban game board" tabindex="0">
+        <div id="voidLayer" class="layer"></div>
+        <div id="wallLayer" class="layer"></div>
+        <div id="goalLayer" class="layer"></div>
+        <div id="pieceLayer" class="layer"></div>
+        <div id="celebration" class="celebration" aria-hidden="true"></div>
+      </div>
+    </section>
+
+    <footer class="instruction"><span class="info">i</span><span>PUSH THE BOXES ONTO THE TARGETS</span></footer>
+  </section>
+
+  <aside class="side-panel">
+    <section class="credit"><strong id="creditTitle">MICROBAN COLLECTION</strong><span id="creditSub">DAVID W. SKINNER · 50 LEVELS</span></section>
+
+    <section class="stats">
+      <div><span>MOVES</span><strong id="moves">0</strong></div>
+      <div><span>PUSHES</span><strong id="pushes">0</strong></div>
+      <div><span>BEST</span><strong id="best">—</strong></div>
+      <div><span>MINIMUM</span><strong id="minimum">—</strong></div>
+      <div class="time"><span>TIME</span><strong id="time">00:00</strong></div>
+    </section>
+
+    <section class="top-actions">
+      <button id="undoBtn" class="action undo"><span>↶</span><b>UNDO</b></button>
+      <button id="restartBtn" class="action"><span>↻</span><b>RESTART</b></button>
+    </section>
+
+    <section class="dpad" aria-label="Move controls">
+      <button data-dir="up">▲</button>
+      <button data-dir="left">◀</button>
+      <div class="centre"><img src="assets/player-front.png" alt=""></div>
+      <button data-dir="right">▶</button>
+      <button data-dir="down">▼</button>
+    </section>
+
+    <section class="bottom-actions">
+      <button id="soundBtn" class="action small"><span>◖))</span><b>SOUND ON</b></button>
+      <button id="levelBtn" class="action small"><span>☰</span><b>LEVEL</b></button>
+      <button id="fullscreenBtn" class="action small fullscreen-action"><span>⛶</span><b>FULL SCREEN</b></button>
+    </section>
+
+    <section id="levelPicker" class="level-picker" hidden>
+      <strong>CHOOSE LEVEL</strong>
+      <div id="levelButtons"></div>
+    </section>
+
+    <div class="palette" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+  </aside>
+</main>
+
+<div id="completeModal" class="modal" hidden>
+  <div class="modal-card">
+    <span class="modal-mark">✓</span>
+    <h2>PUZZLE CLEARED</h2>
+    <p id="completeText"></p>
+    <button id="nextBtn">NEXT LEVEL</button>
+  </div>
+</div>
+
+<button id="autoSolveBtn" type="button" hidden tabindex="-1" aria-hidden="true">PLAY SOLUTION</button>
+
+<script src="levels.js"></script>
+<script src="game.js"></script>
+</body>
+</html>

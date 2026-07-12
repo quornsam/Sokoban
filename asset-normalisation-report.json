@@ -1,0 +1,194 @@
+{
+  "player-back.png": {
+    "canvas": [
+      600,
+      520
+    ],
+    "bbox": [
+      208,
+      192,
+      391,
+      502
+    ],
+    "visible_size": [
+      183,
+      310
+    ]
+  },
+  "player-front.png": {
+    "canvas": [
+      600,
+      520
+    ],
+    "bbox": [
+      209,
+      192,
+      391,
+      502
+    ],
+    "visible_size": [
+      182,
+      310
+    ]
+  },
+  "player-left.png": {
+    "canvas": [
+      600,
+      520
+    ],
+    "bbox": [
+      210,
+      192,
+      390,
+      502
+    ],
+    "visible_size": [
+      180,
+      310
+    ]
+  },
+  "player-right.png": {
+    "canvas": [
+      600,
+      520
+    ],
+    "bbox": [
+      210,
+      192,
+      390,
+      502
+    ],
+    "visible_size": [
+      180,
+      310
+    ]
+  },
+  "walk-back.png": {
+    "canvas": [
+      600,
+      520
+    ],
+    "bbox": [
+      212,
+      192,
+      387,
+      502
+    ],
+    "visible_size": [
+      175,
+      310
+    ]
+  },
+  "walk-front.png": {
+    "canvas": [
+      600,
+      520
+    ],
+    "bbox": [
+      212,
+      192,
+      388,
+      502
+    ],
+    "visible_size": [
+      176,
+      310
+    ]
+  },
+  "walk-left.png": {
+    "canvas": [
+      600,
+      520
+    ],
+    "bbox": [
+      212,
+      192,
+      387,
+      502
+    ],
+    "visible_size": [
+      175,
+      310
+    ]
+  },
+  "walk-right.png": {
+    "canvas": [
+      600,
+      520
+    ],
+    "bbox": [
+      212,
+      192,
+      387,
+      502
+    ],
+    "visible_size": [
+      175,
+      310
+    ]
+  },
+  "push-back.png": {
+    "canvas": [
+      600,
+      520
+    ],
+    "bbox": [
+      209,
+      192,
+      391,
+      502
+    ],
+    "visible_size": [
+      182,
+      310
+    ]
+  },
+  "push-front.png": {
+    "canvas": [
+      600,
+      520
+    ],
+    "bbox": [
+      210,
+      192,
+      389,
+      502
+    ],
+    "visible_size": [
+      179,
+      310
+    ]
+  },
+  "push-left.png": {
+    "canvas": [
+      600,
+      520
+    ],
+    "bbox": [
+      194,
+      192,
+      406,
+      502
+    ],
+    "visible_size": [
+      212,
+      310
+    ]
+  },
+  "push-right.png": {
+    "canvas": [
+      600,
+      520
+    ],
+    "bbox": [
+      173,
+      192,
+      427,
+      502
+    ],
+    "visible_size": [
+      254,
+      310
+    ]
+  }
+}
