@@ -43,7 +43,7 @@
   const fullscreenBtn = document.getElementById("fullscreenBtn");
   const autoSolveBtn = document.getElementById("autoSolveBtn");
 
-  let levelIndex = Math.max(0, Math.min(LEVELS.length - 1, Number(localStorage.getItem("push-bauhaus-v22-level") || 0)));
+  let levelIndex = Math.max(0, Math.min(LEVELS.length - 1, Number(localStorage.getItem("push-bauhaus-v29-level") || 0)));
   let levelData = null;
   let width = 1;
   let height = 1;
@@ -71,6 +71,7 @@
   let easterClickCount = 0;
   let easterArmed = false;
   let easterResetTimer = null;
+  let currentAnimation = "idle";
 
   const key = (x, y) => `${x},${y}`;
   const copyBoxes = list => list.map(box => ({ ...box }));
@@ -94,7 +95,9 @@
     const icon = fullscreenBtn.querySelector("span");
     const label = fullscreenBtn.querySelector("b");
     if (icon) icon.textContent = active ? "⤢" : "⛶";
-    if (label) label.textContent = active ? "EXIT FULL SCREEN" : "FULL SCREEN";
+    if (label) label.textContent = active ? "EXIT" : "FULL SCREEN";
+    fullscreenBtn.setAttribute("aria-label", active ? "Exit full screen" : "Enter full screen");
+    fullscreenBtn.title = active ? "Exit full screen" : "Enter full screen";
     fullscreenBtn.setAttribute("aria-pressed", String(active));
   }
 
@@ -316,6 +319,7 @@
       const image = document.createElement("img");
       image.src = `assets/goal-${index % 2 ? "yellow" : "red"}.png`;
       image.alt = "";
+      image.setAttribute("aria-hidden", "true");
       cell.appendChild(image);
       goalLayer.appendChild(cell);
     });
@@ -331,6 +335,7 @@
   }
 
   function render(anim = "idle") {
+    currentAnimation = anim;
     pieceLayer.innerHTML = "";
     boxes.forEach(box => {
       const piece = document.createElement("div");
@@ -346,10 +351,15 @@
     const playerPiece = document.createElement("div");
     playerPiece.className = `piece player facing-${facing}${anim && anim !== "idle" ? " " + anim : ""}`;
     playerPiece.style.cssText = posStyle(player[0], player[1], depth(player[1], "player"));
-    const playerImage = document.createElement("img");
-    playerImage.src = sprite(anim === "walking" ? "walk" : anim === "pushing" ? "push" : "idle", facing);
-    playerImage.alt = "";
-    playerPiece.appendChild(playerImage);
+    const playerCanvas = document.createElement("canvas");
+    playerCanvas.width = 600;
+    playerCanvas.height = 520;
+    playerCanvas.setAttribute("aria-hidden", "true");
+    const framePath = sprite(anim === "walking" ? "walk" : anim === "pushing" ? "push" : "idle", facing);
+    const frameName = framePath.replace(/^assets\//, "").replace(/\.png$/, "");
+    playerCanvas.dataset.characterFrame = frameName;
+    playerPiece.appendChild(playerCanvas);
+    window.CharacterStyler?.draw(playerCanvas, frameName);
     pieceLayer.appendChild(playerPiece);
 
     movesEl.textContent = moves;
@@ -390,7 +400,7 @@
     blockedPushHeld = false;
     clearTimeout(animTimer);
     levelIndex = (index + LEVELS.length) % LEVELS.length;
-    localStorage.setItem("push-bauhaus-v22-level", levelIndex);
+    localStorage.setItem("push-bauhaus-v29-level", levelIndex);
     levelData = LEVELS[levelIndex];
     const parsed = parseLayout(levelData.layout);
     width = parsed.width;
@@ -634,6 +644,7 @@
   };
 
   document.addEventListener("keydown", event => {
+    if (window.CharacterStyler?.isOpen) return;
     if (desktopEasterEggAvailable() && easterArmed && event.key.toLowerCase() === "s") {
       event.preventDefault();
       resetEasterEgg();
@@ -672,6 +683,16 @@
   });
 
 
+
+  function pointerIsOnCharacter(event) {
+    if (!desktopEasterEggAvailable()) return false;
+    const canvas = pieceLayer.querySelector(".player canvas");
+    if (!canvas) return false;
+    const rect = canvas.getBoundingClientRect();
+    return event.clientX >= rect.left && event.clientX <= rect.right &&
+      event.clientY >= rect.top && event.clientY <= rect.bottom;
+  }
+
   function registerEasterClick() {
     if (!desktopEasterEggAvailable() || autoplayRunning) return;
     easterClickCount++;
@@ -680,6 +701,7 @@
     if (easterClickCount >= 5) easterArmed = true;
   }
 
+  window.addEventListener("characterstylechange", () => render(currentAnimation));
   autoSolveBtn.addEventListener("click", startAutoplay);
   fullscreenBtn?.addEventListener("click", toggleFullscreen);
   document.addEventListener("fullscreenchange", () => { updateFullscreenButton(); scheduleBoardResize(); });
@@ -709,7 +731,8 @@
 
   board.addEventListener("pointerdown", event => {
     ensureAudio();
-    if (event.pointerType === "mouse" && event.target.closest(".player")) registerEasterClick();
+    const mouseLike = event.pointerType === "mouse" || event.pointerType === "";
+    if (mouseLike && event.button === 0 && pointerIsOnCharacter(event)) registerEasterClick();
     swipe = { x: event.clientX, y: event.clientY, id: event.pointerId, triggered: false };
     board.setPointerCapture?.(event.pointerId);
   });
@@ -751,5 +774,5 @@
   document.addEventListener("pointerdown", retryMusicAfterInteraction, { capture: true });
   document.addEventListener("keydown", retryMusicAfterInteraction, { capture: true });
   buildLevelButtons();
-  loadLevel(levelIndex);
+  Promise.resolve(window.CharacterStyler?.ready).finally(() => loadLevel(levelIndex));
 })();

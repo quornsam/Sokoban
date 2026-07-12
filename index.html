@@ -8,8 +8,6 @@
 <link rel="stylesheet" href="styles.css">
 <link rel="preload" as="image" href="assets/crate-red.png">
 <link rel="preload" as="image" href="assets/crate-yellow.png">
-<link rel="preload" as="image" href="assets/goal-red.png">
-<link rel="preload" as="image" href="assets/goal-yellow.png">
 <link rel="preload" as="image" href="assets/player-front.png">
 <link rel="preload" as="image" href="assets/player-back.png">
 <link rel="preload" as="image" href="assets/player-left.png">
@@ -68,7 +66,13 @@
     <section class="dpad" aria-label="Move controls">
       <button data-dir="up">▲</button>
       <button data-dir="left">◀</button>
-      <div class="centre"><img src="assets/player-front.png" alt=""></div>
+      <button id="styleBtn" class="centre" type="button" aria-label="Change character style" title="Change character style">
+        <svg id="styleOutfitIcon" class="style-outfit-icon" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+          <path class="style-shirt-body" d="M28 13 40 8c2 7 6 10 10 10s8-3 10-10l12 5 13 15-10 10-8-7v27H33V32l-8 7-10-10z"/>
+          <path class="style-trousers-body" d="M34 62h32l4 30H54l-4-18-4 18H30z"/>
+          <path class="style-icon-seam" d="M50 63v11M33 61h34"/>
+        </svg>
+      </button>
       <button data-dir="right">▶</button>
       <button data-dir="down">▼</button>
     </section>
@@ -89,6 +93,27 @@
   </aside>
 </main>
 
+<div id="styleModal" class="modal style-modal" hidden>
+  <section class="style-card" role="dialog" aria-modal="true" aria-labelledby="styleTitle">
+    <button id="styleCloseBtn" class="style-close" type="button" aria-label="Close character style">×</button>
+    <div class="style-preview">
+      <div class="style-preview-disc">
+        <canvas width="600" height="520" data-character-preview="player-front" aria-hidden="true"></canvas>
+      </div>
+      <div>
+        <span class="style-kicker">BAUHAUS WARDROBE</span>
+        <h2 id="styleTitle">CHARACTER STYLE</h2>
+        <p>Choose clothing, skin, hair and shoe colours.</p>
+      </div>
+    </div>
+    <div id="styleControls" class="style-controls"></div>
+    <footer class="style-footer">
+      <button id="styleResetBtn" class="style-reset" type="button">RESET</button>
+      <button id="styleDoneBtn" class="style-done" type="button">DONE</button>
+    </footer>
+  </section>
+</div>
+
 <div id="completeModal" class="modal" hidden>
   <div class="modal-card">
     <span class="modal-mark">✓</span>
@@ -102,6 +127,7 @@
 <audio id="bgMusic" src="assets/cracked-ivory-drift.mp3" preload="auto" autoplay loop playsinline></audio>
 
 <script src="levels.js"></script>
+<script src="character-styles.js"></script>
 <script src="game.js"></script>
 </body>
 </html>

@@ -1,0 +1,266 @@
+{
+  "player-front": {
+    "tshirt": {
+      "pixels": 9602,
+      "p90_luminance": 76.6
+    },
+    "skin": {
+      "pixels": 11431,
+      "p90_luminance": 190.55
+    },
+    "hair": {
+      "pixels": 13787,
+      "p90_luminance": 69.07
+    },
+    "trousers": {
+      "pixels": 4096,
+      "p90_luminance": 31.85
+    },
+    "shoes": {
+      "pixels": 2295,
+      "p90_luminance": 47.63
+    }
+  },
+  "player-back": {
+    "tshirt": {
+      "pixels": 10616,
+      "p90_luminance": 74.32
+    },
+    "skin": {
+      "pixels": 3341,
+      "p90_luminance": 182.98
+    },
+    "hair": {
+      "pixels": 21615,
+      "p90_luminance": 62.21
+    },
+    "trousers": {
+      "pixels": 4108,
+      "p90_luminance": 32.21
+    },
+    "shoes": {
+      "pixels": 2353,
+      "p90_luminance": 37.99
+    }
+  },
+  "player-left": {
+    "tshirt": {
+      "pixels": 6301,
+      "p90_luminance": 82.47
+    },
+    "skin": {
+      "pixels": 6578,
+      "p90_luminance": 183.97
+    },
+    "hair": {
+      "pixels": 17487,
+      "p90_luminance": 67.07
+    },
+    "trousers": {
+      "pixels": 2225,
+      "p90_luminance": 37.97
+    },
+    "shoes": {
+      "pixels": 1880,
+      "p90_luminance": 44.0
+    }
+  },
+  "player-right": {
+    "tshirt": {
+      "pixels": 6301,
+      "p90_luminance": 82.47
+    },
+    "skin": {
+      "pixels": 6578,
+      "p90_luminance": 183.97
+    },
+    "hair": {
+      "pixels": 17487,
+      "p90_luminance": 67.07
+    },
+    "trousers": {
+      "pixels": 2225,
+      "p90_luminance": 37.97
+    },
+    "shoes": {
+      "pixels": 1880,
+      "p90_luminance": 44.0
+    }
+  },
+  "walk-front": {
+    "tshirt": {
+      "pixels": 8165,
+      "p90_luminance": 71.81
+    },
+    "skin": {
+      "pixels": 9779,
+      "p90_luminance": 193.29
+    },
+    "hair": {
+      "pixels": 11685,
+      "p90_luminance": 70.0
+    },
+    "trousers": {
+      "pixels": 3973,
+      "p90_luminance": 54.18
+    },
+    "shoes": {
+      "pixels": 1880,
+      "p90_luminance": 54.66
+    }
+  },
+  "walk-back": {
+    "tshirt": {
+      "pixels": 9115,
+      "p90_luminance": 74.72
+    },
+    "skin": {
+      "pixels": 2894,
+      "p90_luminance": 185.81
+    },
+    "hair": {
+      "pixels": 18359,
+      "p90_luminance": 62.0
+    },
+    "trousers": {
+      "pixels": 4003,
+      "p90_luminance": 47.76
+    },
+    "shoes": {
+      "pixels": 1956,
+      "p90_luminance": 59.14
+    }
+  },
+  "walk-left": {
+    "tshirt": {
+      "pixels": 6662,
+      "p90_luminance": 86.32
+    },
+    "skin": {
+      "pixels": 6471,
+      "p90_luminance": 175.96
+    },
+    "hair": {
+      "pixels": 15752,
+      "p90_luminance": 66.07
+    },
+    "trousers": {
+      "pixels": 2902,
+      "p90_luminance": 43.19
+    },
+    "shoes": {
+      "pixels": 3822,
+      "p90_luminance": 42.21
+    }
+  },
+  "walk-right": {
+    "tshirt": {
+      "pixels": 6662,
+      "p90_luminance": 86.32
+    },
+    "skin": {
+      "pixels": 6471,
+      "p90_luminance": 175.96
+    },
+    "hair": {
+      "pixels": 15752,
+      "p90_luminance": 66.07
+    },
+    "trousers": {
+      "pixels": 2902,
+      "p90_luminance": 43.19
+    },
+    "shoes": {
+      "pixels": 3822,
+      "p90_luminance": 42.21
+    }
+  },
+  "push-front": {
+    "tshirt": {
+      "pixels": 6287,
+      "p90_luminance": 71.33
+    },
+    "skin": {
+      "pixels": 10163,
+      "p90_luminance": 193.91
+    },
+    "hair": {
+      "pixels": 11849,
+      "p90_luminance": 68.37
+    },
+    "trousers": {
+      "pixels": 3840,
+      "p90_luminance": 40.93
+    },
+    "shoes": {
+      "pixels": 2807,
+      "p90_luminance": 50.28
+    }
+  },
+  "push-back": {
+    "tshirt": {
+      "pixels": 7873,
+      "p90_luminance": 109.21
+    },
+    "skin": {
+      "pixels": 1791,
+      "p90_luminance": 169.74
+    },
+    "hair": {
+      "pixels": 15024,
+      "p90_luminance": 60.15
+    },
+    "trousers": {
+      "pixels": 4089,
+      "p90_luminance": 52.64
+    },
+    "shoes": {
+      "pixels": 3898,
+      "p90_luminance": 63.07
+    }
+  },
+  "push-left": {
+    "tshirt": {
+      "pixels": 8211,
+      "p90_luminance": 75.67
+    },
+    "skin": {
+      "pixels": 6530,
+      "p90_luminance": 193.29
+    },
+    "hair": {
+      "pixels": 14334,
+      "p90_luminance": 63.76
+    },
+    "trousers": {
+      "pixels": 4084,
+      "p90_luminance": 28.97
+    },
+    "shoes": {
+      "pixels": 3138,
+      "p90_luminance": 31.86
+    }
+  },
+  "push-right": {
+    "tshirt": {
+      "pixels": 9178,
+      "p90_luminance": 82.94
+    },
+    "skin": {
+      "pixels": 8643,
+      "p90_luminance": 186.33
+    },
+    "hair": {
+      "pixels": 15137,
+      "p90_luminance": 67.07
+    },
+    "trousers": {
+      "pixels": 3922,
+      "p90_luminance": 32.72
+    },
+    "shoes": {
+      "pixels": 3868,
+      "p90_luminance": 49.21
+    }
+  }
+}
