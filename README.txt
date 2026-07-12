@@ -83,3 +83,17 @@ Version 64 asset optimisation:
 - individual character frames replaced by 12 sprite sheets
 - unused eye-layer and yellow-goal files removed
 - release file count reduced for GitHub web upload
+
+
+Version 65:
+- Full-screen label wraps cleanly instead of cropping.
+- Timer text reduced to fit its stats cell.
+- Responsive title sizing prevents PUSH SOKOBAN clipping on short/wide screens.
+- Instruction strip replaced by character thoughts assembled from 100 phrase fragments (37,026 combinations).
+- Konami code Up Up Down Down Left Right Left Right A B Enter animates the otherwise static background.
+
+
+Version 66:
+- Konami background begins without a position flash and moves slightly faster.
+- Character thoughts now use one or two sentences and crossfade more slowly.
+- Puzzle-complete modal redesigned in the game’s Bauhaus visual language.

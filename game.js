@@ -43,6 +43,8 @@
   const app = document.querySelector(".app");
   const fullscreenBtn = document.getElementById("fullscreenBtn");
   const autoSolveBtn = document.getElementById("autoSolveBtn");
+  const instruction = document.querySelector(".instruction");
+  const thoughtText = document.getElementById("thoughtText");
 
   let levelIndex = Math.max(0, Math.min(LEVELS.length - 1, Number(localStorage.getItem("push-bauhaus-v33-level") || localStorage.getItem("push-bauhaus-v29-level") || 0)));
   let levelData = null;
@@ -73,6 +75,10 @@
   let easterArmed = false;
   let easterResetTimer = null;
   let currentAnimation = "idle";
+  let thoughtTimer = null;
+  let lastThought = "";
+  let thoughtReady = false;
+  let konamiIndex = 0;
   let backgroundDecorBuilt = false;
   let backgroundFadeTimer = null;
   let backgroundBuildNonce = 0;
@@ -87,6 +93,11 @@
   const BACKGROUND_SOLIDS = ["#e5392f", "#f2c121", "#2457a6", "#151515", "#f47a20", "#00a6b2", "#2f9e44", "#8e44ad", "#ff7f50", "#16a085"];
   const backgroundSessionSeed = Math.floor(Math.random() * 0x7fffffff);
   const GOAL_ASSET = "assets/board/goal-red.png";
+  const THOUGHT_OPENERS = ["Hmm.", "Right then.", "Okay, boxes.", "Let's think.", "One push at a time.", "That corner looks suspicious.", "Where's the clever move?", "Which box goes first?", "There's a route through this.", "Don't rush it.", "I can untangle this.", "That wall is in the way.", "Someone planned this.", "I've seen worse.", "This needs a proper look.", "Deep breath.", "Let's not trap anything.", "Easy does it.", "Think before pushing.", "These boxes look smug.", "The floor plan is cheeky.", "There's always a way.", "I need a clean line.", "That gap might matter.", "Start with the awkward one?", "Maybe the edge first.", "Could be simpler than it looks.", "This room has opinions.", "I can feel a solution.", "No heroics yet.", "Let's make some space.", "One mistake and it's restart time.", "The boxes are judging me.", "Time to earn my lunch."];
+  const THOUGHT_MIDDLES = ["I should clear a path first.", "That box needs room behind it.", "The nearest target may be a trap.", "Keep the corners free.", "Push, never pull. Helpful.", "That wall changes everything.", "Maybe I should work backwards.", "I need to protect the middle.", "The outside box looks important.", "Let's line these up neatly.", "One careful shove should do it.", "I should save that square.", "That route closes quickly.", "The far box may come first.", "I need an escape square.", "Nothing moves itself around here.", "These boxes aren't getting lighter.", "That target is asking for trouble.", "Perhaps the long route is safer.", "I should avoid that dead end.", "Keep a lane open.", "That looks like a two-push job.", "The centre needs breathing room.", "Use the wall, don't fight it.", "The order matters more than speed.", "One box is blocking two ideas.", "I can make a corridor here.", "That target can wait.", "The obvious move is probably wrong.", "Let's test the shape of the room.", "I need to leave myself an exit.", "This is more geometry than muscle.", "A tidy board is a happy board."];
+  const THOUGHT_CLOSERS = ["Ice cream when this is done.", "Tea would help.", "I hope someone else does the unpacking.", "My back will remember this.", "At least the music is good.", "I deserve a biscuit after this.", "Next time, I'm bringing a trolley.", "Nobody mentioned all the lifting.", "I could be playing chess.", "One day I'll work somewhere with wheels.", "That target better be grateful.", "I am absolutely charging overtime.", "A quiet room would be nice.", "I'll celebrate with something cold.", "This counts as exercise.", "I knew I should've stretched.", "The boxes can buy me lunch.", "After this, no more favours.", "I'd rather be moving cushions.", "Perhaps the next room has chairs.", "This job needs a forklift.", "I wonder who packed these.", "I hope the door is still open.", "I'm putting 'box expert' on my CV.", "One more puzzle, then a break.", "I can already taste the ice cream.", "Surely this is the last crate.", "Future me will appreciate this.", "Present me is less convinced.", "Let's make it look effortless.", "Nobody needs to know how long this took.", "I'll pretend that was the plan.", "Right. Back to work."];
+  const KONAMI_SEQUENCE = ["ArrowUp", "ArrowUp", "ArrowDown", "ArrowDown", "ArrowLeft", "ArrowRight", "ArrowLeft", "ArrowRight", "a", "b", "Enter"];
+
 
   function mulberry32(seed) {
     return function() {
@@ -126,13 +137,19 @@
 
     function addShape({ type, x, y, w, h, color, rotate = 0, opacity = 0.82 }) {
       const el = document.createElement("div");
-      el.className = `bg-shape static ${type}`;
+      const motionClass = ["konami-a", "konami-b", "konami-c"][Math.floor(rand() * 3)];
+      el.className = `bg-shape static ${motionClass} ${type}`;
       el.style.left = `${x}%`;
       el.style.top = `${y}%`;
       el.style.width = `${w}px`;
       el.style.height = `${h}px`;
       el.style.setProperty("--shape-color", color);
       el.style.setProperty("--shape-opacity", opacity.toFixed(2));
+      el.style.setProperty("--kx", `${Math.round((-22 + rand() * 44))}px`);
+      el.style.setProperty("--ky", `${Math.round((-16 + rand() * 32))}px`);
+      el.style.setProperty("--kr", `${(-5 + rand() * 10).toFixed(2)}deg`);
+      el.style.setProperty("--kdur", `${(10 + rand() * 8).toFixed(1)}s`);
+      el.style.setProperty("--kdelay", `${(rand() * 1.8).toFixed(1)}s`);
       if (type !== "shape-ring" && !type.includes("stripes") && type !== "shape-dots" && type !== "shape-steps") {
         el.style.background = color;
       }
@@ -207,6 +224,69 @@
     });
   }
 
+
+  function composeCharacterThought() {
+    let thought = "";
+    for (let attempts = 0; attempts < 8; attempts++) {
+      const pools = [THOUGHT_OPENERS, THOUGHT_MIDDLES, THOUGHT_CLOSERS];
+      const firstPoolIndex = Math.floor(Math.random() * pools.length);
+      const first = pools[firstPoolIndex][Math.floor(Math.random() * pools[firstPoolIndex].length)];
+      if (Math.random() < 0.44) {
+        thought = first;
+      } else {
+        const remainingPools = pools.filter((_, index) => index !== firstPoolIndex);
+        const secondPool = remainingPools[Math.floor(Math.random() * remainingPools.length)];
+        const second = secondPool[Math.floor(Math.random() * secondPool.length)];
+        thought = `${first} ${second}`;
+      }
+      if (thought !== lastThought) break;
+    }
+    lastThought = thought;
+    return thought;
+  }
+
+  function scheduleCharacterThought() {
+    clearTimeout(thoughtTimer);
+    thoughtTimer = setTimeout(() => showCharacterThought(), 19000 + Math.random() * 17000);
+  }
+
+  function showCharacterThought(specificText = null, immediate = false) {
+    if (!thoughtText || !instruction) return;
+    const nextThought = specificText || composeCharacterThought();
+    clearTimeout(thoughtTimer);
+    if (immediate || !thoughtReady) {
+      thoughtText.textContent = nextThought;
+      instruction.classList.remove("thought-changing");
+      thoughtReady = true;
+      scheduleCharacterThought();
+      return;
+    }
+    instruction.classList.add("thought-changing");
+    setTimeout(() => {
+      thoughtText.textContent = nextThought;
+      instruction.classList.remove("thought-changing");
+      scheduleCharacterThought();
+    }, 430);
+  }
+
+  function normaliseKonamiKey(keyName) {
+    return keyName.length === 1 ? keyName.toLowerCase() : keyName;
+  }
+
+  function checkKonamiCode(keyName) {
+    const key = normaliseKonamiKey(keyName);
+    const expected = KONAMI_SEQUENCE[konamiIndex];
+    if (key === expected) {
+      konamiIndex += 1;
+    } else {
+      konamiIndex = key === KONAMI_SEQUENCE[0] ? 1 : 0;
+    }
+    if (konamiIndex < KONAMI_SEQUENCE.length) return false;
+    konamiIndex = 0;
+    document.body.classList.add("konami-background");
+    showCharacterThought("Oh. The background has come alive. That seems perfectly normal.", false);
+    return true;
+  }
 
   function fullscreenElement() {
     return document.fullscreenElement || document.webkitFullscreenElement || null;
@@ -564,6 +644,7 @@
     render("idle");
     updateTime();
     scheduleIdle();
+    showCharacterThought(null, !thoughtReady);
   }
 
   function snapshot() {
@@ -776,6 +857,10 @@
 
   document.addEventListener("keydown", event => {
     if (window.CharacterStyler?.isOpen) return;
+    if (checkKonamiCode(event.key)) {
+      event.preventDefault();
+      return;
+    }
     if (desktopEasterEggAvailable() && easterArmed && event.key.toLowerCase() === "s") {
       event.preventDefault();
       resetEasterEgg();

@@ -31,7 +31,7 @@
       </div>
     </section>
 
-    <footer class="instruction"><span class="info">i</span><span>PUSH THE BOXES ONTO THE TARGETS</span></footer>
+    <footer class="instruction" aria-live="polite"><span class="info" aria-hidden="true">“</span><span id="thoughtText" class="thought-text">Hmm. Which box first? Ice cream when this is done.</span></footer>
   </section>
 
   <aside class="side-panel">
@@ -101,12 +101,20 @@
   </section>
 </div>
 
-<div id="completeModal" class="modal" hidden>
-  <div class="modal-card">
-    <span class="modal-mark">✓</span>
-    <h2>PUZZLE CLEARED</h2>
-    <p id="completeText"></p>
-    <button id="nextBtn">NEXT LEVEL</button>
+<div id="completeModal" class="modal complete-modal" hidden>
+  <div class="modal-card complete-card" role="dialog" aria-modal="true" aria-labelledby="completeTitle">
+    <div class="complete-art" aria-hidden="true">
+      <i class="complete-circle"></i>
+      <i class="complete-square"></i>
+      <i class="complete-line"></i>
+      <span>✓</span>
+    </div>
+    <div class="complete-copy">
+      <span class="complete-kicker">BAUHAUS COLLECTION</span>
+      <h2 id="completeTitle">PUZZLE<br>CLEARED</h2>
+      <p id="completeText"></p>
+      <button id="nextBtn"><span>NEXT LEVEL</span><b aria-hidden="true">→</b></button>
+    </div>
   </div>
 </div>
 
