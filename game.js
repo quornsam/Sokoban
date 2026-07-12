@@ -28,6 +28,8 @@
   const undoBtn = document.getElementById("undoBtn");
   const restartBtn = document.getElementById("restartBtn");
   const soundBtn = document.getElementById("soundBtn");
+  const musicBtn = document.getElementById("musicBtn");
+  const bgMusic = document.getElementById("bgMusic");
   const levelBtn = document.getElementById("levelBtn");
   const levelPicker = document.getElementById("levelPicker");
   const levelButtons = document.getElementById("levelButtons");
@@ -62,6 +64,7 @@
   let animTimer = null;
   let blockedPushHeld = false;
   let soundOn = true;
+  let musicOn = localStorage.getItem("push-bauhaus-music") !== "off";
   let audioCtx = null;
   let autoplayRunning = false;
   let autoplayTimer = null;
@@ -209,6 +212,34 @@
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     if (audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
     return audioCtx;
+  }
+
+  function updateMusicButton() {
+    if (!musicBtn) return;
+    const label = musicBtn.querySelector("b");
+    const icon = musicBtn.querySelector("span");
+    if (label) label.textContent = musicOn ? "MUSIC ON" : "MUSIC OFF";
+    if (icon) icon.textContent = musicOn ? "♫" : "♪";
+    musicBtn.setAttribute("aria-pressed", String(musicOn));
+  }
+
+  async function startBackgroundMusic() {
+    if (!bgMusic || !musicOn) return;
+    bgMusic.volume = 0.10;
+    try {
+      await bgMusic.play();
+    } catch (error) {
+      // Browsers, especially mobile Safari, may wait for the first user gesture.
+    }
+  }
+
+  function pauseBackgroundMusic() {
+    if (bgMusic) bgMusic.pause();
+  }
+
+  function retryMusicAfterInteraction(event) {
+    if (event?.target?.closest?.("#musicBtn")) return;
+    if (musicOn && bgMusic?.paused) startBackgroundMusic();
   }
 
   function tone(freq, dur = .08, type = "sine", gain = .035, delay = 0, glide = null) {
@@ -663,6 +694,13 @@
     soundBtn.querySelector("b").textContent = soundOn ? "SOUND ON" : "SOUND OFF";
     if (soundOn) ensureAudio();
   });
+  musicBtn?.addEventListener("click", () => {
+    musicOn = !musicOn;
+    localStorage.setItem("push-bauhaus-music", musicOn ? "on" : "off");
+    updateMusicButton();
+    if (musicOn) startBackgroundMusic();
+    else pauseBackgroundMusic();
+  });
   levelBtn.addEventListener("click", () => { levelPicker.hidden = !levelPicker.hidden; });
   nextBtn.addEventListener("click", () => loadLevel(levelIndex + 1));
 
@@ -704,6 +742,14 @@
     boardResizeObserver.observe(boardWrap);
   }
   updateFullscreenButton();
+  updateMusicButton();
+  if (bgMusic) {
+    bgMusic.volume = 0.10;
+    if (!musicOn) bgMusic.pause();
+    else startBackgroundMusic();
+  }
+  document.addEventListener("pointerdown", retryMusicAfterInteraction, { capture: true });
+  document.addEventListener("keydown", retryMusicAfterInteraction, { capture: true });
   buildLevelButtons();
   loadLevel(levelIndex);
 })();

@@ -75,6 +75,7 @@
 
     <section class="bottom-actions">
       <button id="soundBtn" class="action small"><span>◖))</span><b>SOUND ON</b></button>
+      <button id="musicBtn" class="action small" aria-pressed="true"><span>♫</span><b>MUSIC ON</b></button>
       <button id="levelBtn" class="action small"><span>☰</span><b>LEVEL</b></button>
       <button id="fullscreenBtn" class="action small fullscreen-action"><span>⛶</span><b>FULL SCREEN</b></button>
     </section>
@@ -98,6 +99,7 @@
 </div>
 
 <button id="autoSolveBtn" type="button" hidden tabindex="-1" aria-hidden="true">PLAY SOLUTION</button>
+<audio id="bgMusic" src="assets/cracked-ivory-drift.mp3" preload="auto" autoplay loop playsinline></audio>
 
 <script src="levels.js"></script>
 <script src="game.js"></script>

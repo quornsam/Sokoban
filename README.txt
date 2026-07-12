@@ -24,8 +24,14 @@ Hidden desktop walkthrough
 The visible hint/arrow guide has been removed.
 
 
-v23 layout update:
+v24 layout update:
 - Fixed one-window desktop layout with no page scrolling.
 - Responsive portrait and landscape phone control layouts.
 - Desktop-only Full Screen button with Safari-compatible fallback.
 - Board is measured against its actual available panel size.
+
+
+BACKGROUND MUSIC
+- Cracked Ivory Drift plays quietly on a loop.
+- MUSIC ON/OFF is available on desktop and mobile.
+- Browsers that block audible autoplay begin playback on the first interaction.
