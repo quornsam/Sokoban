@@ -55,3 +55,31 @@ V29: rebuilt clean anti-aliased T-shirt masks and replaced flat eye recolouring 
 V32: changed the eye whites from black to white, reduced eye choices to Blue, White, Hazel, Brown, Orange and Dark, and softened the iris size.
 
 V32: removed eye-colour customisation and restored the original black eyes from the base character artwork.
+
+
+Version 33: dynamic randomized Bauhaus background per level with subtle motion.
+
+Version 34: brighter primary Bauhaus colours and quicker background movement.
+
+
+Version 35: wardrobe adds Boy/Girl option with longer hair, chest and skirt overlays for girl mode.
+
+
+Version 36: replaces failed girl overlay with a true 12-frame girl asset pack plus recolour layers.
+
+
+Version 49: rebuilt girl shirt/skin masks as a complete non-overlapping partition and validated all 12 frames in the same renderer as the boy.
+
+
+Version 52 cleanup:
+- character assets reorganised into assets/characters/boy and assets/characters/girl
+- board assets moved to assets/board
+- audio moved to assets/audio
+- debug and report JSON files removed from the release zip
+- background decor density and motion increased
+
+
+Version 64 asset optimisation:
+- individual character frames replaced by 12 sprite sheets
+- unused eye-layer and yellow-goal files removed
+- release file count reduced for GitHub web upload

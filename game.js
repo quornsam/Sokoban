@@ -39,11 +39,12 @@
   const celebration = document.getElementById("celebration");
   const board = document.getElementById("board");
   const boardWrap = document.querySelector(".board-wrap");
+  const bgDecor = document.getElementById("bgDecor");
   const app = document.querySelector(".app");
   const fullscreenBtn = document.getElementById("fullscreenBtn");
   const autoSolveBtn = document.getElementById("autoSolveBtn");
 
-  let levelIndex = Math.max(0, Math.min(LEVELS.length - 1, Number(localStorage.getItem("push-bauhaus-v29-level") || 0)));
+  let levelIndex = Math.max(0, Math.min(LEVELS.length - 1, Number(localStorage.getItem("push-bauhaus-v33-level") || localStorage.getItem("push-bauhaus-v29-level") || 0)));
   let levelData = null;
   let width = 1;
   let height = 1;
@@ -72,11 +73,139 @@
   let easterArmed = false;
   let easterResetTimer = null;
   let currentAnimation = "idle";
+  let backgroundDecorBuilt = false;
+  let backgroundFadeTimer = null;
+  let backgroundBuildNonce = 0;
 
   const key = (x, y) => `${x},${y}`;
   const copyBoxes = list => list.map(box => ({ ...box }));
   const posStyle = (x, y, z) => `--x:${x};--y:${y};--z:${z}`;
   const depth = (y, kind) => 1000 + y * 100 + ({ goal: 0, wall: 15, box: 35, player: 60 }[kind] || 0);
+
+
+  const BACKGROUND_PALETTE = ["#e5392f", "#f2c121", "#2457a6", "#151515", "#f47a20", "#00a6b2", "#2f9e44", "#8e44ad", "#ff7f50", "#16a085"];
+  const BACKGROUND_SOLIDS = ["#e5392f", "#f2c121", "#2457a6", "#151515", "#f47a20", "#00a6b2", "#2f9e44", "#8e44ad", "#ff7f50", "#16a085"];
+  const backgroundSessionSeed = Math.floor(Math.random() * 0x7fffffff);
+  const GOAL_ASSET = "assets/board/goal-red.png";
+
+  function mulberry32(seed) {
+    return function() {
+      let t = seed += 0x6D2B79F5;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function refreshBackgroundDecor(animate = true) {
+    if (!bgDecor) return;
+    clearTimeout(backgroundFadeTimer);
+    const rebuild = () => {
+      backgroundBuildNonce += 1;
+      buildBackgroundDecor();
+      backgroundDecorBuilt = true;
+    };
+    if (!animate || !backgroundDecorBuilt) {
+      bgDecor.classList.remove("fading");
+      rebuild();
+      return;
+    }
+    bgDecor.classList.add("fading");
+    backgroundFadeTimer = setTimeout(() => {
+      rebuild();
+      requestAnimationFrame(() => bgDecor.classList.remove("fading"));
+    }, 190);
+  }
+
+  function buildBackgroundDecor() {
+    if (!bgDecor) return;
+    const rand = mulberry32(backgroundSessionSeed + (levelIndex + 1) * 9973 + backgroundBuildNonce * 7919 + width * 131 + height * 17);
+    bgDecor.innerHTML = "";
+    const palette = ["#151515", "#e5392f", "#f2c121", "#2457a6"];
+    const pick = () => palette[Math.floor(rand() * palette.length)];
+
+    function addShape({ type, x, y, w, h, color, rotate = 0, opacity = 0.82 }) {
+      const el = document.createElement("div");
+      el.className = `bg-shape static ${type}`;
+      el.style.left = `${x}%`;
+      el.style.top = `${y}%`;
+      el.style.width = `${w}px`;
+      el.style.height = `${h}px`;
+      el.style.setProperty("--shape-color", color);
+      el.style.setProperty("--shape-opacity", opacity.toFixed(2));
+      if (type !== "shape-ring" && !type.includes("stripes") && type !== "shape-dots" && type !== "shape-steps") {
+        el.style.background = color;
+      }
+      if (type === "shape-ring") {
+        el.style.color = color;
+        el.style.borderWidth = `${Math.round(8 + rand() * 4)}px`;
+      }
+      if (rotate) el.style.transform = `rotate(${rotate}deg)`;
+      bgDecor.appendChild(el);
+    }
+
+    const layouts = [
+      [
+        ["shape-quarter", 4, 5, 108, 108, 0],
+        ["shape-rect", 28, 8, 184, 34, 0],
+        ["shape-semi-bottom", 51, 6, 88, 88, 0],
+        ["shape-ring", 80, 8, 96, 96, 0],
+        ["shape-triangle", 89, 28, 82, 74, -10],
+        ["shape-semi-right", 4, 57, 94, 94, 0],
+        ["shape-circle", 55, 84, 72, 72, 0],
+        ["shape-pill", 35, 84, 108, 22, 16],
+        ["shape-dots", 14, 80, 76, 76, 0],
+        ["shape-rect", 71, 79, 112, 40, -10]
+      ],
+      [
+        ["shape-ring", 6, 8, 100, 100, 0],
+        ["shape-rect", 28, 10, 118, 36, -8],
+        ["shape-stripes-thin", 61, 7, 68, 130, 0],
+        ["shape-quarter", 85, 4, 106, 106, 0],
+        ["shape-dots", 10, 77, 82, 82, 0],
+        ["shape-semi-left", 75, 75, 92, 92, 0],
+        ["shape-triangle", 36, 81, 82, 74, 8],
+        ["shape-pill", 57, 58, 110, 22, -14],
+        ["shape-circle", 18, 21, 62, 62, 0],
+        ["shape-rect", 88, 46, 84, 30, 0]
+      ],
+      [
+        ["shape-semi-top", 11, 7, 88, 88, 0],
+        ["shape-pill", 38, 8, 170, 28, 0],
+        ["shape-ring", 74, 9, 96, 96, 0],
+        ["shape-quarter", 87, 31, 98, 98, 0],
+        ["shape-rect", 6, 72, 120, 40, 12],
+        ["shape-circle", 49, 84, 72, 72, 0],
+        ["shape-semi-right", 73, 78, 92, 92, 0],
+        ["shape-dots", 22, 41, 76, 76, 0],
+        ["shape-pill", 34, 18, 106, 22, 0],
+        ["shape-triangle", 84, 59, 72, 64, -6]
+      ],
+      [
+        ["shape-quarter", 6, 6, 104, 104, 0],
+        ["shape-circle", 24, 11, 62, 62, 0],
+        ["shape-rect", 46, 9, 176, 32, 0],
+        ["shape-ring", 82, 9, 92, 92, 0],
+        ["shape-rect", 89, 31, 70, 28, 0],
+        ["shape-semi-right", 5, 47, 92, 92, 0],
+        ["shape-pill", 18, 79, 100, 22, 12],
+        ["shape-triangle", 42, 79, 84, 72, 0],
+        ["shape-circle", 71, 82, 66, 66, 0],
+        ["shape-semi-left", 83, 72, 86, 86, 0]
+      ]
+    ];
+
+    const layout = layouts[Math.floor(rand() * layouts.length)];
+    layout.forEach(([type, x, y, w, h, rot], idx) => {
+      const color = pick();
+      const jx = x + (-2 + rand() * 4);
+      const jy = y + (-2 + rand() * 4);
+      const scale = 1.12 + rand() * 0.24;
+      const ww = Math.round(w * scale);
+      const hh = Math.round(h * scale);
+      addShape({ type, x: jx, y: jy, w: ww, h: hh, color, rotate: rot, opacity: 0.82 + rand() * 0.12 });
+    });
+  }
 
 
   function fullscreenElement() {
@@ -317,7 +446,7 @@
       cell.className = "cell goal";
       cell.style.cssText = posStyle(goal.x, goal.y, depth(goal.y, "goal"));
       const image = document.createElement("img");
-      image.src = `assets/goal-${index % 2 ? "yellow" : "red"}.png`;
+      image.src = GOAL_ASSET;
       image.alt = "";
       image.setAttribute("aria-hidden", "true");
       cell.appendChild(image);
@@ -338,11 +467,12 @@
     currentAnimation = anim;
     pieceLayer.innerHTML = "";
     boxes.forEach(box => {
+      const onGoal = isGoal(box.x, box.y);
       const piece = document.createElement("div");
-      piece.className = `piece box${isGoal(box.x, box.y) ? " on-goal" : ""}${anim === "push" && box.moving ? " pushing" : ""}`;
+      piece.className = `piece box${onGoal ? " on-goal" : ""}${anim === "push" && box.moving ? " pushing" : ""}`;
       piece.style.cssText = posStyle(box.x, box.y, depth(box.y, "box"));
       const image = document.createElement("img");
-      image.src = `assets/crate-${box.color}.png`;
+      image.src = `assets/board/crate-${onGoal ? "red" : "yellow"}.png`;
       image.alt = "";
       piece.appendChild(image);
       pieceLayer.appendChild(piece);
@@ -394,13 +524,13 @@
     }, 5500);
   }
 
-  function loadLevel(index, preserveAutoplay = false) {
+  function loadLevel(index, preserveAutoplay = false, preserveBackground = false) {
     if (!preserveAutoplay) stopAutoplay();
     resetEasterEgg();
     blockedPushHeld = false;
     clearTimeout(animTimer);
     levelIndex = (index + LEVELS.length) % LEVELS.length;
-    localStorage.setItem("push-bauhaus-v29-level", levelIndex);
+    localStorage.setItem("push-bauhaus-v33-level", levelIndex);
     levelData = LEVELS[levelIndex];
     const parsed = parseLayout(levelData.layout);
     width = parsed.width;
@@ -409,7 +539,7 @@
     floor = parsed.floor;
     outside = parsed.outside;
     player = [...parsed.player];
-    boxes = parsed.boxes.map(([x, y], index) => ({ x, y, color: index % 2 ? "yellow" : "red", moving: false }));
+    boxes = parsed.boxes.map(([x, y]) => ({ x, y, moving: false }));
     goals = parsed.goals.map(([x, y]) => ({ x, y }));
     moves = 0;
     pushes = 0;
@@ -421,6 +551,7 @@
     board.style.setProperty("--rows", height);
     board.style.setProperty("--ratio", width / height);
     board.style.aspectRatio = `${width} / ${height}`;
+    if (!preserveBackground) refreshBackgroundDecor(backgroundDecorBuilt);
     scheduleBoardResize();
     creditTitle.textContent = `${levelData.tier} · ${levelData.name}`;
     creditSub.textContent = `DAVID W. SKINNER · ${width}×${height} · ${levelData.pushMinimum} ${levelData.pushMinimum === 1 ? "PUSH" : "PUSHES"}`;
@@ -610,7 +741,7 @@
   function startAutoplay() {
     if (!desktopEasterEggAvailable() || autoplayRunning) return;
     stopAutoplay();
-    loadLevel(levelIndex, true);
+    loadLevel(levelIndex, true, true);
     autoplayRunning = true;
     document.body.classList.add("autoplaying");
     render("idle");

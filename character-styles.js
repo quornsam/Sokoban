@@ -7,9 +7,15 @@
     "push-front", "push-back", "push-left", "push-right"
   ];
   const CATEGORIES = ["tshirt", "trousers", "hair", "skin", "shoes"];
+  const BODY_TYPES = ["boy", "girl"];
+  const SHEET_COLS = 4;
+  const FRAME_WIDTH = 600;
+  const FRAME_HEIGHT = 520;
+  const ASSET_REVISION = "64";
   const LABELS = {
+    bodyType: "CHARACTER",
     tshirt: "T-SHIRT",
-    trousers: "TROUSERS",
+    trousers: "TROUSERS / SKIRT",
     hair: "HAIR COLOUR",
     skin: "SKIN COLOUR",
     shoes: "SHOES"
@@ -59,26 +65,27 @@
     ]
   };
 
-
   const DEFAULT_STYLE = {
+    bodyType: "boy",
     tshirt: "#df3526",
     trousers: "#292829",
     hair: "#292727",
     skin: "#ee9a60",
     shoes: "#292829"
   };
-  const STORAGE_KEY = "push-bauhaus-character-style-v32";
-  const LEGACY_KEYS = ["push-bauhaus-character-style-v31", "push-bauhaus-character-style-v30", "push-bauhaus-character-style-v29", "push-bauhaus-character-style-v28", "push-bauhaus-character-style-v25"];
+  const STORAGE_KEY = "push-bauhaus-character-style-v51";
+  const LEGACY_KEYS = ["push-bauhaus-character-style-v47", "push-bauhaus-character-style-v48", "push-bauhaus-character-style-v40", "push-bauhaus-character-style-v39", "push-bauhaus-character-style-v38", "push-bauhaus-character-style-v37", "push-bauhaus-character-style-v36", "push-bauhaus-character-style-v35", "push-bauhaus-character-style-v32", "push-bauhaus-character-style-v31", "push-bauhaus-character-style-v30", "push-bauhaus-character-style-v29", "push-bauhaus-character-style-v28", "push-bauhaus-character-style-v25"];
   const images = new Map();
+  const sheetBundles = new Map();
   const frameAssets = new Map();
   const resolvedAssets = new Map();
   const canvases = new Set();
   const scratch = document.createElement("canvas");
-  const shadeScratch = document.createElement("canvas");
 
   function validStyle(candidate) {
     const result = { ...DEFAULT_STYLE };
     if (!candidate || typeof candidate !== "object") return result;
+    result.bodyType = BODY_TYPES.includes(candidate.bodyType) ? candidate.bodyType : DEFAULT_STYLE.bodyType;
     for (const category of CATEGORIES) {
       const allowed = OPTIONS[category].map(option => option[1].toLowerCase());
       const value = String(candidate[category] || "").toLowerCase();
@@ -114,24 +121,48 @@
     return promise;
   }
 
-  async function loadFrame(frame) {
-    if (frameAssets.has(frame)) return frameAssets.get(frame);
+  function loadSheetBundle(bodyType) {
+    if (sheetBundles.has(bodyType)) return sheetBundles.get(bodyType);
+    const root = `assets/characters/${bodyType}`;
     const promise = Promise.all([
-      loadImage(`assets/${frame}.png`),
-      ...CATEGORIES.map(category => loadImage(`assets/character-layers/${frame}-${category}.png`))
-    ]).then(([base, ...layers]) => {
-      const assets = {
-        base,
-        layers: Object.fromEntries(CATEGORIES.map((category, index) => [category, layers[index]]))
-      };
-      resolvedAssets.set(frame, assets);
-      return assets;
-    });
-    frameAssets.set(frame, promise);
+      loadImage(`${root}/base.png?v=${ASSET_REVISION}`),
+      ...CATEGORIES.map(category => loadImage(`${root}/${category}.png?v=${ASSET_REVISION}`))
+    ]).then(([base, ...layers]) => ({
+      base,
+      layers: Object.fromEntries(CATEGORIES.map((category, index) => [category, layers[index]]))
+    }));
+    sheetBundles.set(bodyType, promise);
     return promise;
   }
 
-  const ready = Promise.all(FRAMES.map(loadFrame)).then(() => {
+  function frameSource(image, frame) {
+    const index = FRAMES.indexOf(frame);
+    if (index < 0) throw new Error(`Unknown character frame: ${frame}`);
+    return {
+      image,
+      sx: (index % SHEET_COLS) * FRAME_WIDTH,
+      sy: Math.floor(index / SHEET_COLS) * FRAME_HEIGHT,
+      sw: FRAME_WIDTH,
+      sh: FRAME_HEIGHT
+    };
+  }
+
+  async function loadFrame(frame, bodyType = style.bodyType) {
+    const cacheKey = `${bodyType}:${frame}`;
+    if (frameAssets.has(cacheKey)) return frameAssets.get(cacheKey);
+    const promise = loadSheetBundle(bodyType).then(bundle => {
+      const assets = {
+        base: frameSource(bundle.base, frame),
+        layers: Object.fromEntries(CATEGORIES.map(category => [category, frameSource(bundle.layers[category], frame)]))
+      };
+      resolvedAssets.set(cacheKey, assets);
+      return assets;
+    });
+    frameAssets.set(cacheKey, promise);
+    return promise;
+  }
+
+  const ready = Promise.all([...FRAMES.map(frame => loadFrame(frame, "boy")), ...FRAMES.map(frame => loadFrame(frame, "girl"))]).then(() => {
     document.querySelectorAll("canvas[data-character-preview]").forEach(canvas => {
       canvases.add(canvas);
       draw(canvas, canvas.dataset.characterPreview || "player-front");
@@ -144,6 +175,10 @@
     return canvas.getContext("2d");
   }
 
+  function drawSource(context, source, dx, dy, dw, dh) {
+    context.drawImage(source.image, source.sx, source.sy, source.sw, source.sh, dx, dy, dw, dh);
+  }
+
   function drawTintedLayer(context, layer, colour, width, height) {
     const off = sizeScratch(scratch, width, height);
     off.globalCompositeOperation = "source-over";
@@ -152,11 +187,11 @@
     off.fillStyle = colour;
     off.fillRect(0, 0, width, height);
     off.globalCompositeOperation = "multiply";
-    off.drawImage(layer, 0, 0, width, height);
+    drawSource(off, layer, 0, 0, width, height);
     off.globalCompositeOperation = "destination-in";
-    off.drawImage(layer, 0, 0, width, height);
+    drawSource(off, layer, 0, 0, width, height);
     context.globalCompositeOperation = "destination-out";
-    context.drawImage(layer, 0, 0, width, height);
+    drawSource(context, layer, 0, 0, width, height);
     context.globalCompositeOperation = "source-over";
     context.drawImage(scratch, 0, 0, width, height);
   }
@@ -164,8 +199,8 @@
   function drawNow(canvas, frame, assets) {
     if (!canvas || !assets) return;
     if (!canvas.isConnected && !canvas.closest?.(".piece")) return;
-    const width = assets.base.naturalWidth || 600;
-    const height = assets.base.naturalHeight || 520;
+    const width = assets.base.sw;
+    const height = assets.base.sh;
     if (canvas.width !== width) canvas.width = width;
     if (canvas.height !== height) canvas.height = height;
     const context = canvas.getContext("2d");
@@ -174,7 +209,7 @@
     context.globalAlpha = 1;
     context.imageSmoothingEnabled = true;
     context.imageSmoothingQuality = "high";
-    context.drawImage(assets.base, 0, 0, width, height);
+    drawSource(context, assets.base, 0, 0, width, height);
     for (const category of CATEGORIES) {
       drawTintedLayer(context, assets.layers[category], style[category], width, height);
     }
@@ -186,12 +221,13 @@
     if (!canvas) return Promise.resolve();
     canvases.add(canvas);
     canvas.dataset.characterFrame = frame;
-    const assets = resolvedAssets.get(frame);
+    const cacheKey = `${style.bodyType}:${frame}`;
+    const assets = resolvedAssets.get(cacheKey);
     if (assets) {
       drawNow(canvas, frame, assets);
       return Promise.resolve();
     }
-    return loadFrame(frame).then(loaded => drawNow(canvas, frame, loaded));
+    return loadFrame(frame, style.bodyType).then(loaded => drawNow(canvas, frame, loaded));
   }
 
   function updateStyleIcon() {
@@ -214,6 +250,14 @@
   }
 
   function set(category, colour) {
+    if (category === "bodyType") {
+      if (!BODY_TYPES.includes(colour) || style.bodyType === colour) return;
+      style.bodyType = colour;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(style));
+      updateSelectedSwatches();
+      redrawAll();
+      return;
+    }
     if (!CATEGORIES.includes(category)) return;
     const allowed = OPTIONS[category].map(option => option[1].toLowerCase());
     const next = String(colour).toLowerCase();
@@ -242,6 +286,28 @@
   function buildControls() {
     if (!styleControls) return;
     styleControls.innerHTML = "";
+
+    const typeGroup = document.createElement("fieldset");
+    typeGroup.className = "style-group style-type-group";
+    typeGroup.dataset.styleCategory = "bodyType";
+    const typeLegend = document.createElement("legend");
+    typeLegend.textContent = LABELS.bodyType;
+    const typeChoices = document.createElement("div");
+    typeChoices.className = "style-type-choices";
+    [["BOY", "boy"], ["GIRL", "girl"]].forEach(([label, value]) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "style-type-btn";
+      button.dataset.category = "bodyType";
+      button.dataset.colour = value;
+      button.textContent = label;
+      button.setAttribute("aria-label", `Character: ${label}`);
+      button.addEventListener("click", () => set("bodyType", value));
+      typeChoices.appendChild(button);
+    });
+    typeGroup.append(typeLegend, typeChoices);
+    styleControls.appendChild(typeGroup);
+
     for (const category of CATEGORIES) {
       const group = document.createElement("fieldset");
       group.className = "style-group";
@@ -269,8 +335,10 @@
   }
 
   function updateSelectedSwatches() {
-    document.querySelectorAll(".style-swatch").forEach(button => {
-      const selected = style[button.dataset.category] === button.dataset.colour;
+    document.querySelectorAll(".style-swatch, .style-type-btn").forEach(button => {
+      const cat = button.dataset.category;
+      const val = button.dataset.colour;
+      const selected = style[cat] === val;
       button.classList.toggle("selected", selected);
       button.setAttribute("aria-pressed", String(selected));
     });

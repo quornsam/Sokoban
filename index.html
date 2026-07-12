@@ -6,20 +6,11 @@
 <meta name="theme-color" content="#efe5d4">
 <title>PUSH Sokoban — Bauhaus Edition</title>
 <link rel="stylesheet" href="styles.css">
-<link rel="preload" as="image" href="assets/crate-red.png">
-<link rel="preload" as="image" href="assets/crate-yellow.png">
-<link rel="preload" as="image" href="assets/player-front.png">
-<link rel="preload" as="image" href="assets/player-back.png">
-<link rel="preload" as="image" href="assets/player-left.png">
-<link rel="preload" as="image" href="assets/player-right.png">
-<link rel="preload" as="image" href="assets/walk-front.png">
-<link rel="preload" as="image" href="assets/walk-back.png">
-<link rel="preload" as="image" href="assets/walk-left.png">
-<link rel="preload" as="image" href="assets/walk-right.png">
-<link rel="preload" as="image" href="assets/push-front.png">
-<link rel="preload" as="image" href="assets/push-back.png">
-<link rel="preload" as="image" href="assets/push-left.png">
-<link rel="preload" as="image" href="assets/push-right.png">
+<link rel="preload" as="image" href="assets/board/crate-yellow.png">
+<link rel="preload" as="image" href="assets/board/crate-red.png">
+<link rel="preload" as="image" href="assets/board/goal-red.png">
+<link rel="preload" as="image" href="assets/characters/boy/base.png">
+<link rel="preload" as="image" href="assets/characters/girl/base.png">
 </head>
 <body>
 <main class="app">
@@ -30,11 +21,7 @@
     </header>
 
     <section class="board-wrap">
-      <div class="deco deco-red"></div>
-      <div class="deco deco-yellow"></div>
-      <div class="stripes stripes-a"></div>
-      <div class="stripes stripes-b"></div>
-      <div class="semicircle"></div>
+      <div id="bgDecor" class="bg-decor" aria-hidden="true"></div>
       <div id="board" class="board" aria-label="Sokoban game board" tabindex="0">
         <div id="voidLayer" class="layer"></div>
         <div id="wallLayer" class="layer"></div>
@@ -103,7 +90,7 @@
       <div>
         <span class="style-kicker">BAUHAUS WARDROBE</span>
         <h2 id="styleTitle">CHARACTER STYLE</h2>
-        <p>Choose clothing, skin, hair and shoe colours.</p>
+        <p>Choose character, clothing, skin, hair and shoe colours.</p>
       </div>
     </div>
     <div id="styleControls" class="style-controls"></div>
@@ -124,7 +111,7 @@
 </div>
 
 <button id="autoSolveBtn" type="button" hidden tabindex="-1" aria-hidden="true">PLAY SOLUTION</button>
-<audio id="bgMusic" src="assets/cracked-ivory-drift.mp3" preload="auto" autoplay loop playsinline></audio>
+<audio id="bgMusic" src="assets/audio/cracked-ivory-drift.mp3" preload="auto" autoplay loop playsinline></audio>
 
 <script src="levels.js"></script>
 <script src="character-styles.js"></script>
