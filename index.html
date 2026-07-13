@@ -4,25 +4,35 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#efe5d4">
-<title>PUSH Sokoban — Bauhaus Edition</title>
+<title>BOXXY — Pushbox Puzzle</title>
 <link rel="stylesheet" href="styles.css">
 <link rel="preload" as="image" href="assets/board/crate-yellow.png">
 <link rel="preload" as="image" href="assets/board/crate-red.png">
 <link rel="preload" as="image" href="assets/board/goal-red.png">
 <link rel="preload" as="image" href="assets/characters/boy/base.png">
 <link rel="preload" as="image" href="assets/characters/girl/base.png">
+<link rel="preload" as="image" href="assets/ui/boxxy-splash.png">
 </head>
 <body>
+<div id="splashScreen" class="splash-screen" aria-hidden="true">
+  <div class="splash-inner">
+    <div class="splash-logo-wrap">
+      <img src="assets/ui/boxxy-splash.png" alt="BOXXY splash screen logo">
+      <span class="splash-sheen" aria-hidden="true"></span>
+    </div>
+  </div>
+</div>
+
 <main class="app">
   <section class="play-area">
     <header class="masthead">
-      <div class="title"><strong>PUSH</strong><span>SOKOBAN</span></div>
+      <div class="title"><strong>BOXXY</strong><span>PUSHBOX PUZZLE</span></div>
       <div class="collection"><b>BAUHAUS<br>COLLECTION</b><i></i><span id="levelCount">1 / 50</span></div>
     </header>
 
     <section class="board-wrap">
       <div id="bgDecor" class="bg-decor" aria-hidden="true"></div>
-      <div id="board" class="board" aria-label="Sokoban game board" tabindex="0">
+      <div id="board" class="board" aria-label="BOXXY Pushbox Puzzle game board" tabindex="0">
         <div id="voidLayer" class="layer"></div>
         <div id="wallLayer" class="layer"></div>
         <div id="goalLayer" class="layer"></div>
@@ -54,10 +64,11 @@
       <button data-dir="up">▲</button>
       <button data-dir="left">◀</button>
       <button id="styleBtn" class="centre" type="button" aria-label="Change character style" title="Change character style">
-        <svg id="styleOutfitIcon" class="style-outfit-icon" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
-          <path class="style-shirt-body" d="M28 13 40 8c2 7 6 10 10 10s8-3 10-10l12 5 13 15-10 10-8-7v27H33V32l-8 7-10-10z"/>
-          <path class="style-trousers-body" d="M34 62h32l4 30H54l-4-18-4 18H30z"/>
-          <path class="style-icon-seam" d="M50 63v11M33 61h34"/>
+        <svg id="styleOutfitIcon" class="style-outfit-icon" viewBox="0 0 100 100" aria-hidden="true" focusable="false" shape-rendering="geometricPrecision">
+          <path class="style-hanger-hook" d="M50 27c0-7 10-8 12-2 2 5-3 8-7 10"/>
+          <path class="style-hanger-bar" d="M50 35 19 58h62L50 35Z"/>
+          <path class="style-shirt-body" d="M31 48 42 43c2 5 5 7 8 7s6-2 8-7l11 5 9 11-9 8-6-5v21H37V62l-6 5-9-8 9-11Z"/>
+          <path class="style-shirt-seam" d="M37 62h26M50 50v33"/>
         </svg>
       </button>
       <button data-dir="right">▶</button>
@@ -71,8 +82,14 @@
       <button id="fullscreenBtn" class="action small fullscreen-action"><span>⛶</span><b>FULL SCREEN</b></button>
     </section>
 
-    <section id="levelPicker" class="level-picker" hidden>
-      <strong>CHOOSE LEVEL</strong>
+    <section id="levelPicker" class="level-picker" hidden role="dialog" aria-modal="true" aria-labelledby="levelPickerTitle">
+      <div class="level-picker-head">
+        <strong id="levelPickerTitle">CHOOSE LEVEL</strong>
+        <div class="level-picker-tools">
+          <button id="levelResetBtn" class="level-reset" type="button">RESET</button>
+          <button id="levelCloseBtn" class="level-close" type="button" aria-label="Close level chooser"><span aria-hidden="true">×</span></button>
+        </div>
+      </div>
       <div id="levelButtons"></div>
     </section>
 
@@ -99,6 +116,18 @@
       <button id="styleDoneBtn" class="style-done" type="button">DONE</button>
     </footer>
   </section>
+</div>
+
+<div id="resetConfirmModal" class="modal reset-confirm-modal" hidden>
+  <div class="modal-card reset-confirm-card" role="dialog" aria-modal="true" aria-labelledby="resetConfirmTitle">
+    <span class="complete-kicker">BAUHAUS COLLECTION</span>
+    <h2 id="resetConfirmTitle">RESET<br>PROGRESS?</h2>
+    <p>This will clear completed levels and send you back to level 1.</p>
+    <div class="reset-confirm-actions">
+      <button id="resetCancelBtn" class="reset-cancel" type="button">CANCEL</button>
+      <button id="resetConfirmBtn" class="reset-confirm" type="button">RESET</button>
+    </div>
+  </div>
 </div>
 
 <div id="completeModal" class="modal complete-modal" hidden>

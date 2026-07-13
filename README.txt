@@ -1,4 +1,4 @@
-PUSH Sokoban — Bauhaus Edition v22
+BOXXY — Pushbox Puzzle
 
 Open index.html in a web browser.
 
@@ -97,3 +97,19 @@ Version 66:
 - Konami background begins without a position flash and moves slightly faster.
 - Character thoughts now use one or two sentences and crossfade more slowly.
 - Puzzle-complete modal redesigned in the game’s Bauhaus visual language.
+
+
+Version 67:
+- rebuilt thoughts as a combinatorial inner-monologue generator with recent-fragment and recent-output protection
+- removed the three rejected puzzle lines
+- unlocks Web Audio on the first mobile interaction
+- redesigned wardrobe button as a crisp vector shirt-on-hanger control
+- Konami background motion is 50% faster
+
+Version 68 refinement:
+- quote generator now rotates each fragment family independently and remembers 160 complete outputs
+- corrected generated grammar and removed a redundant phrase
+- first mobile sound effect waits for Web Audio to resume rather than being silently lost
+
+
+Version 69: renamed the game to BOXXY — Pushbox Puzzle, and the selectable characters to Indi and Olive.

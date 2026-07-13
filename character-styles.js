@@ -294,7 +294,7 @@
     typeLegend.textContent = LABELS.bodyType;
     const typeChoices = document.createElement("div");
     typeChoices.className = "style-type-choices";
-    [["BOY", "boy"], ["GIRL", "girl"]].forEach(([label, value]) => {
+    [["INDI", "boy"], ["OLIVE", "girl"]].forEach(([label, value]) => {
       const button = document.createElement("button");
       button.type = "button";
       button.className = "style-type-btn";

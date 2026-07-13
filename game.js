@@ -33,6 +33,11 @@
   const levelBtn = document.getElementById("levelBtn");
   const levelPicker = document.getElementById("levelPicker");
   const levelButtons = document.getElementById("levelButtons");
+  const levelCloseBtn = document.getElementById("levelCloseBtn");
+  const levelResetBtn = document.getElementById("levelResetBtn");
+  const resetConfirmModal = document.getElementById("resetConfirmModal");
+  const resetConfirmBtn = document.getElementById("resetConfirmBtn");
+  const resetCancelBtn = document.getElementById("resetCancelBtn");
   const modal = document.getElementById("completeModal");
   const completeText = document.getElementById("completeText");
   const nextBtn = document.getElementById("nextBtn");
@@ -45,6 +50,7 @@
   const autoSolveBtn = document.getElementById("autoSolveBtn");
   const instruction = document.querySelector(".instruction");
   const thoughtText = document.getElementById("thoughtText");
+  const splashScreen = document.getElementById("splashScreen");
 
   let levelIndex = Math.max(0, Math.min(LEVELS.length - 1, Number(localStorage.getItem("push-bauhaus-v33-level") || localStorage.getItem("push-bauhaus-v29-level") || 0)));
   let levelData = null;
@@ -77,11 +83,118 @@
   let currentAnimation = "idle";
   let thoughtTimer = null;
   let lastThought = "";
+  let recentThoughts = [];
+  let recentThoughtParts = Object.create(null);
   let thoughtReady = false;
+  let audioUnlocked = false;
   let konamiIndex = 0;
   let backgroundDecorBuilt = false;
   let backgroundFadeTimer = null;
   let backgroundBuildNonce = 0;
+  const LEVEL_PROGRESS_KEY = "boxxy-level-progress-v1";
+  const LEVEL_COMPLETED_KEY = "boxxy-completed-levels-v1";
+  let completedLevels = new Set();
+  let highestUnlockedLevel = 0;
+
+  function loadLevelProgress() {
+    try {
+      const savedCompleted = JSON.parse(localStorage.getItem(LEVEL_COMPLETED_KEY) || "[]");
+      if (Array.isArray(savedCompleted)) {
+        savedCompleted.forEach(value => {
+          const index = Number(value);
+          if (Number.isInteger(index) && index >= 0 && index < LEVELS.length) completedLevels.add(index);
+        });
+      }
+    } catch (_) {}
+
+    // Migrate previously completed puzzles from the existing best-score records.
+    LEVELS.forEach((level, index) => {
+      if (localStorage.getItem(`push-bauhaus-v22-best-${level.sourceNumber}`)) completedLevels.add(index);
+    });
+
+    const storedProgress = Number(localStorage.getItem(LEVEL_PROGRESS_KEY));
+    const furthestCompleted = completedLevels.size ? Math.max(...completedLevels) + 1 : 0;
+    highestUnlockedLevel = Math.max(
+      0,
+      Number.isFinite(storedProgress) ? storedProgress : 0,
+      furthestCompleted,
+      levelIndex
+    );
+    highestUnlockedLevel = Math.min(highestUnlockedLevel, LEVELS.length - 1);
+    saveLevelProgress();
+  }
+
+  function saveLevelProgress() {
+    localStorage.setItem(LEVEL_PROGRESS_KEY, String(highestUnlockedLevel));
+    localStorage.setItem(LEVEL_COMPLETED_KEY, JSON.stringify([...completedLevels].sort((a, b) => a - b)));
+  }
+
+  function openLevelPicker() {
+    levelPicker.hidden = false;
+  }
+
+  function closeLevelPicker() {
+    levelPicker.hidden = true;
+  }
+
+
+  function openResetConfirm() {
+    if (!resetConfirmModal) return;
+    resetConfirmModal.hidden = false;
+  }
+
+  function closeResetConfirm() {
+    if (!resetConfirmModal) return;
+    resetConfirmModal.hidden = true;
+  }
+
+  function resetLevelProgress() {
+    completedLevels = new Set();
+    highestUnlockedLevel = 0;
+    saveLevelProgress();
+    LEVELS.forEach((level) => {
+      localStorage.removeItem(`push-bauhaus-v22-best-${level.sourceNumber}`);
+    });
+    levelIndex = 0;
+    refreshLevelButtons();
+    closeLevelPicker();
+    loadLevel(0);
+  }
+
+  function refreshLevelButtons() {
+    [...levelButtons.children].forEach((button, index) => {
+      const isCurrent = index === levelIndex;
+      const isCompleted = completedLevels.has(index);
+      const isLocked = index > highestUnlockedLevel;
+      button.classList.toggle("current", isCurrent);
+      button.classList.toggle("completed", isCompleted && !isCurrent);
+      button.classList.toggle("locked", isLocked);
+      button.disabled = isLocked;
+      button.setAttribute("aria-disabled", String(isLocked));
+      button.title = isLocked
+        ? `Complete level ${index} to unlock level ${index + 1}`
+        : `${index + 1}. ${LEVELS[index].name} — ${LEVELS[index].tier}`;
+    });
+  }
+
+  let splashStartedAt = performance.now();
+  let splashDismissed = false;
+
+  function hideSplashScreen(){
+    if (!splashScreen || splashDismissed) return;
+    splashDismissed = true;
+    splashScreen.classList.add("hide");
+    window.setTimeout(() => { splashScreen.hidden = true; }, 700);
+  }
+
+  function scheduleSplashHide(){
+    if (!splashScreen || splashDismissed) return;
+    const minVisible = 1500;
+    const elapsed = performance.now() - splashStartedAt;
+    const wait = Math.max(0, minVisible - elapsed);
+    window.setTimeout(hideSplashScreen, wait);
+  }
+
 
   const key = (x, y) => `${x},${y}`;
   const copyBoxes = list => list.map(box => ({ ...box }));
@@ -93,9 +206,53 @@
   const BACKGROUND_SOLIDS = ["#e5392f", "#f2c121", "#2457a6", "#151515", "#f47a20", "#00a6b2", "#2f9e44", "#8e44ad", "#ff7f50", "#16a085"];
   const backgroundSessionSeed = Math.floor(Math.random() * 0x7fffffff);
   const GOAL_ASSET = "assets/board/goal-red.png";
-  const THOUGHT_OPENERS = ["Hmm.", "Right then.", "Okay, boxes.", "Let's think.", "One push at a time.", "That corner looks suspicious.", "Where's the clever move?", "Which box goes first?", "There's a route through this.", "Don't rush it.", "I can untangle this.", "That wall is in the way.", "Someone planned this.", "I've seen worse.", "This needs a proper look.", "Deep breath.", "Let's not trap anything.", "Easy does it.", "Think before pushing.", "These boxes look smug.", "The floor plan is cheeky.", "There's always a way.", "I need a clean line.", "That gap might matter.", "Start with the awkward one?", "Maybe the edge first.", "Could be simpler than it looks.", "This room has opinions.", "I can feel a solution.", "No heroics yet.", "Let's make some space.", "One mistake and it's restart time.", "The boxes are judging me.", "Time to earn my lunch."];
-  const THOUGHT_MIDDLES = ["I should clear a path first.", "That box needs room behind it.", "The nearest target may be a trap.", "Keep the corners free.", "Push, never pull. Helpful.", "That wall changes everything.", "Maybe I should work backwards.", "I need to protect the middle.", "The outside box looks important.", "Let's line these up neatly.", "One careful shove should do it.", "I should save that square.", "That route closes quickly.", "The far box may come first.", "I need an escape square.", "Nothing moves itself around here.", "These boxes aren't getting lighter.", "That target is asking for trouble.", "Perhaps the long route is safer.", "I should avoid that dead end.", "Keep a lane open.", "That looks like a two-push job.", "The centre needs breathing room.", "Use the wall, don't fight it.", "The order matters more than speed.", "One box is blocking two ideas.", "I can make a corridor here.", "That target can wait.", "The obvious move is probably wrong.", "Let's test the shape of the room.", "I need to leave myself an exit.", "This is more geometry than muscle.", "A tidy board is a happy board."];
-  const THOUGHT_CLOSERS = ["Ice cream when this is done.", "Tea would help.", "I hope someone else does the unpacking.", "My back will remember this.", "At least the music is good.", "I deserve a biscuit after this.", "Next time, I'm bringing a trolley.", "Nobody mentioned all the lifting.", "I could be playing chess.", "One day I'll work somewhere with wheels.", "That target better be grateful.", "I am absolutely charging overtime.", "A quiet room would be nice.", "I'll celebrate with something cold.", "This counts as exercise.", "I knew I should've stretched.", "The boxes can buy me lunch.", "After this, no more favours.", "I'd rather be moving cushions.", "Perhaps the next room has chairs.", "This job needs a forklift.", "I wonder who packed these.", "I hope the door is still open.", "I'm putting 'box expert' on my CV.", "One more puzzle, then a break.", "I can already taste the ice cream.", "Surely this is the last crate.", "Future me will appreciate this.", "Present me is less convinced.", "Let's make it look effortless.", "Nobody needs to know how long this took.", "I'll pretend that was the plan.", "Right. Back to work."];
+  const THOUGHT_GRUNTS = [
+    "Hmm.", "Hmph.", "Hurrumph.", "Ugh.", "Oof.", "Right.", "Aha.", "Nope.",
+    "Steady.", "Well then.", "Oh, come on.", "Sigh.", "Mmm.", "Honestly.", "Typical.", "Here we go."
+  ];
+  const THOUGHT_BOX_ADJECTIVES = [
+    "smug", "suspicious", "unreasonably confident", "heavier than it looks", "quietly plotting", "far too pleased with itself",
+    "in the wrong place on purpose", "definitely hiding something", "oddly judgmental", "built like a small shed", "not fooling anyone", "asking for trouble"
+  ];
+  const THOUGHT_BOX_NAMES = [
+    "box", "crate", "yellow lump", "wooden menace", "square troublemaker", "portable wall", "obstacle with corners", "freight-shaped problem"
+  ];
+  const THOUGHT_POSITIONS = [
+    "left-hand", "right-hand", "middle", "far", "nearest", "awkward", "lonely", "corner", "cheeky little", "stubborn"
+  ];
+  const THOUGHT_PLANS = [
+    "clear a lane", "keep the middle open", "work from the outside", "make some breathing room", "save that corner",
+    "leave myself an exit", "move the awkward one", "pretend I planned this", "try the boring move", "make the wall useful",
+    "avoid inventing a dead end", "think backwards for a moment", "give that crate some room", "stop pushing everything I see"
+  ];
+  const THOUGHT_SMALL_ACTIONS = [
+    "one careful shove", "a tiny detour", "a deeply professional pause", "one less-than-heroic push", "a tactical cup of tea",
+    "a quick rethink", "a suspiciously elegant move", "a modest amount of genius", "a completely deliberate mistake", "one sensible decision"
+  ];
+  const THOUGHT_REWARDS = [
+    "ice cream", "tea and a biscuit", "a sit down", "something cold", "a chair with excellent lumbar support", "five minutes of doing absolutely nothing",
+    "a trolley", "a medal made of cardboard", "a quiet room", "lunch", "a very large pudding", "an early finish"
+  ];
+  const THOUGHT_PONDERINGS = [
+    "clouds ever get tired of drifting", "doors mind being slammed", "pigeons have favourite pavements", "the moon knows it is being watched",
+    "socks disappear on purpose", "tea tastes better after manual labour", "chairs appreciate being chosen", "the floor remembers every footstep",
+    "boxes dream of being cupboards", "someone has already invented a quieter crate", "ice cream counts as strategy", "a forklift would fit through that door",
+    "the person who packed these is nearby", "geometry enjoys showing off", "walls feel smug when they win", "there is a tiny audience somewhere"
+  ];
+  const THOUGHT_JOBS = [
+    "advanced box diplomacy", "applied shoving", "warehouse philosophy", "spatial negotiations", "crate psychology", "professional corner avoidance",
+    "tactical furniture movement", "four-sided problem solving", "manual logistics", "competitive tidying"
+  ];
+  const THOUGHT_OBSERVATIONS = [
+    "This room has opinions.", "The floor plan is being cheeky.", "That wall knows exactly what it is doing.", "The silence is becoming sarcastic.",
+    "Everything is square except the plan.", "The targets look far too innocent.", "Someone has arranged this with a straight face.", "The corners are conspiring again.",
+    "This would be easier if boxes could apologise.", "The room is pretending to be simple.", "I can hear the geometry laughing.", "Nothing here has wheels. Of course."
+  ];
+  const THOUGHT_SELF_TALK = [
+    "I am absolutely charging overtime.", "I could be playing chess.", "My back will file a complaint later.", "I knew I should have stretched.",
+    "Nobody needs to know how long this took.", "I will pretend that was the plan.", "This counts as exercise.", "Future me can explain this.",
+    "Present me remains unconvinced.", "I have made worse decisions near heavier furniture.", "I am putting this on my CV.", "The boxes can buy lunch."
+  ];
   const KONAMI_SEQUENCE = ["ArrowUp", "ArrowUp", "ArrowDown", "ArrowDown", "ArrowLeft", "ArrowRight", "ArrowLeft", "ArrowRight", "a", "b", "Enter"];
 
 
@@ -148,7 +305,7 @@
       el.style.setProperty("--kx", `${Math.round((-22 + rand() * 44))}px`);
       el.style.setProperty("--ky", `${Math.round((-16 + rand() * 32))}px`);
       el.style.setProperty("--kr", `${(-5 + rand() * 10).toFixed(2)}deg`);
-      el.style.setProperty("--kdur", `${(10 + rand() * 8).toFixed(1)}s`);
+      el.style.setProperty("--kdur", `${(6.7 + rand() * 5.3).toFixed(1)}s`);
       el.style.setProperty("--kdelay", `${(rand() * 1.8).toFixed(1)}s`);
       if (type !== "shape-ring" && !type.includes("stripes") && type !== "shape-dots" && type !== "shape-steps") {
         el.style.background = color;
@@ -225,22 +382,66 @@
   }
 
 
+  function pickFresh(list, namespace) {
+    const recent = recentThoughtParts[namespace] || (recentThoughtParts[namespace] = []);
+    const keep = Math.max(1, Math.min(list.length - 1, Math.ceil(list.length * 0.72)));
+    const available = list.map((value, index) => ({ value, index })).filter(item => !recent.includes(item.index));
+    let choice;
+    if (available.length) {
+      choice = available[Math.floor(Math.random() * available.length)];
+    } else {
+      const index = Math.floor(Math.random() * list.length);
+      choice = { value: list[index], index };
+    }
+    recent.push(choice.index);
+    while (recent.length > keep) recent.shift();
+    return choice.value;
+  }
+
+  function capitalise(text) {
+    return text ? text.charAt(0).toUpperCase() + text.slice(1) : text;
+  }
+
+  function generateThoughtCandidate() {
+    const template = Math.floor(Math.random() * 14);
+    const grunt = () => pickFresh(THOUGHT_GRUNTS, "grunt");
+    const box = () => pickFresh(THOUGHT_BOX_NAMES, "box");
+    const adjective = () => pickFresh(THOUGHT_BOX_ADJECTIVES, "adj");
+    const position = () => pickFresh(THOUGHT_POSITIONS, "pos");
+    const plan = () => pickFresh(THOUGHT_PLANS, "plan");
+    const action = () => pickFresh(THOUGHT_SMALL_ACTIONS, "action");
+    const reward = () => pickFresh(THOUGHT_REWARDS, "reward");
+    const pondering = () => pickFresh(THOUGHT_PONDERINGS, "ponder");
+    const job = () => pickFresh(THOUGHT_JOBS, "job");
+    const observation = () => pickFresh(THOUGHT_OBSERVATIONS, "observation");
+    const selfTalk = () => pickFresh(THOUGHT_SELF_TALK, "self");
+
+    switch (template) {
+      case 0: return grunt();
+      case 1: return `${grunt()} That ${position()} ${box()} is ${adjective()}.`;
+      case 2: return `That ${box()} is ${adjective()}.`;
+      case 3: return `Maybe ${plan()}.`;
+      case 4: return `${grunt()} ${capitalise(action())} should sort this out.`;
+      case 5: return `First, ${plan()}. Then ${reward()}.`;
+      case 6: return `I wonder if ${pondering()}.`;
+      case 7: return `${observation()}`;
+      case 8: return `${selfTalk()}`;
+      case 9: return `This is going on my CV under “${job()}”.`;
+      case 10: return `After this: ${reward()}. No negotiations.`;
+      case 11: return `${grunt()} The ${position()} ${box()} can wait.`;
+      case 12: return `Perhaps ${action()} first. That feels respectable.`;
+      default: return `${grunt()} I was definitely promised ${reward()}.`;
+    }
+  }
+
   function composeCharacterThought() {
     let thought = "";
-    for (let attempts = 0; attempts < 8; attempts++) {
-      const pools = [THOUGHT_OPENERS, THOUGHT_MIDDLES, THOUGHT_CLOSERS];
-      const firstPoolIndex = Math.floor(Math.random() * pools.length);
-      const first = pools[firstPoolIndex][Math.floor(Math.random() * pools[firstPoolIndex].length)];
-      if (Math.random() < 0.44) {
-        thought = first;
-      } else {
-        const remainingPools = pools.filter((_, index) => index !== firstPoolIndex);
-        const secondPool = remainingPools[Math.floor(Math.random() * remainingPools.length)];
-        const second = secondPool[Math.floor(Math.random() * secondPool.length)];
-        thought = `${first} ${second}`;
-      }
-      if (thought !== lastThought) break;
+    for (let attempt = 0; attempt < 30; attempt++) {
+      thought = generateThoughtCandidate();
+      if (!recentThoughts.includes(thought)) break;
     }
+    recentThoughts.push(thought);
+    if (recentThoughts.length > 500) recentThoughts.shift();
     lastThought = thought;
     return thought;
   }
@@ -426,6 +627,26 @@
     return audioCtx;
   }
 
+  function unlockSoundEffects() {
+    if (!soundOn || audioUnlocked) return;
+    const ac = ensureAudio();
+    if (!ac) return;
+    try {
+      const buffer = ac.createBuffer(1, 1, ac.sampleRate || 44100);
+      const source = ac.createBufferSource();
+      const gain = ac.createGain();
+      gain.gain.value = 0;
+      source.buffer = buffer;
+      source.connect(gain).connect(ac.destination);
+      source.start(0);
+      const resume = ac.resume?.();
+      if (resume?.then) resume.then(() => { audioUnlocked = ac.state === "running"; }).catch(() => {});
+      else audioUnlocked = ac.state === "running";
+    } catch (error) {
+      audioUnlocked = ac.state === "running";
+    }
+  }
+
   function updateMusicButton() {
     if (!musicBtn) return;
     const label = musicBtn.querySelector("b");
@@ -457,6 +678,14 @@
   function tone(freq, dur = .08, type = "sine", gain = .035, delay = 0, glide = null) {
     const ac = ensureAudio();
     if (!ac) return;
+    if (ac.state === "suspended") {
+      ac.resume().then(() => {
+        audioUnlocked = ac.state === "running";
+        if (audioUnlocked) tone(freq, dur, type, gain, delay, glide);
+      }).catch(() => {});
+      return;
+    }
+    audioUnlocked = ac.state === "running";
     const osc = ac.createOscillator();
     const amp = ac.createGain();
     const start = ac.currentTime + delay;
@@ -474,6 +703,14 @@
   function noise(dur = .05, gain = .02, cutoff = 900) {
     const ac = ensureAudio();
     if (!ac) return;
+    if (ac.state === "suspended") {
+      ac.resume().then(() => {
+        audioUnlocked = ac.state === "running";
+        if (audioUnlocked) noise(dur, gain, cutoff);
+      }).catch(() => {});
+      return;
+    }
+    audioUnlocked = ac.state === "running";
     const buffer = ac.createBuffer(1, Math.ceil(ac.sampleRate * dur), ac.sampleRate);
     const data = buffer.getChannelData(0);
     for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
@@ -579,7 +816,7 @@
     const best = localStorage.getItem(`push-bauhaus-v22-best-${levelData.sourceNumber}`);
     bestEl.textContent = best || "—";
     undoBtn.disabled = !history.length || completed;
-    [...levelButtons.children].forEach((button, index) => button.classList.toggle("current", index === levelIndex));
+    refreshLevelButtons();
   }
 
   function updateTime() {
@@ -605,11 +842,13 @@
   }
 
   function loadLevel(index, preserveAutoplay = false, preserveBackground = false) {
+    const requestedIndex = (index + LEVELS.length) % LEVELS.length;
+    if (!preserveAutoplay && requestedIndex > highestUnlockedLevel) return;
     if (!preserveAutoplay) stopAutoplay();
     resetEasterEgg();
     blockedPushHeld = false;
     clearTimeout(animTimer);
-    levelIndex = (index + LEVELS.length) % LEVELS.length;
+    levelIndex = requestedIndex;
     localStorage.setItem("push-bauhaus-v33-level", levelIndex);
     levelData = LEVELS[levelIndex];
     const parsed = parseLayout(levelData.layout);
@@ -645,6 +884,7 @@
     updateTime();
     scheduleIdle();
     showCharacterThought(null, !thoughtReady);
+    refreshLevelButtons();
   }
 
   function snapshot() {
@@ -745,6 +985,12 @@
     const bestKey = `push-bauhaus-v22-best-${levelData.sourceNumber}`;
     const oldBest = Number(localStorage.getItem(bestKey) || 0);
     if (!autoplayRunning && (!oldBest || moves < oldBest)) localStorage.setItem(bestKey, moves);
+    if (!autoplayRunning) {
+      completedLevels.add(levelIndex);
+      highestUnlockedLevel = Math.max(highestUnlockedLevel, Math.min(levelIndex + 1, LEVELS.length - 1));
+      saveLevelProgress();
+      refreshLevelButtons();
+    }
     const difference = moves - levelData.minimum;
     completeText.textContent = difference === 0
       ? `Perfect route: ${moves} moves and ${pushes} pushes.`
@@ -791,14 +1037,16 @@
     levelButtons.innerHTML = "";
     LEVELS.forEach((level, index) => {
       const button = document.createElement("button");
+      button.type = "button";
       button.textContent = index + 1;
-      button.title = `${index + 1}. ${level.name} — ${level.tier}`;
       button.addEventListener("click", () => {
-        levelPicker.hidden = true;
+        if (index > highestUnlockedLevel) return;
+        closeLevelPicker();
         loadLevel(index);
       });
       levelButtons.appendChild(button);
     });
+    refreshLevelButtons();
   }
 
   function desktopEasterEggAvailable() {
@@ -930,7 +1178,7 @@
   soundBtn.addEventListener("click", () => {
     soundOn = !soundOn;
     soundBtn.querySelector("b").textContent = soundOn ? "SOUND ON" : "SOUND OFF";
-    if (soundOn) ensureAudio();
+    if (soundOn) unlockSoundEffects();
   });
   musicBtn?.addEventListener("click", () => {
     musicOn = !musicOn;
@@ -939,7 +1187,17 @@
     if (musicOn) startBackgroundMusic();
     else pauseBackgroundMusic();
   });
-  levelBtn.addEventListener("click", () => { levelPicker.hidden = !levelPicker.hidden; });
+  levelBtn.addEventListener("click", () => {
+    if (levelPicker.hidden) openLevelPicker();
+    else closeLevelPicker();
+  });
+  levelCloseBtn?.addEventListener("click", closeLevelPicker);
+  levelResetBtn?.addEventListener("click", openResetConfirm);
+  resetCancelBtn?.addEventListener("click", closeResetConfirm);
+  resetConfirmBtn?.addEventListener("click", () => {
+    closeResetConfirm();
+    resetLevelProgress();
+  });
   nextBtn.addEventListener("click", () => loadLevel(levelIndex + 1));
 
   let swipe = null;
@@ -987,8 +1245,29 @@
     if (!musicOn) bgMusic.pause();
     else startBackgroundMusic();
   }
+  document.addEventListener("pointerdown", unlockSoundEffects, { capture: true });
+  document.addEventListener("touchstart", unlockSoundEffects, { capture: true, passive: true });
+  document.addEventListener("keydown", unlockSoundEffects, { capture: true });
   document.addEventListener("pointerdown", retryMusicAfterInteraction, { capture: true });
   document.addEventListener("keydown", retryMusicAfterInteraction, { capture: true });
+  window.addEventListener("keydown", event => {
+    if (event.key === "Escape" && resetConfirmModal && !resetConfirmModal.hidden) {
+      closeResetConfirm();
+      return;
+    }
+    if (event.key === "Escape" && !levelPicker.hidden) closeLevelPicker();
+  });
+  loadLevelProgress();
   buildLevelButtons();
   Promise.resolve(window.CharacterStyler?.ready).finally(() => loadLevel(levelIndex));
+
+  if (document.readyState === "complete") {
+    scheduleSplashHide();
+  } else {
+    window.addEventListener("load", () => {
+      requestAnimationFrame(() => requestAnimationFrame(scheduleSplashHide));
+    }, { once: true });
+    window.setTimeout(scheduleSplashHide, 3200);
+  }
+
 })();
