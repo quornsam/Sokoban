@@ -2,7 +2,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 1,
     "sourceNumber": 44,
-    "name": "Microban 44",
+    "name": "Microban Series",
     "tier": "BEGINNER",
     "minimum": 1,
     "pushMinimum": 1,
@@ -16,7 +16,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 2,
     "sourceNumber": 2,
-    "name": "Microban 2",
+    "name": "Microban Series",
     "tier": "BEGINNER",
     "minimum": 16,
     "pushMinimum": 3,
@@ -34,7 +34,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 3,
     "sourceNumber": 21,
-    "name": "Microban 21",
+    "name": "Microban Series",
     "tier": "BEGINNER",
     "minimum": 17,
     "pushMinimum": 5,
@@ -51,7 +51,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 4,
     "sourceNumber": 30,
-    "name": "Microban 30",
+    "name": "Microban Series",
     "tier": "BEGINNER",
     "minimum": 21,
     "pushMinimum": 5,
@@ -69,7 +69,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 5,
     "sourceNumber": 31,
-    "name": "Microban 31",
+    "name": "Microban Series",
     "tier": "BEGINNER",
     "minimum": 17,
     "pushMinimum": 6,
@@ -87,7 +87,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 6,
     "sourceNumber": 40,
-    "name": "Microban 40",
+    "name": "Microban Series",
     "tier": "BEGINNER",
     "minimum": 20,
     "pushMinimum": 7,
@@ -104,7 +104,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 7,
     "sourceNumber": 4,
-    "name": "Microban 4",
+    "name": "Microban Series",
     "tier": "BEGINNER",
     "minimum": 23,
     "pushMinimum": 7,
@@ -121,7 +121,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 8,
     "sourceNumber": 1,
-    "name": "Microban 1",
+    "name": "Microban Series",
     "tier": "BEGINNER",
     "minimum": 33,
     "pushMinimum": 8,
@@ -139,7 +139,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 9,
     "sourceNumber": 9,
-    "name": "Microban 9",
+    "name": "Microban Series",
     "tier": "BEGINNER",
     "minimum": 30,
     "pushMinimum": 10,
@@ -157,7 +157,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 10,
     "sourceNumber": 25,
-    "name": "Microban 25",
+    "name": "Microban Series",
     "tier": "BEGINNER",
     "minimum": 29,
     "pushMinimum": 7,
@@ -175,7 +175,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 11,
     "sourceNumber": 17,
-    "name": "Microban 17",
+    "name": "Microban Series",
     "tier": "EASY",
     "minimum": 25,
     "pushMinimum": 9,
@@ -193,7 +193,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 12,
     "sourceNumber": 28,
-    "name": "Microban 28",
+    "name": "Microban Series",
     "tier": "EASY",
     "minimum": 33,
     "pushMinimum": 9,
@@ -211,7 +211,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 13,
     "sourceNumber": 24,
-    "name": "Microban 24",
+    "name": "Microban Series",
     "tier": "EASY",
     "minimum": 35,
     "pushMinimum": 9,
@@ -229,7 +229,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 14,
     "sourceNumber": 38,
-    "name": "Microban 38",
+    "name": "Microban Series",
     "tier": "EASY",
     "minimum": 37,
     "pushMinimum": 8,
@@ -247,7 +247,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 15,
     "sourceNumber": 32,
-    "name": "Microban 32",
+    "name": "Microban Series",
     "tier": "EASY",
     "minimum": 35,
     "pushMinimum": 9,
@@ -265,7 +265,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 16,
     "sourceNumber": 46,
-    "name": "Microban 46",
+    "name": "Microban Series",
     "tier": "EASY",
     "minimum": 47,
     "pushMinimum": 8,
@@ -284,7 +284,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 17,
     "sourceNumber": 5,
-    "name": "Microban 5",
+    "name": "Microban Series",
     "tier": "EASY",
     "minimum": 25,
     "pushMinimum": 8,
@@ -302,7 +302,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 18,
     "sourceNumber": 14,
-    "name": "Microban 14",
+    "name": "Microban Series",
     "tier": "EASY",
     "minimum": 51,
     "pushMinimum": 10,
@@ -319,7 +319,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 19,
     "sourceNumber": 7,
-    "name": "Microban 7",
+    "name": "Microban Series",
     "tier": "EASY",
     "minimum": 26,
     "pushMinimum": 6,
@@ -338,7 +338,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 20,
     "sourceNumber": 15,
-    "name": "Microban 15",
+    "name": "Microban Series",
     "tier": "EASY",
     "minimum": 37,
     "pushMinimum": 14,
@@ -356,7 +356,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 21,
     "sourceNumber": 34,
-    "name": "Microban 34",
+    "name": "Microban Series",
     "tier": "INTERMEDIATE",
     "minimum": 30,
     "pushMinimum": 10,
@@ -373,7 +373,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 22,
     "sourceNumber": 26,
-    "name": "Microban 26",
+    "name": "Microban Series",
     "tier": "INTERMEDIATE",
     "minimum": 41,
     "pushMinimum": 10,
@@ -392,7 +392,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 23,
     "sourceNumber": 12,
-    "name": "Microban 12",
+    "name": "Microban Series",
     "tier": "INTERMEDIATE",
     "minimum": 49,
     "pushMinimum": 11,
@@ -411,7 +411,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 24,
     "sourceNumber": 27,
-    "name": "Microban 27",
+    "name": "Microban Series",
     "tier": "INTERMEDIATE",
     "minimum": 50,
     "pushMinimum": 10,
@@ -429,7 +429,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 25,
     "sourceNumber": 3,
-    "name": "Microban 3",
+    "name": "Microban Series",
     "tier": "INTERMEDIATE",
     "minimum": 41,
     "pushMinimum": 13,
@@ -446,7 +446,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 26,
     "sourceNumber": 23,
-    "name": "Microban 23",
+    "name": "Microban Series",
     "tier": "INTERMEDIATE",
     "minimum": 56,
     "pushMinimum": 10,
@@ -464,7 +464,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 27,
     "sourceNumber": 45,
-    "name": "Microban 45",
+    "name": "Microban Series",
     "tier": "INTERMEDIATE",
     "minimum": 45,
     "pushMinimum": 11,
@@ -482,7 +482,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 28,
     "sourceNumber": 33,
-    "name": "Microban 33",
+    "name": "Microban Series",
     "tier": "INTERMEDIATE",
     "minimum": 41,
     "pushMinimum": 10,
@@ -500,7 +500,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 29,
     "sourceNumber": 22,
-    "name": "Microban 22",
+    "name": "Microban Series",
     "tier": "INTERMEDIATE",
     "minimum": 47,
     "pushMinimum": 15,
@@ -520,7 +520,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 30,
     "sourceNumber": 41,
-    "name": "Microban 41",
+    "name": "Microban Series",
     "tier": "INTERMEDIATE",
     "minimum": 50,
     "pushMinimum": 15,
@@ -537,7 +537,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 31,
     "sourceNumber": 20,
-    "name": "Microban 20",
+    "name": "Microban Series",
     "tier": "TRICKY",
     "minimum": 50,
     "pushMinimum": 16,
@@ -556,7 +556,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 32,
     "sourceNumber": 19,
-    "name": "Microban 19",
+    "name": "Microban Series",
     "tier": "TRICKY",
     "minimum": 41,
     "pushMinimum": 20,
@@ -575,7 +575,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 33,
     "sourceNumber": 42,
-    "name": "Microban 42",
+    "name": "Microban Series",
     "tier": "TRICKY",
     "minimum": 47,
     "pushMinimum": 17,
@@ -594,7 +594,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 34,
     "sourceNumber": 18,
-    "name": "Microban 18",
+    "name": "Microban Series",
     "tier": "TRICKY",
     "minimum": 71,
     "pushMinimum": 13,
@@ -614,7 +614,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 35,
     "sourceNumber": 48,
-    "name": "Microban 48",
+    "name": "Microban Series",
     "tier": "TRICKY",
     "minimum": 64,
     "pushMinimum": 14,
@@ -633,7 +633,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 36,
     "sourceNumber": 11,
-    "name": "Microban 11",
+    "name": "Microban Series",
     "tier": "TRICKY",
     "minimum": 78,
     "pushMinimum": 16,
@@ -652,7 +652,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 37,
     "sourceNumber": 13,
-    "name": "Microban 13",
+    "name": "Microban Series",
     "tier": "TRICKY",
     "minimum": 52,
     "pushMinimum": 23,
@@ -672,7 +672,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 38,
     "sourceNumber": 43,
-    "name": "Microban 43",
+    "name": "Microban Series",
     "tier": "TRICKY",
     "minimum": 61,
     "pushMinimum": 22,
@@ -692,7 +692,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 39,
     "sourceNumber": 50,
-    "name": "Microban 50",
+    "name": "Microban Series",
     "tier": "TRICKY",
     "minimum": 76,
     "pushMinimum": 23,
@@ -710,7 +710,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 40,
     "sourceNumber": 47,
-    "name": "Microban 47",
+    "name": "Microban Series",
     "tier": "TRICKY",
     "minimum": 83,
     "pushMinimum": 22,
@@ -728,7 +728,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 41,
     "sourceNumber": 37,
-    "name": "Microban 37",
+    "name": "Microban Series",
     "tier": "HARD",
     "minimum": 71,
     "pushMinimum": 23,
@@ -747,7 +747,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 42,
     "sourceNumber": 49,
-    "name": "Microban 49",
+    "name": "Microban Series",
     "tier": "HARD",
     "minimum": 82,
     "pushMinimum": 21,
@@ -768,7 +768,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 43,
     "sourceNumber": 10,
-    "name": "Microban 10",
+    "name": "Microban Series",
     "tier": "HARD",
     "minimum": 89,
     "pushMinimum": 21,
@@ -787,7 +787,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 44,
     "sourceNumber": 39,
-    "name": "Microban 39",
+    "name": "Microban Series",
     "tier": "HARD",
     "minimum": 85,
     "pushMinimum": 27,
@@ -807,7 +807,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 45,
     "sourceNumber": 29,
-    "name": "Microban 29",
+    "name": "Microban Series",
     "tier": "HARD",
     "minimum": 104,
     "pushMinimum": 22,
@@ -827,7 +827,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 46,
     "sourceNumber": 8,
-    "name": "Microban 8",
+    "name": "Microban Series",
     "tier": "HARD",
     "minimum": 97,
     "pushMinimum": 32,
@@ -850,7 +850,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 47,
     "sourceNumber": 35,
-    "name": "Microban 35",
+    "name": "Microban Series",
     "tier": "HARD",
     "minimum": 77,
     "pushMinimum": 31,
@@ -871,7 +871,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 48,
     "sourceNumber": 6,
-    "name": "Microban 6",
+    "name": "Microban Series",
     "tier": "HARD",
     "minimum": 107,
     "pushMinimum": 29,
@@ -888,7 +888,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 49,
     "sourceNumber": 16,
-    "name": "Microban 16",
+    "name": "Microban Series",
     "tier": "HARD",
     "minimum": 100,
     "pushMinimum": 39,
@@ -907,7 +907,7 @@ window.SOKOBAN_LEVELS = [
   {
     "rank": 50,
     "sourceNumber": 120,
-    "name": "Microban 120",
+    "name": "Microban Series",
     "tier": "FINAL",
     "minimum": 183,
     "pushMinimum": 64,
