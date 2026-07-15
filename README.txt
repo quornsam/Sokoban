@@ -113,3 +113,52 @@ Version 68 refinement:
 
 
 Version 69: renamed the game to BOXXY — Pushbox Puzzle, and the selectable characters to Indi and Olive.
+
+
+V82 COLLECTIONS
+----------------
+The collection switcher was introduced here. It remains temporarily disabled in Version 95 while the Ink character artwork is rebuilt.
+
+VERSION 92
+----------
+- The H. Ink Paper & Puzzle skin is temporarily switched off. BOXXY now opens and remains in the Bauhaus Collection while the Ink artwork is reconsidered.
+- Completing level 50 now opens a dedicated congratulations modal for finishing all 50 levels.
+- Added a hidden Level Maker.
+
+Hidden Level Maker
+- Click the first X in the BOXXY title five times.
+- Then press the X key on the keyboard.
+- Draw with wall, floor, player, box, goal, combined goal and void tools.
+- Grid dimensions can be changed from 3 × 3 up to 24 × 24.
+- Existing Sokoban/XSB text levels can be pasted into the text area and imported.
+- COPY LEVEL exports the current design in standard Sokoban text format.
+- TEST LEVEL loads the design into the full BOXXY board with moves, pushes, undo and restart available.
+- During a test, use the floating LEVEL MAKER button to return to editing, or EXIT TEST to return to the main collection.
+
+VERSION 93
+----------
+- Reduced the Level Maker heading and reorganised the workshop so the complete editor fits without unnecessary modal scrolling on a normal desktop display.
+- Added GENERATE NEW LEVEL with width, height and box-count controls.
+- TESTED generation constructs a puzzle from a reversible solution path and verifies that path before showing the level. It may take longer than unchecked generation.
+- SQUARE generation keeps the outside walls as a clean rectangular quadrilateral. With SQUARE off, the generator may create an irregular outer shape.
+- Added local saved levels. Enter an optional name and press SAVE LEVEL.
+- The saved-level drop-down lists every saved design with its dimensions and box count.
+- Saved designs can be loaded, edited, updated and deleted. They are stored locally in the browser.
+
+
+Version 94:
+- The Generate New Level panel now matches the Saved Levels panel width.
+- Paste or Export Level spans the full combined height of those two panels.
+- The level text area expands to use the available space.
+
+
+VERSION 95
+----------
+- Rebuilt Generate New Level terrain creation to produce much greater structural variety.
+- Generated boards now use major dividing walls with doorways plus shorter wall motifs such as bars, corners, T-shapes, steps and zigzags.
+- Large empty rectangles are broken up into rooms, paths, junctions and working areas.
+- Terrain generation checks that all floor remains connected, rejects three-sided dead pockets and preserves enough straight working lanes for boxes.
+- SQUARE still means a clean rectangular outside wall; its interior can now contain substantial room and corridor structure.
+- Non-square generation retains irregular outside silhouettes and now receives the same richer internal structure.
+- Goal placement is more varied, with a preference for walls and occasional connected goal patterns.
+- TESTED generation still builds backwards from a solved state, but now favours changes of box and pushing direction rather than relying on long repetitive straight pushes.

@@ -13,6 +13,7 @@
     L: [-1, 0], R: [1, 0], U: [0, -1], D: [0, 1]
   };
 
+  const floorLayer = document.getElementById("floorLayer");
   const voidLayer = document.getElementById("voidLayer");
   const wallLayer = document.getElementById("wallLayer");
   const goalLayer = document.getElementById("goalLayer");
@@ -40,7 +41,12 @@
   const resetCancelBtn = document.getElementById("resetCancelBtn");
   const modal = document.getElementById("completeModal");
   const completeText = document.getElementById("completeText");
+  const completeTitle = document.getElementById("completeTitle");
+  const completeKicker = modal?.querySelector(".complete-kicker");
+  const completeCard = modal?.querySelector(".complete-card");
   const nextBtn = document.getElementById("nextBtn");
+  const nextBtnLabel = nextBtn?.querySelector("span");
+  const nextBtnIcon = nextBtn?.querySelector("b");
   const celebration = document.getElementById("celebration");
   const board = document.getElementById("board");
   const boardWrap = document.querySelector(".board-wrap");
@@ -51,6 +57,13 @@
   const instruction = document.querySelector(".instruction");
   const thoughtText = document.getElementById("thoughtText");
   const splashScreen = document.getElementById("splashScreen");
+  const collectionBtn = document.getElementById("collectionBtn");
+  const collectionName = document.getElementById("collectionName");
+  const themeModal = document.getElementById("themeModal");
+  const themeCloseBtn = document.getElementById("themeCloseBtn");
+  const themeChoices = [...document.querySelectorAll("[data-theme-choice]")];
+  const makerReturnBtn = document.getElementById("makerReturnBtn");
+  const levelMakerModal = document.getElementById("levelMakerModal");
 
   let levelIndex = Math.max(0, Math.min(LEVELS.length - 1, Number(localStorage.getItem("push-bauhaus-v33-level") || localStorage.getItem("push-bauhaus-v29-level") || 0)));
   let levelData = null;
@@ -67,6 +80,9 @@
   let history = [];
   let facing = "front";
   let completed = false;
+  let makerTesting = false;
+  let makerLayout = null;
+  let completeMode = "normal";
   let startedAt = 0;
   let timer = null;
   let idleTimer = null;
@@ -128,6 +144,32 @@
     localStorage.setItem(LEVEL_PROGRESS_KEY, String(highestUnlockedLevel));
     localStorage.setItem(LEVEL_COMPLETED_KEY, JSON.stringify([...completedLevels].sort((a, b) => a - b)));
   }
+
+  function applyTheme(_theme, redraw = true) {
+    currentTheme = "bauhaus";
+    document.body.dataset.theme = "bauhaus";
+    localStorage.setItem("boxxy-theme", "bauhaus");
+    if (collectionName) collectionName.innerHTML = "BAUHAUS<br>COLLECTION";
+    document.querySelectorAll(".complete-kicker").forEach(el => {
+      if (!el.closest("#levelMakerModal")) el.textContent = "BAUHAUS COLLECTION";
+    });
+    const wardrobeKicker = document.querySelector(".style-kicker");
+    if (wardrobeKicker) wardrobeKicker.textContent = "BAUHAUS WARDROBE";
+    themeChoices.forEach(button => button.classList.toggle("active", button.dataset.themeChoice === "bauhaus"));
+    const splashImg = splashScreen?.querySelector("img");
+    if (splashImg) splashImg.src = "assets/ui/boxxy-splash.png";
+    if (redraw && levelData) {
+      buildFloor();
+      buildVoid();
+      buildWalls();
+      buildGoals();
+      render();
+      window.CharacterStyler?.redrawAll?.();
+    }
+  }
+
+  function openThemeModal(){ if (themeModal) themeModal.hidden = false; }
+  function closeThemeModal(){ if (themeModal) themeModal.hidden = true; }
 
   function openLevelPicker() {
     levelPicker.hidden = false;
@@ -205,7 +247,8 @@
   const BACKGROUND_PALETTE = ["#e5392f", "#f2c121", "#2457a6", "#151515", "#f47a20", "#00a6b2", "#2f9e44", "#8e44ad", "#ff7f50", "#16a085"];
   const BACKGROUND_SOLIDS = ["#e5392f", "#f2c121", "#2457a6", "#151515", "#f47a20", "#00a6b2", "#2f9e44", "#8e44ad", "#ff7f50", "#16a085"];
   const backgroundSessionSeed = Math.floor(Math.random() * 0x7fffffff);
-  const GOAL_ASSET = "assets/board/goal-red.png";
+  let currentTheme = "bauhaus";
+  const themeAsset = (kind) => `assets/board/${kind}`;
   const THOUGHT_GRUNTS = [
     "Hmm.", "Hmph.", "Hurrumph.", "Ugh.", "Oof.", "Right.", "Aha.", "Nope.",
     "Steady.", "Well then.", "Oh, come on.", "Sigh.", "Mmm.", "Honestly.", "Typical.", "Here we go."
@@ -734,6 +777,21 @@
     finish() { tone(392, .1, "triangle", .035); tone(523, .12, "triangle", .035, .12); tone(784, .18, "triangle", .04, .27); }
   };
 
+  function buildFloor() {
+    if (!floorLayer) return;
+    floorLayer.innerHTML = "";
+    if (currentTheme !== "ink") return;
+    for (const point of floor) {
+      const [x, y] = point.split(",").map(Number);
+      const cell = document.createElement("div");
+      const variant = Math.abs((x * 17 + y * 29) % 4);
+      cell.className = `cell floor-cell floor-variant-${variant}`;
+      cell.style.cssText = posStyle(x, y, 0);
+      cell.style.setProperty("--floor-img", `url("assets/themes/ink/floor-${variant}.png")`);
+      floorLayer.appendChild(cell);
+    }
+  }
+
   function buildVoid() {
     voidLayer.innerHTML = "";
     for (const point of outside) {
@@ -752,6 +810,11 @@
       const cell = document.createElement("div");
       cell.className = "cell wall";
       cell.style.cssText = posStyle(x, y, depth(y, "wall"));
+      if (currentTheme === "ink") {
+        const variant = Math.abs((x * 11 + y * 23) % 4);
+        cell.dataset.inkWall = String(variant);
+        cell.style.setProperty("--wall-img", `url("assets/themes/ink/wall-${variant}.png")`);
+      }
       wallLayer.appendChild(cell);
     }
   }
@@ -763,7 +826,7 @@
       cell.className = "cell goal";
       cell.style.cssText = posStyle(goal.x, goal.y, depth(goal.y, "goal"));
       const image = document.createElement("img");
-      image.src = GOAL_ASSET;
+      image.src = themeAsset(currentTheme === "ink" ? "target.png" : "goal-red.png");
       image.alt = "";
       image.setAttribute("aria-hidden", "true");
       cell.appendChild(image);
@@ -789,7 +852,7 @@
       piece.className = `piece box${onGoal ? " on-goal" : ""}${anim === "push" && box.moving ? " pushing" : ""}`;
       piece.style.cssText = posStyle(box.x, box.y, depth(box.y, "box"));
       const image = document.createElement("img");
-      image.src = `assets/board/crate-${onGoal ? "red" : "yellow"}.png`;
+      image.src = currentTheme === "ink" ? themeAsset("crate.png") : themeAsset(`crate-${onGoal ? "red" : "yellow"}.png`);
       image.alt = "";
       piece.appendChild(image);
       pieceLayer.appendChild(piece);
@@ -811,9 +874,9 @@
 
     movesEl.textContent = moves;
     pushesEl.textContent = pushes;
-    minimumEl.textContent = levelData.minimum;
-    levelCount.textContent = `${levelIndex + 1} / ${LEVELS.length}`;
-    const best = localStorage.getItem(`push-bauhaus-v22-best-${levelData.sourceNumber}`);
+    minimumEl.textContent = makerTesting ? "—" : levelData.minimum;
+    levelCount.textContent = makerTesting ? "MAKER" : `${levelIndex + 1} / ${LEVELS.length}`;
+    const best = makerTesting ? null : localStorage.getItem(`push-bauhaus-v22-best-${levelData.sourceNumber}`);
     bestEl.textContent = best || "—";
     undoBtn.disabled = !history.length || completed;
     refreshLevelButtons();
@@ -842,6 +905,10 @@
   }
 
   function loadLevel(index, preserveAutoplay = false, preserveBackground = false) {
+    makerTesting = false;
+    makerLayout = null;
+    document.body.classList.remove("maker-testing");
+    if (makerReturnBtn) makerReturnBtn.hidden = true;
     const requestedIndex = (index + LEVELS.length) % LEVELS.length;
     if (!preserveAutoplay && requestedIndex > highestUnlockedLevel) return;
     if (!preserveAutoplay) stopAutoplay();
@@ -865,7 +932,13 @@
     history = [];
     facing = "front";
     completed = false;
+    completeMode = "normal";
     modal.hidden = true;
+    completeCard?.classList.remove("final-complete");
+    if (completeKicker) completeKicker.textContent = "BAUHAUS COLLECTION";
+    if (completeTitle) completeTitle.innerHTML = "PUZZLE<br>CLEARED";
+    if (nextBtnLabel) nextBtnLabel.textContent = "NEXT LEVEL";
+    if (nextBtnIcon) nextBtnIcon.textContent = "→";
     board.style.setProperty("--cols", width);
     board.style.setProperty("--rows", height);
     board.style.setProperty("--ratio", width / height);
@@ -877,6 +950,7 @@
     startedAt = Date.now();
     clearInterval(timer);
     timer = setInterval(updateTime, 250);
+    buildFloor();
     buildVoid();
     buildWalls();
     buildGoals();
@@ -885,6 +959,84 @@
     scheduleIdle();
     showCharacterThought(null, !thoughtReady);
     refreshLevelButtons();
+  }
+
+  function loadMakerTest(layoutRows) {
+    try {
+      if (!Array.isArray(layoutRows) || !layoutRows.length) throw new Error("The level is empty.");
+      const cleanRows = layoutRows.map(row => String(row));
+      const parsed = parseLayout(cleanRows);
+      stopAutoplay();
+      closeLevelPicker();
+      resetEasterEgg();
+      blockedPushHeld = false;
+      clearTimeout(animTimer);
+      makerTesting = true;
+      makerLayout = cleanRows.slice();
+      completeMode = "normal";
+      document.body.classList.add("maker-testing");
+      if (makerReturnBtn) makerReturnBtn.hidden = false;
+      levelData = {
+        sourceNumber: "maker",
+        name: "CUSTOM TEST",
+        tier: "LEVEL MAKER",
+        minimum: "—",
+        pushMinimum: parsed.boxes.length,
+        solution: "",
+        layout: cleanRows
+      };
+      width = parsed.width;
+      height = parsed.height;
+      walls = parsed.walls;
+      floor = parsed.floor;
+      outside = parsed.outside;
+      player = [...parsed.player];
+      boxes = parsed.boxes.map(([x, y]) => ({ x, y, moving: false }));
+      goals = parsed.goals.map(([x, y]) => ({ x, y }));
+      moves = 0;
+      pushes = 0;
+      history = [];
+      facing = "front";
+      completed = false;
+      modal.hidden = true;
+      completeCard?.classList.remove("final-complete");
+      board.style.setProperty("--cols", width);
+      board.style.setProperty("--rows", height);
+      board.style.setProperty("--ratio", width / height);
+      board.style.aspectRatio = `${width} / ${height}`;
+      refreshBackgroundDecor(backgroundDecorBuilt);
+      scheduleBoardResize();
+      creditTitle.textContent = "LEVEL MAKER · TEST";
+      creditSub.textContent = `${width}×${height} · ${boxes.length} ${boxes.length === 1 ? "BOX" : "BOXES"}`;
+      startedAt = Date.now();
+      clearInterval(timer);
+      timer = setInterval(updateTime, 250);
+      buildFloor();
+      buildVoid();
+      buildWalls();
+      buildGoals();
+      render("idle");
+      updateTime();
+      scheduleIdle();
+      if (thoughtText) thoughtText.textContent = "Test the level. The workshop is one click away.";
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, error: error?.message || "The level could not be loaded." };
+    }
+  }
+
+  function restartMakerTest() {
+    if (!makerTesting || !makerLayout) return;
+    loadMakerTest(makerLayout);
+  }
+
+  function exitMakerTest() {
+    if (!makerTesting) return;
+    makerTesting = false;
+    makerLayout = null;
+    document.body.classList.remove("maker-testing");
+    if (makerReturnBtn) makerReturnBtn.hidden = true;
+    loadLevel(levelIndex);
   }
 
   function snapshot() {
@@ -982,19 +1134,47 @@
     completed = true;
     clearTimeout(animTimer);
     clearInterval(timer);
-    const bestKey = `push-bauhaus-v22-best-${levelData.sourceNumber}`;
-    const oldBest = Number(localStorage.getItem(bestKey) || 0);
-    if (!autoplayRunning && (!oldBest || moves < oldBest)) localStorage.setItem(bestKey, moves);
-    if (!autoplayRunning) {
-      completedLevels.add(levelIndex);
-      highestUnlockedLevel = Math.max(highestUnlockedLevel, Math.min(levelIndex + 1, LEVELS.length - 1));
-      saveLevelProgress();
-      refreshLevelButtons();
+
+    if (makerTesting) {
+      completeMode = "maker";
+      if (completeKicker) completeKicker.textContent = "LEVEL MAKER";
+      if (completeTitle) completeTitle.innerHTML = "TEST<br>COMPLETE";
+      completeText.textContent = `Custom level solved in ${moves} moves and ${pushes} pushes.`;
+      if (nextBtnLabel) nextBtnLabel.textContent = "BACK TO MAKER";
+      if (nextBtnIcon) nextBtnIcon.textContent = "←";
+    } else {
+      const bestKey = `push-bauhaus-v22-best-${levelData.sourceNumber}`;
+      const oldBest = Number(localStorage.getItem(bestKey) || 0);
+      if (!autoplayRunning && (!oldBest || moves < oldBest)) localStorage.setItem(bestKey, moves);
+      if (!autoplayRunning) {
+        completedLevels.add(levelIndex);
+        highestUnlockedLevel = Math.max(highestUnlockedLevel, Math.min(levelIndex + 1, LEVELS.length - 1));
+        saveLevelProgress();
+        refreshLevelButtons();
+      }
+
+      if (levelIndex === LEVELS.length - 1 && !autoplayRunning) {
+        completeMode = "final";
+        completeCard?.classList.add("final-complete");
+        if (completeKicker) completeKicker.textContent = "CONGRATULATIONS";
+        if (completeTitle) completeTitle.innerHTML = "ALL 50<br>LEVELS<br>CLEARED";
+        completeText.textContent = `You completed level 50 in ${moves} moves and ${pushes} pushes — and finished the entire collection.`;
+        if (nextBtnLabel) nextBtnLabel.textContent = "CHOOSE A LEVEL";
+        if (nextBtnIcon) nextBtnIcon.textContent = "✓";
+      } else {
+        completeMode = "normal";
+        completeCard?.classList.remove("final-complete");
+        if (completeKicker) completeKicker.textContent = "BAUHAUS COLLECTION";
+        if (completeTitle) completeTitle.innerHTML = "PUZZLE<br>CLEARED";
+        const difference = moves - Number(levelData.minimum || 0);
+        completeText.textContent = difference === 0
+          ? `Perfect route: ${moves} moves and ${pushes} pushes.`
+          : `Solved in ${moves} moves and ${pushes} pushes — ${difference} over the minimum.`;
+        if (nextBtnLabel) nextBtnLabel.textContent = "NEXT LEVEL";
+        if (nextBtnIcon) nextBtnIcon.textContent = "→";
+      }
     }
-    const difference = moves - levelData.minimum;
-    completeText.textContent = difference === 0
-      ? `Perfect route: ${moves} moves and ${pushes} pushes.`
-      : `Solved in ${moves} moves and ${pushes} pushes — ${difference} over the minimum.`;
+
     burst();
     sfx.finish();
     setTimeout(() => {
@@ -1005,7 +1185,9 @@
 
   function burst() {
     celebration.innerHTML = "";
-    const colors = ["#db3b27", "#e5b32a", "#20539a", "#171719"];
+    const colors = currentTheme === "ink"
+      ? ["#c49322", "#2d2822", "#9b8d78", "#eee5d1"]
+      : ["#db3b27", "#e5b32a", "#20539a", "#171719"];
     for (let i = 0; i < 52; i++) {
       const confetti = document.createElement("i");
       confetti.className = "confetti";
@@ -1104,6 +1286,7 @@
   };
 
   document.addEventListener("keydown", event => {
+    if (levelMakerModal && !levelMakerModal.hidden) return;
     if (window.CharacterStyler?.isOpen) return;
     if (checkKonamiCode(event.key)) {
       event.preventDefault();
@@ -1124,7 +1307,8 @@
       undo();
     } else if (event.key === "r" || event.key === "R") {
       event.preventDefault();
-      loadLevel(levelIndex);
+      if (makerTesting) restartMakerTest();
+      else loadLevel(levelIndex);
     }
   });
 
@@ -1174,7 +1358,10 @@
   window.addEventListener("orientationchange", scheduleBoardResize);
 
   undoBtn.addEventListener("click", undo);
-  restartBtn.addEventListener("click", () => loadLevel(levelIndex));
+  restartBtn.addEventListener("click", () => {
+    if (makerTesting) restartMakerTest();
+    else loadLevel(levelIndex);
+  });
   soundBtn.addEventListener("click", () => {
     soundOn = !soundOn;
     soundBtn.querySelector("b").textContent = soundOn ? "SOUND ON" : "SOUND OFF";
@@ -1187,7 +1374,17 @@
     if (musicOn) startBackgroundMusic();
     else pauseBackgroundMusic();
   });
+  // Collection switching is temporarily disabled; Bauhaus remains active.
+  themeCloseBtn?.addEventListener("click", closeThemeModal);
+  themeChoices.forEach(button => button.addEventListener("click", () => { applyTheme(button.dataset.themeChoice); closeThemeModal(); }));
+  themeModal?.addEventListener("click", event => { if (event.target === themeModal) closeThemeModal(); });
+  makerReturnBtn?.addEventListener("click", () => window.dispatchEvent(new CustomEvent("boxxy-maker-return")));
+
   levelBtn.addEventListener("click", () => {
+    if (makerTesting) {
+      window.dispatchEvent(new CustomEvent("boxxy-maker-return"));
+      return;
+    }
     if (levelPicker.hidden) openLevelPicker();
     else closeLevelPicker();
   });
@@ -1198,7 +1395,19 @@
     closeResetConfirm();
     resetLevelProgress();
   });
-  nextBtn.addEventListener("click", () => loadLevel(levelIndex + 1));
+  nextBtn.addEventListener("click", () => {
+    if (completeMode === "maker") {
+      modal.hidden = true;
+      window.dispatchEvent(new CustomEvent("boxxy-maker-return"));
+      return;
+    }
+    if (completeMode === "final") {
+      modal.hidden = true;
+      openLevelPicker();
+      return;
+    }
+    loadLevel(levelIndex + 1);
+  });
 
   let swipe = null;
   pieceLayer.addEventListener("dragstart", event => event.preventDefault());
@@ -1251,12 +1460,21 @@
   document.addEventListener("pointerdown", retryMusicAfterInteraction, { capture: true });
   document.addEventListener("keydown", retryMusicAfterInteraction, { capture: true });
   window.addEventListener("keydown", event => {
+    if (event.key === "Escape" && themeModal && !themeModal.hidden) { closeThemeModal(); return; }
     if (event.key === "Escape" && resetConfirmModal && !resetConfirmModal.hidden) {
       closeResetConfirm();
       return;
     }
     if (event.key === "Escape" && !levelPicker.hidden) closeLevelPicker();
   });
+  window.BoxxyGameAPI = {
+    startMakerTest(layoutRows) { return loadMakerTest(layoutRows); },
+    exitMakerTest() { exitMakerTest(); },
+    restartMakerTest() { restartMakerTest(); },
+    isMakerTesting() { return makerTesting; }
+  };
+
+  applyTheme(currentTheme, false);
   loadLevelProgress();
   buildLevelButtons();
   Promise.resolve(window.CharacterStyler?.ready).finally(() => loadLevel(levelIndex));

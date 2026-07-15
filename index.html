@@ -26,13 +26,14 @@
 <main class="app">
   <section class="play-area">
     <header class="masthead">
-      <div class="title"><strong>BOXXY</strong><span>PUSHBOX PUZZLE</span></div>
-      <div class="collection"><b>BAUHAUS<br>COLLECTION</b><i></i><span id="levelCount">1 / 50</span></div>
+      <div class="title"><strong>BO<span id="makerHotspot" class="maker-hotspot">X</span>XY</strong><span>PUSHBOX PUZZLE</span></div>
+      <button id="collectionBtn" class="collection is-static" type="button" disabled aria-disabled="true"><b id="collectionName">BAUHAUS<br>COLLECTION</b><i></i><span id="levelCount">1 / 50</span></button>
     </header>
 
     <section class="board-wrap">
       <div id="bgDecor" class="bg-decor" aria-hidden="true"></div>
       <div id="board" class="board" aria-label="BOXXY Pushbox Puzzle game board" tabindex="0">
+        <div id="floorLayer" class="layer"></div>
         <div id="voidLayer" class="layer"></div>
         <div id="wallLayer" class="layer"></div>
         <div id="goalLayer" class="layer"></div>
@@ -97,6 +98,8 @@
   </aside>
 </main>
 
+<button id="makerReturnBtn" class="maker-return" type="button" hidden>LEVEL MAKER</button>
+
 <div id="styleModal" class="modal style-modal" hidden>
   <section class="style-card" role="dialog" aria-modal="true" aria-labelledby="styleTitle">
     <button id="styleCloseBtn" class="style-close" type="button" aria-label="Close character style">×</button>
@@ -147,11 +150,97 @@
   </div>
 </div>
 
+<div id="levelMakerModal" class="modal maker-modal" hidden>
+  <section class="maker-card" role="dialog" aria-modal="true" aria-labelledby="makerTitle">
+    <header class="maker-head">
+      <div>
+        <span class="complete-kicker">SECRET WORKSHOP</span>
+        <h2 id="makerTitle">LEVEL MAKER</h2>
+        <p>Draw a Sokoban level, paste an existing one, then test it on the main board.</p>
+      </div>
+      <button id="makerCloseBtn" class="maker-close" type="button" aria-label="Close level maker">×</button>
+    </header>
+
+    <div class="maker-layout">
+      <section class="maker-workbench">
+        <div class="maker-toolbar" aria-label="Level drawing tools">
+          <button type="button" data-maker-tool="wall"><i class="maker-tool-icon wall"></i><span>WALL</span></button>
+          <button type="button" data-maker-tool="floor"><i class="maker-tool-icon floor"></i><span>FLOOR</span></button>
+          <button type="button" data-maker-tool="player"><i class="maker-tool-icon player"></i><span>PLAYER</span></button>
+          <button type="button" data-maker-tool="box"><i class="maker-tool-icon box"></i><span>BOX</span></button>
+          <button type="button" data-maker-tool="goal"><i class="maker-tool-icon goal"></i><span>GOAL</span></button>
+          <button type="button" data-maker-tool="boxgoal"><i class="maker-tool-icon boxgoal"></i><span>BOX + GOAL</span></button>
+          <button type="button" data-maker-tool="playergoal"><i class="maker-tool-icon playergoal"></i><span>PLAYER + GOAL</span></button>
+          <button type="button" data-maker-tool="void"><i class="maker-tool-icon void"></i><span>VOID</span></button>
+        </div>
+        <div class="maker-grid-shell">
+          <div id="makerGrid" class="maker-grid" role="grid" aria-label="Level editor grid"></div>
+        </div>
+      </section>
+
+      <aside class="maker-controls">
+        <section class="maker-panel maker-generator-panel">
+          <h3>GENERATE NEW LEVEL</h3>
+          <div class="maker-generator-fields">
+            <label>WIDTH<input id="makerWidth" type="number" min="5" max="24" value="10"></label>
+            <span>×</span>
+            <label>HEIGHT<input id="makerHeight" type="number" min="5" max="24" value="10"></label>
+            <label>BOXES<input id="makerBoxes" type="number" min="1" max="12" value="3"></label>
+          </div>
+          <div class="maker-generator-options">
+            <label class="maker-check-option"><input id="makerTested" type="checkbox"><span><b>TESTED</b><small>Checks that the generated puzzle can be completed. This takes longer.</small></span></label>
+            <label class="maker-check-option"><input id="makerSquare" type="checkbox" checked><span><b>SQUARE</b><small>Keeps the outside wall as a clean quadrilateral with no odd edges.</small></span></label>
+          </div>
+          <button id="makerGenerateBtn" class="maker-generate" type="button">GENERATE NEW LEVEL</button>
+          <div class="maker-mini-actions maker-three-actions">
+            <button id="makerResizeBtn" type="button">RESIZE GRID</button>
+            <button id="makerRoomBtn" type="button">EMPTY ROOM</button>
+            <button id="makerClearBtn" type="button">CLEAR</button>
+          </div>
+        </section>
+
+        <section class="maker-panel maker-save-panel">
+          <h3>SAVED LEVELS</h3>
+          <div class="maker-save-row">
+            <input id="makerSaveName" type="text" maxlength="48" placeholder="Level name" aria-label="Saved level name">
+            <button id="makerSaveBtn" type="button">SAVE LEVEL</button>
+          </div>
+          <div class="maker-load-row">
+            <select id="makerSavedSelect" aria-label="Saved levels"><option value="">NO SAVED LEVELS</option></select>
+            <button id="makerLoadBtn" type="button">LOAD</button>
+            <button id="makerDeleteBtn" type="button">DELETE</button>
+          </div>
+        </section>
+
+        <section class="maker-panel maker-paste-panel">
+          <h3>PASTE OR EXPORT LEVEL</h3>
+          <textarea id="makerText" spellcheck="false" aria-label="Sokoban level text" placeholder="########
+#  .   #
+#  $ @ #
+########"></textarea>
+          <div class="maker-mini-actions">
+            <button id="makerImportBtn" type="button">IMPORT</button>
+            <button id="makerCopyBtn" type="button">COPY LEVEL</button>
+          </div>
+          <p class="maker-legend"><code>#</code> wall · <code>@</code> player · <code>$</code> box · <code>.</code> goal · <code>*</code> box on goal · <code>+</code> player on goal</p>
+        </section>
+
+        <div id="makerStatus" class="maker-status" aria-live="polite">Ready.</div>
+        <div class="maker-main-actions">
+          <button id="makerExitTestBtn" class="maker-exit" type="button" hidden>EXIT TEST</button>
+          <button id="makerTestBtn" class="maker-test" type="button">TEST LEVEL <b aria-hidden="true">→</b></button>
+        </div>
+      </aside>
+    </div>
+  </section>
+</div>
+
 <button id="autoSolveBtn" type="button" hidden tabindex="-1" aria-hidden="true">PLAY SOLUTION</button>
 <audio id="bgMusic" src="assets/audio/cracked-ivory-drift.mp3" preload="auto" autoplay loop playsinline></audio>
 
 <script src="levels.js"></script>
 <script src="character-styles.js"></script>
 <script src="game.js"></script>
+<script src="level-maker.js"></script>
 </body>
 </html>

@@ -8,10 +8,11 @@
   ];
   const CATEGORIES = ["tshirt", "trousers", "hair", "skin", "shoes"];
   const BODY_TYPES = ["boy", "girl"];
+  const THEMES = ["bauhaus"];
   const SHEET_COLS = 4;
   const FRAME_WIDTH = 600;
   const FRAME_HEIGHT = 520;
-  const ASSET_REVISION = "64";
+  const ASSET_REVISION = "93";
   const LABELS = {
     bodyType: "CHARACTER",
     tshirt: "T-SHIRT",
@@ -121,8 +122,14 @@
     return promise;
   }
 
-  function loadSheetBundle(bodyType) {
-    if (sheetBundles.has(bodyType)) return sheetBundles.get(bodyType);
+  function activeTheme() {
+    return "bauhaus";
+  }
+
+  function loadSheetBundle(bodyType, theme = activeTheme()) {
+    const themeKey = "bauhaus";
+    const bundleKey = `${themeKey}:${bodyType}`;
+    if (sheetBundles.has(bundleKey)) return sheetBundles.get(bundleKey);
     const root = `assets/characters/${bodyType}`;
     const promise = Promise.all([
       loadImage(`${root}/base.png?v=${ASSET_REVISION}`),
@@ -131,7 +138,7 @@
       base,
       layers: Object.fromEntries(CATEGORIES.map((category, index) => [category, layers[index]]))
     }));
-    sheetBundles.set(bodyType, promise);
+    sheetBundles.set(bundleKey, promise);
     return promise;
   }
 
@@ -147,10 +154,11 @@
     };
   }
 
-  async function loadFrame(frame, bodyType = style.bodyType) {
-    const cacheKey = `${bodyType}:${frame}`;
+  async function loadFrame(frame, bodyType = style.bodyType, theme = activeTheme()) {
+    const themeKey = "bauhaus";
+    const cacheKey = `${themeKey}:${bodyType}:${frame}`;
     if (frameAssets.has(cacheKey)) return frameAssets.get(cacheKey);
-    const promise = loadSheetBundle(bodyType).then(bundle => {
+    const promise = loadSheetBundle(bodyType, themeKey).then(bundle => {
       const assets = {
         base: frameSource(bundle.base, frame),
         layers: Object.fromEntries(CATEGORIES.map(category => [category, frameSource(bundle.layers[category], frame)]))
@@ -162,7 +170,10 @@
     return promise;
   }
 
-  const ready = Promise.all([...FRAMES.map(frame => loadFrame(frame, "boy")), ...FRAMES.map(frame => loadFrame(frame, "girl"))]).then(() => {
+  const ready = Promise.all(THEMES.flatMap(theme => [
+    ...FRAMES.map(frame => loadFrame(frame, "boy", theme)),
+    ...FRAMES.map(frame => loadFrame(frame, "girl", theme))
+  ])).then(() => {
     document.querySelectorAll("canvas[data-character-preview]").forEach(canvas => {
       canvases.add(canvas);
       draw(canvas, canvas.dataset.characterPreview || "player-front");
@@ -221,13 +232,14 @@
     if (!canvas) return Promise.resolve();
     canvases.add(canvas);
     canvas.dataset.characterFrame = frame;
-    const cacheKey = `${style.bodyType}:${frame}`;
+    const theme = activeTheme();
+    const cacheKey = `${theme}:${style.bodyType}:${frame}`;
     const assets = resolvedAssets.get(cacheKey);
     if (assets) {
       drawNow(canvas, frame, assets);
       return Promise.resolve();
     }
-    return loadFrame(frame, style.bodyType).then(loaded => drawNow(canvas, frame, loaded));
+    return loadFrame(frame, style.bodyType, theme).then(loaded => drawNow(canvas, frame, loaded));
   }
 
   function updateStyleIcon() {
@@ -379,6 +391,7 @@
   window.CharacterStyler = {
     ready,
     draw,
+    redrawAll,
     set,
     reset,
     get style() { return { ...style }; },
