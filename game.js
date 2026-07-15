@@ -47,6 +47,9 @@
   const nextBtn = document.getElementById("nextBtn");
   const nextBtnLabel = nextBtn?.querySelector("span");
   const nextBtnIcon = nextBtn?.querySelector("b");
+  const finalPackPicker = document.getElementById("finalPackPicker");
+  const finalPackStatus = document.getElementById("finalPackStatus");
+  const finalPackOptions = [...document.querySelectorAll("[data-pack-placeholder]")];
   const celebration = document.getElementById("celebration");
   const board = document.getElementById("board");
   const boardWrap = document.querySelector(".board-wrap");
@@ -935,6 +938,8 @@
     completeMode = "normal";
     modal.hidden = true;
     completeCard?.classList.remove("final-complete");
+    if (finalPackPicker) finalPackPicker.hidden = true;
+    if (finalPackStatus) finalPackStatus.textContent = "";
     if (completeKicker) completeKicker.textContent = "BAUHAUS COLLECTION";
     if (completeTitle) completeTitle.innerHTML = "PUZZLE<br>CLEARED";
     if (nextBtnLabel) nextBtnLabel.textContent = "NEXT LEVEL";
@@ -1000,6 +1005,8 @@
       completed = false;
       modal.hidden = true;
       completeCard?.classList.remove("final-complete");
+      if (finalPackPicker) finalPackPicker.hidden = true;
+      if (finalPackStatus) finalPackStatus.textContent = "";
       board.style.setProperty("--cols", width);
       board.style.setProperty("--rows", height);
       board.style.setProperty("--ratio", width / height);
@@ -1137,6 +1144,8 @@
 
     if (makerTesting) {
       completeMode = "maker";
+      if (finalPackPicker) finalPackPicker.hidden = true;
+      if (finalPackStatus) finalPackStatus.textContent = "";
       if (completeKicker) completeKicker.textContent = "LEVEL MAKER";
       if (completeTitle) completeTitle.innerHTML = "TEST<br>COMPLETE";
       completeText.textContent = `Custom level solved in ${moves} moves and ${pushes} pushes.`;
@@ -1157,13 +1166,17 @@
         completeMode = "final";
         completeCard?.classList.add("final-complete");
         if (completeKicker) completeKicker.textContent = "CONGRATULATIONS";
-        if (completeTitle) completeTitle.innerHTML = "ALL 50<br>LEVELS<br>CLEARED";
-        completeText.textContent = `You completed level 50 in ${moves} moves and ${pushes} pushes — and finished the entire collection.`;
+        if (completeTitle) completeTitle.innerHTML = "WELL<br>DONE";
+        completeText.textContent = `You have completed this level pack. Level 50 was solved in ${moves} moves and ${pushes} pushes.`;
+        if (finalPackPicker) finalPackPicker.hidden = false;
+        if (finalPackStatus) finalPackStatus.textContent = "";
         if (nextBtnLabel) nextBtnLabel.textContent = "CHOOSE A LEVEL";
         if (nextBtnIcon) nextBtnIcon.textContent = "✓";
       } else {
         completeMode = "normal";
         completeCard?.classList.remove("final-complete");
+        if (finalPackPicker) finalPackPicker.hidden = true;
+        if (finalPackStatus) finalPackStatus.textContent = "";
         if (completeKicker) completeKicker.textContent = "BAUHAUS COLLECTION";
         if (completeTitle) completeTitle.innerHTML = "PUZZLE<br>CLEARED";
         const difference = moves - Number(levelData.minimum || 0);
@@ -1395,6 +1408,13 @@
     closeResetConfirm();
     resetLevelProgress();
   });
+  finalPackOptions.forEach(button => {
+    button.addEventListener("click", () => {
+      const packNumber = button.dataset.packPlaceholder || "";
+      if (finalPackStatus) finalPackStatus.textContent = `Level Pack ${packNumber} is a placeholder. Add its artwork and levels to activate it.`;
+    });
+  });
+
   nextBtn.addEventListener("click", () => {
     if (completeMode === "maker") {
       modal.hidden = true;

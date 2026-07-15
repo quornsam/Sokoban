@@ -145,7 +145,28 @@
       <span class="complete-kicker">BAUHAUS COLLECTION</span>
       <h2 id="completeTitle">PUZZLE<br>CLEARED</h2>
       <p id="completeText"></p>
-      <button id="nextBtn"><span>NEXT LEVEL</span><b aria-hidden="true">→</b></button>
+      <section id="finalPackPicker" class="final-pack-picker" hidden aria-labelledby="finalPackTitle">
+        <div class="final-pack-heading">
+          <strong id="finalPackTitle">CHOOSE ANOTHER LEVEL PACK</strong>
+          <span>More collections can be added here.</span>
+        </div>
+        <div class="final-pack-grid">
+          <button class="final-pack-option pack-red" type="button" data-pack-placeholder="2">
+            <span class="final-pack-art" aria-hidden="true"><i></i><b>02</b></span>
+            <span class="final-pack-name">LEVEL PACK 02<small>PLACEHOLDER</small></span>
+          </button>
+          <button class="final-pack-option pack-blue" type="button" data-pack-placeholder="3">
+            <span class="final-pack-art" aria-hidden="true"><i></i><b>03</b></span>
+            <span class="final-pack-name">LEVEL PACK 03<small>PLACEHOLDER</small></span>
+          </button>
+          <button class="final-pack-option pack-yellow" type="button" data-pack-placeholder="4">
+            <span class="final-pack-art" aria-hidden="true"><i></i><b>04</b></span>
+            <span class="final-pack-name">LEVEL PACK 04<small>PLACEHOLDER</small></span>
+          </button>
+        </div>
+        <p id="finalPackStatus" class="final-pack-status" aria-live="polite"></p>
+      </section>
+      <button id="nextBtn" class="complete-primary"><span>NEXT LEVEL</span><b aria-hidden="true">→</b></button>
     </div>
   </div>
 </div>

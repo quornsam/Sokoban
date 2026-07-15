@@ -162,3 +162,12 @@ VERSION 95
 - Non-square generation retains irregular outside silhouettes and now receives the same richer internal structure.
 - Goal placement is more varied, with a preference for walls and occasional connected goal patterns.
 - TESTED generation still builds backwards from a solved state, but now favours changes of box and pushing direction rather than relying on long repetitive straight pushes.
+
+
+VERSION 96
+----------
+- Completing level 50 now opens a dedicated end-of-pack congratulations screen.
+- The message confirms that the full 50-level pack has been completed and retains the final level move and push totals.
+- Added three visual placeholder choices for future level packs. These are ready to be replaced with uploaded artwork and collection data.
+- Selecting a placeholder clearly explains that the pack has not yet been installed.
+- The existing CHOOSE A LEVEL action remains available beneath the future-pack choices.

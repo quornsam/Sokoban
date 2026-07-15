@@ -61,12 +61,12 @@ button{font:inherit;color:inherit;cursor:pointer}
 .complete-kicker{font-size:11px;font-weight:950;letter-spacing:.18em}
 .complete-card h2{margin:10px 0 13px;font-size:clamp(38px,6vw,62px);line-height:.84;letter-spacing:-.055em;font-weight:950}
 .complete-card p{margin:0 0 25px;max-width:30ch;font-size:15px;line-height:1.42;font-weight:720}
-.complete-card button{align-self:flex-start;min-width:190px;display:flex;align-items:center;justify-content:space-between;gap:18px;padding:14px 15px 14px 18px;background:var(--ink);color:#fff;border:2px solid var(--ink);box-shadow:6px 6px 0 var(--red);font-weight:950;letter-spacing:.08em;transition:transform .12s ease,box-shadow .12s ease}
-.complete-card button b{width:28px;height:28px;display:grid;place-items:center;background:var(--yellow);color:var(--ink);font-size:20px}
-.complete-card button:hover{transform:translate(-2px,-2px);box-shadow:8px 8px 0 var(--red)}
-.complete-card button:active{transform:translate(4px,4px);box-shadow:2px 2px 0 var(--red)}
+.complete-primary{align-self:flex-start;min-width:190px;display:flex;align-items:center;justify-content:space-between;gap:18px;padding:14px 15px 14px 18px;background:var(--ink);color:#fff;border:2px solid var(--ink);box-shadow:6px 6px 0 var(--red);font-weight:950;letter-spacing:.08em;transition:transform .12s ease,box-shadow .12s ease}
+.complete-primary b{width:28px;height:28px;display:grid;place-items:center;background:var(--yellow);color:var(--ink);font-size:20px}
+.complete-primary:hover{transform:translate(-2px,-2px);box-shadow:8px 8px 0 var(--red)}
+.complete-primary:active{transform:translate(4px,4px);box-shadow:2px 2px 0 var(--red)}
 @keyframes completeCardIn{from{opacity:0;transform:translateY(14px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
-@media(max-width:560px){.complete-card{grid-template-columns:108px minmax(0,1fr)}.complete-art{min-height:330px}.complete-art span{width:62px;height:62px;font-size:34px}.complete-circle{width:108px;height:108px}.complete-square{width:78px;height:78px}.complete-copy{padding:28px 22px 26px}.complete-card h2{font-size:clamp(35px,12vw,50px)}.complete-card button{min-width:170px}}
+@media(max-width:560px){.complete-card{grid-template-columns:108px minmax(0,1fr)}.complete-art{min-height:330px}.complete-art span{width:62px;height:62px;font-size:34px}.complete-circle{width:108px;height:108px}.complete-square{width:78px;height:78px}.complete-copy{padding:28px 22px 26px}.complete-card h2{font-size:clamp(35px,12vw,50px)}.complete-primary{min-width:170px}}
 button:active{transform:translateY(1px);filter:brightness(.96)}button:disabled{opacity:.35;cursor:default}
 body.autoplaying .action,body.autoplaying .dpad button{opacity:.55;pointer-events:none}
 
@@ -411,7 +411,7 @@ body[data-theme="ink"] .level-picker #levelButtons button.completed{background:#
 body[data-theme="ink"] .level-picker #levelButtons button.locked,
 body[data-theme="ink"] .level-picker #levelButtons button:disabled{background:#ded5c4;color:#9b9284;border-color:#c6bcaa}
 body[data-theme="ink"] .level-reset{background:#e7dcc7;border:1px solid rgba(54,45,37,.54)}
-body[data-theme="ink"] .complete-card button,body[data-theme="ink"] .style-done,body[data-theme="ink"] .reset-confirm{
+body[data-theme="ink"] .complete-primary,body[data-theme="ink"] .style-done,body[data-theme="ink"] .reset-confirm{
   background:#c49322!important;color:#30271e!important;border:1px solid #8c6517!important;box-shadow:1px 2px 0 rgba(47,38,28,.18)!important;
 }
 body[data-theme="ink"] .complete-art{background:#e9dec7 url('assets/themes/ink/paper.png') center/512px repeat}
@@ -691,7 +691,7 @@ body[data-theme="ink"] .complete-card h2{
   letter-spacing:.01em;
 }
 body[data-theme="ink"] .complete-card p{text-align:center}
-body[data-theme="ink"] .complete-card button,
+body[data-theme="ink"] .complete-primary,
 body[data-theme="ink"] .style-done,
 body[data-theme="ink"] .reset-confirm{
   background:#d5ad4f url('assets/themes/ink/paper.png') center/512px repeat!important;
@@ -700,7 +700,7 @@ body[data-theme="ink"] .reset-confirm{
   border-image:url('assets/themes/ink/ui-button-frame.png') 34 fill / 7px / 0 stretch!important;
   box-shadow:none!important;
 }
-body[data-theme="ink"] .complete-card button b{background:transparent;color:#30271e}
+body[data-theme="ink"] .complete-primary b{background:transparent;color:#30271e}
 body[data-theme="ink"] .style-group[data-style-category]:not([data-style-category="bodyType"]){display:none}
 body[data-theme="ink"] .style-preview p::after{content:" The Ink collection uses its own hand-drawn character artwork."}
 body[data-theme="ink"] .style-type-btn.selected{transform:translateY(-1px);filter:sepia(.25) saturate(1.1)}
@@ -1142,3 +1142,45 @@ body.maker-testing .level-picker{display:none!important}
 .title strong .maker-hotspot{color:inherit!important;margin:0!important}
 
 /* Version 95: structured room-and-path level generation */
+
+
+/* Version 96 — end-of-pack congratulations and future collection placeholders */
+.final-pack-picker[hidden]{display:none}
+.final-pack-picker{margin:0 0 24px;padding-top:17px;border-top:2px solid var(--ink)}
+.final-pack-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin-bottom:10px}
+.final-pack-heading strong{font-size:11px;line-height:1.1;letter-spacing:.12em;font-weight:950}
+.final-pack-heading span{font-size:10px;line-height:1.2;font-weight:760;color:#5d564d;text-align:right}
+.final-pack-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.final-pack-option{min-width:0;padding:0;border:2px solid var(--ink);background:#f7f0e5;color:var(--ink);box-shadow:3px 3px 0 var(--ink);cursor:pointer;text-align:left;transition:transform .12s ease,box-shadow .12s ease}
+.final-pack-option:hover{transform:translate(-2px,-2px);box-shadow:5px 5px 0 var(--ink)}
+.final-pack-option:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+.final-pack-art{position:relative;display:block;height:62px;overflow:hidden;border-bottom:2px solid var(--ink);background:#ddd}
+.final-pack-art i{position:absolute;width:54px;height:54px;left:-15px;top:-14px;border:2px solid var(--ink);border-radius:50%;background:rgba(255,255,255,.48)}
+.final-pack-art b{position:absolute;right:8px;bottom:4px;font-size:28px;line-height:1;font-weight:950;letter-spacing:-.07em}
+.pack-red .final-pack-art{background:var(--red)}
+.pack-blue .final-pack-art{background:var(--blue);color:#fff}
+.pack-yellow .final-pack-art{background:var(--yellow)}
+.final-pack-name{display:block;padding:9px 8px 8px;font-size:10px;line-height:1.08;font-weight:950;letter-spacing:.04em}
+.final-pack-name small{display:block;margin-top:4px;font-size:8px;letter-spacing:.12em;font-weight:900;color:#6f675d}
+.final-pack-status{min-height:1.2em!important;margin:9px 0 0!important;max-width:none!important;font-size:10px!important;line-height:1.25!important;font-weight:800!important;color:#655d53}
+.complete-card.final-complete{width:min(760px,94vw);grid-template-columns:150px minmax(0,1fr)}
+.complete-card.final-complete .complete-art{min-height:500px}
+.complete-card.final-complete .complete-copy{padding:28px 32px 28px}
+.complete-card.final-complete h2{margin-bottom:10px}
+.complete-card.final-complete #completeText{max-width:48ch;margin-bottom:18px}
+@media(max-width:680px){
+  .complete-card.final-complete{grid-template-columns:82px minmax(0,1fr);width:min(96vw,620px)}
+  .complete-card.final-complete .complete-art{min-height:540px}
+  .complete-card.final-complete .complete-copy{padding:24px 17px 22px}
+  .final-pack-heading{display:block}
+  .final-pack-heading span{display:block;margin-top:4px;text-align:left}
+  .final-pack-grid{grid-template-columns:1fr}
+  .final-pack-option{display:grid;grid-template-columns:76px minmax(0,1fr);align-items:stretch}
+  .final-pack-art{height:52px;border-bottom:0;border-right:2px solid var(--ink)}
+  .final-pack-name{display:flex;flex-direction:column;justify-content:center}
+}
+@media(max-height:720px){
+  .complete-modal{align-items:flex-start;overflow:auto;padding:18px 0}
+  .complete-card.final-complete .complete-art{min-height:470px}
+  .final-pack-art{height:50px}
+}
