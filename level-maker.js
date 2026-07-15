@@ -3,6 +3,7 @@
 
   const modal = document.getElementById("levelMakerModal");
   const gridEl = document.getElementById("makerGrid");
+  const gridShell = gridEl?.closest(".maker-grid-shell");
   const widthInput = document.getElementById("makerWidth");
   const heightInput = document.getElementById("makerHeight");
   const boxesInput = document.getElementById("makerBoxes");
@@ -70,6 +71,7 @@
   let activeSaveId = "";
   let pendingDeleteId = "";
   let deleteTimer = null;
+  let fitFrame = 0;
 
   const clampSize = value => Math.max(MIN_SIZE, Math.min(MAX_SIZE, Math.round(Number(value) || 10)));
   const clampGeneratorSize = value => Math.max(GENERATOR_MIN_SIZE, clampSize(value));
@@ -89,6 +91,27 @@
       [copy[i], copy[j]] = [copy[j], copy[i]];
     }
     return copy;
+  }
+
+  function fitGridToShell() {
+    if (!gridShell || modal.hidden) return;
+    const style = getComputedStyle(gridShell);
+    const horizontalPadding = parseFloat(style.paddingLeft || 0) + parseFloat(style.paddingRight || 0);
+    const verticalPadding = parseFloat(style.paddingTop || 0) + parseFloat(style.paddingBottom || 0);
+    const availableWidth = Math.max(1, gridShell.clientWidth - horizontalPadding - 4);
+    const availableHeight = Math.max(1, gridShell.clientHeight - verticalPadding - 4);
+    const maximum = window.matchMedia("(max-width: 620px)").matches ? 44 : 56;
+    const fitted = Math.floor(Math.min(availableWidth / cols, availableHeight / rows, maximum));
+    const cellSize = Math.max(9, fitted);
+    gridEl.style.setProperty("--maker-cell", `${cellSize}px`);
+  }
+
+  function scheduleGridFit() {
+    cancelAnimationFrame(fitFrame);
+    fitFrame = requestAnimationFrame(() => {
+      fitGridToShell();
+      fitFrame = requestAnimationFrame(fitGridToShell);
+    });
   }
 
   function setStatus(message, type = "") {
@@ -215,6 +238,7 @@
       fragment.appendChild(button);
     });
     gridEl.appendChild(fragment);
+    scheduleGridFit();
   }
 
   function resizeGrid(nextCols, nextRows) {
@@ -1182,6 +1206,7 @@
     modal.hidden = false;
     exitTestBtn.hidden = !window.BoxxyGameAPI?.isMakerTesting?.();
     renderSavedLevels(activeSaveId);
+    scheduleGridFit();
     closeBtn.focus({ preventScroll: true });
   }
 
@@ -1353,6 +1378,12 @@
   }, { capture: true });
 
   window.addEventListener("boxxy-maker-return", openMaker);
+  window.addEventListener("resize", scheduleGridFit);
+  window.addEventListener("orientationchange", scheduleGridFit);
+  if (gridShell && "ResizeObserver" in window) {
+    const makerResizeObserver = new ResizeObserver(scheduleGridFit);
+    makerResizeObserver.observe(gridShell);
+  }
 
   selectTool("wall");
   makeRoom(10, 10, false);

@@ -27,7 +27,7 @@
   <section class="play-area">
     <header class="masthead">
       <div class="title"><strong>BO<span id="makerHotspot" class="maker-hotspot">X</span>XY</strong><span>PUSHBOX PUZZLE</span></div>
-      <button id="collectionBtn" class="collection is-static" type="button" disabled aria-disabled="true"><b id="collectionName">BAUHAUS<br>COLLECTION</b><i></i><span id="levelCount">1 / 50</span></button>
+      <button id="collectionBtn" class="collection" type="button" aria-haspopup="dialog" aria-controls="packModal" title="Choose a puzzle pack"><b id="collectionName">BAUHAUS<br>COLLECTION</b><i></i><span id="levelCount">1 / 50</span></button>
     </header>
 
     <section class="board-wrap">
@@ -133,6 +133,21 @@
   </div>
 </div>
 
+<div id="packModal" class="modal pack-modal" hidden>
+  <section class="pack-card" role="dialog" aria-modal="true" aria-labelledby="packModalTitle">
+    <header class="pack-head">
+      <div>
+        <span class="complete-kicker">BAUHAUS COLLECTION</span>
+        <h2 id="packModalTitle">PUZZLE PACKS</h2>
+        <p>Choose a collection. Progress is stored separately for each pack.</p>
+      </div>
+      <button id="packCloseBtn" class="pack-close" type="button" aria-label="Close puzzle packs">×</button>
+    </header>
+    <div id="packGrid" class="pack-grid" aria-label="Available puzzle packs"></div>
+    <p class="pack-license-note">Uploaded collections retain their original titles, authorship and non-commercial distribution terms.</p>
+  </section>
+</div>
+
 <div id="completeModal" class="modal complete-modal" hidden>
   <div class="modal-card complete-card" role="dialog" aria-modal="true" aria-labelledby="completeTitle">
     <div class="complete-art" aria-hidden="true">
@@ -148,22 +163,9 @@
       <section id="finalPackPicker" class="final-pack-picker" hidden aria-labelledby="finalPackTitle">
         <div class="final-pack-heading">
           <strong id="finalPackTitle">CHOOSE ANOTHER LEVEL PACK</strong>
-          <span>More collections can be added here.</span>
+          <span>Select a pack to begin.</span>
         </div>
-        <div class="final-pack-grid">
-          <button class="final-pack-option pack-red" type="button" data-pack-placeholder="2">
-            <span class="final-pack-art" aria-hidden="true"><i></i><b>02</b></span>
-            <span class="final-pack-name">LEVEL PACK 02<small>PLACEHOLDER</small></span>
-          </button>
-          <button class="final-pack-option pack-blue" type="button" data-pack-placeholder="3">
-            <span class="final-pack-art" aria-hidden="true"><i></i><b>03</b></span>
-            <span class="final-pack-name">LEVEL PACK 03<small>PLACEHOLDER</small></span>
-          </button>
-          <button class="final-pack-option pack-yellow" type="button" data-pack-placeholder="4">
-            <span class="final-pack-art" aria-hidden="true"><i></i><b>04</b></span>
-            <span class="final-pack-name">LEVEL PACK 04<small>PLACEHOLDER</small></span>
-          </button>
-        </div>
+        <div id="finalPackGrid" class="final-pack-grid" aria-label="Other puzzle packs"></div>
         <p id="finalPackStatus" class="final-pack-status" aria-live="polite"></p>
       </section>
       <button id="nextBtn" class="complete-primary"><span>NEXT LEVEL</span><b aria-hidden="true">→</b></button>
@@ -260,6 +262,7 @@
 <audio id="bgMusic" src="assets/audio/cracked-ivory-drift.mp3" preload="auto" autoplay loop playsinline></audio>
 
 <script src="levels.js"></script>
+<script src="packs.js"></script>
 <script src="character-styles.js"></script>
 <script src="game.js"></script>
 <script src="level-maker.js"></script>

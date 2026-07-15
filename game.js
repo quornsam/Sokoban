@@ -1,7 +1,43 @@
 (() => {
   "use strict";
 
-  const LEVELS = window.SOKOBAN_LEVELS || [];
+  const PACKS = Array.isArray(window.BOXXY_LEVEL_PACKS) && window.BOXXY_LEVEL_PACKS.length
+    ? window.BOXXY_LEVEL_PACKS
+    : [{
+        id: "microban",
+        title: "MICROBAN SERIES",
+        displayName: "Microban Series",
+        author: "David W. Skinner",
+        accent: "black",
+        levels: window.SOKOBAN_LEVELS || []
+      }];
+  const PACK_BY_ID = new Map(PACKS.map(pack => [pack.id, pack]));
+  const savedPackId = localStorage.getItem("boxxy-active-pack-v1");
+  let activePack = PACK_BY_ID.get(savedPackId) || PACKS[0];
+  let LEVELS = Array.isArray(activePack.levels) ? activePack.levels : [];
+
+  const packStorageKey = suffix => `boxxy-pack-${activePack.id}-${suffix}-v1`;
+  const currentLevelStorageKey = () => packStorageKey("level");
+  const currentProgressStorageKey = () => packStorageKey("progress");
+  const currentCompletedStorageKey = () => packStorageKey("completed");
+  const currentBestStorageKey = level => packStorageKey(`best-${level.sourceNumber}`);
+
+  function storedLevelIndexForPack(pack = activePack) {
+    const key = `boxxy-pack-${pack.id}-level-v1`;
+    const legacy = pack.id === "microban"
+      ? localStorage.getItem("push-bauhaus-v33-level") || localStorage.getItem("push-bauhaus-v29-level")
+      : null;
+    const raw = localStorage.getItem(key) ?? legacy ?? 0;
+    return Math.max(0, Math.min(Math.max(0, pack.levels.length - 1), Number(raw) || 0));
+  }
+
+  function readBest(level) {
+    const value = localStorage.getItem(currentBestStorageKey(level));
+    if (value != null) return value;
+    if (activePack.id === "microban") return localStorage.getItem(`push-bauhaus-v22-best-${level.sourceNumber}`);
+    return null;
+  }
+
   const DIRS = {
     left:  { dx: -1, dy: 0, code: "L" },
     right: { dx:  1, dy: 0, code: "R" },
@@ -49,7 +85,10 @@
   const nextBtnIcon = nextBtn?.querySelector("b");
   const finalPackPicker = document.getElementById("finalPackPicker");
   const finalPackStatus = document.getElementById("finalPackStatus");
-  const finalPackOptions = [...document.querySelectorAll("[data-pack-placeholder]")];
+  const finalPackGrid = document.getElementById("finalPackGrid");
+  const packModal = document.getElementById("packModal");
+  const packGrid = document.getElementById("packGrid");
+  const packCloseBtn = document.getElementById("packCloseBtn");
   const celebration = document.getElementById("celebration");
   const board = document.getElementById("board");
   const boardWrap = document.querySelector(".board-wrap");
@@ -68,7 +107,7 @@
   const makerReturnBtn = document.getElementById("makerReturnBtn");
   const levelMakerModal = document.getElementById("levelMakerModal");
 
-  let levelIndex = Math.max(0, Math.min(LEVELS.length - 1, Number(localStorage.getItem("push-bauhaus-v33-level") || localStorage.getItem("push-bauhaus-v29-level") || 0)));
+  let levelIndex = storedLevelIndexForPack();
   let levelData = null;
   let width = 1;
   let height = 1;
@@ -110,14 +149,15 @@
   let backgroundDecorBuilt = false;
   let backgroundFadeTimer = null;
   let backgroundBuildNonce = 0;
-  const LEVEL_PROGRESS_KEY = "boxxy-level-progress-v1";
-  const LEVEL_COMPLETED_KEY = "boxxy-completed-levels-v1";
   let completedLevels = new Set();
   let highestUnlockedLevel = 0;
 
   function loadLevelProgress() {
+    completedLevels = new Set();
     try {
-      const savedCompleted = JSON.parse(localStorage.getItem(LEVEL_COMPLETED_KEY) || "[]");
+      const currentRaw = localStorage.getItem(currentCompletedStorageKey());
+      const legacyRaw = activePack.id === "microban" ? localStorage.getItem("boxxy-completed-levels-v1") : null;
+      const savedCompleted = JSON.parse(currentRaw ?? legacyRaw ?? "[]");
       if (Array.isArray(savedCompleted)) {
         savedCompleted.forEach(value => {
           const index = Number(value);
@@ -126,12 +166,15 @@
       }
     } catch (_) {}
 
-    // Migrate previously completed puzzles from the existing best-score records.
-    LEVELS.forEach((level, index) => {
-      if (localStorage.getItem(`push-bauhaus-v22-best-${level.sourceNumber}`)) completedLevels.add(index);
-    });
+    if (activePack.id === "microban") {
+      LEVELS.forEach((level, index) => {
+        if (localStorage.getItem(`push-bauhaus-v22-best-${level.sourceNumber}`)) completedLevels.add(index);
+      });
+    }
 
-    const storedProgress = Number(localStorage.getItem(LEVEL_PROGRESS_KEY));
+    const currentProgress = localStorage.getItem(currentProgressStorageKey());
+    const legacyProgress = activePack.id === "microban" ? localStorage.getItem("boxxy-level-progress-v1") : null;
+    const storedProgress = Number(currentProgress ?? legacyProgress);
     const furthestCompleted = completedLevels.size ? Math.max(...completedLevels) + 1 : 0;
     highestUnlockedLevel = Math.max(
       0,
@@ -139,13 +182,13 @@
       furthestCompleted,
       levelIndex
     );
-    highestUnlockedLevel = Math.min(highestUnlockedLevel, LEVELS.length - 1);
+    highestUnlockedLevel = Math.min(highestUnlockedLevel, Math.max(0, LEVELS.length - 1));
     saveLevelProgress();
   }
 
   function saveLevelProgress() {
-    localStorage.setItem(LEVEL_PROGRESS_KEY, String(highestUnlockedLevel));
-    localStorage.setItem(LEVEL_COMPLETED_KEY, JSON.stringify([...completedLevels].sort((a, b) => a - b)));
+    localStorage.setItem(currentProgressStorageKey(), String(highestUnlockedLevel));
+    localStorage.setItem(currentCompletedStorageKey(), JSON.stringify([...completedLevels].sort((a, b) => a - b)));
   }
 
   function applyTheme(_theme, redraw = true) {
@@ -182,6 +225,83 @@
     levelPicker.hidden = true;
   }
 
+  function openPackModal() {
+    if (!packModal) return;
+    closeLevelPicker();
+    buildPackSelectors();
+    packModal.hidden = false;
+    packCloseBtn?.focus({ preventScroll: true });
+  }
+
+  function closePackModal() {
+    if (packModal) packModal.hidden = true;
+  }
+
+  function createPackButton(pack, index, compact = false) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `${compact ? "final-pack-option" : "pack-option"} pack-${pack.accent || "black"}`;
+    button.dataset.packId = pack.id;
+    if (pack.id === activePack.id) button.classList.add("active");
+
+    const art = document.createElement("span");
+    art.className = "final-pack-art";
+    art.setAttribute("aria-hidden", "true");
+    const shape = document.createElement("i");
+    const number = document.createElement("b");
+    number.textContent = String(index + 1).padStart(2, "0");
+    art.append(shape, number);
+
+    const name = document.createElement("span");
+    name.className = "final-pack-name";
+    name.append(document.createTextNode(pack.title));
+    const meta = document.createElement("small");
+    meta.textContent = `${pack.levels.length} LEVELS · ${String(pack.author || "").toUpperCase()}`;
+    name.appendChild(meta);
+    button.append(art, name);
+    button.title = pack.description || pack.displayName || pack.title;
+    button.addEventListener("click", () => switchPack(pack.id));
+    return button;
+  }
+
+  function buildPackSelectors() {
+    if (packGrid) {
+      packGrid.innerHTML = "";
+      PACKS.forEach((pack, index) => packGrid.appendChild(createPackButton(pack, index, false)));
+    }
+    if (finalPackGrid) {
+      finalPackGrid.innerHTML = "";
+      PACKS.forEach((pack, index) => {
+        if (pack.id !== activePack.id) finalPackGrid.appendChild(createPackButton(pack, index, true));
+      });
+    }
+  }
+
+  function switchPack(packId) {
+    const nextPack = PACK_BY_ID.get(packId);
+    if (!nextPack || !Array.isArray(nextPack.levels) || !nextPack.levels.length) return;
+    if (nextPack.id === activePack.id) {
+      closePackModal();
+      if (modal) modal.hidden = true;
+      return;
+    }
+
+    localStorage.setItem(currentLevelStorageKey(), String(levelIndex));
+    activePack = nextPack;
+    LEVELS = nextPack.levels;
+    localStorage.setItem("boxxy-active-pack-v1", activePack.id);
+    levelIndex = storedLevelIndexForPack(activePack);
+    completedLevels = new Set();
+    highestUnlockedLevel = 0;
+    loadLevelProgress();
+    buildLevelButtons();
+    closePackModal();
+    closeLevelPicker();
+    if (modal) modal.hidden = true;
+    buildPackSelectors();
+    loadLevel(levelIndex);
+  }
+
 
   function openResetConfirm() {
     if (!resetConfirmModal) return;
@@ -198,7 +318,8 @@
     highestUnlockedLevel = 0;
     saveLevelProgress();
     LEVELS.forEach((level) => {
-      localStorage.removeItem(`push-bauhaus-v22-best-${level.sourceNumber}`);
+      localStorage.removeItem(currentBestStorageKey(level));
+      if (activePack.id === "microban") localStorage.removeItem(`push-bauhaus-v22-best-${level.sourceNumber}`);
     });
     levelIndex = 0;
     refreshLevelButtons();
@@ -218,7 +339,7 @@
       button.setAttribute("aria-disabled", String(isLocked));
       button.title = isLocked
         ? `Complete level ${index} to unlock level ${index + 1}`
-        : `${index + 1}. ${LEVELS[index].name} — ${LEVELS[index].tier}`;
+        : `${activePack.displayName}: ${index + 1}. ${LEVELS[index].name}`;
     });
   }
 
@@ -877,9 +998,9 @@
 
     movesEl.textContent = moves;
     pushesEl.textContent = pushes;
-    minimumEl.textContent = makerTesting ? "—" : levelData.minimum;
+    minimumEl.textContent = makerTesting ? "—" : (levelData.minimum ?? "—");
     levelCount.textContent = makerTesting ? "MAKER" : `${levelIndex + 1} / ${LEVELS.length}`;
-    const best = makerTesting ? null : localStorage.getItem(`push-bauhaus-v22-best-${levelData.sourceNumber}`);
+    const best = makerTesting ? null : readBest(levelData);
     bestEl.textContent = best || "—";
     undoBtn.disabled = !history.length || completed;
     refreshLevelButtons();
@@ -919,7 +1040,8 @@
     blockedPushHeld = false;
     clearTimeout(animTimer);
     levelIndex = requestedIndex;
-    localStorage.setItem("push-bauhaus-v33-level", levelIndex);
+    localStorage.setItem(currentLevelStorageKey(), String(levelIndex));
+    if (activePack.id === "microban") localStorage.setItem("push-bauhaus-v33-level", levelIndex);
     levelData = LEVELS[levelIndex];
     const parsed = parseLayout(levelData.layout);
     width = parsed.width;
@@ -940,7 +1062,7 @@
     completeCard?.classList.remove("final-complete");
     if (finalPackPicker) finalPackPicker.hidden = true;
     if (finalPackStatus) finalPackStatus.textContent = "";
-    if (completeKicker) completeKicker.textContent = "BAUHAUS COLLECTION";
+    if (completeKicker) completeKicker.textContent = activePack.title;
     if (completeTitle) completeTitle.innerHTML = "PUZZLE<br>CLEARED";
     if (nextBtnLabel) nextBtnLabel.textContent = "NEXT LEVEL";
     if (nextBtnIcon) nextBtnIcon.textContent = "→";
@@ -950,8 +1072,12 @@
     board.style.aspectRatio = `${width} / ${height}`;
     if (!preserveBackground) refreshBackgroundDecor(backgroundDecorBuilt);
     scheduleBoardResize();
-    creditTitle.textContent = `${levelData.tier} · ${levelData.name}`;
-    creditSub.textContent = `DAVID W. SKINNER · ${width}×${height} · ${levelData.pushMinimum} ${levelData.pushMinimum === 1 ? "PUSH" : "PUSHES"}`;
+    creditTitle.textContent = activePack.id === "microban" ? `${levelData.tier} · ${levelData.name}` : levelData.name;
+    const creditedAuthor = levelData.author || activePack.author || "";
+    const measureWord = activePack.id === "microban"
+      ? `${levelData.pushMinimum} ${levelData.pushMinimum === 1 ? "PUSH" : "PUSHES"}`
+      : `${levelData.pushMinimum} ${levelData.pushMinimum === 1 ? "BOX" : "BOXES"}`;
+    creditSub.textContent = `${String(creditedAuthor).toUpperCase()} · ${width}×${height} · ${measureWord}`;
     startedAt = Date.now();
     clearInterval(timer);
     timer = setInterval(updateTime, 250);
@@ -1152,8 +1278,8 @@
       if (nextBtnLabel) nextBtnLabel.textContent = "BACK TO MAKER";
       if (nextBtnIcon) nextBtnIcon.textContent = "←";
     } else {
-      const bestKey = `push-bauhaus-v22-best-${levelData.sourceNumber}`;
-      const oldBest = Number(localStorage.getItem(bestKey) || 0);
+      const bestKey = currentBestStorageKey(levelData);
+      const oldBest = Number(readBest(levelData) || 0);
       if (!autoplayRunning && (!oldBest || moves < oldBest)) localStorage.setItem(bestKey, moves);
       if (!autoplayRunning) {
         completedLevels.add(levelIndex);
@@ -1167,7 +1293,8 @@
         completeCard?.classList.add("final-complete");
         if (completeKicker) completeKicker.textContent = "CONGRATULATIONS";
         if (completeTitle) completeTitle.innerHTML = "WELL<br>DONE";
-        completeText.textContent = `You have completed this level pack. Level 50 was solved in ${moves} moves and ${pushes} pushes.`;
+        completeText.textContent = `You have completed ${activePack.displayName}. Level ${LEVELS.length} was solved in ${moves} moves and ${pushes} pushes.`;
+        buildPackSelectors();
         if (finalPackPicker) finalPackPicker.hidden = false;
         if (finalPackStatus) finalPackStatus.textContent = "";
         if (nextBtnLabel) nextBtnLabel.textContent = "CHOOSE A LEVEL";
@@ -1177,12 +1304,17 @@
         completeCard?.classList.remove("final-complete");
         if (finalPackPicker) finalPackPicker.hidden = true;
         if (finalPackStatus) finalPackStatus.textContent = "";
-        if (completeKicker) completeKicker.textContent = "BAUHAUS COLLECTION";
+        if (completeKicker) completeKicker.textContent = activePack.title;
         if (completeTitle) completeTitle.innerHTML = "PUZZLE<br>CLEARED";
-        const difference = moves - Number(levelData.minimum || 0);
-        completeText.textContent = difference === 0
-          ? `Perfect route: ${moves} moves and ${pushes} pushes.`
-          : `Solved in ${moves} moves and ${pushes} pushes — ${difference} over the minimum.`;
+        const statedMinimum = Number(levelData.minimum);
+        if (Number.isFinite(statedMinimum) && statedMinimum > 0) {
+          const difference = moves - statedMinimum;
+          completeText.textContent = difference === 0
+            ? `Perfect route: ${moves} moves and ${pushes} pushes.`
+            : `Solved in ${moves} moves and ${pushes} pushes — ${difference} over the minimum.`;
+        } else {
+          completeText.textContent = `Solved in ${moves} moves and ${pushes} pushes.`;
+        }
         if (nextBtnLabel) nextBtnLabel.textContent = "NEXT LEVEL";
         if (nextBtnIcon) nextBtnIcon.textContent = "→";
       }
@@ -1387,7 +1519,9 @@
     if (musicOn) startBackgroundMusic();
     else pauseBackgroundMusic();
   });
-  // Collection switching is temporarily disabled; Bauhaus remains active.
+  collectionBtn?.addEventListener("click", openPackModal);
+  packCloseBtn?.addEventListener("click", closePackModal);
+  packModal?.addEventListener("click", event => { if (event.target === packModal) closePackModal(); });
   themeCloseBtn?.addEventListener("click", closeThemeModal);
   themeChoices.forEach(button => button.addEventListener("click", () => { applyTheme(button.dataset.themeChoice); closeThemeModal(); }));
   themeModal?.addEventListener("click", event => { if (event.target === themeModal) closeThemeModal(); });
@@ -1408,13 +1542,6 @@
     closeResetConfirm();
     resetLevelProgress();
   });
-  finalPackOptions.forEach(button => {
-    button.addEventListener("click", () => {
-      const packNumber = button.dataset.packPlaceholder || "";
-      if (finalPackStatus) finalPackStatus.textContent = `Level Pack ${packNumber} is a placeholder. Add its artwork and levels to activate it.`;
-    });
-  });
-
   nextBtn.addEventListener("click", () => {
     if (completeMode === "maker") {
       modal.hidden = true;
@@ -1480,6 +1607,7 @@
   document.addEventListener("pointerdown", retryMusicAfterInteraction, { capture: true });
   document.addEventListener("keydown", retryMusicAfterInteraction, { capture: true });
   window.addEventListener("keydown", event => {
+    if (event.key === "Escape" && packModal && !packModal.hidden) { closePackModal(); return; }
     if (event.key === "Escape" && themeModal && !themeModal.hidden) { closeThemeModal(); return; }
     if (event.key === "Escape" && resetConfirmModal && !resetConfirmModal.hidden) {
       closeResetConfirm();
@@ -1497,6 +1625,7 @@
   applyTheme(currentTheme, false);
   loadLevelProgress();
   buildLevelButtons();
+  buildPackSelectors();
   Promise.resolve(window.CharacterStyler?.ready).finally(() => loadLevel(levelIndex));
 
   if (document.readyState === "complete") {

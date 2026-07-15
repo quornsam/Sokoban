@@ -1184,3 +1184,89 @@ body.maker-testing .level-picker{display:none!important}
   .complete-card.final-complete .complete-art{min-height:470px}
   .final-pack-art{height:50px}
 }
+
+/* Version 97 — puzzle packs and expanded level workshop */
+.pack-modal{
+  z-index:11000;
+  padding:18px;
+  overflow:auto;
+  background:rgba(23,23,25,.58);
+  backdrop-filter:blur(7px);
+}
+.pack-card{
+  width:min(980px,94vw);
+  max-height:94dvh;
+  overflow:auto;
+  padding:24px;
+  background:var(--paper2);
+  border:2px solid var(--ink);
+  box-shadow:12px 12px 0 rgba(23,23,25,.35),0 28px 80px rgba(0,0,0,.32);
+}
+.pack-head{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;padding-bottom:16px;border-bottom:2px solid var(--ink)}
+.pack-head h2{margin:5px 0 4px;font-size:clamp(30px,5vw,54px);line-height:.88;letter-spacing:-.055em}
+.pack-head p{margin:9px 0 0;max-width:620px;color:#61574b;font-size:12px;line-height:1.4}
+.pack-close{flex:none;width:44px;height:44px;border:2px solid var(--ink);background:var(--red);color:#fff;font-size:30px;line-height:1;font-weight:950}
+.pack-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px;margin-top:18px}
+.pack-option{min-width:0;padding:0;border:2px solid var(--ink);background:#f7f0e5;color:var(--ink);box-shadow:5px 5px 0 var(--ink);cursor:pointer;text-align:left;transition:transform .12s ease,box-shadow .12s ease}
+.pack-option:hover{transform:translate(-2px,-2px);box-shadow:7px 7px 0 var(--ink)}
+.pack-option:active{transform:translate(3px,3px);box-shadow:2px 2px 0 var(--ink)}
+.pack-option.active{outline:5px solid var(--yellow);outline-offset:3px}
+.pack-option .final-pack-art{height:112px}
+.pack-option .final-pack-art b{font-size:54px;right:14px;bottom:8px}
+.pack-option .final-pack-name{padding:13px 12px 12px;font-size:15px}
+.pack-option .final-pack-name small{font-size:9px;line-height:1.35}
+.pack-black .final-pack-art{background:var(--ink);color:#fff}
+.pack-license-note{margin:17px 0 0;padding-top:12px;border-top:1px solid #a89d8e;color:#655c50;font-size:9px;line-height:1.4;font-weight:750}
+.final-pack-option.active{display:none}
+.collection{cursor:pointer}
+.collection:focus-visible{outline:3px solid var(--red);outline-offset:5px}
+
+/* Make a box on a goal unmistakable in the editor. */
+.maker-tool-icon.boxgoal::after{width:23px;height:23px;border-width:3px}
+.maker-tool-icon.boxgoal::before{inset:7px;background:var(--red);border-color:#7d241b;box-shadow:2px 2px 0 rgba(23,23,25,.35)}
+.maker-cell.type-boxgoal::before{width:78%;height:78%;border-width:clamp(2px,.28vw,4px)}
+.maker-cell.type-boxgoal::after{inset:24%;background:linear-gradient(145deg,#e85a42,#bd2f22);border-color:#742219;box-shadow:2px 2px 0 rgba(23,23,25,.35)}
+
+/* Larger workshop; the grid now uses a calculated cell size and always fits its bay. */
+.maker-card{width:min(1600px,98.5vw);max-height:98dvh;overflow:hidden}
+.maker-layout{grid-template-columns:minmax(560px,1fr) minmax(500px,620px);height:calc(98dvh - 112px);min-height:520px;align-items:stretch}
+.maker-workbench{display:flex;flex-direction:column;min-height:0}
+.maker-toolbar{flex:none}
+.maker-grid-shell{flex:1 1 auto;min-height:0;height:auto;overflow:hidden;padding:12px}
+.maker-grid{
+  --maker-cell:36px;
+  width:calc(var(--maker-cols) * var(--maker-cell));
+  max-width:none;
+  grid-template-columns:repeat(var(--maker-cols),var(--maker-cell));
+  grid-auto-rows:var(--maker-cell);
+}
+.maker-cell{width:var(--maker-cell);height:var(--maker-cell);min-width:0;aspect-ratio:auto}
+.maker-controls{min-height:0;overflow:auto;padding-right:2px}
+@media(min-width:901px){.maker-grid{width:calc(var(--maker-cols) * var(--maker-cell))}.maker-grid-shell{align-content:center}}
+
+@media(max-width:1120px){
+  .maker-card{overflow:auto}
+  .maker-layout{height:auto;min-height:0;grid-template-columns:1fr}
+  .maker-grid-shell{height:min(64dvh,680px);min-height:330px}
+  .maker-controls{overflow:visible}
+}
+@media(max-width:620px){
+  .pack-card{width:100%;padding:15px}
+  .pack-grid{grid-template-columns:1fr;gap:11px}
+  .pack-option{display:grid;grid-template-columns:94px minmax(0,1fr);align-items:stretch}
+  .pack-option .final-pack-art{height:74px;border-bottom:0;border-right:2px solid var(--ink)}
+  .pack-option .final-pack-art b{font-size:31px}
+  .pack-option .final-pack-name{display:flex;flex-direction:column;justify-content:center;font-size:11px}
+  .maker-grid-shell{height:min(58dvh,520px);min-height:260px}
+}
+
+/* Long imported packs need a contained, scrollable chooser. */
+.level-picker #levelButtons{
+  max-height:min(58dvh,520px);
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  padding-right:3px;
+}
+@media(max-width:760px){
+  .level-picker #levelButtons{max-height:calc(78dvh - 58px)}
+}

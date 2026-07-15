@@ -171,3 +171,25 @@ VERSION 96
 - Added three visual placeholder choices for future level packs. These are ready to be replaced with uploaded artwork and collection data.
 - Selecting a placeholder clearly explains that the pack has not yet been installed.
 - The existing CHOOSE A LEVEL action remains available beneath the future-pack choices.
+
+VERSION 97
+----------
+- The BAUHAUS COLLECTION heading is now a button that opens the puzzle-pack chooser.
+- Added three uploaded packs alongside the original 50-level Microban Series:
+  - Chrysalis Variations — 113 levels — David Buchweitz and Jordi Domènech.
+  - Haikemono — 35 levels — Jordi Domènech.
+  - Small Chessboards — 40 levels — Jordi Domènech.
+- Each pack keeps its own current level, unlocked levels, completion history and best scores.
+- Completing the last level of any pack now offers the other installed packs directly rather than placeholders.
+- The level chooser is scrollable for collections containing more than 50 levels.
+- The Level Maker window is larger on desktop, and its board automatically scales to the available workshop area.
+- Editor squares have a maximum size, so small maps remain sensibly proportioned rather than filling the window.
+- BOX + GOAL now shows a large visible goal ring around a smaller red box, both in the toolbar and on the editor board.
+
+LEVEL-PACK CREDITS AND DISTRIBUTION
+-----------------------------------
+The original uploaded text files are included unchanged in the level-packs folder and contain the full author notes and licence terms.
+
+Chrysalis Variations is copyright David Buchweitz and Jordi Domènech.
+Haikemono and Small Chessboards are copyright Jordi Domènech.
+The supplied files state that the collections may be distributed unchanged for non-commercial use with attribution and author notification under Creative Commons Attribution-NonCommercial-NoDerivs 3.0 Unported. Anyone publishing or redistributing this build should read the original files and follow those terms, including notifying the authors where required.
