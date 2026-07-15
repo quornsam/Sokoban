@@ -3,11 +3,12 @@ BOXXY — Pushbox Puzzle
 Open index.html in a web browser.
 
 Files
-- index.html: interface only
-- styles.css: visual design
-- game.js: game engine and controls
-- levels.js: all 50 level layouts, solutions and metadata
-- assets/: character, crate and target artwork
+- index.html: compact interface structure
+- styles.css: all visual design and responsive layout
+- boxxy.js: character renderer, game engine and level maker
+- data.js: all four puzzle packs, metadata and stored walkthrough strings
+- CREDITS-AND-LICENCES.txt: additional-pack authorship and distribution terms
+- assets/: active Bauhaus artwork, board atlas, splash art and music
 
 Controls
 - Arrow keys or WASD
@@ -193,3 +194,16 @@ The original uploaded text files are included unchanged in the level-packs folde
 Chrysalis Variations is copyright David Buchweitz and Jordi Domènech.
 Haikemono and Small Chessboards are copyright Jordi Domènech.
 The supplied files state that the collections may be distributed unchanged for non-commercial use with attribution and author notification under Creative Commons Attribution-NonCommercial-NoDerivs 3.0 Unported. Anyone publishing or redistributing this build should read the original files and follow those terms, including notifying the authors where required.
+
+
+VERSION 98
+----------
+- Removed the dormant INK theme and all of its assets from the live build.
+- Consolidated five JavaScript files into boxxy.js and two data files into data.js without embedding them in index.html.
+- Replaced the three separate goal/crate PNG files with one lossless board-atlas PNG.
+- Removed duplicate copies of the imported level-map text. All layouts, names, authors and comments remain in data.js; unique credits and licence notes are retained in CREDITS-AND-LICENCES.txt.
+- The Level Maker card now uses border-box viewport sizing, zero horizontal overflow and min-width-safe grid columns.
+- On desktop and tablet widths the full workshop stays in one modal window; the board recalculates its cell size to fit the remaining bay and retains its 56 px maximum.
+- Narrow phone layouts may scroll vertically, but never sideways.
+- The original BOXXY 50-level pack retains all 50 stored walkthroughs.
+- The three imported packs contain no move-sequence data in their supplied files. No unverified or fabricated walkthroughs have been inserted.
