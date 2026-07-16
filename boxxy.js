@@ -28,7 +28,7 @@
   });
 })();
 
-/* BOXXY v110 — character renderer, game engine, level maker and continuous puzzle solving. */
+/* BOXXY v111 — character renderer, game engine, level maker and memory-bounded continuous puzzle solving. */
 (() => {
   "use strict";
 
@@ -2249,6 +2249,8 @@
   let solverStartedAt = 0;
   let lastClosestResult = null;
   const SOLVER_PROGRESS_UPDATE_MS = 750;
+  const SOLVER_RUN_SNAPSHOT_KEY = "boxxy-solver-last-run-v1";
+  let solverLastSnapshotAt = 0;
   let solverAudioContext = null;
 
   const clampSize = value => Math.max(MIN_SIZE, Math.min(MAX_SIZE, Math.round(Number(value) || 10)));
@@ -2423,10 +2425,13 @@
     }
   }
 
-  function finishSolverRun() {
+  function finishSolverRun(preserveSnapshot = false) {
     if (solverWorker) solverWorker.terminate();
     solverWorker = null;
     solverRunning = false;
+    if (!preserveSnapshot) {
+      try { localStorage.removeItem(SOLVER_RUN_SNAPSHOT_KEY); } catch (_) {}
+    }
     if (solverStartBtn) solverStartBtn.disabled = false;
     if (solverCancelBtn) solverCancelBtn.hidden = true;
   }
@@ -2445,8 +2450,15 @@
     if (solverStats) solverStats.textContent = "";
     clearClosestDisplay();
     updateSolverControls();
+    let previousRun = null;
+    try { previousRun = JSON.parse(localStorage.getItem(SOLVER_RUN_SNAPSHOT_KEY) || "null"); } catch (_) {}
     if (solutionMatchesCurrentBoard()) {
       setSolverStatus(`A ${currentSolution.length.toLocaleString()}-move solution is already attached to this puzzle.`, "success");
+    } else if (previousRun?.running) {
+      const seconds = (Number(previousRun.elapsedMs || 0) / 1000).toFixed(1);
+      setSolverStatus(`The previous solver tab ended unexpectedly after ${seconds}s in ${previousRun.phase || "search"}, at ${Number(previousRun.generated || 0).toLocaleString()} generated push states. v111 now bounds and compacts resident search memory.`, "error");
+      if (previousRun.closest) showClosestDisplay(previousRun.closest, {});
+      try { localStorage.removeItem(SOLVER_RUN_SNAPSHOT_KEY); } catch (_) {}
     } else {
       setSolverStatus("Ready to solve the current editor puzzle.");
     }
@@ -2496,7 +2508,32 @@
       const cellsText = Number(progress.featureCells || 0) > 0 ? ` · ${Number(progress.featureCells).toLocaleString()} feature cells` : "";
       const stagnantText = Number(progress.plateauPruned || 0) > 0 ? ` · ${Number(progress.plateauPruned).toLocaleString()} stagnant branches pruned` : "";
       const bridgeText = Number(progress.bridgeHits || 0) > 0 ? ` · ${Number(progress.bridgeHits).toLocaleString()} frontier joins` : "";
-      solverStats.textContent = `${Number(progress.generated || 0).toLocaleString()} push states · ${Number(progress.open || 0).toLocaleString()} active${depth}${estimateText}${goalsText}${patternText}${cellsText}${prunedText}${stagnantText}${bridgeText} · ${seconds}s`;
+      const resident = Number(progress.residentNodes || progress.stats?.residentNodes || 0);
+      const residentLimit = Number(progress.residentNodeLimit || progress.stats?.residentNodeLimit || 0);
+      const memoryText = resident > 0 && residentLimit > 0
+        ? ` · memory ${resident.toLocaleString()}/${residentLimit.toLocaleString()} states`
+        : "";
+      const compactions = Number(progress.memoryCompactions || progress.stats?.memoryCompactions || 0);
+      const compactText = compactions > 0 ? ` · ${compactions.toLocaleString()} memory compactions` : "";
+      solverStats.textContent = `${Number(progress.generated || 0).toLocaleString()} push states · ${Number(progress.open || 0).toLocaleString()} active${depth}${estimateText}${goalsText}${patternText}${cellsText}${prunedText}${stagnantText}${bridgeText}${memoryText}${compactText} · ${seconds}s`;
+    }
+    const now = Date.now();
+    if (now - solverLastSnapshotAt >= 5000) {
+      solverLastSnapshotAt = now;
+      try {
+        localStorage.setItem(SOLVER_RUN_SNAPSHOT_KEY, JSON.stringify({
+          running: true,
+          savedAt: now,
+          phase: progress.phase || "forward",
+          elapsedMs: Number(progress.elapsedMs || 0),
+          generated: Number(progress.generated || 0),
+          open: Number(progress.open || 0),
+          residentNodes: Number(progress.residentNodes || progress.stats?.residentNodes || 0),
+          residentNodeLimit: Number(progress.residentNodeLimit || progress.stats?.residentNodeLimit || 0),
+          memoryCompactions: Number(progress.memoryCompactions || progress.stats?.memoryCompactions || 0),
+          closest: progress.closest || lastClosestResult || null
+        }));
+      } catch (_) {}
     }
   }
 
@@ -2611,6 +2648,8 @@
     solverAbortRequested = false;
     solverRunning = true;
     solverStartedAt = performance.now();
+    solverLastSnapshotAt = 0;
+    try { localStorage.removeItem(SOLVER_RUN_SNAPSHOT_KEY); } catch (_) {}
     const existingRoute = solutionMatchesCurrentBoard() ? currentSolution : "";
     clearClosestDisplay();
     const totalGoals = (levelText.match(/[.*+]/g) || []).length;
@@ -2626,7 +2665,7 @@
     if (solverStats) solverStats.textContent = "0 states";
     if (solverStartBtn) solverStartBtn.disabled = true;
     if (solverCancelBtn) solverCancelBtn.hidden = false;
-    setSolverStatus("Search will continue until a verified solution is found, the complete push-state graph is exhausted, or you press Cancel Search. The closest forward-reachable position updates below while it works.");
+    setSolverStatus("Search continues until a verified solution is found, the reachable search is exhausted, or you press Cancel Search. Resident memory is capped and the forward frontier is compacted as needed, so a long run should not grow until Opera kills the page. The closest forward-reachable position updates below.");
 
     let fellBack = false;
     const fallback = () => {
@@ -2637,12 +2676,12 @@
       runSolverOnMainThread(id, levelText);
     };
 
-    if (!window.Worker) {
+    if (!window.Worker || location.protocol === "file:") {
       fallback();
       return;
     }
     try {
-      solverWorker = new Worker("solver-worker.js");
+      solverWorker = new Worker("solver-worker.js?v=111");
       solverWorker.onmessage = event => {
         const message = event.data || {};
         if (message.id !== id || id !== solverJobId || !solverRunning) return;
@@ -2655,7 +2694,15 @@
       };
       solverWorker.onerror = event => {
         event.preventDefault?.();
-        fallback();
+        if (id !== solverJobId || !solverRunning) return;
+        const detail = event?.message ? ` ${event.message}` : "";
+        finishSolverRun(true);
+        setSolverStatus(`The background solver worker stopped unexpectedly.${detail} The game page has been kept alive; reopen Solve Puzzle to inspect the saved progress report.`, "error");
+      };
+      solverWorker.onmessageerror = () => {
+        if (id !== solverJobId || !solverRunning) return;
+        finishSolverRun(true);
+        setSolverStatus("The browser could not read a message from the background solver. The game page has been kept alive; reopen Solve Puzzle to inspect the saved progress report.", "error");
       };
       solverWorker.postMessage({
         type: "solve",

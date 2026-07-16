@@ -1,5 +1,5 @@
 /*
- * BOXXY Sokoban Solver Core v2.6.0
+ * BOXXY Sokoban Solver Core v2.7.0
  * Original browser-first implementation by OpenAI for Sam Cornwell / BOXXY.
  *
  * Search model:
@@ -1148,8 +1148,9 @@
 
 
   async function boundedBestFirstSearch(board, options, shared) {
-    const { startedAt, stats, initialBoxes, maxTimeMs, onProgress, progressEveryMs, shouldStop } = shared;
-    const nodeCap = Math.max(20_000, Number(options.boundMaxNodes) || Math.min(1_500_000, Math.max(200_000, Math.floor((Number(options.maxNodes) || 600_000) * 0.12))));
+    const { startedAt, stats, initialBoxes, maxNodes, maxTimeMs, onProgress, progressEveryMs, shouldStop } = shared;
+    const requestedNodeCap = Number(options.boundMaxNodes) || Math.max(20_000, Math.floor(maxNodes * 0.55));
+    const nodeCap = Math.max(10_000, Math.min(requestedNodeCap, maxNodes));
     const timeCap = Math.max(1_000, Number(options.boundMaxTimeMs) || Math.min(150_000, Math.max(10_000, Math.floor(maxTimeMs * 0.12))));
     const slack = Math.max(1, Number(options.boundSlack) || (initialBoxes.length >= 25 ? 5 : 4));
     const currentScratch = createScratch(board);
@@ -1209,10 +1210,11 @@
 
   async function boundedPushIDA(board, options, shared) {
     const {
-      startedAt, stats, initialBoxes, maxTimeMs, onProgress,
+      startedAt, stats, initialBoxes, maxNodes, maxTimeMs, onProgress,
       progressEveryMs, shouldStop,
     } = shared;
-    const nodeCap = Math.max(10_000, Number(options.idaMaxNodes) || Math.min(1_200_000, Math.max(120_000, Math.floor((Number(options.maxNodes) || 600_000) * 0.08))));
+    const requestedNodeCap = Number(options.idaMaxNodes) || Math.max(12_000, Math.floor(maxNodes * 0.45));
+    const nodeCap = Math.max(8_000, Math.min(requestedNodeCap, maxNodes));
     const timeCap = Math.max(1_000, Number(options.idaMaxTimeMs) || Math.min(120_000, Math.max(8_000, Math.floor(maxTimeMs * 0.08))));
     const maxSlack = Math.max(0, Number(options.idaMaxSlack) || (initialBoxes.length >= 25 ? 6 : 4));
     const exactCache = new Map();
@@ -2101,9 +2103,16 @@
         : mode === 'thorough' ? 1.35
           : mode === 'deep' ? (board.initialBoxes.length >= 30 ? 4.8 : 2.8)
             : 2.2;
+    // "Unlimited" means unlimited wall-clock time, not unlimited RAM. Browser
+    // tabs are killed by the OS when a search retains too many object-heavy
+    // Sokoban states. Keep every phase within a resident-state budget and let
+    // the final forward search compact its frontier repeatedly until cancelled.
+    const automaticResidentLimit = Math.max(24_000, Math.min(180_000,
+      Math.floor(2_600_000 / Math.max(8, board.initialBoxes.length))));
+    const residentNodeLimit = Math.max(12_000, Number(options.maxResidentNodes) || automaticResidentLimit);
     const maxNodes = unlimited
-      ? Number.MAX_SAFE_INTEGER
-      : Math.max(1, Number(options.maxNodes) || (mode === 'optimal' ? 1_500_000 : 600_000));
+      ? residentNodeLimit
+      : Math.max(1, Math.min(Number(options.maxNodes) || (mode === 'optimal' ? 1_500_000 : 600_000), residentNodeLimit));
     const maxTimeMs = unlimited
       ? Number.MAX_SAFE_INTEGER
       : Math.max(1, Number(options.maxTimeMs) || (mode === 'optimal' ? 120_000 : 30_000));
@@ -2145,6 +2154,10 @@
       heuristicCache: 0,
       weight,
       optimalPushes: weight === 1,
+      residentNodeLimit,
+      residentNodes: 0,
+      memoryCompactions: 0,
+      statesDiscarded: 0,
     };
 
     const currentScratch = createScratch(board);
@@ -2167,6 +2180,7 @@
       } else {
         h = exactMatching ? minCostMatching(board, boxes) : cheapGoalDistance(board, boxes);
       }
+      if (heuristicCache.size >= Math.max(40_000, residentNodeLimit * 2)) heuristicCache.clear();
       heuristicCache.set(key, h);
       return h;
     };
@@ -2276,6 +2290,10 @@
       }
       if (productiveResult?.closest) closestAttempt = chooseClosestAttempt(closestAttempt, productiveResult.closest);
     }
+    // The reverse frontier can contain tens of thousands of box arrays and
+    // string keys. It has served its purpose once the bridge phase ends.
+    reverseFrontier = null;
+    await immediateYield();
 
     // Dense levels are often much easier when built backwards from the fully
     // solved position. Every retained reverse state has a known route back to
@@ -2354,7 +2372,7 @@
     const useBoundedBest = options.boundedBest === true || (options.boundedBest !== false && initialBoxes.length >= 16 && initialBoxes.length <= 45);
     if (useBoundedBest) {
       const boundedResult = await boundedBestFirstSearch(board, options, {
-        startedAt, stats, initialBoxes, maxTimeMs, onProgress, progressEveryMs, shouldStop,
+        startedAt, stats, initialBoxes, maxNodes, maxTimeMs, onProgress, progressEveryMs, shouldStop,
       });
       if (boundedResult?.stopped) {
         stats.heuristicCache = heuristicCache.size;
@@ -2378,7 +2396,7 @@
     const useBoundedIDA = options.boundedIDA === true || (options.boundedIDA !== false && initialBoxes.length >= 16 && initialBoxes.length <= 45);
     if (useBoundedIDA) {
       const idaResult = await boundedPushIDA(board, options, {
-        startedAt, stats, initialBoxes, maxTimeMs, onProgress,
+        startedAt, stats, initialBoxes, maxNodes, maxTimeMs, onProgress,
         progressEveryMs, shouldStop,
       });
       if (idaResult?.stopped) {
@@ -2424,7 +2442,7 @@
 
     const initialReach = computeReachability(board, initialBoxes, board.initialPlayer, childScratch, false);
     const initialKey = stateKey(initialBoxes, initialReach.anchor);
-    const nodes = [{
+    let nodes = [{
       boxes: initialBoxes,
       player: board.initialPlayer,
       anchor: initialReach.anchor,
@@ -2438,12 +2456,13 @@
       goals: countGoals(board, initialBoxes),
     }];
 
-    const bestG = new Map([[initialKey, 0]]);
-    const open = new MinHeap((aId, bId) => {
+    let bestG = new Map([[initialKey, 0]]);
+    const forwardCompare = (aId, bId) => {
       const a = nodes[aId];
       const b = nodes[bId];
       return (a.f - b.f) || (a.h - b.h) || (b.goals - a.goals) || (a.g - b.g) || (aId - bId);
-    });
+    };
+    let open = new MinHeap(forwardCompare);
     open.push(0);
     let closestForwardId = 0;
     const betterForwardClosest = (candidate, incumbent) => {
@@ -2463,8 +2482,62 @@
         g: best.g,
       });
     };
+    const forwardResidentLimit = Math.max(10_000, Number(options.forwardResidentNodes) || residentNodeLimit);
+    const compactForwardSearch = () => {
+      const oldCount = nodes.length;
+      const active = open.items.filter((id) => {
+        const node = nodes[id];
+        return node && bestG.get(node.key) === node.g;
+      });
+      active.sort(forwardCompare);
+      const frontierKeep = Math.max(1_500, Math.min(active.length, Math.floor(forwardResidentLimit * 0.16)));
+      const selected = active.slice(0, frontierKeep);
+      if (!selected.includes(closestForwardId)) selected.push(closestForwardId);
+
+      // Retain complete parent chains so every kept state can still produce a
+      // valid UDLR route. Everything else is intentionally forgotten, turning
+      // the unbounded A* into a continuously running, memory-bounded search.
+      const keep = new Set();
+      for (const leaf of selected) {
+        let id = leaf;
+        while (id >= 0 && !keep.has(id)) {
+          keep.add(id);
+          id = nodes[id]?.parent ?? -1;
+        }
+      }
+      const oldIds = [...keep].sort((a, b) => a - b);
+      const remap = new Map();
+      oldIds.forEach((oldId, newId) => remap.set(oldId, newId));
+      const compacted = oldIds.map((oldId) => ({ ...nodes[oldId] }));
+      for (const node of compacted) node.parent = node.parent < 0 ? -1 : remap.get(node.parent);
+
+      const compactBestG = new Map();
+      for (const node of compacted) {
+        const prior = compactBestG.get(node.key);
+        if (prior === undefined || node.g < prior) compactBestG.set(node.key, node.g);
+      }
+      nodes = compacted;
+      bestG = compactBestG;
+      closestForwardId = remap.get(closestForwardId) ?? 0;
+      open = new MinHeap(forwardCompare);
+      const pushed = new Set();
+      for (const oldId of selected) {
+        const newId = remap.get(oldId);
+        if (newId !== undefined && !pushed.has(newId)) {
+          pushed.add(newId);
+          open.push(newId);
+        }
+      }
+      if (!open.size) open.push(closestForwardId);
+      stats.memoryCompactions++;
+      stats.statesDiscarded += Math.max(0, oldCount - nodes.length);
+      stats.residentNodes = nodes.length;
+      if (heuristicCache.size > Math.max(40_000, forwardResidentLimit)) heuristicCache.clear();
+    };
+
     stats.phase = 'forward';
     stats.peakOpen = Math.max(stats.peakOpen, 1);
+    stats.residentNodes = 1;
     let lastProgress = startedAt;
 
     while (open.size > 0) {
@@ -2587,6 +2660,11 @@
         }
       }
 
+      if (nodes.length >= forwardResidentLimit) {
+        compactForwardSearch();
+        await immediateYield();
+      }
+      stats.residentNodes = nodes.length;
       const afterExpansion = performanceNow();
       if (onProgress && afterExpansion - lastProgress >= progressEveryMs) {
         lastProgress = afterExpansion;
@@ -2600,6 +2678,10 @@
           bestEstimate: node.h,
           deadlocks: stats.staticDeadlocks + stats.blockDeadlocks + stats.freezeDeadlocks + stats.assignmentDeadlocks,
           peakOpen: stats.peakOpen,
+          residentNodes: nodes.length,
+          residentNodeLimit: forwardResidentLimit,
+          memoryCompactions: stats.memoryCompactions,
+          statesDiscarded: stats.statesDiscarded,
           closest: (() => { const attempt = captureForwardClosest(); return attempt ? makeClosestResult(board, attempt) : null; })(),
           stats: { ...stats },
         });
@@ -2689,7 +2771,7 @@
   }
 
   return Object.freeze({
-    version: '2.6.0',
+    version: '2.7.0',
     DIRS,
     SolverError,
     parseLevel,

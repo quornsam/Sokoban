@@ -1,5 +1,5 @@
-/* BOXXY v110 solver worker — keeps long searches off the game interface thread. */
-importScripts("solver-core.js");
+/* BOXXY v111 solver worker — keeps long searches off the game interface thread. */
+importScripts("solver-core.js?v=111");
 
 self.onmessage = async event => {
   const message = event.data || {};
@@ -9,6 +9,8 @@ self.onmessage = async event => {
     const result = await self.SokobanCore.solve(message.level, {
       mode: "deep",
       unlimited: true,
+      // Unlimited time, bounded resident memory. The core compacts its active
+      // frontier instead of letting the browser process grow until it is killed.
       productiveMaxNodes: 2000000,
       productiveMaxTimeMs: 120000,
       featureMaxNodes: 3000000,

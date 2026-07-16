@@ -304,3 +304,17 @@ BOXXY v110 solver update
 - A two-note completion chime plays when a solution has been found and verified.
 - Large dense puzzles use a more solution-first weighted search. Structural changes reduce stagnation rather than being penalised merely because goal distance did not immediately improve.
 - Clear player walking remains collapsed into one reachability state; only changed box positions branch the search.
+
+
+BOXXY v111 solver stability update
+----------------------------------
+- Long solver runs now have unlimited elapsed time but bounded resident memory.
+- The resident-state allowance scales down automatically for puzzles with many boxes.
+- The forward search compacts its best active frontier and preserves complete parent paths instead of retaining every generated position forever.
+- The solver dialogue reports resident states, the memory allowance, and the number of memory compactions.
+- Reverse, bounded and feature-search phases now share the same browser-safe state budget.
+- Large heuristic caches are periodically released.
+- Once the forward/reverse bridge phase ends, its reverse frontier is explicitly released.
+- A background worker error no longer launches the same heavy search on the main UI thread. This keeps the game page alive if a worker fails.
+- A small progress snapshot is written every five seconds. If the browser tab ends unexpectedly, reopening Solve Puzzle reports the last phase and closest recorded position.
+- Existing authored Microban solutions remain unchanged and validated.
