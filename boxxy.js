@@ -2188,6 +2188,12 @@
   const solverProgress = document.getElementById("makerSolverProgress");
   const solverProgressLabel = document.getElementById("makerSolverProgressLabel");
   const solverStats = document.getElementById("makerSolverStats");
+  const solverClosest = document.getElementById("makerSolverClosest");
+  const solverClosestStats = document.getElementById("makerSolverClosestStats");
+  const solverClosestBoard = document.getElementById("makerSolverClosestBoard");
+  const solverDiagnostics = document.getElementById("makerSolverDiagnostics");
+  const solverClosestRoute = document.getElementById("makerSolverClosestRoute");
+  const solverClosestCopyBtn = document.getElementById("makerSolverClosestCopyBtn");
 
   if (!modal || !gridEl) return;
 
@@ -2241,6 +2247,7 @@
   let solverAbortRequested = false;
   let solverJobId = 0;
   let solverStartedAt = 0;
+  let lastClosestResult = null;
   const SOLVER_MAX_NODES = 5000000;
   const SOLVER_MAX_TIME_MS = 300000;
 
@@ -2339,6 +2346,63 @@
     solverStatus.classList.toggle("success", type === "success");
   }
 
+  function clearClosestDisplay() {
+    lastClosestResult = null;
+    if (solverClosest) solverClosest.hidden = true;
+    if (solverClosestStats) solverClosestStats.textContent = "";
+    if (solverClosestBoard) solverClosestBoard.textContent = "";
+    if (solverDiagnostics) solverDiagnostics.textContent = "";
+    if (solverClosestRoute) solverClosestRoute.value = "";
+  }
+
+  function showClosestDisplay(closest, stats = {}) {
+    clearClosestDisplay();
+    if (!closest || !solverClosest) return;
+    lastClosestResult = closest;
+    const goals = Number(closest.goalsFilled || 0);
+    const total = Number(closest.totalGoals || 0);
+    const remaining = Number.isFinite(Number(closest.remainingEstimate)) ? Number(closest.remainingEstimate) : null;
+    const pushes = Number(closest.pushCount || 0);
+    const moves = Number(closest.moveCount || 0);
+    const legal = Number.isFinite(Number(closest.legalPushes)) ? Number(closest.legalPushes) : null;
+    solverClosest.hidden = false;
+    if (solverClosestStats) {
+      solverClosestStats.textContent = `${goals}/${total} goals occupied · ${pushes} pushes · ${moves} moves${remaining === null ? "" : ` · estimate ${remaining}`}${legal === null ? "" : ` · ${legal} legal pushes`}`;
+    }
+    if (solverClosestBoard) solverClosestBoard.textContent = String(closest.boardText || "");
+    if (solverDiagnostics) {
+      const parts = [];
+      const add = (label, value) => { if (Number(value || 0) > 0) parts.push(`${label}: ${Number(value).toLocaleString()}`); };
+      add("reverse A*", stats.reverseAStarExpanded);
+      add("reverse construction", stats.reverseExpanded);
+      add("bounded search", stats.boundExpanded);
+      add("bounded deepening", stats.idaExpanded);
+      add("feature-space", stats.featureExpanded);
+      add("forward", stats.expanded);
+      const deadlocks = Number(stats.staticDeadlocks || 0) + Number(stats.blockDeadlocks || 0) + Number(stats.freezeDeadlocks || 0) + Number(stats.assignmentDeadlocks || 0);
+      add("dead ends pruned", deadlocks);
+      solverDiagnostics.textContent = parts.length ? `Search work — ${parts.join(" · ")}.` : "The search stopped before a detailed phase breakdown was available.";
+    }
+    if (solverClosestRoute) solverClosestRoute.value = String(closest.mixedMoves || "");
+  }
+
+  async function copyClosestRoute() {
+    const route = String(lastClosestResult?.mixedMoves || "");
+    if (!route) {
+      setSolverStatus("The closest position is the starting position, so there is no partial route to copy.");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(route);
+      setSolverStatus("Partial route to the closest position copied to the clipboard.", "success");
+    } catch (_) {
+      solverClosestRoute?.focus();
+      solverClosestRoute?.select();
+      const copied = document.execCommand?.("copy");
+      setSolverStatus(copied ? "Partial route copied to the clipboard." : "The partial route is selected for manual copying.", copied ? "success" : "");
+    }
+  }
+
   function finishSolverRun() {
     if (solverWorker) solverWorker.terminate();
     solverWorker = null;
@@ -2359,6 +2423,7 @@
     if (solverProgress) solverProgress.value = 0;
     if (solverProgressLabel) solverProgressLabel.textContent = "Ready.";
     if (solverStats) solverStats.textContent = "";
+    clearClosestDisplay();
     updateSolverControls();
     if (solutionMatchesCurrentBoard()) {
       setSolverStatus(`A ${currentSolution.length.toLocaleString()}-move solution is already attached to this puzzle.`, "success");
@@ -2390,6 +2455,9 @@
         reverse: "Trying a fast route backwards from the completed goals…",
         "reverse-pattern": "Matching the complete box pattern backwards from the goals…",
         "reverse-a-star": "Matching displaced boxes to the exact starting pattern backwards…",
+        "bounded-best": "Searching a narrow push-cost band above the lower bound…",
+        "bounded-ida": "Deepening the push bound around the best assignments…",
+        "feature-space": "Exploring packing, connectivity, mobility and macro-push patterns…",
         forward: "Searching forward push positions with deadlock pruning…"
       };
       solverProgressLabel.textContent = phaseLabels[phase] || phaseLabels.forward;
@@ -2400,7 +2468,11 @@
       const estimateText = Number.isFinite(Number(progress.bestEstimate)) ? ` · remaining ${Number(progress.bestEstimate)}` : "";
       const pruned = Number(progress.deadlocks || 0);
       const prunedText = pruned > 0 ? ` · ${pruned.toLocaleString()} dead ends pruned` : "";
-      solverStats.textContent = `${Number(progress.generated || 0).toLocaleString()} states · ${Number(progress.open || 0).toLocaleString()} active${depth}${estimateText}${prunedText} · ${seconds}s`;
+      const goalsText = Number.isFinite(Number(progress.goalsFilled)) && Number.isFinite(Number(progress.totalGoals))
+        ? ` · ${Number(progress.goalsFilled)}/${Number(progress.totalGoals)} goals`
+        : "";
+      const cellsText = Number(progress.featureCells || 0) > 0 ? ` · ${Number(progress.featureCells).toLocaleString()} feature cells` : "";
+      solverStats.textContent = `${Number(progress.generated || 0).toLocaleString()} states · ${Number(progress.open || 0).toLocaleString()} active${depth}${estimateText}${goalsText}${cellsText}${prunedText} · ${seconds}s`;
     }
   }
 
@@ -2410,6 +2482,7 @@
     updateSolverControls();
     result = result || {};
     if (result.status === "solved") {
+      clearClosestDisplay();
       const route = String(result.mixedMoves || result.moves || "").replace(/[^udlrUDLR]/g, "");
       setAttachedSolution(route, levelText, currentPuzzleRef);
       if (solverOutput) solverOutput.value = route;
@@ -2424,10 +2497,12 @@
       setSolverStatus("The solution string has been attached to this puzzle. Testing it now enables the five-click + S walkthrough.", "success");
       setStatus(`Solver attached a ${route.length}-move walkthrough to the current puzzle.`, "success");
     } else if (result.status === "unsolvable") {
+      showClosestDisplay(result.closest, result.stats || {});
       if (solverProgress) solverProgress.value = 100;
       if (solverProgressLabel) solverProgressLabel.textContent = "Search exhausted.";
       setSolverStatus(result.message || "No solution exists from this starting position.", "error");
     } else if (result.status === "limit") {
+      showClosestDisplay(result.closest, result.stats || {});
       if (solverProgress) solverProgress.value = 100;
       if (solverProgressLabel) solverProgressLabel.textContent = "Search limit reached.";
       setSolverStatus(`${result.message || "The search limit was reached."} This does not prove that the puzzle is unsolvable.`, "error");
@@ -2480,6 +2555,7 @@
     solverRunning = true;
     solverStartedAt = performance.now();
     const existingRoute = solutionMatchesCurrentBoard() ? currentSolution : "";
+    clearClosestDisplay();
     if (solverOutput) solverOutput.value = existingRoute;
     if (solverCopyBtn) solverCopyBtn.disabled = true;
     if (solverApplyBtn) solverApplyBtn.disabled = true;
@@ -2489,7 +2565,7 @@
     if (solverStats) solverStats.textContent = "0 states";
     if (solverStartBtn) solverStartBtn.disabled = true;
     if (solverCancelBtn) solverCancelBtn.hidden = false;
-    setSolverStatus("Searching for a verified route rather than proving the shortest possible route. Dense puzzles use fast reverse construction followed by exact whole-pattern matching; forward search prunes static, assignment, 2 × 2 and recursive-freeze deadlocks.");
+    setSolverStatus("Searching with a portfolio of reverse construction, exact-pattern matching, bounded push search, multi-feature macro search and forward deadlock-pruned search. If no complete route is found, BOXXY will show the closest verified position it reached.");
 
     let fellBack = false;
     const fallback = () => {
@@ -3844,6 +3920,7 @@
   solverCancelBtn?.addEventListener("click", cancelSolverSearch);
   solverCopyBtn?.addEventListener("click", copySolverString);
   solverApplyBtn?.addEventListener("click", applyCurrentSolution);
+  solverClosestCopyBtn?.addEventListener("click", copyClosestRoute);
   solverModal?.addEventListener("click", event => {
     if (event.target === solverModal) closeSolverDialog();
   });

@@ -800,6 +800,16 @@ body.maker-testing .level-picker{display:none!important}
 .maker-solver-status{min-height:38px;margin:10px 0;padding:9px 11px;border-left:7px solid var(--yellow);background:#eee5d8;color:#4f483f;font-size:10px;line-height:1.4;font-weight:850}
 .maker-solver-status.success{border-left-color:#3f7d55}
 .maker-solver-status.error{border-left-color:var(--red)}
+.maker-solver-closest{margin:10px 0 14px;padding:11px;border:2px solid var(--ink);background:#f2e6c2}
+.maker-solver-closest[hidden]{display:none}
+.maker-solver-closest-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:5px;font-size:10px}
+.maker-solver-closest-head strong{font-weight:1000;letter-spacing:.08em}
+.maker-solver-closest-head span{text-align:right;font-variant-numeric:tabular-nums;font-weight:900;color:#5c5140}
+.maker-solver-closest>p{margin:0 0 9px;font-size:9px;line-height:1.35;font-weight:750;color:#625744}
+.maker-solver-closest-board{margin:0;width:100%;max-height:250px;overflow:auto;padding:10px;border:2px solid var(--ink);background:#171719;color:#f4eee3;font:700 12px/1.05 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre;tab-size:2}
+.maker-solver-diagnostics{margin:8px 0 0!important;padding:8px 9px;background:rgba(255,255,255,.48);border-left:5px solid var(--blue);font:800 9px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace!important;color:#4f483e!important;white-space:normal}
+.maker-solver-closest-route{display:block;width:100%;height:64px;resize:vertical;padding:9px;border:2px solid var(--ink);background:#fffaf0;color:var(--ink);font:700 11px/1.35 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;overflow-wrap:anywhere}
+.maker-solver-closest>button{display:block;margin:8px 0 0;min-height:34px;padding:7px 11px;border:2px solid var(--ink);background:var(--yellow);color:var(--ink);font-size:9px;font-weight:1000}
 .maker-solver-actions{display:grid;grid-template-columns:1.4fr repeat(3,minmax(0,1fr));gap:8px}
 .maker-solver-actions button{min-height:42px;padding:8px;border:2px solid var(--ink);background:#f7f0e5;color:var(--ink);font-size:9px;font-weight:1000;letter-spacing:.035em}
 .maker-solver-actions button:disabled{opacity:.42;cursor:not-allowed}

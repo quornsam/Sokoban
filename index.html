@@ -290,6 +290,19 @@
     <textarea id="makerSolutionOutput" class="maker-solution-output" readonly spellcheck="false" placeholder="The UDLR solution string will appear here."></textarea>
     <p id="makerSolverStatus" class="maker-solver-status" aria-live="polite">Ready to solve the current editor puzzle.</p>
 
+    <section id="makerSolverClosest" class="maker-solver-closest" hidden aria-live="polite">
+      <div class="maker-solver-closest-head">
+        <strong>CLOSEST POSITION REACHED</strong>
+        <span id="makerSolverClosestStats"></span>
+      </div>
+      <p>The solver could not finish within its limits. This is the best position it reached, not a claim that the remaining puzzle is easy or that this route belongs to an eventual solution.</p>
+      <pre id="makerSolverClosestBoard" class="maker-solver-closest-board" aria-label="Closest Sokoban position"></pre>
+      <p id="makerSolverDiagnostics" class="maker-solver-diagnostics"></p>
+      <label class="maker-solution-label" for="makerSolverClosestRoute">PARTIAL ROUTE TO THIS POSITION</label>
+      <textarea id="makerSolverClosestRoute" class="maker-solver-closest-route" readonly spellcheck="false"></textarea>
+      <button id="makerSolverClosestCopyBtn" type="button">COPY PARTIAL ROUTE</button>
+    </section>
+
     <div class="maker-solver-actions">
       <button id="makerSolverStartBtn" class="maker-solver-start" type="button">SOLVE THIS PUZZLE</button>
       <button id="makerSolverCancelBtn" type="button" hidden>CANCEL SEARCH</button>

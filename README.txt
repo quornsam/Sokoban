@@ -1,4 +1,11 @@
-BOXXY — Pushbox Puzzle v105
+BOXXY v106
+
+Solver update:
+- Uses a portfolio of reverse exact-pattern search, reverse construction, bounded lower-bound search, multi-feature macro search, and forward deadlock-pruned search.
+- Failed searches now return and display the closest verified position reached, its partial route, and a phase-by-phase search summary.
+- Solver results are still verified by replay before they can be attached to a puzzle.
+
+BOXXY — Pushbox Puzzle v106
 
 Open index.html in a web browser.
 
