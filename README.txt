@@ -1,4 +1,4 @@
-BOXXY — Pushbox Puzzle v102
+BOXXY — Pushbox Puzzle v104
 
 Open index.html in a web browser.
 
@@ -252,3 +252,23 @@ Version 102 — stronger dense-puzzle solver
 - The solver dialogue now identifies the current phase and reports push depth and estimated remaining displacement.
 - Search limit increased to 5,000,000 generated states or 300 seconds. Reaching a limit still does not prove a puzzle unsolvable.
 - Verified all 50 Microban levels and Small Chessboards levels 1–9 with the new engine.
+
+
+VERSION 103 — ASSISTED COMPLETIONS
+-----------------------------------
+- A puzzle completed by the front-end hidden walkthrough now unlocks the next puzzle normally.
+- Walkthrough-assisted completions are stored separately and shown in yellow in the level chooser.
+- Solving the same puzzle manually later upgrades its level button from yellow to green.
+- Assisted completion of the final puzzle still completes the pack and unlocks subsequent packs.
+
+
+VERSION 104 — EXACT-PATTERN DENSE SEARCH
+-----------------------------------------
+- Preserved the fast reverse-construction search used successfully by the earlier chessboard levels.
+- Added a second reverse phase for dense layouts when the fast pass cannot reproduce the starting arrangement.
+- This phase evaluates the complete box pattern with exact minimum-cost matching rather than treating boxes only as individually close to useful squares.
+- Reverse states are generated from the solved goal arrangement, so every retained state already has a valid route to completion; this avoids large classes of forward dead ends.
+- The existing forward fallback still prunes static dead squares, impossible box-to-goal assignments, 2 × 2 blocks and recursively frozen box groups.
+- The five-million allowance counts generated search states, not player moves. The solver is solution-first and does not claim that its returned route is shortest.
+- Small Chessboards level 10 is now solved and verified by the integrated engine. A local reference run found a 73-push, 594-move route in roughly 30 seconds; timing varies by browser and hardware.
+- Rechecked Small Chessboards levels 1–10 after the change, including validation by replaying every returned string against the original map.

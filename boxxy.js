@@ -2385,15 +2385,22 @@
     if (solverProgress) solverProgress.value = Math.max(1, Math.min(98, Math.round(estimate * 100)));
     const phase = progress.phase || "forward";
     if (solverProgressLabel) {
-      solverProgressLabel.textContent = phase === "reverse"
-        ? "Constructing a route backwards from the completed goals…"
-        : "Searching forward push positions with deadlock pruning…";
+      const phaseLabels = {
+        monotone: "Testing whether every push can make necessary progress…",
+        reverse: "Trying a fast route backwards from the completed goals…",
+        "reverse-pattern": "Matching the complete box pattern backwards from the goals…",
+        "reverse-a-star": "Searching exact box patterns backwards from the goals…",
+        forward: "Searching forward push positions with deadlock pruning…"
+      };
+      solverProgressLabel.textContent = phaseLabels[phase] || phaseLabels.forward;
     }
     if (solverStats) {
       const seconds = (Number(progress.elapsedMs || 0) / 1000).toFixed(1);
       const depth = Number.isFinite(Number(progress.bestPushDepth)) ? ` · depth ${Number(progress.bestPushDepth)}` : "";
       const estimateText = Number.isFinite(Number(progress.bestEstimate)) ? ` · remaining ${Number(progress.bestEstimate)}` : "";
-      solverStats.textContent = `${Number(progress.generated || 0).toLocaleString()} states · ${Number(progress.open || 0).toLocaleString()} active${depth}${estimateText} · ${seconds}s`;
+      const pruned = Number(progress.deadlocks || 0);
+      const prunedText = pruned > 0 ? ` · ${pruned.toLocaleString()} dead ends pruned` : "";
+      solverStats.textContent = `${Number(progress.generated || 0).toLocaleString()} states · ${Number(progress.open || 0).toLocaleString()} active${depth}${estimateText}${prunedText} · ${seconds}s`;
     }
   }
 
@@ -2407,7 +2414,12 @@
       setAttachedSolution(route, levelText, currentPuzzleRef);
       if (solverOutput) solverOutput.value = route;
       if (solverProgress) solverProgress.value = 100;
-      if (solverProgressLabel) solverProgressLabel.textContent = result.strategy === "reverse-construction" ? "Solution constructed backwards and verified forwards." : "Solution found and verified.";
+      if (solverProgressLabel) {
+        const reverseStrategies = new Set(["reverse-construction", "exact-pattern-reverse", "reverse-a-star"]);
+        solverProgressLabel.textContent = reverseStrategies.has(result.strategy)
+          ? "Solution constructed backwards and verified forwards."
+          : "Solution found and verified.";
+      }
       if (solverStats) solverStats.textContent = `${Number(result.moveCount || route.length).toLocaleString()} moves · ${Number(result.pushCount || 0).toLocaleString()} pushes · ${(Number(result.elapsedMs || 0) / 1000).toFixed(2)}s`;
       setSolverStatus("The solution string has been attached to this puzzle. Testing it now enables the five-click + S walkthrough.", "success");
       setStatus(`Solver attached a ${route.length}-move walkthrough to the current puzzle.`, "success");
@@ -2477,7 +2489,7 @@
     if (solverStats) solverStats.textContent = "0 states";
     if (solverStartBtn) solverStartBtn.disabled = true;
     if (solverCancelBtn) solverCancelBtn.hidden = false;
-    setSolverStatus("Searching for a complete route. Dense puzzles are first constructed backwards from the solved position; forward search then uses static, block and recursive-freeze deadlock pruning.");
+    setSolverStatus("Searching for a verified route rather than proving the shortest possible route. Dense puzzles use fast reverse construction followed by exact whole-pattern matching; forward search prunes static, assignment, 2 × 2 and recursive-freeze deadlocks.");
 
     let fellBack = false;
     const fallback = () => {

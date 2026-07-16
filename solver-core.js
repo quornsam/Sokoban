@@ -1,12 +1,12 @@
 /*
- * BOXXY Sokoban Solver Core v2.0
+ * BOXXY Sokoban Solver Core v2.2
  * Original browser-first implementation by OpenAI for Sam Cornwell / BOXXY.
  *
  * Search model:
  *   - Push-based Weighted A* / A*
  *   - Canonical player-reachability states
  *   - Reverse-push distance heuristic with minimum-cost box/goal matching
- *   - Reverse-construction beam search for dense multi-box puzzles
+ *   - Fast reverse construction plus exact-pattern reverse matching for dense puzzles
  *   - Static dead-square, assignment, 2x2 and recursive freeze pruning
  *
  * XSB symbols:
@@ -354,6 +354,18 @@
     return true;
   }
 
+  function countBoxIntersections(a, b) {
+    let i = 0;
+    let j = 0;
+    let count = 0;
+    while (i < a.length && j < b.length) {
+      if (a[i] === b[j]) { count++; i++; j++; }
+      else if (a[i] < b[j]) i++;
+      else j++;
+    }
+    return count;
+  }
+
   function boxesKey(boxes) {
     return boxes.join(',');
   }
@@ -569,6 +581,217 @@
     return result;
   }
 
+
+  function minCostMatchingDistances(distances, boxes) {
+    const n = boxes.length;
+    if (n === 0 || distances.length !== n) return n === 0 ? 0 : INF;
+    const u = new Float64Array(n + 1);
+    const v = new Float64Array(n + 1);
+    const p = new Int32Array(n + 1);
+    const way = new Int32Array(n + 1);
+    const cost = (i, j) => {
+      const value = distances[j][boxes[i]];
+      return value < 0 ? INF : value;
+    };
+    for (let i = 1; i <= n; i++) {
+      p[0] = i;
+      let j0 = 0;
+      const minv = new Float64Array(n + 1);
+      minv.fill(INF);
+      const used = new Uint8Array(n + 1);
+      do {
+        used[j0] = 1;
+        const i0 = p[j0];
+        let delta = INF;
+        let j1 = 0;
+        for (let j = 1; j <= n; j++) {
+          if (used[j]) continue;
+          const cur = cost(i0 - 1, j - 1) - u[i0] - v[j];
+          if (cur < minv[j]) {
+            minv[j] = cur;
+            way[j] = j0;
+          }
+          if (minv[j] < delta) {
+            delta = minv[j];
+            j1 = j;
+          }
+        }
+        if (delta >= INF / 2 || j1 === 0) return INF;
+        for (let j = 0; j <= n; j++) {
+          if (used[j]) {
+            u[p[j]] += delta;
+            v[j] -= delta;
+          } else {
+            minv[j] -= delta;
+          }
+        }
+        j0 = j1;
+      } while (p[j0] !== 0);
+      do {
+        const j1 = way[j0];
+        p[j0] = p[j1];
+        j0 = j1;
+      } while (j0 !== 0);
+    }
+    const result = Math.round(-v[0]);
+    return result >= INF / 2 ? INF : result;
+  }
+
+  async function reverseAStarSearch(board, options, shared) {
+    const {
+      startedAt, stats, maxNodes, maxTimeMs, yieldEvery, progressEveryMs,
+      onProgress, shouldStop,
+    } = shared;
+    const boxCount = board.initialBoxes.length;
+    const nodeCap = Math.max(10_000, Math.min(Number(options.reverseAStarMaxNodes) || 1_500_000, Math.floor(maxNodes * 0.65)));
+    const timeCap = Math.max(2_000, Math.min(Number(options.reverseAStarMaxTimeMs) || Math.floor(maxTimeMs * 0.55), maxTimeMs - 500));
+    const weight = Math.max(1, Number(options.reverseWeight) || (boxCount >= 20 ? 4.5 : 3));
+    const targetBoxes = board.initialBoxes;
+    const targetReach = computeReachability(board, targetBoxes, board.initialPlayer, createScratch(board), false);
+    const targetAnchor = targetReach.anchor;
+    const distances = precomputeForwardPushDistances(board, targetBoxes);
+    const reverseHCache = new Map();
+    const reverseHeuristic = (boxes) => {
+      const key = boxesKey(boxes);
+      const cached = reverseHCache.get(key);
+      if (cached !== undefined) return cached;
+      const value = boxCount <= 28 ? minCostMatchingDistances(distances, boxes) : reverseAssignmentScore(distances, boxes);
+      reverseHCache.set(key, value);
+      return value;
+    };
+    const solvedBoxes = board.goalList.slice().sort((a, b) => a - b);
+    const scratch = createScratch(board);
+    const childScratch = createScratch(board);
+    const hCache = new Map();
+    const heuristic = (boxes) => {
+      const key = boxesKey(boxes);
+      const cached = hCache.get(key);
+      if (cached !== undefined) return cached;
+      const value = minCostMatchingDistances(distances, boxes);
+      hCache.set(key, value);
+      return value;
+    };
+    const nodes = [];
+    const bestG = new Map();
+    const open = new MinHeap((aId, bId) => {
+      const a = nodes[aId];
+      const b = nodes[bId];
+      return (a.f - b.f) || (a.h - b.h) || (b.matches - a.matches) || (a.g - b.g) || (aId - bId);
+    });
+    const initialH = heuristic(solvedBoxes);
+    if (initialH >= INF) return null;
+    for (const component of freePlayerComponents(board, solvedBoxes)) {
+      const key = stateKey(solvedBoxes, component.anchor);
+      if (bestG.has(key)) continue;
+      const id = nodes.length;
+      nodes.push({
+        boxes: solvedBoxes,
+        player: component.player,
+        anchor: component.anchor,
+        parent: -1,
+        forwardBox: -1,
+        forwardDir: -1,
+        g: 0,
+        h: initialH,
+        f: weight * initialH,
+        matches: countBoxIntersections(solvedBoxes, targetBoxes),
+        key,
+      });
+      bestG.set(key, 0);
+      open.push(id);
+    }
+    if (!open.size) return null;
+
+    stats.phase = 'reverse-a-star';
+    stats.strategy = 'reverse-a-star-then-forward';
+    let expanded = 0;
+    let generated = nodes.length;
+    let lastProgress = startedAt;
+    const phaseStartedAt = performanceNow();
+
+    while (open.size) {
+      if (shouldStop()) return { stopped: true };
+      const now = performanceNow();
+      if (now - phaseStartedAt >= timeCap || now - startedAt >= maxTimeMs || generated >= nodeCap) break;
+      const nodeId = open.pop();
+      if (nodeId === null) break;
+      const node = nodes[nodeId];
+      if (bestG.get(node.key) !== node.g) continue;
+      if (sameBoxes(node.boxes, targetBoxes) && node.anchor === targetAnchor) {
+        const solution = reconstructReverseSolution(board, nodes, nodeId);
+        stats.reverseAStarExpanded = expanded;
+        stats.reverseAStarGenerated = generated;
+        stats.reverseAStarHeuristicCache = hCache.size;
+        return { solution };
+      }
+      expanded++;
+      const reach = computeReachability(board, node.boxes, node.player, scratch, false);
+      const candidates = [];
+      for (const box of node.boxes) {
+        for (let d = 0; d < 4; d++) {
+          const previousBox = board.neighbours[box][OPP[d]];
+          if (previousBox < 0 || scratch.boxMarks[previousBox] === reach.boxGen || scratch.reachMarks[previousBox] !== reach.reachGen) continue;
+          const previousPlayer = board.neighbours[previousBox][OPP[d]];
+          if (previousPlayer < 0 || scratch.boxMarks[previousPlayer] === reach.boxGen) continue;
+          const childBoxes = moveBox(node.boxes, box, previousBox);
+          const h = heuristic(childBoxes);
+          if (h >= INF) continue;
+          const childReach = computeReachability(board, childBoxes, previousPlayer, childScratch, false);
+          const key = stateKey(childBoxes, childReach.anchor);
+          const g = node.g + 1;
+          const oldG = bestG.get(key);
+          if (oldG !== undefined && oldG <= g) continue;
+          candidates.push({ previousBox, previousPlayer, d, childBoxes, anchor: childReach.anchor, key, g, h, matches: countBoxIntersections(childBoxes, targetBoxes) });
+        }
+      }
+      candidates.sort((a, b) => (a.h - b.h) || (b.matches - a.matches) || (a.previousBox - b.previousBox));
+      for (const candidate of candidates) {
+        const oldG = bestG.get(candidate.key);
+        if (oldG !== undefined && oldG <= candidate.g) continue;
+        bestG.set(candidate.key, candidate.g);
+        const childId = nodes.length;
+        nodes.push({
+          boxes: candidate.childBoxes,
+          player: candidate.previousPlayer,
+          anchor: candidate.anchor,
+          parent: nodeId,
+          forwardBox: candidate.previousBox,
+          forwardDir: candidate.d,
+          g: candidate.g,
+          h: candidate.h,
+          f: candidate.g + weight * candidate.h - candidate.matches * 0.08,
+          matches: candidate.matches,
+          key: candidate.key,
+        });
+        open.push(childId);
+        generated++;
+        stats.generated++;
+        if (generated >= nodeCap) break;
+      }
+      stats.peakOpen = Math.max(stats.peakOpen, open.size);
+      const after = performanceNow();
+      if (onProgress && after - lastProgress >= progressEveryMs) {
+        lastProgress = after;
+        onProgress({
+          phase: 'reverse-a-star',
+          elapsedMs: Math.round(after - startedAt),
+          expanded,
+          generated,
+          open: open.size,
+          bestPushDepth: node.g,
+          bestEstimate: node.h,
+          deadlocks: stats.staticDeadlocks + stats.blockDeadlocks + stats.freezeDeadlocks + stats.assignmentDeadlocks,
+          peakOpen: stats.peakOpen,
+        });
+      }
+      if (expanded % yieldEvery === 0) await immediateYield();
+    }
+    stats.reverseAStarExpanded = expanded;
+    stats.reverseAStarGenerated = generated;
+    stats.reverseAStarHeuristicCache = hCache.size;
+    return null;
+  }
+
   function reverseAssignmentScore(distances, boxes) {
     const n = boxes.length;
     const used = new Uint8Array(n);
@@ -666,6 +889,153 @@
     };
   }
 
+
+  async function lowerBoundMonotoneSearch(board, options, shared) {
+    const {
+      startedAt, stats, initialBoxes, initialH, maxTimeMs, onProgress,
+      progressEveryMs, shouldStop,
+    } = shared;
+    const nodeCap = Math.max(10_000, Number(options.monotoneMaxNodes) || Math.min(1_500_000, Math.max(150_000, Math.floor((Number(options.maxNodes) || 600_000) * 0.45))));
+    const timeCap = Math.max(1_000, Number(options.monotoneMaxTimeMs) || Math.min(90_000, Math.max(10_000, Math.floor(maxTimeMs * 0.35))));
+    const currentScratch = createScratch(board);
+    const childScratch = createScratch(board);
+    const heuristicCache = new Map();
+    const exactHeuristic = (boxes) => {
+      const key = boxesKey(boxes);
+      const cached = heuristicCache.get(key);
+      if (cached !== undefined) return cached;
+      const value = minCostMatching(board, boxes);
+      heuristicCache.set(key, value);
+      return value;
+    };
+
+    const initialReach = computeReachability(board, initialBoxes, board.initialPlayer, childScratch, false);
+    const initialKey = stateKey(initialBoxes, initialReach.anchor);
+    const nodes = [{
+      boxes: initialBoxes,
+      player: board.initialPlayer,
+      anchor: initialReach.anchor,
+      g: 0,
+      h: initialH,
+      parent: -1,
+      pushBox: -1,
+      pushDir: -1,
+      key: initialKey,
+      goals: countGoals(board, initialBoxes),
+    }];
+    const seen = new Set([initialKey]);
+    const stack = [{ nodeId: 0, prepared: false, candidates: null, next: 0 }];
+    let expanded = 0;
+    let generated = 1;
+    let lastProgress = startedAt;
+    const phaseStartedAt = performanceNow();
+
+    stats.phase = 'monotone';
+    stats.strategy = 'lower-bound-then-general';
+
+    while (stack.length) {
+      if (shouldStop()) return { stopped: true };
+      const now = performanceNow();
+      if (now - phaseStartedAt >= timeCap || generated >= nodeCap || now - startedAt >= maxTimeMs) break;
+
+      const frame = stack[stack.length - 1];
+      const node = nodes[frame.nodeId];
+      if (node.h === 0 || allBoxesOnGoals(board, node.boxes)) {
+        const solution = reconstructForwardSolution(board, nodes, frame.nodeId);
+        stats.monotoneExpanded = expanded;
+        stats.monotoneGenerated = generated;
+        stats.monotoneHeuristicCache = heuristicCache.size;
+        return { solution };
+      }
+
+      if (!frame.prepared) {
+        frame.prepared = true;
+        expanded++;
+        const reach = computeReachability(board, node.boxes, node.player, currentScratch, false);
+        const candidates = [];
+        for (const box of node.boxes) {
+          for (let d = 0; d < 4; d++) {
+            const destination = board.neighbours[box][d];
+            const support = board.neighbours[box][OPP[d]];
+            if (destination < 0 || support < 0) continue;
+            if (currentScratch.boxMarks[destination] === reach.boxGen) continue;
+            if (currentScratch.reachMarks[support] !== reach.reachGen) continue;
+            if (board.deadSquares[destination]) continue;
+
+            const childBoxes = moveBox(node.boxes, box, destination);
+            if (twoByTwoDeadlock(board, childBoxes, destination)) continue;
+            if (recursiveFreezeDeadlock(board, childBoxes, destination, childScratch)) continue;
+            const h = exactHeuristic(childBoxes);
+            // A push changes an exact box-goal assignment lower bound by at
+            // most one. A solution whose length equals the lower bound must
+            // therefore reduce it on every push. This removes every detour
+            // while retaining all lower-bound-optimal solutions.
+            if (h !== node.h - 1) continue;
+            const childPlayer = box;
+            const childReach = computeReachability(board, childBoxes, childPlayer, childScratch, false);
+            const key = stateKey(childBoxes, childReach.anchor);
+            if (seen.has(key)) continue;
+            const goals = countGoals(board, childBoxes);
+            candidates.push({ box, destination, d, childBoxes, childPlayer, anchor: childReach.anchor, key, h, goals });
+          }
+        }
+        candidates.sort((a, b) => {
+          const goalDeltaA = (board.goals[a.destination] ? 1 : 0) - (board.goals[a.box] ? 1 : 0);
+          const goalDeltaB = (board.goals[b.destination] ? 1 : 0) - (board.goals[b.box] ? 1 : 0);
+          return (goalDeltaB - goalDeltaA) || (b.goals - a.goals) || (a.destination - b.destination);
+        });
+        frame.candidates = candidates;
+        frame.next = 0;
+      }
+
+      if (frame.next >= frame.candidates.length) {
+        stack.pop();
+        continue;
+      }
+
+      const candidate = frame.candidates[frame.next++];
+      if (seen.has(candidate.key)) continue;
+      seen.add(candidate.key);
+      const childId = nodes.length;
+      nodes.push({
+        boxes: candidate.childBoxes,
+        player: candidate.childPlayer,
+        anchor: candidate.anchor,
+        g: node.g + 1,
+        h: candidate.h,
+        parent: frame.nodeId,
+        pushBox: candidate.box,
+        pushDir: candidate.d,
+        key: candidate.key,
+        goals: candidate.goals,
+      });
+      generated++;
+      stack.push({ nodeId: childId, prepared: false, candidates: null, next: 0 });
+
+      const after = performanceNow();
+      if (onProgress && after - lastProgress >= progressEveryMs) {
+        lastProgress = after;
+        onProgress({
+          phase: 'monotone',
+          elapsedMs: Math.round(after - startedAt),
+          expanded,
+          generated,
+          open: stack.length,
+          bestPushDepth: nodes[childId].g,
+          bestEstimate: nodes[childId].h,
+          deadlocks: stats.staticDeadlocks + stats.blockDeadlocks + stats.freezeDeadlocks + stats.assignmentDeadlocks,
+          peakOpen: Math.max(stats.peakOpen, stack.length),
+        });
+      }
+      if (generated % 500 === 0) await immediateYield();
+    }
+
+    stats.monotoneExpanded = expanded;
+    stats.monotoneGenerated = generated;
+    stats.monotoneHeuristicCache = heuristicCache.size;
+    return null;
+  }
+
   function reconstructForwardSolution(board, nodes, nodeId) {
     const actions = [];
     let id = nodeId;
@@ -706,6 +1076,16 @@
     const targetReach = computeReachability(board, targetBoxes, board.initialPlayer, createScratch(board), false);
     const targetAnchor = targetReach.anchor;
     const distances = precomputeForwardPushDistances(board, targetBoxes);
+    const useExactReverse = options.reverseExact === true && boxCount <= 28;
+    const reverseHCache = new Map();
+    const reverseHeuristic = (boxes) => {
+      const key = boxesKey(boxes);
+      const cached = reverseHCache.get(key);
+      if (cached !== undefined) return cached;
+      const value = useExactReverse ? minCostMatchingDistances(distances, boxes) : reverseAssignmentScore(distances, boxes);
+      reverseHCache.set(key, value);
+      return value;
+    };
     const solvedBoxes = board.goalList.slice().sort((a, b) => a - b);
     const nodes = [];
     const visited = new Map();
@@ -714,7 +1094,7 @@
     const reverseChildScratch = createScratch(board);
 
     for (const component of freePlayerComponents(board, solvedBoxes)) {
-      const h = reverseAssignmentScore(distances, solvedBoxes);
+      const h = reverseHeuristic(solvedBoxes);
       if (h >= INF) continue;
       const key = stateKey(solvedBoxes, component.anchor);
       if (visited.has(key)) continue;
@@ -728,15 +1108,16 @@
         forwardDir: -1,
         h,
         depth: 0,
-        score: h * 100 + id,
+        matches: countBoxIntersections(solvedBoxes, targetBoxes),
+        score: useExactReverse ? h * 100 - countBoxIntersections(solvedBoxes, targetBoxes) * 4 + id * 0.0001 : h * 100 + id,
       });
       visited.set(key, id);
       frontier.push(id);
     }
     if (!frontier.length) return null;
 
-    stats.phase = 'reverse';
-    stats.strategy = 'reverse-construction';
+    stats.phase = useExactReverse ? 'reverse-pattern' : 'reverse';
+    stats.strategy = useExactReverse ? 'exact-pattern-reverse' : 'reverse-construction';
     let lastProgress = startedAt;
     let reverseExpanded = 0;
     let reverseGenerated = nodes.length;
@@ -768,7 +1149,7 @@
               stats.duplicates++;
               continue;
             }
-            const h = reverseAssignmentScore(distances, childBoxes);
+            const h = reverseHeuristic(childBoxes);
             if (h >= INF) continue;
             const childId = nodes.length;
             nodes.push({
@@ -779,8 +1160,9 @@
               forwardBox: previousBox,
               forwardDir: d,
               h,
+              matches: countBoxIntersections(childBoxes, targetBoxes),
               depth: depth + 1,
-              score: h * 100 + depth + 1,
+              score: useExactReverse ? h * 100 - countBoxIntersections(childBoxes, targetBoxes) * 4 + depth + 1 : h * 100 + depth + 1,
             });
             visited.set(key, childId);
             candidates.push(childId);
@@ -804,6 +1186,7 @@
       candidates.sort((aId, bId) => {
         const a = nodes[aId];
         const b = nodes[bId];
+        if (useExactReverse) return (a.score - b.score) || (a.h - b.h) || (b.matches - a.matches) || (aId - bId);
         return (a.score - b.score) || (a.h - b.h) || (aId - bId);
       });
       if (candidates.length > beamWidth) stats.beamPruned += candidates.length - beamWidth;
@@ -815,7 +1198,7 @@
         lastProgress = afterDepth;
         const best = frontier.length ? nodes[frontier[0]] : null;
         onProgress({
-          phase: 'reverse',
+          phase: useExactReverse ? 'reverse-pattern' : 'reverse',
           elapsedMs: Math.round(afterDepth - startedAt),
           expanded: reverseExpanded,
           generated: reverseGenerated,
@@ -885,6 +1268,10 @@
       beamPruned: 0,
       reverseExpanded: 0,
       reverseGenerated: 0,
+      reverseAStarExpanded: 0,
+      reverseAStarGenerated: 0,
+      monotoneExpanded: 0,
+      monotoneGenerated: 0,
       phase: 'initialising',
       strategy: 'forward-a-star',
       peakOpen: 0,
@@ -932,27 +1319,111 @@
       });
     }
 
+    // First try to prove the assignment lower bound attainable. Dense patterned
+    // levels often have an optimal route in which every push makes necessary
+    // progress. This search is exact for that class and avoids millions of
+    // detours without assuming any particular visual pattern.
+    const exactInitialH = exactMatching ? initialH : minCostMatching(board, initialBoxes);
+    const monotoneAllowance = initialBoxes.length + Math.max(2, Math.floor(initialBoxes.length * 0.2));
+    const useMonotone = options.monotone !== false && initialBoxes.length >= 3 && initialBoxes.length <= 12 && exactInitialH < INF && exactInitialH <= monotoneAllowance;
+    if (useMonotone) {
+      const monotoneResult = await lowerBoundMonotoneSearch(board, options, {
+        startedAt, stats, initialBoxes, initialH: exactInitialH, maxTimeMs,
+        onProgress, progressEveryMs, shouldStop,
+      });
+      if (monotoneResult?.stopped) {
+        stats.heuristicCache = heuristicCache.size;
+        return makeResult('stopped', startedAt, stats, { message: 'Search stopped.' });
+      }
+      if (monotoneResult?.solution) {
+        stats.heuristicCache = heuristicCache.size;
+        return makeResult('solved', startedAt, stats, {
+          ...monotoneResult.solution,
+          strategy: 'lower-bound-monotone',
+          message: 'Solved at the exact assignment lower bound: every push makes necessary progress.',
+        });
+      }
+    }
+
+    // Dense patterned boards benefit from a complete weighted reverse A* search:
+    // it searches only configurations that are guaranteed to have a route to
+    // the goals, while exact assignment to the initial box pattern supplies a
+    // much stronger direction than the forward nearest-goal estimate.
+    const useReverseAStar = options.reverseAStar === true && initialBoxes.length >= 10;
+    if (useReverseAStar) {
+      const reverseAStarResult = await reverseAStarSearch(board, options, {
+        startedAt, stats, maxNodes, maxTimeMs, yieldEvery, progressEveryMs,
+        onProgress, shouldStop,
+      });
+      if (reverseAStarResult?.stopped) {
+        stats.heuristicCache = heuristicCache.size;
+        return makeResult('stopped', startedAt, stats, { message: 'Search stopped.' });
+      }
+      if (reverseAStarResult?.solution) {
+        stats.heuristicCache = heuristicCache.size;
+        return makeResult('solved', startedAt, stats, {
+          ...reverseAStarResult.solution,
+          strategy: 'reverse-a-star',
+          message: 'Solved by exact-pattern reverse A* search and verified forwards.',
+        });
+      }
+    }
+
     // Dense levels are often much easier when built backwards from the fully
     // solved position. Every retained reverse state has a known route back to
     // all goals, so the search does not waste time inside forward dead ends.
     const useReverse = options.reverse !== false && (initialBoxes.length >= 14 || ((mode === 'deep' || mode === 'thorough') && initialBoxes.length >= 8));
     if (useReverse) {
-      const reverseResult = await reverseConstructionSearch(board, options, {
+      const fastReverseOptions = {
+        ...options,
+        reverseExact: false,
+        reverseMaxNodes: Math.min(Number(options.reverseFastMaxNodes) || 650000, Math.floor(maxNodes * 0.7)),
+        reverseMaxTimeMs: Math.min(Number(options.reverseFastMaxTimeMs) || 15000, Math.floor(maxTimeMs * 0.3)),
+      };
+      const fastReverseResult = await reverseConstructionSearch(board, fastReverseOptions, {
         startedAt, stats, maxNodes, maxTimeMs, yieldEvery, progressEveryMs,
         onProgress, shouldStop,
       });
-      if (reverseResult?.stopped) {
+      if (fastReverseResult?.stopped) {
         stats.heuristicCache = heuristicCache.size;
         return makeResult('stopped', startedAt, stats, { message: 'Search stopped.' });
       }
-      if (reverseResult?.solution) {
+      if (fastReverseResult?.solution) {
         stats.heuristicCache = heuristicCache.size;
         return makeResult('solved', startedAt, stats, {
-          ...reverseResult.solution,
+          ...fastReverseResult.solution,
           strategy: 'reverse-construction',
           message: 'Solved by constructing a verified route backwards from the completed goal position.',
         });
       }
+
+      const remainingTime = maxTimeMs - (performanceNow() - startedAt);
+      if (remainingTime > 3000 && initialBoxes.length <= 28) {
+        const exactReverseOptions = {
+          ...options,
+          reverseExact: true,
+          beamWidth: Number(options.exactBeamWidth) || 1000,
+          reverseMaxNodes: Math.min(Number(options.reverseExactMaxNodes) || 1500000, Math.floor(maxNodes * 0.5)),
+          reverseMaxTimeMs: Math.min(Number(options.reverseExactMaxTimeMs) || 120000, Math.floor(remainingTime * 0.65)),
+        };
+        const exactReverseResult = await reverseConstructionSearch(board, exactReverseOptions, {
+          startedAt, stats, maxNodes, maxTimeMs, yieldEvery, progressEveryMs,
+          onProgress, shouldStop,
+        });
+        if (exactReverseResult?.stopped) {
+          stats.heuristicCache = heuristicCache.size;
+          return makeResult('stopped', startedAt, stats, { message: 'Search stopped.' });
+        }
+        if (exactReverseResult?.solution) {
+          stats.heuristicCache = heuristicCache.size;
+          return makeResult('solved', startedAt, stats, {
+            ...exactReverseResult.solution,
+            strategy: 'exact-pattern-reverse',
+            message: 'Solved by matching the complete box pattern backwards from the goals and verifying the route forwards.',
+          });
+        }
+      }
+
       stats.phase = 'forward';
       stats.strategy = 'reverse-then-forward';
       if (onProgress) onProgress({
@@ -1208,7 +1679,7 @@
   }
 
   return Object.freeze({
-    version: '2.0.0',
+    version: '2.2.0',
     DIRS,
     SolverError,
     parseLevel,
