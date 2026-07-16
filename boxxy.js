@@ -28,7 +28,7 @@
   });
 })();
 
-/* BOXXY v102 — character renderer, game engine, level maker and advanced integrated solver. */
+/* BOXXY v108 — character renderer, game engine, level maker and progress-aware bidirectional solver. */
 (() => {
   "use strict";
 
@@ -2365,9 +2365,10 @@
     const pushes = Number(closest.pushCount || 0);
     const moves = Number(closest.moveCount || 0);
     const legal = Number.isFinite(Number(closest.legalPushes)) ? Number(closest.legalPushes) : null;
+    const stagnation = Number(closest.stagnation || 0);
     solverClosest.hidden = false;
     if (solverClosestStats) {
-      solverClosestStats.textContent = `${goals}/${total} goals occupied · ${pushes} pushes · ${moves} moves${remaining === null ? "" : ` · estimate ${remaining}`}${legal === null ? "" : ` · ${legal} legal pushes`}`;
+      solverClosestStats.textContent = `${goals}/${total} goals occupied · ${pushes} pushes · ${moves} moves${remaining === null ? "" : ` · estimate ${remaining}`}${legal === null ? "" : ` · ${legal} legal pushes`}${stagnation > 0 ? ` · ${stagnation} pushes since structural progress` : ""}`;
     }
     if (solverClosestBoard) solverClosestBoard.textContent = String(closest.boardText || "");
     if (solverDiagnostics) {
@@ -2375,12 +2376,15 @@
       const add = (label, value) => { if (Number(value || 0) > 0) parts.push(`${label}: ${Number(value).toLocaleString()}`); };
       add("reverse A*", stats.reverseAStarExpanded);
       add("reverse construction", stats.reverseExpanded);
+      add("productive bridge", stats.productiveExpanded);
       add("bounded search", stats.boundExpanded);
       add("bounded deepening", stats.idaExpanded);
       add("feature-space", stats.featureExpanded);
       add("forward", stats.expanded);
       const deadlocks = Number(stats.staticDeadlocks || 0) + Number(stats.blockDeadlocks || 0) + Number(stats.freezeDeadlocks || 0) + Number(stats.assignmentDeadlocks || 0);
       add("dead ends pruned", deadlocks);
+      add("stagnant branches pruned", stats.plateauPruned);
+      add("forward/reverse joins", stats.bridgeHits);
       solverDiagnostics.textContent = parts.length ? `Search work — ${parts.join(" · ")}.` : "The search stopped before a detailed phase breakdown was available.";
     }
     if (solverClosestRoute) solverClosestRoute.value = String(closest.mixedMoves || "");
@@ -2454,7 +2458,8 @@
         monotone: "Testing whether every push can make necessary progress…",
         reverse: "Trying a fast route backwards from the completed goals…",
         "reverse-pattern": "Matching the complete box pattern backwards from the goals…",
-        "reverse-a-star": "Matching displaced boxes to the exact starting pattern backwards…",
+        "reverse-a-star": "Building a verified reverse frontier from the completed goals…",
+        "productive-bridge": "Searching only productive push positions and trying to meet the reverse frontier…",
         "bounded-best": "Searching a narrow push-cost band above the lower bound…",
         "bounded-ida": "Deepening the push bound around the best assignments…",
         "feature-space": "Exploring packing, connectivity, mobility and macro-push patterns…",
@@ -2475,7 +2480,9 @@
         ? ` · ${Number(progress.patternMatched)}/${Number(progress.patternTotal)} starting positions matched`
         : "";
       const cellsText = Number(progress.featureCells || 0) > 0 ? ` · ${Number(progress.featureCells).toLocaleString()} feature cells` : "";
-      solverStats.textContent = `${Number(progress.generated || 0).toLocaleString()} push states · ${Number(progress.open || 0).toLocaleString()} active${depth}${estimateText}${goalsText}${patternText}${cellsText}${prunedText} · ${seconds}s`;
+      const stagnantText = Number(progress.plateauPruned || 0) > 0 ? ` · ${Number(progress.plateauPruned).toLocaleString()} stagnant branches pruned` : "";
+      const bridgeText = Number(progress.bridgeHits || 0) > 0 ? ` · ${Number(progress.bridgeHits).toLocaleString()} frontier joins` : "";
+      solverStats.textContent = `${Number(progress.generated || 0).toLocaleString()} push states · ${Number(progress.open || 0).toLocaleString()} active${depth}${estimateText}${goalsText}${patternText}${cellsText}${prunedText}${stagnantText}${bridgeText} · ${seconds}s`;
     }
   }
 
@@ -2491,7 +2498,7 @@
       if (solverOutput) solverOutput.value = route;
       if (solverProgress) solverProgress.value = 100;
       if (solverProgressLabel) {
-        const reverseStrategies = new Set(["reverse-construction", "exact-pattern-reverse", "reverse-a-star"]);
+        const reverseStrategies = new Set(["reverse-construction", "exact-pattern-reverse", "reverse-a-star", "productive-bidirectional"]);
         solverProgressLabel.textContent = reverseStrategies.has(result.strategy)
           ? "Solution constructed backwards and verified forwards."
           : "Solution found and verified.";

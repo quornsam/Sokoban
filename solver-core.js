@@ -1,5 +1,5 @@
 /*
- * BOXXY Sokoban Solver Core v2.4.1
+ * BOXXY Sokoban Solver Core v2.5.0
  * Original browser-first implementation by OpenAI for Sam Cornwell / BOXXY.
  *
  * Search model:
@@ -764,6 +764,7 @@
     };
     const nodes = [];
     const bestG = new Map();
+    const bestId = new Map();
     const open = new MinHeap((aId, bId) => {
       const a = nodes[aId];
       const b = nodes[bId];
@@ -789,6 +790,7 @@
         key,
       });
       bestG.set(key, 0);
+      bestId.set(key, id);
       open.push(id);
     }
     if (!open.size) return null;
@@ -866,6 +868,7 @@
           matches: candidate.matches,
           key: candidate.key,
         });
+        bestId.set(candidate.key, childId);
         open.push(childId);
         if (betterReverseClosest(nodes[childId], nodes[closestReverseId])) closestReverseId = childId;
         generated++;
@@ -895,7 +898,7 @@
     stats.reverseAStarExpanded = expanded;
     stats.reverseAStarGenerated = generated;
     stats.reverseAStarHeuristicCache = hCache.size;
-    return null;
+    return { frontier: { nodes, byKey: bestId, closestId: closestReverseId } };
   }
 
   function reverseAssignmentScore(distances, boxes) {
@@ -1345,7 +1348,7 @@
     return { closest: { ...closest, solution } };
   }
 
-  function reconstructForwardSolution(board, nodes, nodeId) {
+  function reconstructForwardActions(nodes, nodeId) {
     const actions = [];
     let id = nodeId;
     while (id >= 0 && nodes[id].parent >= 0) {
@@ -1354,10 +1357,10 @@
       id = node.parent;
     }
     actions.reverse();
-    return reconstructFromPushActions(board, actions);
+    return actions;
   }
 
-  function reconstructReverseSolution(board, nodes, nodeId) {
+  function reconstructReverseActions(nodes, nodeId) {
     const actions = [];
     let id = nodeId;
     // Each reverse child stores the forward push that returns it to its parent.
@@ -1368,7 +1371,181 @@
       actions.push({ box: node.forwardBox, dir: node.forwardDir });
       id = node.parent;
     }
+    return actions;
+  }
+
+  function reconstructForwardSolution(board, nodes, nodeId) {
+    return reconstructFromPushActions(board, reconstructForwardActions(nodes, nodeId));
+  }
+
+  function reconstructReverseSolution(board, nodes, nodeId) {
+    return reconstructFromPushActions(board, reconstructReverseActions(nodes, nodeId));
+  }
+
+  function reconstructBridgeSolution(board, forwardNodes, forwardId, reverseNodes, reverseId) {
+    const actions = reconstructForwardActions(forwardNodes, forwardId);
+    actions.push(...reconstructReverseActions(reverseNodes, reverseId));
     return reconstructFromPushActions(board, actions);
+  }
+
+  async function productiveBidirectionalSearch(board, options, shared, heuristic, reverseFrontier) {
+    if (!reverseFrontier || !reverseFrontier.nodes || !reverseFrontier.byKey) return null;
+    const {
+      startedAt, stats, maxNodes, maxTimeMs, yieldEvery, progressEveryMs,
+      onProgress, shouldStop,
+    } = shared;
+    const boxCount = board.initialBoxes.length;
+    const nodeCap = Math.max(20_000, Math.min(Number(options.productiveMaxNodes) || Math.floor(maxNodes * 0.30), maxNodes));
+    const timeCap = Math.max(2_000, Math.min(Number(options.productiveMaxTimeMs) || Math.floor(maxTimeMs * 0.28), maxTimeMs - 500));
+    const plateauLimit = Math.max(10, Number(options.plateauPushLimit) || Math.floor(10 + boxCount * 0.38));
+    const cellLimit = Math.max(60, Number(options.progressCellLimit) || (boxCount >= 30 ? 260 : 420));
+    const weight = Math.max(1.2, Number(options.productiveWeight) || (boxCount >= 30 ? 3.2 : 2.3));
+    const scratch = createScratch(board);
+    const childScratch = createScratch(board);
+    const metricScratch = createScratch(board);
+    const initialBoxes = board.initialBoxes.slice();
+    const initialReach = computeReachability(board, initialBoxes, board.initialPlayer, scratch, false);
+    const initialMobility = countLegalPushes(board, initialBoxes, board.initialPlayer, metricScratch);
+    const initialComponents = countFreeComponents(board, initialBoxes, metricScratch).components;
+    const initialH = heuristic(initialBoxes);
+    const initialKey = stateKey(initialBoxes, initialReach.anchor);
+    const progressCell = (node) => `${node.h}|${node.goals}|${node.components}|${Math.floor(node.mobility / 3)}|${Math.floor(node.reachCount / 4)}`;
+    const nodes = [{
+      boxes: initialBoxes, player: board.initialPlayer, anchor: initialReach.anchor,
+      g: 0, h: initialH, goals: countGoals(board, initialBoxes), mobility: initialMobility.pushes,
+      reachCount: initialMobility.reachCount, components: initialComponents,
+      bestH: initialH, bestGoals: countGoals(board, initialBoxes), stagnation: 0,
+      parent: -1, pushBox: -1, pushDir: -1, key: initialKey,
+    }];
+    nodes[0].cell = progressCell(nodes[0]);
+    nodes[0].f = weight * nodes[0].h;
+    const bestG = new Map([[initialKey, 0]]);
+    const cellCounts = new Map([[nodes[0].cell, 1]]);
+    const open = new MinHeap((aId, bId) => {
+      const a = nodes[aId], b = nodes[bId];
+      return (a.f - b.f) || (a.stagnation - b.stagnation) || (a.h - b.h) || (b.goals - a.goals) || (b.mobility - a.mobility) || (aId - bId);
+    });
+    open.push(0);
+    let closestId = 0;
+    let expanded = 0;
+    let generated = 1;
+    let lastProgress = startedAt;
+    const phaseStartedAt = performanceNow();
+    stats.phase = 'productive-bridge';
+    stats.strategy = 'productive-bidirectional';
+
+    const betterClosest = (a, b) => {
+      // A highly stagnant state is not allowed to masquerade as the closest
+      // position merely because a static distance estimate looks attractive.
+      const aPenalty = Math.max(0, a.stagnation - Math.floor(plateauLimit * 0.55));
+      const bPenalty = Math.max(0, b.stagnation - Math.floor(plateauLimit * 0.55));
+      const aScore = a.h * 8 - a.goals * 3 + aPenalty * 5 - Math.min(a.mobility, 20) * 0.08 - Math.min(a.reachCount, 80) * 0.02;
+      const bScore = b.h * 8 - b.goals * 3 + bPenalty * 5 - Math.min(b.mobility, 20) * 0.08 - Math.min(b.reachCount, 80) * 0.02;
+      return aScore < bScore || (aScore === bScore && a.g < b.g);
+    };
+
+    const rootBridge = reverseFrontier.byKey.get(initialKey);
+    if (rootBridge !== undefined) return { solution: reconstructBridgeSolution(board, nodes, 0, reverseFrontier.nodes, rootBridge) };
+
+    while (open.size && generated < nodeCap && performanceNow() - phaseStartedAt < timeCap && performanceNow() - startedAt < maxTimeMs) {
+      if (shouldStop()) return { stopped: true };
+      const nodeId = open.pop();
+      if (nodeId === null) break;
+      const node = nodes[nodeId];
+      if (bestG.get(node.key) !== node.g) continue;
+      expanded++;
+      if (betterClosest(node, nodes[closestId])) closestId = nodeId;
+      const reach = computeReachability(board, node.boxes, node.player, scratch, false);
+      const candidates = [];
+      for (const box of node.boxes) {
+        for (let d = 0; d < 4; d++) {
+          const destination = board.neighbours[box][d];
+          const support = board.neighbours[box][OPP[d]];
+          if (destination < 0 || support < 0) continue;
+          if (scratch.boxMarks[destination] === reach.boxGen || scratch.reachMarks[support] !== reach.reachGen) continue;
+          candidates.push({ box, destination, d });
+        }
+      }
+      candidates.sort((a,b) => {
+        const da = (board.goals[a.destination] ? 1 : 0) - (board.goals[a.box] ? 1 : 0);
+        const db = (board.goals[b.destination] ? 1 : 0) - (board.goals[b.box] ? 1 : 0);
+        return db - da || a.destination - b.destination;
+      });
+
+      for (const candidate of candidates) {
+        if (board.deadSquares[candidate.destination]) { stats.staticDeadlocks++; continue; }
+        const childBoxes = moveBox(node.boxes, candidate.box, candidate.destination);
+        if (twoByTwoDeadlock(board, childBoxes, candidate.destination)) { stats.blockDeadlocks++; continue; }
+        if (recursiveFreezeDeadlock(board, childBoxes, candidate.destination, childScratch)) { stats.freezeDeadlocks++; continue; }
+        if (clusterImmobileDeadlock(board, childBoxes, candidate.destination, childScratch)) { stats.freezeDeadlocks++; continue; }
+        const h = heuristic(childBoxes);
+        if (h >= INF) { stats.assignmentDeadlocks++; continue; }
+        const childPlayer = candidate.box;
+        const childReach = computeReachability(board, childBoxes, childPlayer, childScratch, false);
+        const key = stateKey(childBoxes, childReach.anchor);
+        const g = node.g + 1;
+        const oldG = bestG.get(key);
+        if (oldG !== undefined && oldG <= g) { stats.duplicates++; continue; }
+        const goals = countGoals(board, childBoxes);
+        const childMobility = countLegalPushes(board, childBoxes, childPlayer, metricScratch);
+        const components = countFreeComponents(board, childBoxes, metricScratch).components;
+        const improves = h < node.bestH || goals > node.bestGoals;
+        const structuralChange = h !== node.h || goals !== node.goals || components !== node.components ||
+          Math.floor(childMobility.pushes / 3) !== Math.floor(node.mobility / 3) ||
+          Math.floor(childMobility.reachCount / 4) !== Math.floor(node.reachCount / 4);
+        const stagnation = improves ? 0 : node.stagnation + (structuralChange ? 1 : 2);
+        if (stagnation > plateauLimit) { stats.plateauPruned++; continue; }
+        const child = {
+          boxes: childBoxes, player: childPlayer, anchor: childReach.anchor, g, h, goals,
+          mobility: childMobility.pushes, reachCount: childMobility.reachCount, components,
+          bestH: Math.min(node.bestH, h), bestGoals: Math.max(node.bestGoals, goals), stagnation,
+          parent: nodeId, pushBox: candidate.box, pushDir: candidate.d, key,
+        };
+        child.cell = progressCell(child);
+        const visits = cellCounts.get(child.cell) || 0;
+        if (visits >= cellLimit && !improves) { stats.plateauPruned++; continue; }
+        child.f = g + weight * h + stagnation * 0.9 - goals * 0.12 + visits * 0.02;
+        bestG.set(key, g);
+        const childId = nodes.length;
+        nodes.push(child);
+        cellCounts.set(child.cell, visits + 1);
+        open.push(childId);
+        generated++;
+        stats.generated++;
+        if (betterClosest(child, nodes[closestId])) closestId = childId;
+        const reverseId = reverseFrontier.byKey.get(key);
+        if (reverseId !== undefined) {
+          stats.bridgeHits++;
+          return { solution: reconstructBridgeSolution(board, nodes, childId, reverseFrontier.nodes, reverseId), closest: null };
+        }
+        if (allBoxesOnGoals(board, childBoxes)) return { solution: reconstructForwardSolution(board, nodes, childId), closest: null };
+        if (generated >= nodeCap) break;
+      }
+      stats.peakOpen = Math.max(stats.peakOpen, open.size);
+      const now = performanceNow();
+      if (onProgress && now - lastProgress >= progressEveryMs) {
+        lastProgress = now;
+        const best = nodes[closestId];
+        onProgress({
+          phase: 'productive-bridge', elapsedMs: Math.round(now - startedAt), expanded, generated,
+          open: open.size, bestPushDepth: best.g, bestEstimate: best.h,
+          goalsFilled: best.goals, totalGoals: board.goalList.length,
+          stagnation: best.stagnation, plateauPruned: stats.plateauPruned, bridgeHits: stats.bridgeHits,
+          deadlocks: stats.staticDeadlocks + stats.blockDeadlocks + stats.freezeDeadlocks + stats.assignmentDeadlocks,
+          peakOpen: stats.peakOpen,
+        });
+      }
+      if (expanded % Math.max(50, yieldEvery) === 0) await immediateYield();
+    }
+    stats.productiveExpanded = expanded;
+    stats.productiveGenerated = generated;
+    const best = nodes[closestId];
+    return { closest: {
+      solution: reconstructForwardSolution(board, nodes, closestId), boxes: best.boxes,
+      player: best.player, goals: best.goals, h: best.h, g: best.g,
+      components: best.components, reachCount: best.reachCount, mobility: best.mobility,
+      stagnation: best.stagnation,
+    }};
   }
 
   async function reverseConstructionSearch(board, options, shared) {
@@ -1540,8 +1717,10 @@
   function chooseClosestAttempt(current, candidate) {
     if (!candidate) return current || null;
     if (!current) return candidate;
-    const aH = Number.isFinite(Number(current.h)) ? Number(current.h) : INF;
-    const bH = Number.isFinite(Number(candidate.h)) ? Number(candidate.h) : INF;
+    const aStagnation = Number(current.stagnation || 0);
+    const bStagnation = Number(candidate.stagnation || 0);
+    const aH = (Number.isFinite(Number(current.h)) ? Number(current.h) : INF) + Math.max(0, aStagnation - 6);
+    const bH = (Number.isFinite(Number(candidate.h)) ? Number(candidate.h) : INF) + Math.max(0, bStagnation - 6);
     if (bH !== aH) return bH < aH ? candidate : current;
     const aGoals = Number(current.goals || 0);
     const bGoals = Number(candidate.goals || 0);
@@ -1573,6 +1752,7 @@
       components: attempt.components,
       reachableSquares: attempt.reachCount,
       legalPushes: attempt.mobility,
+      stagnation: Number(attempt.stagnation || 0),
     };
   }
 
@@ -1935,6 +2115,10 @@
       featureExpanded: 0,
       featureGenerated: 0,
       featureCells: 0,
+      productiveExpanded: 0,
+      productiveGenerated: 0,
+      plateauPruned: 0,
+      bridgeHits: 0,
       idaExpanded: 0,
       idaGenerated: 0,
       boundExpanded: 0,
@@ -2031,7 +2215,8 @@
     // it searches only configurations that are guaranteed to have a route to
     // the goals, while exact assignment to the initial box pattern supplies a
     // much stronger direction than the forward nearest-goal estimate.
-    const useReverseAStar = options.reverseAStar === true || (options.reverseAStar !== false && initialBoxes.length >= 30 && initialBoxes.length <= 45);
+    let reverseFrontier = null;
+    const useReverseAStar = options.reverseAStar === true || (options.reverseAStar !== false && initialBoxes.length >= 30 && initialBoxes.length <= 60);
     if (useReverseAStar) {
       const reverseAStarResult = await reverseAStarSearch(board, options, {
         startedAt, stats, maxNodes, maxTimeMs, yieldEvery, progressEveryMs,
@@ -2049,6 +2234,31 @@
           message: 'Solved by exact-pattern reverse A* search and verified forwards.',
         });
       }
+      reverseFrontier = reverseAStarResult?.frontier || null;
+    }
+
+    // Meet the reverse frontier from the starting side. Long free walks are
+    // already represented by one canonical reachability component; this phase
+    // searches only changed box positions, suppresses stagnant heuristic basins,
+    // and joins either search as soon as their push states coincide.
+    if (reverseFrontier && options.productiveBridge !== false) {
+      const productiveResult = await productiveBidirectionalSearch(board, options, {
+        startedAt, stats, maxNodes, maxTimeMs, yieldEvery, progressEveryMs,
+        onProgress, shouldStop,
+      }, heuristic, reverseFrontier);
+      if (productiveResult?.stopped) {
+        stats.heuristicCache = heuristicCache.size;
+        return makeResult('stopped', startedAt, stats, { message: 'Search stopped.' });
+      }
+      if (productiveResult?.solution) {
+        stats.heuristicCache = heuristicCache.size;
+        return makeResult('solved', startedAt, stats, {
+          ...productiveResult.solution,
+          strategy: 'productive-bidirectional',
+          message: 'Solved by joining productive forward push search to a verified reverse frontier.',
+        });
+      }
+      if (productiveResult?.closest) closestAttempt = chooseClosestAttempt(closestAttempt, productiveResult.closest);
     }
 
     // Dense levels are often much easier when built backwards from the fully
@@ -2308,6 +2518,10 @@
           stats.freezeDeadlocks++;
           continue;
         }
+        if (clusterImmobileDeadlock(board, childBoxes, candidate.destination, childScratch)) {
+          stats.freezeDeadlocks++;
+          continue;
+        }
 
         const h = heuristic(childBoxes);
         if (h >= INF) {
@@ -2457,7 +2671,7 @@
   }
 
   return Object.freeze({
-    version: '2.4.1',
+    version: '2.5.0',
     DIRS,
     SolverError,
     parseLevel,

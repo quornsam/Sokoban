@@ -1,11 +1,11 @@
-BOXXY v107
+BOXXY v108
 
 Solver update:
 - Uses a portfolio of reverse exact-pattern search, reverse construction, bounded lower-bound search, multi-feature macro search, and forward deadlock-pruned search.
 - Failed searches now return and display the closest verified position reached, its partial route, and a phase-by-phase search summary.
 - Solver results are still verified by replay before they can be attached to a puzzle.
 
-BOXXY — Pushbox Puzzle v106
+BOXXY — Pushbox Puzzle v108
 
 Open index.html in a web browser.
 
@@ -285,3 +285,14 @@ VERSION 107
 - Fixed a runtime error in exact-pattern reverse A* progress reporting: closestForwardId was referenced from the wrong search phase.
 - Reverse A* now tracks its own closest state and reports exact starting-pattern matches.
 - Solver progress now labels generated nodes as push states. The engine already canonicalises all player positions within the same reachable area, so a clear 20-step walk does not create 20 search nodes; walking is reconstructed only after the push route is found.
+
+
+Version 108 — productive bidirectional solver
+- Long player walks are canonicalised as one reachable-region state; only box pushes branch the main search.
+- Reverse A* now retains its verified frontier instead of discarding it after a failed exact match.
+- A new forward phase searches for an exact join with that reverse frontier. A join gives a complete verified route immediately.
+- Progress-aware pruning limits repeated states in the same structural basin and prunes branches that make no assignment, goal, connectivity, mobility or access progress for too long.
+- Immobile box-cluster pruning is now also applied in the main forward search.
+- The closest-position report penalises stagnant branches and reports how many pushes have passed since structural progress.
+- Search diagnostics show productive-bridge work, stagnant branches pruned and successful forward/reverse joins.
+- This remains a solution-finding search rather than an optimality proof; temporary detours are allowed within a bounded plateau allowance.
