@@ -1,11 +1,12 @@
-BOXXY v108
+BOXXY v114
 
 Solver update:
-- Uses a portfolio of reverse exact-pattern search, reverse construction, bounded lower-bound search, multi-feature macro search, and forward deadlock-pruned search.
-- Failed searches now return and display the closest verified position reached, its partial route, and a phase-by-phase search summary.
-- Solver results are still verified by replay before they can be attached to a puzzle.
+- The puzzle solver has been rebuilt from scratch as one pure Feature Space Search (FESS) engine.
+- FESS uses same-box macro moves, cyclic feature cells, accumulated 0/1 advisor weights, a transposition table and dead-descendant propagation.
+- Failed searches still return the strongest verified forward position and its partial route.
+- Every completed route is replayed before it can be attached to a puzzle.
 
-BOXXY — Pushbox Puzzle v108
+BOXXY — Pushbox Puzzle v114
 
 Open index.html in a web browser.
 
@@ -343,3 +344,18 @@ BOXXY v113 FESS and structural-deadlock rebuild
 - Added solver-core analyseDeadlocks() for repeatable regression tests of supplied dead positions.
 - Complete safe iterative deepening now records states proved dead without a threshold cutoff and propagates that proof to their parents; later revisits are skipped.
 - Included solver-regression-tests.js covering stored Microban route replay, frozen corners, dynamic matching, exact optimistic corrals, dead-descendant propagation and the Small Chessboards 38 starting position.
+
+
+BOXXY v114 — pure FESS solver rebuild
+--------------------------------------
+- Replaced the entire v113 solver algorithm. No reverse solver, A*, IDA*, bounded-search portfolio or safe-search fallback remains in solver-core.js or solver-worker.js.
+- Kept the existing game, Level Maker interface, artwork, animation, audio, controls and responsive layout unchanged.
+- Uses one domain-state tree projected into FESS cells defined by parking-order packing, free-space connectivity, room obstruction and out-of-plan boxes.
+- Each selected cell expands its least accumulated-weight unexpanded same-box macro move. The search alternates broad cyclic cell coverage with the strongest FESS cell found so far.
+- Packing, connectivity, room, hotspot, out-of-plan, opener and explorer advisors assign move weight 0. Every other non-dead macro remains available with weight 1.
+- Parking order is generated from a retrograde target-peeling plan, with constrained targets placed earlier inside simultaneous groups. Raw target occupation is reported separately from the FESS packing score.
+- Hotspots are calculated as boxes that remove target routes from other boxes. Blocker maps are generated lazily and cached only for squares actually occupied during search.
+- Player walking positions in the same reachable region are canonicalised into one state. Complete same-box push sequences are generated as macro moves and walking is reconstructed in the returned route.
+- Exact transpositions reuse feature scores and deadlock results. A newly found lower accumulated weight requeues that state’s remaining macro moves at the improved priority.
+- Pruning is limited to structural dead squares, solid 2 × 2 blocks, impossible complete box-to-goal matching, and states whose complete descendants have been proved dead.
+- Added a v114 regression suite covering all 238 supplied starting boards, all 50 stored Microban routes, fresh FESS solves of all 50 authored levels, structural deadlocks, dead-descendant propagation and a dense Small Chessboards 38 stress run.
