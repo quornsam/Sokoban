@@ -1,5 +1,5 @@
 /*
- * BOXXY Sokoban Solver Core v2.2
+ * BOXXY Sokoban Solver Core v2.3
  * Original browser-first implementation by OpenAI for Sam Cornwell / BOXXY.
  *
  * Search model:
@@ -7,6 +7,7 @@
  *   - Canonical player-reachability states
  *   - Reverse-push distance heuristic with minimum-cost box/goal matching
  *   - Fast reverse construction plus exact-pattern reverse matching for dense puzzles
+ *   - Dynamic vacancy-pattern matching for large, densely interlocked boards
  *   - Static dead-square, assignment, 2x2 and recursive freeze pruning
  *
  * XSB symbols:
@@ -478,6 +479,91 @@
     return result >= INF / 2 ? INF : result;
   }
 
+
+  function hungarianSubset(rowPositions, targetIndices, distanceTables) {
+    const n = rowPositions.length;
+    if (n !== targetIndices.length) return INF;
+    if (n === 0) return 0;
+
+    const u = new Float64Array(n + 1);
+    const v = new Float64Array(n + 1);
+    const assignment = new Int32Array(n + 1);
+    const predecessor = new Int32Array(n + 1);
+
+    for (let i = 1; i <= n; i++) {
+      assignment[0] = i;
+      let column = 0;
+      const minimum = new Float64Array(n + 1);
+      minimum.fill(INF);
+      const used = new Uint8Array(n + 1);
+
+      do {
+        used[column] = 1;
+        const row = assignment[column];
+        let delta = INF;
+        let nextColumn = 0;
+
+        for (let j = 1; j <= n; j++) {
+          if (used[j]) continue;
+          const distance = distanceTables[targetIndices[j - 1]][rowPositions[row - 1]];
+          const cost = distance < 0 ? INF : distance;
+          const reduced = cost - u[row] - v[j];
+          if (reduced < minimum[j]) {
+            minimum[j] = reduced;
+            predecessor[j] = column;
+          }
+          if (minimum[j] < delta) {
+            delta = minimum[j];
+            nextColumn = j;
+          }
+        }
+
+        if (delta >= INF / 2 || nextColumn === 0) return INF;
+        for (let j = 0; j <= n; j++) {
+          if (used[j]) {
+            u[assignment[j]] += delta;
+            v[j] -= delta;
+          } else {
+            minimum[j] -= delta;
+          }
+        }
+        column = nextColumn;
+      } while (assignment[column] !== 0);
+
+      do {
+        const previousColumn = predecessor[column];
+        assignment[column] = assignment[previousColumn];
+        column = previousColumn;
+      } while (column !== 0);
+    }
+
+    const result = Math.round(-v[0]);
+    return result >= INF / 2 ? INF : result;
+  }
+
+  function createTargetPattern(count, targets, distanceTables) {
+    const targetIndex = new Int32Array(count);
+    targetIndex.fill(-1);
+    for (let i = 0; i < targets.length; i++) targetIndex[targets[i]] = i;
+    return { count, targets, distanceTables, targetIndex };
+  }
+
+  function minCostVacancyPattern(pattern, boxes) {
+    const occupied = new Uint8Array(pattern.count);
+    for (const box of boxes) occupied[box] = 1;
+
+    const displacedBoxes = [];
+    const vacantTargets = [];
+    for (const box of boxes) {
+      if (pattern.targetIndex[box] < 0) displacedBoxes.push(box);
+    }
+    for (let i = 0; i < pattern.targets.length; i++) {
+      if (!occupied[pattern.targets[i]]) vacantTargets.push(i);
+    }
+
+    return hungarianSubset(displacedBoxes, vacantTargets, pattern.distanceTables);
+  }
+
   function cheapGoalDistance(board, boxes) {
     let boxSum = 0;
     for (const box of boxes) {
@@ -645,11 +731,12 @@
     const boxCount = board.initialBoxes.length;
     const nodeCap = Math.max(10_000, Math.min(Number(options.reverseAStarMaxNodes) || 1_500_000, Math.floor(maxNodes * 0.65)));
     const timeCap = Math.max(2_000, Math.min(Number(options.reverseAStarMaxTimeMs) || Math.floor(maxTimeMs * 0.55), maxTimeMs - 500));
-    const weight = Math.max(1, Number(options.reverseWeight) || (boxCount >= 20 ? 4.5 : 3));
+    const weight = Math.max(1, Number(options.reverseWeight) || (boxCount >= 30 ? 10 : boxCount >= 20 ? 4.5 : 3));
     const targetBoxes = board.initialBoxes;
     const targetReach = computeReachability(board, targetBoxes, board.initialPlayer, createScratch(board), false);
     const targetAnchor = targetReach.anchor;
     const distances = precomputeForwardPushDistances(board, targetBoxes);
+    const targetPattern = createTargetPattern(board.count, targetBoxes, distances);
     const reverseHCache = new Map();
     const reverseHeuristic = (boxes) => {
       const key = boxesKey(boxes);
@@ -667,7 +754,11 @@
       const key = boxesKey(boxes);
       const cached = hCache.get(key);
       if (cached !== undefined) return cached;
-      const value = minCostMatchingDistances(distances, boxes);
+      const vacancy = minCostVacancyPattern(targetPattern, boxes);
+      // Vacancy matching follows the complete occupied/empty pattern. If that
+      // pattern temporarily has no direct assignment, fall back to the full
+      // matching rather than incorrectly declaring a deadlock.
+      const value = vacancy < INF ? vacancy : minCostMatchingDistances(distances, boxes);
       hCache.set(key, value);
       return value;
     };
@@ -1284,15 +1375,28 @@
     const childScratch = createScratch(board);
     const heuristicCache = new Map();
     const exactMatching = options.exactMatching === true || board.initialBoxes.length <= 12;
+    const goalPattern = createTargetPattern(board.count, board.goalList, board.reverseDistances);
+    const useVacancyPattern = options.vacancyPattern !== false && board.initialBoxes.length >= 16;
     const heuristic = (boxes) => {
       const key = boxesKey(boxes);
       const cached = heuristicCache.get(key);
       if (cached !== undefined) return cached;
-      const h = exactMatching ? minCostMatching(board, boxes) : cheapGoalDistance(board, boxes);
+
+      let h;
+      if (useVacancyPattern) {
+        const vacancy = minCostVacancyPattern(goalPattern, boxes);
+        h = vacancy < INF
+          ? vacancy
+          : (exactMatching ? minCostMatching(board, boxes) : cheapGoalDistance(board, boxes));
+      } else {
+        h = exactMatching ? minCostMatching(board, boxes) : cheapGoalDistance(board, boxes);
+      }
       heuristicCache.set(key, h);
       return h;
     };
-    stats.heuristicType = exactMatching ? 'minimum-cost matching' : 'two-sided push distance';
+    stats.heuristicType = useVacancyPattern
+      ? 'dynamic vacancy-pattern matching'
+      : (exactMatching ? 'minimum-cost matching' : 'two-sided push distance');
 
     const initialBoxes = board.initialBoxes.slice();
     if (allBoxesOnGoals(board, initialBoxes)) {
@@ -1349,7 +1453,7 @@
     // it searches only configurations that are guaranteed to have a route to
     // the goals, while exact assignment to the initial box pattern supplies a
     // much stronger direction than the forward nearest-goal estimate.
-    const useReverseAStar = options.reverseAStar === true && initialBoxes.length >= 10;
+    const useReverseAStar = options.reverseAStar === true || (options.reverseAStar !== false && initialBoxes.length >= 30 && initialBoxes.length <= 45);
     if (useReverseAStar) {
       const reverseAStarResult = await reverseAStarSearch(board, options, {
         startedAt, stats, maxNodes, maxTimeMs, yieldEvery, progressEveryMs,

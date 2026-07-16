@@ -2389,7 +2389,7 @@
         monotone: "Testing whether every push can make necessary progress…",
         reverse: "Trying a fast route backwards from the completed goals…",
         "reverse-pattern": "Matching the complete box pattern backwards from the goals…",
-        "reverse-a-star": "Searching exact box patterns backwards from the goals…",
+        "reverse-a-star": "Matching displaced boxes to the exact starting pattern backwards…",
         forward: "Searching forward push positions with deadlock pruning…"
       };
       solverProgressLabel.textContent = phaseLabels[phase] || phaseLabels.forward;
