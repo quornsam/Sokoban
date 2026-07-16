@@ -28,7 +28,7 @@
   });
 })();
 
-/* BOXXY v108 — character renderer, game engine, level maker and progress-aware bidirectional solver. */
+/* BOXXY v110 — character renderer, game engine, level maker and continuous puzzle solving. */
 (() => {
   "use strict";
 
@@ -2248,8 +2248,8 @@
   let solverJobId = 0;
   let solverStartedAt = 0;
   let lastClosestResult = null;
-  const SOLVER_MAX_NODES = 5000000;
-  const SOLVER_MAX_TIME_MS = 300000;
+  const SOLVER_PROGRESS_UPDATE_MS = 750;
+  let solverAudioContext = null;
 
   const clampSize = value => Math.max(MIN_SIZE, Math.min(MAX_SIZE, Math.round(Number(value) || 10)));
   const clampGeneratorSize = value => Math.max(GENERATOR_MIN_SIZE, clampSize(value));
@@ -2355,8 +2355,24 @@
     if (solverClosestRoute) solverClosestRoute.value = "";
   }
 
+  function isBetterLiveClosest(candidate, current) {
+    if (!candidate) return false;
+    if (!current) return true;
+    if (String(candidate.boardText || "") === String(current.boardText || "")) return false;
+    const distance = value => value === null || value === undefined || !Number.isFinite(Number(value)) ? Number.POSITIVE_INFINITY : Number(value);
+    const candidateH = distance(candidate.remainingEstimate) + Math.max(0, Number(candidate.stagnation || 0) - 8);
+    const currentH = distance(current.remainingEstimate) + Math.max(0, Number(current.stagnation || 0) - 8);
+    if (candidateH !== currentH) return candidateH < currentH;
+    const candidateGoals = Number(candidate.goalsFilled || 0);
+    const currentGoals = Number(current.goalsFilled || 0);
+    if (candidateGoals !== currentGoals) return candidateGoals > currentGoals;
+    const candidateLegal = Number(candidate.legalPushes || 0);
+    const currentLegal = Number(current.legalPushes || 0);
+    if (candidateLegal !== currentLegal) return candidateLegal > currentLegal;
+    return Number(candidate.pushCount || 0) < Number(current.pushCount || 0);
+  }
+
   function showClosestDisplay(closest, stats = {}) {
-    clearClosestDisplay();
     if (!closest || !solverClosest) return;
     lastClosestResult = closest;
     const goals = Number(closest.goalsFilled || 0);
@@ -2448,10 +2464,8 @@
   }
 
   function updateSearchProgress(progress = {}) {
-    const elapsedRatio = Number(progress.elapsedMs || 0) / SOLVER_MAX_TIME_MS;
-    const nodeRatio = Number(progress.generated || 0) / SOLVER_MAX_NODES;
-    const estimate = Math.max(elapsedRatio, nodeRatio);
-    if (solverProgress) solverProgress.value = Math.max(1, Math.min(98, Math.round(estimate * 100)));
+    if (solverProgress) solverProgress.removeAttribute("value");
+    if (progress.closest && isBetterLiveClosest(progress.closest, lastClosestResult)) showClosestDisplay(progress.closest, progress.stats || {});
     const phase = progress.phase || "forward";
     if (solverProgressLabel) {
       const phaseLabels = {
@@ -2486,12 +2500,43 @@
     }
   }
 
+  function prepareSolverDing() {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      if (!solverAudioContext) solverAudioContext = new AudioCtx();
+      solverAudioContext.resume?.();
+    } catch (_) {}
+  }
+
+  function playSolverDing() {
+    try {
+      prepareSolverDing();
+      if (!solverAudioContext) return;
+      const now = solverAudioContext.currentTime;
+      const gain = solverAudioContext.createGain();
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.16, now + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.55);
+      gain.connect(solverAudioContext.destination);
+      [[880, 0, 0.22], [1320, 0.16, 0.48]].forEach(([frequency, offset, stop]) => {
+        const oscillator = solverAudioContext.createOscillator();
+        oscillator.type = "sine";
+        oscillator.frequency.setValueAtTime(frequency, now + offset);
+        oscillator.connect(gain);
+        oscillator.start(now + offset);
+        oscillator.stop(now + stop);
+      });
+    } catch (_) {}
+  }
+
   function handleSolverResult(result, id, levelText) {
     if (id !== solverJobId || !solverRunning) return;
     finishSolverRun();
     updateSolverControls();
     result = result || {};
     if (result.status === "solved") {
+      playSolverDing();
       clearClosestDisplay();
       const route = String(result.mixedMoves || result.moves || "").replace(/[^udlrUDLR]/g, "");
       setAttachedSolution(route, levelText, currentPuzzleRef);
@@ -2513,9 +2558,8 @@
       setSolverStatus(result.message || "No solution exists from this starting position.", "error");
     } else if (result.status === "limit") {
       showClosestDisplay(result.closest, result.stats || {});
-      if (solverProgress) solverProgress.value = 100;
-      if (solverProgressLabel) solverProgressLabel.textContent = "Search limit reached.";
-      setSolverStatus(`${result.message || "The search limit was reached."} This does not prove that the puzzle is unsolvable.`, "error");
+      if (solverProgressLabel) solverProgressLabel.textContent = "Search stopped unexpectedly.";
+      setSolverStatus(result.message || "The search stopped unexpectedly before exhausting the puzzle.", "error");
     } else if (result.status === "stopped") {
       setSolverStatus("Search cancelled.");
     } else {
@@ -2535,10 +2579,13 @@
     try {
       const result = await window.SokobanCore.solve(levelText, {
         mode: "deep",
-        maxNodes: SOLVER_MAX_NODES,
-        maxTimeMs: SOLVER_MAX_TIME_MS,
+        unlimited: true,
+        productiveMaxNodes: 2000000,
+        productiveMaxTimeMs: 120000,
+        featureMaxNodes: 3000000,
+        featureMaxTimeMs: 180000,
         yieldEvery: 350,
-        progressEveryMs: 100,
+        progressEveryMs: SOLVER_PROGRESS_UPDATE_MS,
         shouldStop: () => solverAbortRequested || id !== solverJobId,
         onProgress: progress => {
           if (id === solverJobId && solverRunning) updateSearchProgress(progress);
@@ -2566,16 +2613,20 @@
     solverStartedAt = performance.now();
     const existingRoute = solutionMatchesCurrentBoard() ? currentSolution : "";
     clearClosestDisplay();
+    const totalGoals = (levelText.match(/[.*+]/g) || []).length;
+    const goalsFilled = (levelText.match(/\*/g) || []).length;
+    showClosestDisplay({ boardText: levelText, mixedMoves: "", moveCount: 0, pushCount: 0, goalsFilled, totalGoals, remainingEstimate: null, stagnation: 0 }, {});
+    prepareSolverDing();
     if (solverOutput) solverOutput.value = existingRoute;
     if (solverCopyBtn) solverCopyBtn.disabled = true;
     if (solverApplyBtn) solverApplyBtn.disabled = true;
     if (solverProgressWrap) solverProgressWrap.hidden = false;
-    if (solverProgress) solverProgress.value = 1;
+    if (solverProgress) solverProgress.removeAttribute("value");
     if (solverProgressLabel) solverProgressLabel.textContent = "Analysing walls, goals and dead squares…";
     if (solverStats) solverStats.textContent = "0 states";
     if (solverStartBtn) solverStartBtn.disabled = true;
     if (solverCancelBtn) solverCancelBtn.hidden = false;
-    setSolverStatus("Searching with a portfolio of reverse construction, exact-pattern matching, bounded push search, multi-feature macro search and forward deadlock-pruned search. If no complete route is found, BOXXY will show the closest verified position it reached.");
+    setSolverStatus("Search will continue until a verified solution is found, the complete push-state graph is exhausted, or you press Cancel Search. The closest forward-reachable position updates below while it works.");
 
     let fellBack = false;
     const fallback = () => {
@@ -2610,8 +2661,8 @@
         type: "solve",
         id,
         level: levelText,
-        maxNodes: SOLVER_MAX_NODES,
-        maxTimeMs: SOLVER_MAX_TIME_MS
+        unlimited: true,
+        progressEveryMs: SOLVER_PROGRESS_UPDATE_MS
       });
     } catch (_) {
       fallback();

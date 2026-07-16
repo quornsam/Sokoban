@@ -283,7 +283,7 @@
         <strong id="makerSolverProgressLabel">Preparing search…</strong>
         <span id="makerSolverStats"></span>
       </div>
-      <p>Search progress is not linear. The bar reflects the current time and search limits rather than a guaranteed percentage of the puzzle.</p>
+      <p>The bar remains active while the search continues. There is no automatic time or push-state limit; use Cancel Search to stop it.</p>
     </div>
 
     <label class="maker-solution-label" for="makerSolutionOutput">SOLUTION STRING</label>
@@ -295,7 +295,7 @@
         <strong>CLOSEST POSITION REACHED</strong>
         <span id="makerSolverClosestStats"></span>
       </div>
-      <p>The solver could not finish within its limits. This is the strongest productive position it reached. Stagnant branches are penalised and pruned, but this position is still not proof that the route can ultimately be completed.</p>
+      <p>This is the strongest forward-reachable position found so far. It updates whenever the solver finds a genuinely better position. A promising position is guidance, not proof that its branch can ultimately be completed.</p>
       <pre id="makerSolverClosestBoard" class="maker-solver-closest-board" aria-label="Closest Sokoban position"></pre>
       <p id="makerSolverDiagnostics" class="maker-solver-diagnostics"></p>
       <label class="maker-solution-label" for="makerSolverClosestRoute">PARTIAL ROUTE TO THIS POSITION</label>

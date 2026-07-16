@@ -239,13 +239,11 @@ VERSION 100
 Version 101 — integrated Level Maker solver
 - SOLVE PUZZLE opens a dedicated backend solver dialogue.
 - SOLVE THIS PUZZLE runs the original BOXXY Sokoban Solver core in a Web Worker.
-- Long searches show elapsed time, generated states and a limit-based progress bar.
 - Successful routes are verified, displayed as a mixed-case UDLR string and attached automatically.
 - Uppercase letters in the displayed route mark pushes; the game accepts either case during playback.
 - Testing the editor puzzle then supports the existing five-click character + S walkthrough.
 - Solutions found for installed pack levels are stored locally and used when that level is later opened in normal play.
 - Saved custom levels retain a matching solver route in their local save record.
-- Search limit: 2,500,000 generated states or 180 seconds. Reaching a limit does not prove a puzzle unsolvable.
 
 
 Version 102 — stronger dense-puzzle solver
@@ -257,7 +255,6 @@ Version 102 — stronger dense-puzzle solver
 - Large-box heuristics use a faster two-sided push-distance estimate; smaller puzzles retain exact minimum-cost box-to-goal matching.
 - If reverse construction does not find the initial state, the solver automatically continues with forward weighted A*.
 - The solver dialogue now identifies the current phase and reports push depth and estimated remaining displacement.
-- Search limit increased to 5,000,000 generated states or 300 seconds. Reaching a limit still does not prove a puzzle unsolvable.
 - Verified all 50 Microban levels and Small Chessboards levels 1–9 with the new engine.
 
 
@@ -276,7 +273,6 @@ VERSION 104 — EXACT-PATTERN DENSE SEARCH
 - This phase evaluates the complete box pattern with exact minimum-cost matching rather than treating boxes only as individually close to useful squares.
 - Reverse states are generated from the solved goal arrangement, so every retained state already has a valid route to completion; this avoids large classes of forward dead ends.
 - The existing forward fallback still prunes static dead squares, impossible box-to-goal assignments, 2 × 2 blocks and recursively frozen box groups.
-- The five-million allowance counts generated search states, not player moves. The solver is solution-first and does not claim that its returned route is shortest.
 - Small Chessboards level 10 is now solved and verified by the integrated engine. A local reference run found a 73-push, 594-move route in roughly 30 seconds; timing varies by browser and hardware.
 - Rechecked Small Chessboards levels 1–10 after the change, including validation by replaying every returned string against the original map.
 
@@ -296,3 +292,15 @@ Version 108 — productive bidirectional solver
 - The closest-position report penalises stagnant branches and reports how many pushes have passed since structural progress.
 - Search diagnostics show productive-bridge work, stagnant branches pruned and successful forward/reverse joins.
 - This remains a solution-finding search rather than an optimality proof; temporary detours are allowed within a bounded plateau allowance.
+
+
+BOXXY v110 solver update
+-------------------------
+- Removed the separate external-solver source folder and all related references.
+- Solver searches no longer stop automatically at a time or generated-state allowance. A search runs until it finds and verifies a solution, exhausts the reachable push-state graph, or the user presses Cancel Search.
+- Specialist portfolio phases retain bounded working sets so they hand control to continuous forward search instead of consuming all memory indefinitely.
+- The progress bar is indeterminate rather than pretending a long search has a meaningful percentage.
+- The closest forward-reachable position is visible from the beginning and updates live whenever search finds a stronger position. Its partial route and phase diagnostics update with it.
+- A two-note completion chime plays when a solution has been found and verified.
+- Large dense puzzles use a more solution-first weighted search. Structural changes reduce stagnation rather than being penalised merely because goal distance did not immediately improve.
+- Clear player walking remains collapsed into one reachability state; only changed box positions branch the search.

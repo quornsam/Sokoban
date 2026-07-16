@@ -1,5 +1,5 @@
 /*
- * BOXXY Sokoban Solver Core v2.5.0
+ * BOXXY Sokoban Solver Core v2.6.0
  * Original browser-first implementation by OpenAI for Sam Cornwell / BOXXY.
  *
  * Search model:
@@ -1198,7 +1198,7 @@
       candidates.sort((a,b)=>(a.h-b.h)||(b.goals-a.goals)||(a.components-b.components)||(b.reachCount-a.reachCount)||(b.mobility-a.mobility)||(a.destination-b.destination));
       for(const c of candidates){const old=bestG.get(c.key);if(old!==undefined&&old<=c.g)continue;bestG.set(c.key,c.g);const cid=nodes.length;nodes.push(c);open.push(cid);generated++;stats.generated++;if(closer(c,nodes[closestId]))closestId=cid;if(c.h===0||allBoxesOnGoals(board,c.boxes)){stats.boundExpanded=expanded;stats.boundGenerated=generated;stats.boundValue=bound;stats.boundHeuristicCache=cache.size;return {solution:reconstructForwardSolution(board,nodes,cid),closest:null};}if(generated>=nodeCap)break;}
       stats.peakOpen=Math.max(stats.peakOpen,open.size);
-      const now=performanceNow();if(onProgress&&now-lastProgress>=progressEveryMs){lastProgress=now;const best=nodes[closestId];onProgress({phase:'bounded-best',elapsedMs:Math.round(now-startedAt),expanded,generated,open:open.size,bestPushDepth:best.g,bestEstimate:best.h,goalsFilled:best.goals,totalGoals:board.goalList.length,bound,deadlocks:stats.staticDeadlocks+stats.blockDeadlocks+stats.freezeDeadlocks+stats.assignmentDeadlocks,peakOpen:stats.peakOpen});}
+      const now=performanceNow();if(onProgress&&now-lastProgress>=progressEveryMs){lastProgress=now;const best=nodes[closestId];onProgress({phase:'bounded-best',elapsedMs:Math.round(now-startedAt),expanded,generated,open:open.size,bestPushDepth:best.g,bestEstimate:best.h,goalsFilled:best.goals,totalGoals:board.goalList.length,bound,deadlocks:stats.staticDeadlocks+stats.blockDeadlocks+stats.freezeDeadlocks+stats.assignmentDeadlocks,peakOpen:stats.peakOpen,closest:makeClosestResult(board,{solution:reconstructForwardSolution(board,nodes,closestId),boxes:best.boxes,player:best.player,goals:best.goals,h:best.h,g:best.g,components:best.components,reachCount:best.reachCount,mobility:best.mobility}),stats:{...stats}});}
       if(expanded%300===0)await immediateYield();
     }
     stats.boundExpanded=expanded;stats.boundGenerated=generated;stats.boundValue=bound;stats.boundHeuristicCache=cache.size;
@@ -1335,7 +1335,7 @@
         const after=performanceNow();
         if(onProgress && after-lastProgress>=progressEveryMs){
           lastProgress=after;
-          onProgress({phase:'bounded-ida',elapsedMs:Math.round(after-startedAt),expanded:totalExpanded,generated:totalGenerated,open:stack.length,bestPushDepth:closest.g,bestEstimate:closest.h,goalsFilled:closest.goals,totalGoals:board.goalList.length,threshold,deadlocks:stats.staticDeadlocks+stats.blockDeadlocks+stats.freezeDeadlocks+stats.assignmentDeadlocks,peakOpen:Math.max(stats.peakOpen,stack.length)});
+          onProgress({phase:'bounded-ida',elapsedMs:Math.round(after-startedAt),expanded:totalExpanded,generated:totalGenerated,open:stack.length,bestPushDepth:closest.g,bestEstimate:closest.h,goalsFilled:closest.goals,totalGoals:board.goalList.length,threshold,deadlocks:stats.staticDeadlocks+stats.blockDeadlocks+stats.freezeDeadlocks+stats.assignmentDeadlocks,peakOpen:Math.max(stats.peakOpen,stack.length),closest:makeClosestResult(board,{solution:reconstructFromPushActions(board,closest.actions||[]),boxes:closest.boxes,player:closest.player,goals:closest.goals,h:closest.h,g:closest.g}),stats:{...stats}});
         }
         if(totalGenerated%300===0) await immediateYield();
       }
@@ -1395,9 +1395,11 @@
       onProgress, shouldStop,
     } = shared;
     const boxCount = board.initialBoxes.length;
-    const nodeCap = Math.max(20_000, Math.min(Number(options.productiveMaxNodes) || Math.floor(maxNodes * 0.30), maxNodes));
-    const timeCap = Math.max(2_000, Math.min(Number(options.productiveMaxTimeMs) || Math.floor(maxTimeMs * 0.28), maxTimeMs - 500));
-    const plateauLimit = Math.max(10, Number(options.plateauPushLimit) || Math.floor(10 + boxCount * 0.38));
+    const productiveDefaultNodes = maxNodes > 1_000_000_000 ? 2_000_000 : Math.floor(maxNodes * 0.30);
+    const productiveDefaultTime = maxTimeMs > 1_000_000_000 ? 120_000 : Math.floor(maxTimeMs * 0.28);
+    const nodeCap = Math.max(20_000, Math.min(Number(options.productiveMaxNodes) || productiveDefaultNodes, maxNodes));
+    const timeCap = Math.max(2_000, Math.min(Number(options.productiveMaxTimeMs) || productiveDefaultTime, maxTimeMs - 500));
+    const plateauLimit = Math.max(18, Number(options.plateauPushLimit) || (boxCount >= 30 ? Math.floor(boxCount * 2.5) : Math.floor(12 + boxCount * 0.65)));
     const cellLimit = Math.max(60, Number(options.progressCellLimit) || (boxCount >= 30 ? 260 : 420));
     const weight = Math.max(1.2, Number(options.productiveWeight) || (boxCount >= 30 ? 3.2 : 2.3));
     const scratch = createScratch(board);
@@ -1493,7 +1495,7 @@
         const structuralChange = h !== node.h || goals !== node.goals || components !== node.components ||
           Math.floor(childMobility.pushes / 3) !== Math.floor(node.mobility / 3) ||
           Math.floor(childMobility.reachCount / 4) !== Math.floor(node.reachCount / 4);
-        const stagnation = improves ? 0 : node.stagnation + (structuralChange ? 1 : 2);
+        const stagnation = improves ? 0 : structuralChange ? Math.max(0, node.stagnation - 1) : node.stagnation + 2;
         if (stagnation > plateauLimit) { stats.plateauPruned++; continue; }
         const child = {
           boxes: childBoxes, player: childPlayer, anchor: childReach.anchor, g, h, goals,
@@ -1533,6 +1535,8 @@
           stagnation: best.stagnation, plateauPruned: stats.plateauPruned, bridgeHits: stats.bridgeHits,
           deadlocks: stats.staticDeadlocks + stats.blockDeadlocks + stats.freezeDeadlocks + stats.assignmentDeadlocks,
           peakOpen: stats.peakOpen,
+          closest: makeClosestResult(board, { solution: reconstructForwardSolution(board, nodes, closestId), boxes: best.boxes, player: best.player, goals: best.goals, h: best.h, g: best.g, components: best.components, reachCount: best.reachCount, mobility: best.mobility, stagnation: best.stagnation }),
+          stats: { ...stats },
         });
       }
       if (expanded % Math.max(50, yieldEvery) === 0) await immediateYield();
@@ -1886,6 +1890,7 @@
         if (twoByTwoDeadlock(board, childBoxes, destination)) continue;
         if (recursiveFreezeDeadlock(board, childBoxes, destination, childScratch)) continue;
         if (clusterImmobileDeadlock(board, childBoxes, destination, childScratch)) continue;
+        const childReach = computeReachability(board, childBoxes, current.box, childScratch, false);
         const actions = current.actions.concat([{ box: current.box, dir: d }]);
         queue.push({ boxes: childBoxes, player: current.box, box: destination, actions, lastDir: d });
       }
@@ -1908,8 +1913,10 @@
       startedAt, stats, maxNodes, maxTimeMs, yieldEvery, progressEveryMs,
       onProgress, shouldStop,
     } = shared;
-    const nodeCap = Math.max(20_000, Math.min(Number(options.featureMaxNodes) || Math.floor(maxNodes * 0.30), maxNodes));
-    const timeCap = Math.max(2_000, Math.min(Number(options.featureMaxTimeMs) || Math.floor(maxTimeMs * 0.30), maxTimeMs - 500));
+    const featureDefaultNodes = maxNodes > 1_000_000_000 ? 3_000_000 : Math.floor(maxNodes * 0.30);
+    const featureDefaultTime = maxTimeMs > 1_000_000_000 ? 180_000 : Math.floor(maxTimeMs * 0.30);
+    const nodeCap = Math.max(20_000, Math.min(Number(options.featureMaxNodes) || featureDefaultNodes, maxNodes));
+    const timeCap = Math.max(2_000, Math.min(Number(options.featureMaxTimeMs) || featureDefaultTime, maxTimeMs - 500));
     const featureScratch = createScratch(board);
     const metricScratch = createScratch(board);
     const childScratch = createScratch(board);
@@ -2004,7 +2011,7 @@
       const generatedChildren = [];
       for (const box of legalBoxes) {
         // Single-box macro endpoints include all one-push children and selected
-        // longer paths. This is the critical abstraction used by Festival/FESS.
+        // longer paths. This collapses several pushes by the same box into one strategic branch.
         const macros = generateSameBoxMacros(board, node, box, options, shared);
         for (const macro of macros) {
           const childBoxes = macro.boxes;
@@ -2059,6 +2066,8 @@
           featureCells: cellCounts.size,
           deadlocks: stats.staticDeadlocks + stats.blockDeadlocks + stats.freezeDeadlocks + stats.assignmentDeadlocks,
           peakOpen: stats.peakOpen,
+          closest: makeClosestResult(board, { solution: reconstructMacroSolution(board, nodes, closestId), boxes: closest.boxes, player: closest.player, goals: closest.goals, h: closest.h, g: closest.g, components: closest.components, reachCount: closest.reachCount, mobility: closest.mobility }),
+          stats: { ...stats },
         });
       }
       if (expandedCount % Math.max(20, Math.floor(yieldEvery / 8)) === 0) await immediateYield();
@@ -2085,11 +2094,19 @@
     if (!board || !board.floor || !board.initialBoxes) throw new SolverError('Invalid parsed board.', 'INVALID_BOARD');
 
     const mode = options.mode || 'fast';
+    const unlimited = options.unlimited === true;
     const weight = Number.isFinite(options.weight)
       ? Math.max(1, options.weight)
-      : mode === 'optimal' ? 1 : mode === 'thorough' ? 1.35 : 2.2;
-    const maxNodes = Math.max(1, Number(options.maxNodes) || (mode === 'optimal' ? 1_500_000 : 600_000));
-    const maxTimeMs = Math.max(1, Number(options.maxTimeMs) || (mode === 'optimal' ? 120_000 : 30_000));
+      : mode === 'optimal' ? 1
+        : mode === 'thorough' ? 1.35
+          : mode === 'deep' ? (board.initialBoxes.length >= 30 ? 4.8 : 2.8)
+            : 2.2;
+    const maxNodes = unlimited
+      ? Number.MAX_SAFE_INTEGER
+      : Math.max(1, Number(options.maxNodes) || (mode === 'optimal' ? 1_500_000 : 600_000));
+    const maxTimeMs = unlimited
+      ? Number.MAX_SAFE_INTEGER
+      : Math.max(1, Number(options.maxTimeMs) || (mode === 'optimal' ? 120_000 : 30_000));
     const yieldEvery = Math.max(50, Number(options.yieldEvery) || 750);
     const progressEveryMs = Math.max(50, Number(options.progressEveryMs) || 150);
     const onProgress = typeof options.onProgress === 'function' ? options.onProgress : null;
@@ -2103,8 +2120,7 @@
       duplicates: 0,
       staticDeadlocks: 0,
       blockDeadlocks: 0,
-      freezeDeadlocks: 0,
-      assignmentDeadlocks: 0,
+      freezeDeadlocks: 0,      assignmentDeadlocks: 0,
       beamPruned: 0,
       reverseExpanded: 0,
       reverseGenerated: 0,
@@ -2380,7 +2396,7 @@
       if (idaResult?.closest) closestAttempt = chooseClosestAttempt(closestAttempt, idaResult.closest);
     }
 
-    // Difficult dense boards are then explored with a FESS-inspired
+    // Difficult dense boards are then explored with a multi-feature
     // multi-feature search. It alternates between packing, assignment distance,
     // connectivity, mobility and novelty instead of collapsing all guidance
     // into one A* number. Same-box macro moves let one strategic action span
@@ -2457,11 +2473,11 @@
         return makeResult('stopped', startedAt, stats, { message: 'Search stopped.' });
       }
       const now = performanceNow();
-      if (now - startedAt >= maxTimeMs) {
+      if (!unlimited && now - startedAt >= maxTimeMs) {
         stats.heuristicCache = heuristicCache.size;
         return makeResult('limit', startedAt, stats, { message: `Time limit reached after ${(maxTimeMs / 1000).toFixed(1)} seconds.`, closest: (() => { const attempt = captureForwardClosest(); return attempt ? makeClosestResult(board, attempt) : undefined; })() });
       }
-      if (stats.generated >= maxNodes) {
+      if (!unlimited && stats.generated >= maxNodes) {
         stats.heuristicCache = heuristicCache.size;
         return makeResult('limit', startedAt, stats, { message: `Node limit reached (${maxNodes.toLocaleString()}).`, closest: (() => { const attempt = captureForwardClosest(); return attempt ? makeClosestResult(board, attempt) : undefined; })() });
       }
@@ -2584,6 +2600,8 @@
           bestEstimate: node.h,
           deadlocks: stats.staticDeadlocks + stats.blockDeadlocks + stats.freezeDeadlocks + stats.assignmentDeadlocks,
           peakOpen: stats.peakOpen,
+          closest: (() => { const attempt = captureForwardClosest(); return attempt ? makeClosestResult(board, attempt) : null; })(),
+          stats: { ...stats },
         });
       }
       if (stats.expanded % yieldEvery === 0) await immediateYield();
@@ -2671,7 +2689,7 @@
   }
 
   return Object.freeze({
-    version: '2.5.0',
+    version: '2.6.0',
     DIRS,
     SolverError,
     parseLevel,
@@ -2680,6 +2698,5 @@
     createInitialState,
     applyMove,
     boardToXSB,
-    allBoxesOnGoals,
-  });
+    allBoxesOnGoals,  });
 });
