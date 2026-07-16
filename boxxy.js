@@ -28,7 +28,7 @@
   });
 })();
 
-/* BOXXY v118 — character renderer, game engine, level maker and pure FESS puzzle solving. */
+/* BOXXY v119 — character renderer, game engine, level maker and pure FESS puzzle solving. */
 (() => {
   "use strict";
 
@@ -2261,9 +2261,9 @@
     else if ((deviceMemory > 0 && deviceMemory < 8) || (heapLimitMb > 0 && heapLimitMb < 2600)) tier = "standard";
 
     const limits = {
-      low: boxCount >= 32 ? 220000 : boxCount >= 16 ? 320000 : 500000,
-      standard: boxCount >= 32 ? 500000 : boxCount >= 16 ? 750000 : 1100000,
-      high: boxCount >= 32 ? 900000 : boxCount >= 16 ? 1250000 : 1800000,
+      low: boxCount >= 32 ? 300000 : boxCount >= 16 ? 450000 : 650000,
+      standard: boxCount >= 32 ? 900000 : boxCount >= 16 ? 1200000 : 1600000,
+      high: boxCount >= 32 ? 2000000 : boxCount >= 16 ? 2200000 : 2600000,
     };
     return { maxNodes: limits[tier], tier, boxCount };
   }
@@ -2475,7 +2475,7 @@
       setSolverStatus(`A ${currentSolution.length.toLocaleString()}-move solution is already attached to this puzzle.`, "success");
     } else if (previousRun?.running) {
       const seconds = (Number(previousRun.elapsedMs || 0) / 1000).toFixed(1);
-      setSolverStatus(`The previous solver tab ended unexpectedly after ${seconds}s in ${previousRun.phase || "search"}, at ${Number(previousRun.generated || 0).toLocaleString()} generated push states. v118 uses one adaptive-memory FESS search with cyclic feature cells, accumulated move weights and layered deadlock proofs.`, "error");
+      setSolverStatus(`The previous solver tab ended unexpectedly after ${seconds}s in ${previousRun.phase || "search"}, at ${Number(previousRun.generated || 0).toLocaleString()} generated push states. v119 uses a fixed compact FESS store, avoiding the reallocations and short-lived buffers that exhausted v118.`, "error");
       if (previousRun.closest) showClosestDisplay(previousRun.closest, {});
       try { localStorage.removeItem(SOLVER_RUN_SNAPSHOT_KEY); } catch (_) {}
     } else {
@@ -2534,7 +2534,9 @@
       const deadHitText = Number(progress.deadStateHits || 0) > 0 ? ` · ${Number(progress.deadStateHits).toLocaleString()} dead-state revisits avoided` : "";
       const residentLimit = Number(progress.residentNodeLimit || progress.stats?.residentNodeLimit || 0);
       const allowanceText = residentLimit > 0 ? ` · allowance ${residentLimit.toLocaleString()}` : "";
-      solverStats.textContent = `${Number(progress.generated || 0).toLocaleString()} push states · ${Number(progress.open || 0).toLocaleString()} open push states${depth}${estimateText}${goalsText}${packedText}${patternText}${cellsText}${activeCellsText}${advisorText}${prunedText}${stagnantText}${bridgeText}${thresholdText}${iterationText}${duplicateText}${cycleText}${provenDeadText}${deadHitText}${resetText}${allowanceText} · ${seconds}s`;
+      const storeBytes = Number(progress.stats?.searchStoreBytes || 0);
+      const storeText = storeBytes > 0 ? ` · fixed store ${(storeBytes / (1024 * 1024)).toFixed(0)} MB` : "";
+      solverStats.textContent = `${Number(progress.generated || 0).toLocaleString()} push states · ${Number(progress.open || 0).toLocaleString()} open push states${depth}${estimateText}${goalsText}${packedText}${patternText}${cellsText}${activeCellsText}${advisorText}${prunedText}${stagnantText}${bridgeText}${thresholdText}${iterationText}${duplicateText}${cycleText}${provenDeadText}${deadHitText}${resetText}${allowanceText}${storeText} · ${seconds}s`;
     }
     const now = Date.now();
     if (now - solverLastSnapshotAt >= 5000) {
@@ -2684,7 +2686,7 @@
     if (solverStartBtn) solverStartBtn.disabled = true;
     if (solverCancelBtn) solverCancelBtn.hidden = false;
     const memoryPlan = solverMemoryPlan(levelText);
-    setSolverStatus(`Solving with one pure FESS search. This device has the ${memoryPlan.tier} allowance: up to ${memoryPlan.maxNodes.toLocaleString()} resident states. Storage expands only as the search needs it.`);
+    setSolverStatus(`Solving with one pure FESS search. This device has the ${memoryPlan.tier} allowance: up to ${memoryPlan.maxNodes.toLocaleString()} resident states. The compact search store is allocated once, so it cannot double in size during a reallocation.`);
 
     let fellBack = false;
     const fallback = () => {
@@ -2700,7 +2702,7 @@
       return;
     }
     try {
-      solverWorker = new Worker("solver-worker.js?v=118");
+      solverWorker = new Worker("solver-worker.js?v=119");
       solverWorker.onmessage = event => {
         const message = event.data || {};
         if (message.id !== id || id !== solverJobId || !solverRunning) return;

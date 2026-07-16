@@ -1,4 +1,4 @@
-/* BOXXY v118 pure-FESS solver regression tests.
+/* BOXXY v119 pure-FESS solver regression tests.
  * Run with: node solver-regression-tests.js
  */
 'use strict';
@@ -25,7 +25,7 @@ const microban = packs.find(pack => pack.id === 'microban');
 const chessboards = packs.find(pack => pack.id === 'chessboards');
 
 (async () => {
-  assert(core.version === '5.3.0', `Unexpected solver-core version ${core.version}.`);
+  assert(core.version === '5.4.0', `Unexpected solver-core version ${core.version}.`);
 
   // Structural pruning must not falsely reject any supplied starting board.
   let analysed = 0;
@@ -189,7 +189,7 @@ const chessboards = packs.find(pack => pack.id === 'chessboards');
   }
 
   console.log([
-    'BOXXY v118 pure-FESS regression tests passed.',
+    'BOXXY v119 pure-FESS regression tests passed.',
     `${analysed} supplied starting boards accepted.`,
     `${replayed} stored routes replayed.`,
     `${freshlySolved} Microban levels solved afresh in ${freshElapsedMs} ms of reported solver time.`,

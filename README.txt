@@ -1,15 +1,15 @@
-BOXXY v118
+BOXXY v119
 
 Solver update:
-- The puzzle solver remains one pure Feature Space Search (FESS) engine with adaptive, staged memory growth.
+- The puzzle solver remains one pure Feature Space Search (FESS) engine with a fixed compact memory store.
 - Every generated push is passed through a separate layered deadlock engine before it can enter FESS.
 - The engine checks static dead squares, solid 2 x 2 blocks, mutually frozen box groups, frozen boxes on goals that obstruct the remaining assignment, dynamic bipartite box-to-goal matching, maze-specific exact 4 x 4 pattern searches, exact corral subproblems and articulation-room subproblems.
 - Local and corral searches are optimistic: boxes outside the tested subproblem are removed and exits are treated as available. Therefore a branch is pruned only when the easier subproblem is completely exhausted. Reaching a safety limit is treated as unknown, never dead.
-- FESS begins with a modest compact allocation and expands its typed-array state store only when needed. Desktop systems receive a much larger allowance than phones and low-memory devices.
+- FESS allocates its compact typed-array state store and exact transposition table once at the start. No full-store growth or rehash operation can temporarily double memory. Boards of at most 256 squares store positions in 8 bits. Desktop systems receive a larger allowance than phones and low-memory devices.
 - Failed searches still return the strongest verified forward position and its partial route.
 - Every completed route is replayed before it can be attached to a puzzle.
 
-BOXXY — Pushbox Puzzle v118
+BOXXY — Pushbox Puzzle v119
 
 Open index.html in a web browser.
 
@@ -389,3 +389,16 @@ BOXXY v118 adaptive-memory solver
 - Fixed stale v116 cache tags on the v117 HTML and worker URLs. All v118 solver and application files use v118 cache tags.
 - A requested unlimited solve now receives a 12-hour time allowance rather than silently stopping after ten minutes.
 - The progress display reports the current device's state allowance, and a limit result identifies whether memory or time was reached.
+
+
+BOXXY v119 fixed-store memory rebuild
+--------------------------------------
+- Replaced v118's expanding state arrays with one fixed compact allocation. The worker no longer copies the entire search into larger arrays while both old and new stores are resident.
+- Replaced transposition-table growth and rehashing with one correctly sized exact table allocated at startup.
+- Uses 8-bit board positions whenever the board contains no more than 256 squares, halving box-state storage on the dense Small Chessboards test.
+- Reuses parent and child reachability workspaces rather than allocating new masks, queues and visited arrays for every candidate push.
+- Reuses matching, connectivity and freeze-analysis workspaces. Box-to-goal matching no longer creates a fresh visited array for every augmenting path.
+- Novel states pass through the complete deadlock gate after transposition rejection, but are no longer retained a second time as long JavaScript deadlock-cache strings.
+- High-memory desktop allowance for 32+ box puzzles is now 2,000,000 states. The fixed compact store for Small Chessboards 38 is approximately 182 MB.
+- Progress now reports the fixed-store size as well as the state allowance.
+- All application and worker cache tags are v119.

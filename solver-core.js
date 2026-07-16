@@ -1,5 +1,5 @@
 /*
- * BOXXY Sokoban Solver Core v5.3.0
+ * BOXXY Sokoban Solver Core v5.4.0
  *
  * Clean Feature Space Search (FESS) implementation for the BOXXY Level Maker.
  * The search follows Shoham & Schaeffer's FESS design:
@@ -205,6 +205,9 @@
       localWindowsBySquare: Array.from({ length: count }, () => []),
       roomRegions: [],
       roomSearchCache: new Map(),
+      matchingScratch: null,
+      componentScratch: null,
+      freezeScratch: null,
     };
     for (let p = 0; p < count; p++) if (floor[p]) board.floorList.push(p);
     board.floorCount = board.floorList.length;
@@ -474,18 +477,23 @@
     // hold boxes during the search, then cached for the rest of the run.
   }
 
-  function boxesMask(board, boxes) {
-    const mask = new Uint8Array(board.count);
-    for (const p of boxes) mask[p] = 1;
+  function fillBoxesMask(mask, boxes) {
+    mask.fill(0);
+    for (let i = 0; i < boxes.length; i++) mask[boxes[i]] = 1;
     return mask;
   }
 
-  function floodReach(board, blocked, start, withPaths = false) {
-    const seen = new Uint8Array(board.count);
-    const queue = new Int32Array(board.count);
-    const parent = withPaths ? new Int32Array(board.count) : null;
-    const parentDir = withPaths ? new Int8Array(board.count) : null;
-    if (parent) parent.fill(-1);
+  function boxesMask(board, boxes) {
+    return fillBoxesMask(new Uint8Array(board.count), boxes);
+  }
+
+  function floodReachInto(board, blocked, start, seen, queue, withPaths = false, parent = null, parentDir = null) {
+    seen.fill(0);
+    if (withPaths) {
+      if (!parent || !parentDir) throw new SolverError('Path workspace is incomplete.', 'WORKSPACE');
+      parent.fill(-1);
+      parentDir.fill(-1);
+    }
     let qh = 0;
     let qt = 0;
     let representative = INF;
@@ -501,14 +509,27 @@
         const n = board.neighbours[p][d];
         if (n < 0 || blocked[n] || seen[n]) continue;
         seen[n] = 1;
-        if (parent) {
+        if (withPaths) {
           parent[n] = p;
           parentDir[n] = d;
         }
         queue[qt++] = n;
       }
     }
-    return { seen, count: qt, representative: representative === INF ? -1 : representative, parent, parentDir };
+    return { seen, count: qt, representative: representative === INF ? -1 : representative, parent: withPaths ? parent : null, parentDir: withPaths ? parentDir : null };
+  }
+
+  function floodReach(board, blocked, start, withPaths = false) {
+    return floodReachInto(
+      board,
+      blocked,
+      start,
+      new Uint8Array(board.count),
+      new Int32Array(board.count),
+      withPaths,
+      withPaths ? new Int32Array(board.count) : null,
+      withPaths ? new Int8Array(board.count) : null,
+    );
   }
 
   function pathTo(reach, start, target) {
@@ -551,22 +572,36 @@
   }
 
   function countFreeComponents(board, blocked) {
-    const seen = new Uint8Array(board.count);
-    const queue = new Int32Array(board.count);
+    if (!board.componentScratch) {
+      board.componentScratch = {
+        marks: new Uint32Array(board.count),
+        queue: new Int32Array(board.count),
+        generation: 0,
+      };
+    }
+    const scratch = board.componentScratch;
+    let generation = (scratch.generation + 1) >>> 0;
+    if (!generation) {
+      scratch.marks.fill(0);
+      generation = 1;
+    }
+    scratch.generation = generation;
+    const seen = scratch.marks;
+    const queue = scratch.queue;
     let components = 0;
     for (const start of board.floorList) {
-      if (blocked[start] || seen[start]) continue;
+      if (blocked[start] || seen[start] === generation) continue;
       components++;
       let qh = 0;
       let qt = 0;
-      seen[start] = 1;
+      seen[start] = generation;
       queue[qt++] = start;
       while (qh < qt) {
         const p = queue[qh++];
         for (let d = 0; d < 4; d++) {
           const n = board.neighbours[p][d];
-          if (n < 0 || blocked[n] || seen[n]) continue;
-          seen[n] = 1;
+          if (n < 0 || blocked[n] || seen[n] === generation) continue;
+          seen[n] = generation;
           queue[qt++] = n;
         }
       }
@@ -574,8 +609,8 @@
     return components;
   }
 
-  function hasTwoByTwoDeadlock(board, boxes) {
-    const occupied = boxesMask(board, boxes);
+  function hasTwoByTwoDeadlock(board, boxes, knownOccupied = null) {
+    const occupied = knownOccupied || boxesMask(board, boxes);
     for (let y = 0; y + 1 < board.height; y++) {
       for (let x = 0; x + 1 < board.width; x++) {
         const cells = [y * board.width + x, y * board.width + x + 1, (y + 1) * board.width + x, (y + 1) * board.width + x + 1];
@@ -597,28 +632,46 @@
   function hasGoalMatching(board, boxes, goals = board.goalList, walls = null) {
     if (boxes.length > goals.length) return false;
     const goalCount = goals.length;
-    const matchedBox = new Int32Array(goalCount);
-    matchedBox.fill(-1);
+    if (!board.matchingScratch || board.matchingScratch.capacity < goalCount) {
+      board.matchingScratch = {
+        capacity: Math.max(goalCount, board.goalList.length),
+        matchedBox: new Int32Array(Math.max(goalCount, board.goalList.length)),
+        seenGoals: new Uint32Array(Math.max(goalCount, board.goalList.length)),
+        generation: 0,
+      };
+    }
+    const scratch = board.matchingScratch;
+    const matchedBox = scratch.matchedBox;
+    matchedBox.fill(-1, 0, goalCount);
+    const seenGoals = scratch.seenGoals;
     const dynamicReach = walls ? goals.map(goal => reverseReachWithWalls(board, [goal], walls)) : null;
-    const staticGoalIndex = walls ? null : new Map(board.goalList.map((goal, index) => [goal, index]));
-    const visit = (boxIndex, seenGoals) => {
+    const staticGoalIndex = walls ? null : board.staticGoalIndex || (board.staticGoalIndex = new Map(board.goalList.map((goal, index) => [goal, index])));
+
+    const visit = (boxIndex, generation) => {
       const pos = boxes[boxIndex];
       for (let g = 0; g < goalCount; g++) {
-        if (seenGoals[g]) continue;
+        if (seenGoals[g] === generation) continue;
         const canReach = walls
           ? dynamicReach[g][pos]
           : board.reverseDistances[staticGoalIndex.get(goals[g])][pos] >= 0;
         if (!canReach) continue;
-        seenGoals[g] = 1;
-        if (matchedBox[g] < 0 || visit(matchedBox[g], seenGoals)) {
+        seenGoals[g] = generation;
+        if (matchedBox[g] < 0 || visit(matchedBox[g], generation)) {
           matchedBox[g] = boxIndex;
           return true;
         }
       }
       return false;
     };
+
     for (let b = 0; b < boxes.length; b++) {
-      if (!visit(b, new Uint8Array(goalCount))) return false;
+      let generation = (scratch.generation + 1) >>> 0;
+      if (!generation) {
+        seenGoals.fill(0);
+        generation = 1;
+      }
+      scratch.generation = generation;
+      if (!visit(b, generation)) return false;
     }
     return true;
   }
@@ -627,9 +680,9 @@
     return boxes.length === board.goalList.length && hasGoalMatching(board, boxes);
   }
 
-  function quickMacroDeadlock(board, boxes) {
+  function quickMacroDeadlock(board, boxes, knownOccupied = null) {
     for (const p of boxes) if (!board.goals[p] && board.deadSquares[p]) return 'static-dead-square';
-    if (hasTwoByTwoDeadlock(board, boxes)) return 'solid-2x2';
+    if (hasTwoByTwoDeadlock(board, boxes, knownOccupied)) return 'solid-2x2';
     return '';
   }
 
@@ -638,7 +691,9 @@
   // catches wall chains, 2x2 blocks and mutually supporting frozen groups
   // without assuming that a merely adjacent box is permanent.
   function findMutuallyFrozenBoxes(board, boxes) {
-    const active = new Uint8Array(board.count);
+    if (!board.freezeScratch) board.freezeScratch = new Uint8Array(board.count);
+    const active = board.freezeScratch;
+    active.fill(0);
     for (const p of boxes) active[p] = 1;
     let changed = true;
     while (changed) {
@@ -967,29 +1022,33 @@
     return false;
   }
 
-  function provedDeadlock(board, boxes, player = -1, playerReach = null, focusBox = -1) {
-    const staticKey = `S${compactKey(boxes)}`;
-    if (board.deadlockCache.has(staticKey)) return board.deadlockCache.get(staticKey);
-    const quick = quickMacroDeadlock(board, boxes);
+  function provedDeadlock(board, boxes, player = -1, playerReach = null, focusBox = -1, knownBlocked = null, useStateCache = true) {
+    const staticKey = useStateCache ? `S${compactKey(boxes)}` : '';
+    if (useStateCache && board.deadlockCache.has(staticKey)) return board.deadlockCache.get(staticKey);
+    const quick = quickMacroDeadlock(board, boxes, knownBlocked);
     const structural = quick || frozenAndDynamicMatchingDeadlock(board, boxes) ||
       (!hasCompleteGoalMatching(board, boxes) ? 'box-goal-matching' : '');
     if (structural) {
-      if (board.deadlockCache.size >= 60000) board.deadlockCache.clear();
-      board.deadlockCache.set(staticKey, structural);
+      if (useStateCache) {
+        if (board.deadlockCache.size >= 60000) board.deadlockCache.clear();
+        board.deadlockCache.set(staticKey, structural);
+      }
       return structural;
     }
 
     if (player >= 0) {
       const reach = playerReach || floodReach(board, boxesMask(board, boxes), player, false);
-      const dynamicKey = `C${compactKey(boxes, reach.representative)}`;
-      if (board.deadlockCache.has(dynamicKey)) return board.deadlockCache.get(dynamicKey);
+      const dynamicKey = useStateCache ? `C${compactKey(boxes, reach.representative)}` : '';
+      if (useStateCache && board.deadlockCache.has(dynamicKey)) return board.deadlockCache.get(dynamicKey);
       let dynamicReason = '';
       if (hasMazeSpecificLocalDeadlock(board, boxes, player, focusBox)) dynamicReason = 'maze-pattern-deadlock';
       else if (hasCorralDeadlock(board, boxes, player, reach, focusBox)) dynamicReason = 'corral-deadlock';
       else if (hasRoomDeadlock(board, boxes, player, focusBox)) dynamicReason = 'room-deadlock';
       if (dynamicReason) {
-        if (board.deadlockCache.size >= 60000) board.deadlockCache.clear();
-        board.deadlockCache.set(dynamicKey, dynamicReason);
+        if (useStateCache) {
+          if (board.deadlockCache.size >= 60000) board.deadlockCache.clear();
+          board.deadlockCache.set(dynamicKey, dynamicReason);
+        }
         return dynamicReason;
       }
     }
@@ -1014,8 +1073,8 @@
     return immediatePushCountFromReach(board, boxes, blocked, reach);
   }
 
-  function packingAnalysis(board, boxes) {
-    const occupied = boxesMask(board, boxes);
+  function packingAnalysis(board, boxes, knownOccupied = null) {
+    const occupied = knownOccupied || boxesMask(board, boxes);
     let score = 0;
     let stage = board.packingGroups.length;
     let incomplete = false;
@@ -1061,10 +1120,10 @@
     return { hotspots, hotspotWeight };
   }
 
-  function featureValues(board, boxes, player, knownReach = null) {
-    const blocked = boxesMask(board, boxes);
+  function featureValues(board, boxes, player, knownReach = null, knownBlocked = null) {
+    const blocked = knownBlocked || boxesMask(board, boxes);
     const playerReach = knownReach || floodReach(board, blocked, player, false);
-    const packed = packingAnalysis(board, boxes);
+    const packed = packingAnalysis(board, boxes, blocked);
     const packing = packed.score;
     const connectivity = countFreeComponents(board, blocked);
     let roomConnectivity = 0;
@@ -1096,7 +1155,6 @@
       playerReach: playerReach.count,
       mobility,
       transitBlock,
-      cellKey: `${packing}|${connectivity}|${roomConnectivity}|${outOfPlan}`,
     };
   }
 
@@ -1382,11 +1440,10 @@
     const startedAt = Date.now();
     const timeLimit = Math.max(1000, Number(options.featureMaxTimeMs || options.maxTimeMs || 600000));
     const requestedLimit = Number(options.maxNodes);
-    // v118 no longer treats the small v117 resident-state guard as the normal
-    // end of a serious search. Compact storage grows in stages up to this
-    // allowance. The browser UI supplies a lower allowance on mobile devices.
-    const defaultNodeLimit = board.initialBoxes.length >= 32 ? 750000
-      : board.initialBoxes.length >= 16 ? 1000000 : 1500000;
+    // v119 uses one fixed compact allocation. The browser UI supplies a smaller
+    // allowance on phones and a larger one on desktop machines.
+    const defaultNodeLimit = board.initialBoxes.length >= 32 ? 2000000
+      : board.initialBoxes.length >= 16 ? 2200000 : 2600000;
     const nodeLimit = Number.isFinite(requestedLimit) ? Math.max(1, Math.floor(requestedLimit)) : defaultNodeLimit;
     const progressEveryMs = Math.max(100, Number(options.progressEveryMs || 750));
     const yieldEvery = Math.max(1, Number(options.yieldEvery || 250));
@@ -1440,66 +1497,41 @@
     }
 
     const boxCount = board.initialBoxes.length;
-    let nodeCapacity = Math.min(nodeLimit, board.initialBoxes.length >= 32 ? 90000
-      : board.initialBoxes.length >= 16 ? 120000 : 160000);
 
-    let boxPool = new Uint16Array(nodeCapacity * boxCount);
-    let parentIds = new Int32Array(nodeCapacity);
+    // v119 reserves one compact store once. v118 repeatedly allocated a larger
+    // replacement for every array and copied the full search into it. During a
+    // growth step both generations remained live, causing a large transient
+    // memory spike. Most BOXXY boards use fewer than 256 squares, so positions
+    // are stored in one byte rather than two whenever possible.
+    const PositionArray = board.count <= 256 ? Uint8Array : Uint16Array;
+    const CountArray = boxCount <= 255 ? Uint8Array : Uint16Array;
+    const nodeCapacity = nodeLimit;
+
+    const boxPool = new PositionArray(nodeCapacity * boxCount);
+    const parentIds = new Int32Array(nodeCapacity);
     parentIds.fill(-1);
-    let players = new Uint16Array(nodeCapacity);
-    let representatives = new Uint16Array(nodeCapacity);
-    let pushedFrom = new Uint16Array(nodeCapacity);
-    let pushedDir = new Uint8Array(nodeCapacity);
-    let pushDepth = new Uint32Array(nodeCapacity);
-    let weights = new Uint32Array(nodeCapacity);
-    let expanded = new Uint8Array(nodeCapacity);
+    const players = new PositionArray(nodeCapacity);
+    const representatives = new PositionArray(nodeCapacity);
+    const pushedFrom = new PositionArray(nodeCapacity);
+    const pushedDir = new Uint8Array(nodeCapacity);
+    const pushDepth = new Uint32Array(nodeCapacity);
+    const weights = new Uint32Array(nodeCapacity);
+    const expanded = new Uint8Array(nodeCapacity);
 
-    let fPacking = new Uint16Array(nodeCapacity);
-    let fRawGoals = new Uint16Array(nodeCapacity);
-    let fConnectivity = new Uint16Array(nodeCapacity);
-    let fRoomConnectivity = new Uint16Array(nodeCapacity);
-    let fHotspots = new Uint16Array(nodeCapacity);
-    let fHotspotWeight = new Uint32Array(nodeCapacity);
-    let fOutOfPlan = new Uint16Array(nodeCapacity);
-    let fPlayerReach = new Uint16Array(nodeCapacity);
-    let fMobility = new Uint16Array(nodeCapacity);
+    const fPacking = new CountArray(nodeCapacity);
+    const fRawGoals = new CountArray(nodeCapacity);
+    const fConnectivity = new Uint16Array(nodeCapacity);
+    const fRoomConnectivity = new CountArray(nodeCapacity);
+    const fHotspots = new CountArray(nodeCapacity);
+    const fHotspotWeight = new Uint32Array(nodeCapacity);
+    const fOutOfPlan = new CountArray(nodeCapacity);
+    const fPlayerReach = new Uint16Array(nodeCapacity);
+    const fMobility = new CountArray(nodeCapacity);
+
     stats.nodeCapacity = nodeCapacity;
-
-    const grow = (source, length, fillValue = null) => {
-      const target = new source.constructor(length);
-      target.set(source);
-      if (fillValue !== null && length > source.length) target.fill(fillValue, source.length);
-      return target;
-    };
-
-    const ensureNodeCapacity = required => {
-      if (required <= nodeCapacity) return true;
-      if (nodeCapacity >= nodeLimit) return false;
-      const nextCapacity = Math.min(nodeLimit, Math.max(required, nodeCapacity + 65536, Math.floor(nodeCapacity * 1.5)));
-      boxPool = grow(boxPool, nextCapacity * boxCount);
-      parentIds = grow(parentIds, nextCapacity, -1);
-      players = grow(players, nextCapacity);
-      representatives = grow(representatives, nextCapacity);
-      pushedFrom = grow(pushedFrom, nextCapacity);
-      pushedDir = grow(pushedDir, nextCapacity);
-      pushDepth = grow(pushDepth, nextCapacity);
-      weights = grow(weights, nextCapacity);
-      expanded = grow(expanded, nextCapacity);
-      fPacking = grow(fPacking, nextCapacity);
-      fRawGoals = grow(fRawGoals, nextCapacity);
-      fConnectivity = grow(fConnectivity, nextCapacity);
-      fRoomConnectivity = grow(fRoomConnectivity, nextCapacity);
-      fHotspots = grow(fHotspots, nextCapacity);
-      fHotspotWeight = grow(fHotspotWeight, nextCapacity);
-      fOutOfPlan = grow(fOutOfPlan, nextCapacity);
-      fPlayerReach = grow(fPlayerReach, nextCapacity);
-      fMobility = grow(fMobility, nextCapacity);
-      nodeCapacity = nextCapacity;
-      stats.nodeCapacity = nodeCapacity;
-      stats.storageGrowths++;
-      return true;
-    };
-
+    stats.storageGrowths = 0;
+    stats.positionBits = PositionArray === Uint8Array ? 8 : 16;
+    stats.preallocatedStore = true;
     let nodeCount = 0;
     let openNodes = 0;
     let closestNodeId = 0;
@@ -1534,8 +1566,12 @@
 
     class ExactStateTable {
       constructor() {
+        // Allocate once at a load factor below 70%. Rehashing a million-state
+        // table temporarily doubled its memory in v118 and was another source
+        // of browser-worker crashes.
         this.capacity = 262144;
-        while (this.capacity < nodeCapacity * 2) this.capacity <<= 1;
+        const required = Math.ceil(nodeLimit / 0.68);
+        while (this.capacity < required) this.capacity <<= 1;
         this.mask = this.capacity - 1;
         this.ids = new Int32Array(this.capacity);
         this.hash1 = new Uint32Array(this.capacity);
@@ -1557,13 +1593,14 @@
           slot = (slot + 1) & this.mask;
         }
       }
-      has(boxes, representative) {
-        const [h1, h2] = stateHashes(boxes, representative);
+      hasHashed(boxes, representative, h1, h2) {
         return this.locate(boxes, representative, h1, h2) >= 0;
       }
-      add(boxes, representative, id) {
-        if ((this.size + 1) * 10 >= this.capacity * 7) this.grow();
+      has(boxes, representative) {
         const [h1, h2] = stateHashes(boxes, representative);
+        return this.hasHashed(boxes, representative, h1, h2);
+      }
+      addHashed(boxes, representative, id, h1, h2) {
         const found = this.locate(boxes, representative, h1, h2);
         if (found >= 0) return false;
         const slot = ~found;
@@ -1573,29 +1610,29 @@
         this.size++;
         return true;
       }
-      grow() {
-        const oldIds = this.ids;
-        const oldH1 = this.hash1;
-        const oldH2 = this.hash2;
-        this.capacity <<= 1;
-        this.mask = this.capacity - 1;
-        this.ids = new Int32Array(this.capacity);
-        this.hash1 = new Uint32Array(this.capacity);
-        this.hash2 = new Uint32Array(this.capacity);
-        for (let i = 0; i < oldIds.length; i++) {
-          const stored = oldIds[i];
-          if (!stored) continue;
-          const h1 = oldH1[i];
-          const h2 = oldH2[i];
-          let slot = (h1 ^ Math.imul(h2, 0x9e3779b1)) & this.mask;
-          while (this.ids[slot]) slot = (slot + 1) & this.mask;
-          this.ids[slot] = stored;
-          this.hash1[slot] = h1;
-          this.hash2[slot] = h2;
-        }
+      add(boxes, representative, id) {
+        const [h1, h2] = stateHashes(boxes, representative);
+        return this.addHashed(boxes, representative, id, h1, h2);
       }
     }
     const table = new ExactStateTable();
+
+    // Reused reachability workspaces. Candidate generation is synchronous, so
+    // one parent and one child workspace replace millions of short-lived
+    // ArrayBuffers that v118 left for the browser's allocator to reclaim.
+    const parentBlockedWork = new Uint8Array(board.count);
+    const parentSeenWork = new Uint8Array(board.count);
+    const parentQueueWork = new Int32Array(board.count);
+    const childBlockedWork = new Uint8Array(board.count);
+    const childSeenWork = new Uint8Array(board.count);
+    const childQueueWork = new Int32Array(board.count);
+    stats.transpositionCapacity = table.capacity;
+    stats.searchStoreBytes = [
+      boxPool, parentIds, players, representatives, pushedFrom, pushedDir,
+      pushDepth, weights, expanded, fPacking, fRawGoals, fConnectivity,
+      fRoomConnectivity, fHotspots, fHotspotWeight, fOutOfPlan,
+      fPlayerReach, fMobility, table.ids, table.hash1, table.hash2,
+    ].reduce((sum, array) => sum + array.byteLength, 0);
 
     const featureAt = id => ({
       packing: fPacking[id], rawGoals: fRawGoals[id], connectivity: fConnectivity[id],
@@ -1638,8 +1675,8 @@
       return cell;
     };
 
-    const addNode = (boxes, player, representative, parentId, from, dir, weight, features) => {
-      if (nodeCount >= nodeLimit || !ensureNodeCapacity(nodeCount + 1)) return -1;
+    const addNode = (boxes, player, representative, parentId, from, dir, weight, features, h1 = 0, h2 = 0) => {
+      if (nodeCount >= nodeLimit) return -1;
       const id = nodeCount++;
       writeBoxes(id, boxes);
       players[id] = player;
@@ -1650,7 +1687,8 @@
       pushDepth[id] = parentId < 0 ? 0 : pushDepth[parentId] + 1;
       weights[id] = weight;
       writeFeatures(id, features);
-      table.add(boxes, representative, id);
+      if (h1 && h2) table.addHashed(boxes, representative, id, h1, h2);
+      else table.add(boxes, representative, id);
       getCell(features).heap.push(id);
       openNodes++;
       stats.generated = nodeCount;
@@ -1826,11 +1864,11 @@
       stats.featureExpanded++;
 
       const boxes = boxesAt(nodeId);
-      const blocked = boxesMask(board, boxes);
-      const reach = floodReach(board, blocked, players[nodeId], false);
+      const blocked = fillBoxesMask(parentBlockedWork, boxes);
+      const reach = floodReachInto(board, blocked, players[nodeId], parentSeenWork, parentQueueWork, false);
       const parentFeature = featureAt(nodeId);
       const candidates = [];
-      const localKeys = new Set();
+      const localHashes = new Set();
 
       for (let boxIndex = 0; boxIndex < boxCount; boxIndex++) {
         const from = boxes[boxIndex];
@@ -1842,8 +1880,23 @@
           const childBoxes = boxes.slice();
           childBoxes[boxIndex] = to;
           childBoxes.sort();
-          const canonical = canonicalState(board, childBoxes, from);
-          const deadReason = provedDeadlock(board, childBoxes, from, canonical.reach, to);
+          const childBlocked = fillBoxesMask(childBlockedWork, childBoxes);
+          const childReach = floodReachInto(board, childBlocked, from, childSeenWork, childQueueWork, false);
+          const representative = childReach.representative;
+          const [h1, h2] = stateHashes(childBoxes, representative);
+          const localKey = `${h1.toString(36)}.${h2.toString(36)}`;
+          if (localHashes.has(localKey)) continue;
+          localHashes.add(localKey);
+          if (table.hasHashed(childBoxes, representative, h1, h2)) {
+            stats.transpositions++;
+            continue;
+          }
+
+          // Every unique position passes the full deadlock gate. State-level
+          // string caching is intentionally bypassed here: a transposition is
+          // already rejected above, so retaining another long-lived string key
+          // for every novel state wastes memory without avoiding future work.
+          const deadReason = provedDeadlock(board, childBoxes, from, childReach, to, childBlocked, false);
           if (deadReason) {
             if (deadReason === 'box-goal-matching' || deadReason === 'frozen-goal-interference') stats.assignmentDeadlocks++;
             else if (deadReason === 'freeze-deadlock') stats.freezeDeadlocks++;
@@ -1854,15 +1907,8 @@
             continue;
           }
 
-          if (localKeys.has(canonical.key)) continue;
-          localKeys.add(canonical.key);
-          if (table.has(childBoxes, canonical.representative)) {
-            stats.transpositions++;
-            continue;
-          }
-
-          const features = featureValues(board, childBoxes, from, canonical.reach);
-          candidates.push({ from, dir, childBoxes, key: canonical.key, representative: canonical.representative, features });
+          const features = featureValues(board, childBoxes, from, childReach, childBlocked);
+          candidates.push({ from, dir, childBoxes, representative, h1, h2, features });
         }
       }
 
@@ -1875,7 +1921,7 @@
         if (edgeWeight === 0) stats.advisorMoves++;
         else stats.nonAdvisorMoves++;
         const childId = addNode(move.childBoxes, move.from, move.representative, nodeId, move.from, move.dir,
-          weights[nodeId] + edgeWeight, move.features);
+          weights[nodeId] + edgeWeight, move.features, move.h1, move.h2);
         if (childId < 0) break;
         stats.featureGenerated++;
 
@@ -1911,7 +1957,7 @@
   }
 
   return Object.freeze({
-    version: '5.3.0',
+    version: '5.4.0',
     DIRS,
     SolverError,
     parseLevel,
