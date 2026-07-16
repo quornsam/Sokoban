@@ -28,7 +28,7 @@
   });
 })();
 
-/* BOXXY v101 — character renderer, game engine, level maker and integrated solver. */
+/* BOXXY v102 — character renderer, game engine, level maker and advanced integrated solver. */
 (() => {
   "use strict";
 
@@ -2216,8 +2216,8 @@
   let solverAbortRequested = false;
   let solverJobId = 0;
   let solverStartedAt = 0;
-  const SOLVER_MAX_NODES = 2500000;
-  const SOLVER_MAX_TIME_MS = 180000;
+  const SOLVER_MAX_NODES = 5000000;
+  const SOLVER_MAX_TIME_MS = 300000;
 
   const clampSize = value => Math.max(MIN_SIZE, Math.min(MAX_SIZE, Math.round(Number(value) || 10)));
   const clampGeneratorSize = value => Math.max(GENERATOR_MIN_SIZE, clampSize(value));
@@ -2358,10 +2358,17 @@
     const nodeRatio = Number(progress.generated || 0) / SOLVER_MAX_NODES;
     const estimate = Math.max(elapsedRatio, nodeRatio);
     if (solverProgress) solverProgress.value = Math.max(1, Math.min(98, Math.round(estimate * 100)));
-    if (solverProgressLabel) solverProgressLabel.textContent = "Searching push positions…";
+    const phase = progress.phase || "forward";
+    if (solverProgressLabel) {
+      solverProgressLabel.textContent = phase === "reverse"
+        ? "Constructing a route backwards from the completed goals…"
+        : "Searching forward push positions with deadlock pruning…";
+    }
     if (solverStats) {
       const seconds = (Number(progress.elapsedMs || 0) / 1000).toFixed(1);
-      solverStats.textContent = `${Number(progress.generated || 0).toLocaleString()} states · ${Number(progress.open || 0).toLocaleString()} open · ${seconds}s`;
+      const depth = Number.isFinite(Number(progress.bestPushDepth)) ? ` · depth ${Number(progress.bestPushDepth)}` : "";
+      const estimateText = Number.isFinite(Number(progress.bestEstimate)) ? ` · remaining ${Number(progress.bestEstimate)}` : "";
+      solverStats.textContent = `${Number(progress.generated || 0).toLocaleString()} states · ${Number(progress.open || 0).toLocaleString()} active${depth}${estimateText} · ${seconds}s`;
     }
   }
 
@@ -2375,7 +2382,7 @@
       setAttachedSolution(route, levelText, currentPuzzleRef);
       if (solverOutput) solverOutput.value = route;
       if (solverProgress) solverProgress.value = 100;
-      if (solverProgressLabel) solverProgressLabel.textContent = "Solution found and verified.";
+      if (solverProgressLabel) solverProgressLabel.textContent = result.strategy === "reverse-construction" ? "Solution constructed backwards and verified forwards." : "Solution found and verified.";
       if (solverStats) solverStats.textContent = `${Number(result.moveCount || route.length).toLocaleString()} moves · ${Number(result.pushCount || 0).toLocaleString()} pushes · ${(Number(result.elapsedMs || 0) / 1000).toFixed(2)}s`;
       setSolverStatus("The solution string has been attached to this puzzle. Testing it now enables the five-click + S walkthrough.", "success");
       setStatus(`Solver attached a ${route.length}-move walkthrough to the current puzzle.`, "success");
@@ -2405,7 +2412,7 @@
     setSolverStatus("The browser blocked the background worker, so BOXXY is using the solver's yielding browser mode instead. The progress display will continue to update.");
     try {
       const result = await window.SokobanCore.solve(levelText, {
-        mode: "fast",
+        mode: "deep",
         maxNodes: SOLVER_MAX_NODES,
         maxTimeMs: SOLVER_MAX_TIME_MS,
         yieldEvery: 350,
@@ -2445,7 +2452,7 @@
     if (solverStats) solverStats.textContent = "0 states";
     if (solverStartBtn) solverStartBtn.disabled = true;
     if (solverCancelBtn) solverCancelBtn.hidden = false;
-    setSolverStatus("Searching for a complete route. The calculation runs away from the game interface when the browser permits it.");
+    setSolverStatus("Searching for a complete route. Dense puzzles are first constructed backwards from the solved position; forward search then uses static, block and recursive-freeze deadlock pruning.");
 
     let fellBack = false;
     const fallback = () => {

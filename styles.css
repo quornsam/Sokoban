@@ -764,7 +764,7 @@ body.maker-testing .level-picker{display:none!important}
 @media(max-width:760px){.maker-existing-row{grid-template-columns:1fr 1fr}.maker-existing-row button{grid-column:1/-1}.maker-existing-strip{margin-bottom:7px}}
 
 
-/* v101 — integrated backend solver dialogue. */
+/* v102 — integrated backend solver dialogue. */
 .maker-main-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
 .maker-main-actions .maker-solve{background:var(--blue);color:#fff;border-color:var(--ink)}
 .maker-solver-modal{

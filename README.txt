@@ -1,4 +1,4 @@
-BOXXY — Pushbox Puzzle v101
+BOXXY — Pushbox Puzzle v102
 
 Open index.html in a web browser.
 
@@ -239,3 +239,16 @@ Version 101 — integrated Level Maker solver
 - Solutions found for installed pack levels are stored locally and used when that level is later opened in normal play.
 - Saved custom levels retain a matching solver route in their local save record.
 - Search limit: 2,500,000 generated states or 180 seconds. Reaching a limit does not prove a puzzle unsolvable.
+
+
+Version 102 — stronger dense-puzzle solver
+-------------------------------------------
+- Replaced the single forward-only search with a two-phase solver.
+- Dense puzzles are first constructed backwards from the completed goal arrangement. Every reverse state retained by this phase has a known route back to all goals, avoiding the large number of doomed forward positions that overwhelmed chessboard puzzles.
+- Added recursive freeze detection for larger mutually blocked box groups, alongside the existing static dead-square and 2 × 2 checks.
+- Removed per-candidate walking-string construction from the search loop. Walking paths are now reconstructed only after the push route has been found.
+- Large-box heuristics use a faster two-sided push-distance estimate; smaller puzzles retain exact minimum-cost box-to-goal matching.
+- If reverse construction does not find the initial state, the solver automatically continues with forward weighted A*.
+- The solver dialogue now identifies the current phase and reports push depth and estimated remaining displacement.
+- Search limit increased to 5,000,000 generated states or 300 seconds. Reaching a limit still does not prove a puzzle unsolvable.
+- Verified all 50 Microban levels and Small Chessboards levels 1–9 with the new engine.
