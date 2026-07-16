@@ -207,3 +207,12 @@ VERSION 98
 - Narrow phone layouts may scroll vertically, but never sideways.
 - The original BOXXY 50-level pack retains all 50 stored walkthroughs.
 - The three imported packs contain no move-sequence data in their supplied files. No unverified or fabricated walkthroughs have been inserted.
+
+
+VERSION 99
+----------
+- The three additional puzzle packs are locked until the original 50-level Microban Series has been completed.
+- Locked packs remain visible in the Bauhaus Collection chooser and clearly state the unlock requirement.
+- Completing level 50 permanently unlocks Chrysalis Variations, Haikemono and Small Chessboards in that browser.
+- Existing players who had already completed level 50 are detected automatically from their saved completion or best-score data.
+- A previously selected additional pack is safely replaced by Microban on startup while the additional packs are still locked; its saved progress is preserved.

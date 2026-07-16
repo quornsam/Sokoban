@@ -1,4 +1,4 @@
-/* BOXXY v98 — character renderer, game engine and level maker. */
+/* BOXXY v99 — character renderer, game engine and level maker. */
 (() => {
   "use strict";
 
@@ -414,11 +414,49 @@
         levels: window.SOKOBAN_LEVELS || []
       }];
   const PACK_BY_ID = new Map(PACKS.map(pack => [pack.id, pack]));
+  const PRIMARY_PACK_ID = PACKS[0]?.id || "microban";
+  const ADDITIONAL_PACKS_UNLOCK_KEY = "boxxy-additional-packs-unlocked-v1";
+  const packStorageKeyFor = (packId, suffix) => `boxxy-pack-${packId}-${suffix}-v1`;
+
+  function primaryPackIsComplete() {
+    if (localStorage.getItem(ADDITIONAL_PACKS_UNLOCK_KEY) === "true") return true;
+    const primaryPack = PACK_BY_ID.get(PRIMARY_PACK_ID);
+    if (!primaryPack?.levels?.length) return true;
+
+    const finalIndex = primaryPack.levels.length - 1;
+    let completed = [];
+    try {
+      const currentRaw = localStorage.getItem(packStorageKeyFor(primaryPack.id, "completed"));
+      const legacyRaw = primaryPack.id === "microban" ? localStorage.getItem("boxxy-completed-levels-v1") : null;
+      completed = JSON.parse(currentRaw ?? legacyRaw ?? "[]");
+    } catch (_) {}
+
+    const finalLevel = primaryPack.levels[finalIndex];
+    const currentBest = finalLevel
+      ? localStorage.getItem(packStorageKeyFor(primaryPack.id, `best-${finalLevel.sourceNumber}`))
+      : null;
+    const legacyBest = primaryPack.id === "microban" && finalLevel
+      ? localStorage.getItem(`push-bauhaus-v22-best-${finalLevel.sourceNumber}`)
+      : null;
+
+    const complete = (Array.isArray(completed) && completed.map(Number).includes(finalIndex)) || Boolean(currentBest || legacyBest);
+    if (complete) localStorage.setItem(ADDITIONAL_PACKS_UNLOCK_KEY, "true");
+    return complete;
+  }
+
+  function additionalPacksUnlocked() {
+    return primaryPackIsComplete();
+  }
+
   const savedPackId = localStorage.getItem("boxxy-active-pack-v1");
   let activePack = PACK_BY_ID.get(savedPackId) || PACKS[0];
+  if (activePack.id !== PRIMARY_PACK_ID && !additionalPacksUnlocked()) {
+    activePack = PACK_BY_ID.get(PRIMARY_PACK_ID) || PACKS[0];
+    localStorage.setItem("boxxy-active-pack-v1", activePack.id);
+  }
   let LEVELS = Array.isArray(activePack.levels) ? activePack.levels : [];
 
-  const packStorageKey = suffix => `boxxy-pack-${activePack.id}-${suffix}-v1`;
+  const packStorageKey = suffix => packStorageKeyFor(activePack.id, suffix);
   const currentLevelStorageKey = () => packStorageKey("level");
   const currentProgressStorageKey = () => packStorageKey("progress");
   const currentCompletedStorageKey = () => packStorageKey("completed");
@@ -641,10 +679,16 @@
 
   function createPackButton(pack, index, compact = false) {
     const button = document.createElement("button");
+    const isLocked = pack.id !== PRIMARY_PACK_ID && !additionalPacksUnlocked();
     button.type = "button";
     button.className = `${compact ? "final-pack-option" : "pack-option"} pack-${pack.accent || "black"}`;
     button.dataset.packId = pack.id;
     if (pack.id === activePack.id) button.classList.add("active");
+    if (isLocked) {
+      button.classList.add("locked");
+      button.disabled = true;
+      button.setAttribute("aria-disabled", "true");
+    }
 
     const art = document.createElement("span");
     art.className = "final-pack-art";
@@ -660,8 +704,16 @@
     const meta = document.createElement("small");
     meta.textContent = `${pack.levels.length} LEVELS · ${String(pack.author || "").toUpperCase()}`;
     name.appendChild(meta);
+    if (isLocked) {
+      const lockText = document.createElement("em");
+      lockText.className = "pack-lock-label";
+      lockText.textContent = `COMPLETE ${PACKS[0].title} TO UNLOCK`;
+      name.appendChild(lockText);
+    }
     button.append(art, name);
-    button.title = pack.description || pack.displayName || pack.title;
+    button.title = isLocked
+      ? `Complete ${PACKS[0].displayName} to unlock this pack.`
+      : (pack.description || pack.displayName || pack.title);
     button.addEventListener("click", () => switchPack(pack.id));
     return button;
   }
@@ -682,6 +734,10 @@
   function switchPack(packId) {
     const nextPack = PACK_BY_ID.get(packId);
     if (!nextPack || !Array.isArray(nextPack.levels) || !nextPack.levels.length) return;
+    if (nextPack.id !== PRIMARY_PACK_ID && !additionalPacksUnlocked()) {
+      if (finalPackStatus) finalPackStatus.textContent = `Complete ${PACKS[0].displayName} to unlock the additional level packs.`;
+      return;
+    }
     if (nextPack.id === activePack.id) {
       closePackModal();
       if (modal) modal.hidden = true;
@@ -1663,6 +1719,7 @@
       if (nextBtnLabel) nextBtnLabel.textContent = "BACK TO MAKER";
       if (nextBtnIcon) nextBtnIcon.textContent = "←";
     } else {
+      const packsWereUnlocked = additionalPacksUnlocked();
       const bestKey = currentBestStorageKey(levelData);
       const oldBest = Number(readBest(levelData) || 0);
       if (!autoplayRunning && (!oldBest || moves < oldBest)) localStorage.setItem(bestKey, moves);
@@ -1674,11 +1731,13 @@
       }
 
       if (levelIndex === LEVELS.length - 1 && !autoplayRunning) {
+        const unlockedAdditionalPacksNow = activePack.id === PRIMARY_PACK_ID && !packsWereUnlocked;
+        if (activePack.id === PRIMARY_PACK_ID) localStorage.setItem(ADDITIONAL_PACKS_UNLOCK_KEY, "true");
         completeMode = "final";
         completeCard?.classList.add("final-complete");
         if (completeKicker) completeKicker.textContent = "CONGRATULATIONS";
         if (completeTitle) completeTitle.innerHTML = "WELL<br>DONE";
-        completeText.textContent = `You have completed ${activePack.displayName}. Level ${LEVELS.length} was solved in ${moves} moves and ${pushes} pushes.`;
+        completeText.textContent = `You have completed ${activePack.displayName}. Level ${LEVELS.length} was solved in ${moves} moves and ${pushes} pushes.${unlockedAdditionalPacksNow ? " The additional Bauhaus level packs are now unlocked." : ""}`;
         buildPackSelectors();
         if (finalPackPicker) finalPackPicker.hidden = false;
         if (finalPackStatus) finalPackStatus.textContent = "";
