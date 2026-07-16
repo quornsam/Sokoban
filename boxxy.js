@@ -2471,8 +2471,11 @@
       const goalsText = Number.isFinite(Number(progress.goalsFilled)) && Number.isFinite(Number(progress.totalGoals))
         ? ` · ${Number(progress.goalsFilled)}/${Number(progress.totalGoals)} goals`
         : "";
+      const patternText = Number.isFinite(Number(progress.patternMatched)) && Number.isFinite(Number(progress.patternTotal))
+        ? ` · ${Number(progress.patternMatched)}/${Number(progress.patternTotal)} starting positions matched`
+        : "";
       const cellsText = Number(progress.featureCells || 0) > 0 ? ` · ${Number(progress.featureCells).toLocaleString()} feature cells` : "";
-      solverStats.textContent = `${Number(progress.generated || 0).toLocaleString()} states · ${Number(progress.open || 0).toLocaleString()} active${depth}${estimateText}${goalsText}${cellsText}${prunedText} · ${seconds}s`;
+      solverStats.textContent = `${Number(progress.generated || 0).toLocaleString()} push states · ${Number(progress.open || 0).toLocaleString()} active${depth}${estimateText}${goalsText}${patternText}${cellsText}${prunedText} · ${seconds}s`;
     }
   }
 

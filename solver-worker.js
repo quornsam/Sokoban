@@ -1,4 +1,4 @@
-/* BOXXY v106 solver worker — keeps long searches off the game interface thread. */
+/* BOXXY v107 solver worker — keeps long searches off the game interface thread. */
 importScripts("solver-core.js");
 
 self.onmessage = async event => {

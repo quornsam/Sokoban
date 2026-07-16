@@ -1,4 +1,4 @@
-BOXXY v106
+BOXXY v107
 
 Solver update:
 - Uses a portfolio of reverse exact-pattern search, reverse construction, bounded lower-bound search, multi-feature macro search, and forward deadlock-pruned search.
@@ -279,3 +279,9 @@ VERSION 104 — EXACT-PATTERN DENSE SEARCH
 - The five-million allowance counts generated search states, not player moves. The solver is solution-first and does not claim that its returned route is shortest.
 - Small Chessboards level 10 is now solved and verified by the integrated engine. A local reference run found a 73-push, 594-move route in roughly 30 seconds; timing varies by browser and hardware.
 - Rechecked Small Chessboards levels 1–10 after the change, including validation by replaying every returned string against the original map.
+
+
+VERSION 107
+- Fixed a runtime error in exact-pattern reverse A* progress reporting: closestForwardId was referenced from the wrong search phase.
+- Reverse A* now tracks its own closest state and reports exact starting-pattern matches.
+- Solver progress now labels generated nodes as push states. The engine already canonicalises all player positions within the same reachable area, so a clear 20-step walk does not create 20 search nodes; walking is reconstructed only after the push route is found.

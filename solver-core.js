@@ -1,5 +1,5 @@
 /*
- * BOXXY Sokoban Solver Core v2.4
+ * BOXXY Sokoban Solver Core v2.4.1
  * Original browser-first implementation by OpenAI for Sam Cornwell / BOXXY.
  *
  * Search model:
@@ -793,6 +793,17 @@
     }
     if (!open.size) return null;
 
+    let closestReverseId = 0;
+    const betterReverseClosest = (candidate, incumbent) => {
+      if (!incumbent) return true;
+      if (candidate.h !== incumbent.h) return candidate.h < incumbent.h;
+      if (candidate.matches !== incumbent.matches) return candidate.matches > incumbent.matches;
+      return candidate.g < incumbent.g;
+    };
+    for (let id = 1; id < nodes.length; id++) {
+      if (betterReverseClosest(nodes[id], nodes[closestReverseId])) closestReverseId = id;
+    }
+
     stats.phase = 'reverse-a-star';
     stats.strategy = 'reverse-a-star-then-forward';
     let expanded = 0;
@@ -808,6 +819,7 @@
       if (nodeId === null) break;
       const node = nodes[nodeId];
       if (bestG.get(node.key) !== node.g) continue;
+      if (betterReverseClosest(node, nodes[closestReverseId])) closestReverseId = nodeId;
       if (sameBoxes(node.boxes, targetBoxes) && node.anchor === targetAnchor) {
         const solution = reconstructReverseSolution(board, nodes, nodeId);
         stats.reverseAStarExpanded = expanded;
@@ -855,6 +867,7 @@
           key: candidate.key,
         });
         open.push(childId);
+        if (betterReverseClosest(nodes[childId], nodes[closestReverseId])) closestReverseId = childId;
         generated++;
         stats.generated++;
         if (generated >= nodeCap) break;
@@ -869,10 +882,10 @@
           expanded,
           generated,
           open: open.size,
-          bestPushDepth: nodes[closestForwardId].g,
-          bestEstimate: nodes[closestForwardId].h,
-          goalsFilled: nodes[closestForwardId].goals,
-          totalGoals: board.goalList.length,
+          bestPushDepth: nodes[closestReverseId].g,
+          bestEstimate: nodes[closestReverseId].h,
+          patternMatched: nodes[closestReverseId].matches,
+          patternTotal: targetBoxes.length,
           deadlocks: stats.staticDeadlocks + stats.blockDeadlocks + stats.freezeDeadlocks + stats.assignmentDeadlocks,
           peakOpen: stats.peakOpen,
         });
@@ -2444,7 +2457,7 @@
   }
 
   return Object.freeze({
-    version: '2.4.0',
+    version: '2.4.1',
     DIRS,
     SolverError,
     parseLevel,
