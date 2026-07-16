@@ -1,5 +1,5 @@
 /*
- * BOXXY Sokoban Solver Core v2.7.0
+ * BOXXY Sokoban Solver Core v2.8.0
  * Original browser-first implementation by OpenAI for Sam Cornwell / BOXXY.
  *
  * Search model:
@@ -2091,12 +2091,284 @@
     }};
   }
 
+
+  // Complete, memory-bounded push search. It uses iterative-deepening A* with
+  // an admissible lower bound. Only proven deadlocks and exact repeated states
+  // are pruned. The transposition cache may be cleared to control RAM; clearing
+  // it can only make the search repeat work, never discard an unexplored route.
+  async function safePushIDA(board, options, shared) {
+    const { startedAt, stats, onProgress, progressEveryMs, shouldStop, yieldEvery } = shared;
+    const rootBoxes = board.initialBoxes.slice();
+    const rootPlayer = board.initialPlayer;
+    const currentScratch = createScratch(board);
+    const childScratch = createScratch(board);
+    const metricScratch = createScratch(board);
+    const lowerCache = new Map();
+    const lowerCacheLimit = Math.max(10_000, Number(options.safeHeuristicCache) || 60_000);
+    const transpositionLimit = Math.max(5_000, Number(options.safeTranspositionStates) || 80_000);
+    const useExactAssignment = options.safeExactMatching === true || rootBoxes.length <= 18;
+
+    const lowerBound = (boxes) => {
+      const key = boxesKey(boxes);
+      const cached = lowerCache.get(key);
+      if (cached !== undefined) return cached;
+      // Both functions are lower bounds. Exact matching is stronger on modest
+      // box counts; the two-sided distance bound is much cheaper on dense sets.
+      const value = useExactAssignment ? minCostMatching(board, boxes) : cheapGoalDistance(board, boxes);
+      if (lowerCache.size >= lowerCacheLimit) {
+        lowerCache.clear();
+        stats.safeHeuristicResets++;
+      }
+      lowerCache.set(key, value);
+      return value;
+    };
+
+    const minGoalDistance = new Int32Array(board.count);
+    minGoalDistance.fill(INF);
+    for (let p = 0; p < board.count; p++) {
+      let best = INF;
+      for (const distances of board.reverseDistances) {
+        const d = distances[p];
+        if (d >= 0 && d < best) best = d;
+      }
+      minGoalDistance[p] = best;
+    }
+
+    const rootReach = computeReachability(board, rootBoxes, rootPlayer, currentScratch, false);
+    const rootKey = stateKey(rootBoxes, rootReach.anchor);
+    const rootH = lowerBound(rootBoxes);
+    if (rootH >= INF) return { unsolvable: true, message: 'No box-to-goal assignment exists under the board geometry.' };
+
+    let closest = {
+      boxes: rootBoxes,
+      player: rootPlayer,
+      goals: countGoals(board, rootBoxes),
+      h: rootH,
+      g: 0,
+      actions: [],
+      mobility: countLegalPushes(board, rootBoxes, rootPlayer, metricScratch).pushes,
+    };
+    const isCloser = (candidate) => {
+      if (candidate.h !== closest.h) return candidate.h < closest.h;
+      if (candidate.goals !== closest.goals) return candidate.goals > closest.goals;
+      if (candidate.mobility !== closest.mobility) return candidate.mobility > closest.mobility;
+      return candidate.g < closest.g;
+    };
+
+    let threshold = rootH;
+    let lastProgress = startedAt;
+    let totalExpanded = 0;
+    let totalGenerated = 1;
+
+    while (true) {
+      if (shouldStop()) return { stopped: true, closest };
+      stats.safeIterations++;
+      stats.safeThreshold = threshold;
+      stats.phase = 'safe-ida';
+      stats.strategy = 'safe-iterative-deepening';
+
+      let nextThreshold = INF;
+      const actions = [];
+      const onPath = new Set([rootKey]);
+      let transposition = new Map([[rootKey, 0]]);
+      const stack = [{
+        boxes: rootBoxes,
+        player: rootPlayer,
+        key: rootKey,
+        g: 0,
+        h: rootH,
+        prepared: false,
+        candidates: null,
+        next: 0,
+        action: null,
+      }];
+
+      while (stack.length) {
+        if (shouldStop()) return { stopped: true, closest };
+        const frame = stack[stack.length - 1];
+
+        if (frame.h === 0 || allBoxesOnGoals(board, frame.boxes)) {
+          stats.safeExpanded = totalExpanded;
+          stats.safeGenerated = totalGenerated;
+          stats.safeThreshold = threshold;
+          return { solution: reconstructFromPushActions(board, actions), closest };
+        }
+
+        if (!frame.prepared) {
+          frame.prepared = true;
+          totalExpanded++;
+          stats.expanded++;
+          const reach = computeReachability(board, frame.boxes, frame.player, currentScratch, false);
+          const candidates = [];
+          for (const box of frame.boxes) {
+            for (let d = 0; d < 4; d++) {
+              const destination = board.neighbours[box][d];
+              const support = board.neighbours[box][OPP[d]];
+              if (destination < 0 || support < 0) continue;
+              if (currentScratch.boxMarks[destination] === reach.boxGen) continue;
+              if (currentScratch.reachMarks[support] !== reach.reachGen) continue;
+              if (board.deadSquares[destination]) {
+                stats.staticDeadlocks++;
+                continue;
+              }
+              const goalDelta = (board.goals[destination] ? 1 : 0) - (board.goals[box] ? 1 : 0);
+              const oldDist = minGoalDistance[box];
+              const newDist = minGoalDistance[destination];
+              const distanceGain = oldDist >= INF || newDist >= INF ? 0 : oldDist - newDist;
+              candidates.push({ box, destination, d, goalDelta, distanceGain });
+            }
+          }
+          // Ordering affects speed only. Detours remain in the list and are
+          // never deleted merely because they initially look worse.
+          candidates.sort((a, b) =>
+            (b.goalDelta - a.goalDelta) ||
+            (b.distanceGain - a.distanceGain) ||
+            (a.destination - b.destination) ||
+            (a.d - b.d));
+          frame.candidates = candidates;
+          frame.next = 0;
+        }
+
+        if (frame.next >= frame.candidates.length) {
+          stack.pop();
+          onPath.delete(frame.key);
+          if (frame.action) actions.pop();
+          continue;
+        }
+
+        const candidate = frame.candidates[frame.next++];
+        const childBoxes = moveBox(frame.boxes, candidate.box, candidate.destination);
+        if (twoByTwoDeadlock(board, childBoxes, candidate.destination)) {
+          stats.blockDeadlocks++;
+          continue;
+        }
+        // This cluster test only rejects a connected group with an off-goal box
+        // and no geometric push in any direction. It is a proof, not a score.
+        if (clusterImmobileDeadlock(board, childBoxes, candidate.destination, childScratch)) {
+          stats.freezeDeadlocks++;
+          continue;
+        }
+
+        const childH = lowerBound(childBoxes);
+        if (childH >= INF) {
+          stats.assignmentDeadlocks++;
+          continue;
+        }
+        const childG = frame.g + 1;
+        const f = childG + childH;
+        if (f > threshold) {
+          if (f < nextThreshold) nextThreshold = f;
+          continue;
+        }
+
+        const childPlayer = candidate.box;
+        const childReach = computeReachability(board, childBoxes, childPlayer, childScratch, false);
+        const childKey = stateKey(childBoxes, childReach.anchor);
+        if (onPath.has(childKey)) {
+          stats.pathCycles++;
+          continue;
+        }
+        const priorG = transposition.get(childKey);
+        if (priorG !== undefined && priorG <= childG) {
+          stats.duplicates++;
+          continue;
+        }
+        transposition.set(childKey, childG);
+        if (transposition.size >= transpositionLimit) {
+          // Forgetting duplicate information is safe: it permits repeated work
+          // but does not remove any branch from the depth-first search.
+          transposition = new Map();
+          for (const pathFrame of stack) transposition.set(pathFrame.key, pathFrame.g);
+          stats.safeTranspositionResets++;
+        }
+
+        const action = { box: candidate.box, dir: candidate.d };
+        actions.push(action);
+        onPath.add(childKey);
+        const goals = countGoals(board, childBoxes);
+        const mobility = countLegalPushes(board, childBoxes, childPlayer, metricScratch).pushes;
+        const closeCandidate = {
+          boxes: childBoxes,
+          player: childPlayer,
+          goals,
+          h: childH,
+          g: childG,
+          actions: actions.slice(),
+          mobility,
+        };
+        if (isCloser(closeCandidate)) closest = closeCandidate;
+
+        stack.push({
+          boxes: childBoxes,
+          player: childPlayer,
+          key: childKey,
+          g: childG,
+          h: childH,
+          prepared: false,
+          candidates: null,
+          next: 0,
+          action,
+        });
+        totalGenerated++;
+        stats.generated++;
+        if (stack.length > stats.peakOpen) stats.peakOpen = stack.length;
+
+        const now = performanceNow();
+        if (onProgress && now - lastProgress >= progressEveryMs) {
+          lastProgress = now;
+          const closestSolution = reconstructFromPushActions(board, closest.actions || []);
+          onProgress({
+            phase: 'safe-ida',
+            elapsedMs: Math.round(now - startedAt),
+            expanded: totalExpanded,
+            generated: totalGenerated,
+            open: stack.length,
+            bestPushDepth: closest.g,
+            bestEstimate: closest.h,
+            goalsFilled: closest.goals,
+            totalGoals: board.goalList.length,
+            threshold,
+            iteration: stats.safeIterations,
+            deadlocks: stats.staticDeadlocks + stats.blockDeadlocks + stats.freezeDeadlocks + stats.assignmentDeadlocks,
+            duplicates: stats.duplicates,
+            pathCycles: stats.pathCycles,
+            transpositionResets: stats.safeTranspositionResets,
+            peakOpen: stats.peakOpen,
+            residentNodes: stack.length + transposition.size,
+            residentNodeLimit: transpositionLimit + Math.max(1, stack.length),
+            closest: makeClosestResult(board, {
+              solution: closestSolution,
+              boxes: closest.boxes,
+              player: closest.player,
+              goals: closest.goals,
+              h: closest.h,
+              g: closest.g,
+              mobility: closest.mobility,
+            }),
+            stats: { ...stats },
+          });
+        }
+        if (totalGenerated % yieldEvery === 0) await immediateYield();
+      }
+
+      if (nextThreshold >= INF) {
+        stats.safeExpanded = totalExpanded;
+        stats.safeGenerated = totalGenerated;
+        return { unsolvable: true, closest, message: 'Every reachable push route was exhausted using safe pruning only.' };
+      }
+      threshold = nextThreshold;
+      await immediateYield();
+    }
+  }
+
   async function solve(levelOrBoard, options = {}) {
     const board = typeof levelOrBoard === 'string' ? parseLevel(levelOrBoard) : levelOrBoard;
     if (!board || !board.floor || !board.initialBoxes) throw new SolverError('Invalid parsed board.', 'INVALID_BOARD');
 
     const mode = options.mode || 'fast';
     const unlimited = options.unlimited === true;
+    const safeOnly = options.safeOnly === true;
+    const safeFallback = options.safeFallback === true;
     const weight = Number.isFinite(options.weight)
       ? Math.max(1, options.weight)
       : mode === 'optimal' ? 1
@@ -2158,6 +2430,13 @@
       residentNodes: 0,
       memoryCompactions: 0,
       statesDiscarded: 0,
+      safeIterations: 0,
+      safeThreshold: 0,
+      safeExpanded: 0,
+      safeGenerated: 0,
+      safeTranspositionResets: 0,
+      safeHeuristicResets: 0,
+      pathCycles: 0,
     };
 
     const currentScratch = createScratch(board);
@@ -2205,11 +2484,40 @@
       }
     }
 
-    const initialH = heuristic(initialBoxes);
+    const initialH = safeOnly ? cheapGoalDistance(board, initialBoxes) : heuristic(initialBoxes);
     if (initialH >= INF) {
       stats.assignmentDeadlocks++;
       return makeResult('unsolvable', startedAt, stats, {
         message: 'The boxes cannot be assigned to distinct goals under the board geometry.',
+      });
+    }
+
+    if (safeOnly) {
+      const safeResult = await safePushIDA(board, options, {
+        startedAt, stats, onProgress, progressEveryMs, shouldStop, yieldEvery,
+      });
+      stats.heuristicCache = heuristicCache.size;
+      if (safeResult?.stopped) {
+        const closest = safeResult.closest ? makeClosestResult(board, {
+          ...safeResult.closest,
+          solution: reconstructFromPushActions(board, safeResult.closest.actions || []),
+        }) : undefined;
+        return makeResult('stopped', startedAt, stats, { message: 'Search cancelled.', closest });
+      }
+      if (safeResult?.solution) {
+        return makeResult('solved', startedAt, stats, {
+          ...safeResult.solution,
+          strategy: 'safe-iterative-deepening',
+          message: 'Solved by complete push iterative deepening with safe pruning only.',
+        });
+      }
+      const closest = safeResult?.closest ? makeClosestResult(board, {
+        ...safeResult.closest,
+        solution: reconstructFromPushActions(board, safeResult.closest.actions || []),
+      }) : undefined;
+      return makeResult('unsolvable', startedAt, stats, {
+        message: safeResult?.message || 'Every reachable push route was exhausted using safe pruning only.',
+        closest,
       });
     }
 
@@ -2438,6 +2746,35 @@
         });
       }
       if (featureResult?.closest) closestAttempt = chooseClosestAttempt(closestAttempt, featureResult.closest);
+    }
+
+    if (safeFallback) {
+      const safeResult = await safePushIDA(board, options, {
+        startedAt, stats, onProgress, progressEveryMs, shouldStop, yieldEvery,
+      });
+      stats.heuristicCache = heuristicCache.size;
+      if (safeResult?.stopped) {
+        const closest = safeResult.closest ? makeClosestResult(board, {
+          ...safeResult.closest,
+          solution: reconstructFromPushActions(board, safeResult.closest.actions || []),
+        }) : undefined;
+        return makeResult('stopped', startedAt, stats, { message: 'Search cancelled.', closest });
+      }
+      if (safeResult?.solution) {
+        return makeResult('solved', startedAt, stats, {
+          ...safeResult.solution,
+          strategy: 'safe-iterative-deepening',
+          message: 'Solved by complete push iterative deepening after the fast specialist searches.',
+        });
+      }
+      const closest = safeResult?.closest ? makeClosestResult(board, {
+        ...safeResult.closest,
+        solution: reconstructFromPushActions(board, safeResult.closest.actions || []),
+      }) : undefined;
+      return makeResult('unsolvable', startedAt, stats, {
+        message: safeResult?.message || 'Every reachable push route was exhausted using safe pruning only.',
+        closest,
+      });
     }
 
     const initialReach = computeReachability(board, initialBoxes, board.initialPlayer, childScratch, false);
@@ -2771,7 +3108,7 @@
   }
 
   return Object.freeze({
-    version: '2.7.0',
+    version: '2.8.0',
     DIRS,
     SolverError,
     parseLevel,

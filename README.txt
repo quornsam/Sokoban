@@ -318,3 +318,12 @@ BOXXY v111 solver stability update
 - A background worker error no longer launches the same heavy search on the main UI thread. This keeps the game page alive if a worker fails.
 - A small progress snapshot is written every five seconds. If the browser tab ends unexpectedly, reopening Solve Puzzle reports the last phase and closest recorded position.
 - Existing authored Microban solutions remain unchanged and validated.
+
+
+BOXXY v112 safe-search update
+------------------------------
+- Replaced heuristic frontier compaction with complete push-based iterative deepening.
+- Long walking routes remain collapsed into one player-reachability state.
+- Prunes only proven deadlocks, exact route cycles and exact repeated push states.
+- Duplicate and heuristic caches are disposable: clearing them repeats work but cannot remove a solution route.
+- Search runs until solved, exhausted or cancelled.

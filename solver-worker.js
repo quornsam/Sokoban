@@ -1,5 +1,5 @@
-/* BOXXY v111 solver worker — keeps long searches off the game interface thread. */
-importScripts("solver-core.js?v=111");
+/* BOXXY v112 solver worker — complete push search with safe pruning only. */
+importScripts("solver-core.js?v=112");
 
 self.onmessage = async event => {
   const message = event.data || {};
@@ -9,12 +9,12 @@ self.onmessage = async event => {
     const result = await self.SokobanCore.solve(message.level, {
       mode: "deep",
       unlimited: true,
-      // Unlimited time, bounded resident memory. The core compacts its active
-      // frontier instead of letting the browser process grow until it is killed.
-      productiveMaxNodes: 2000000,
-      productiveMaxTimeMs: 120000,
-      featureMaxNodes: 3000000,
-      featureMaxTimeMs: 180000,
+      safeFallback: true,
+      // The exhaustive fallback stores only the current depth-first route and
+      // a disposable duplicate cache. Cache resets repeat work but cannot lose
+      // an unexplored solution route.
+      safeTranspositionStates: 80000,
+      safeHeuristicCache: 60000,
       yieldEvery: 500,
       progressEveryMs: message.progressEveryMs || 750,
       onProgress(progress) {

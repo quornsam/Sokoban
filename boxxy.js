@@ -28,7 +28,7 @@
   });
 })();
 
-/* BOXXY v111 — character renderer, game engine, level maker and memory-bounded continuous puzzle solving. */
+/* BOXXY v112 — character renderer, game engine, level maker and complete safe-pruning puzzle solving. */
 (() => {
   "use strict";
 
@@ -2456,7 +2456,7 @@
       setSolverStatus(`A ${currentSolution.length.toLocaleString()}-move solution is already attached to this puzzle.`, "success");
     } else if (previousRun?.running) {
       const seconds = (Number(previousRun.elapsedMs || 0) / 1000).toFixed(1);
-      setSolverStatus(`The previous solver tab ended unexpectedly after ${seconds}s in ${previousRun.phase || "search"}, at ${Number(previousRun.generated || 0).toLocaleString()} generated push states. v111 now bounds and compacts resident search memory.`, "error");
+      setSolverStatus(`The previous solver tab ended unexpectedly after ${seconds}s in ${previousRun.phase || "search"}, at ${Number(previousRun.generated || 0).toLocaleString()} generated push states. v112 uses depth-first iterative deepening and safe disposable caches rather than deleting frontier routes.`, "error");
       if (previousRun.closest) showClosestDisplay(previousRun.closest, {});
       try { localStorage.removeItem(SOLVER_RUN_SNAPSHOT_KEY); } catch (_) {}
     } else {
@@ -2488,6 +2488,7 @@
         "productive-bridge": "Searching only productive push positions and trying to meet the reverse frontier…",
         "bounded-best": "Searching a narrow push-cost band above the lower bound…",
         "bounded-ida": "Deepening the push bound around the best assignments…",
+        "safe-ida": "Exhaustively deepening the push bound with safe pruning only…",
         "feature-space": "Exploring packing, connectivity, mobility and macro-push patterns…",
         forward: "Searching forward push positions with deadlock pruning…"
       };
@@ -2508,14 +2509,12 @@
       const cellsText = Number(progress.featureCells || 0) > 0 ? ` · ${Number(progress.featureCells).toLocaleString()} feature cells` : "";
       const stagnantText = Number(progress.plateauPruned || 0) > 0 ? ` · ${Number(progress.plateauPruned).toLocaleString()} stagnant branches pruned` : "";
       const bridgeText = Number(progress.bridgeHits || 0) > 0 ? ` · ${Number(progress.bridgeHits).toLocaleString()} frontier joins` : "";
-      const resident = Number(progress.residentNodes || progress.stats?.residentNodes || 0);
-      const residentLimit = Number(progress.residentNodeLimit || progress.stats?.residentNodeLimit || 0);
-      const memoryText = resident > 0 && residentLimit > 0
-        ? ` · memory ${resident.toLocaleString()}/${residentLimit.toLocaleString()} states`
-        : "";
-      const compactions = Number(progress.memoryCompactions || progress.stats?.memoryCompactions || 0);
-      const compactText = compactions > 0 ? ` · ${compactions.toLocaleString()} memory compactions` : "";
-      solverStats.textContent = `${Number(progress.generated || 0).toLocaleString()} push states · ${Number(progress.open || 0).toLocaleString()} active${depth}${estimateText}${goalsText}${patternText}${cellsText}${prunedText}${stagnantText}${bridgeText}${memoryText}${compactText} · ${seconds}s`;
+      const thresholdText = Number.isFinite(Number(progress.threshold)) ? ` · bound ${Number(progress.threshold)}` : "";
+      const iterationText = Number(progress.iteration || 0) > 0 ? ` · pass ${Number(progress.iteration).toLocaleString()}` : "";
+      const duplicateText = Number(progress.duplicates || 0) > 0 ? ` · ${Number(progress.duplicates).toLocaleString()} repeated states pruned` : "";
+      const cycleText = Number(progress.pathCycles || 0) > 0 ? ` · ${Number(progress.pathCycles).toLocaleString()} route loops pruned` : "";
+      const resetText = Number(progress.transpositionResets || 0) > 0 ? ` · ${Number(progress.transpositionResets).toLocaleString()} cache resets` : "";
+      solverStats.textContent = `${Number(progress.generated || 0).toLocaleString()} push states · ${Number(progress.open || 0).toLocaleString()} route depth${depth}${estimateText}${goalsText}${patternText}${cellsText}${prunedText}${stagnantText}${bridgeText}${thresholdText}${iterationText}${duplicateText}${cycleText}${resetText} · ${seconds}s`;
     }
     const now = Date.now();
     if (now - solverLastSnapshotAt >= 5000) {
@@ -2530,7 +2529,7 @@
           open: Number(progress.open || 0),
           residentNodes: Number(progress.residentNodes || progress.stats?.residentNodes || 0),
           residentNodeLimit: Number(progress.residentNodeLimit || progress.stats?.residentNodeLimit || 0),
-          memoryCompactions: Number(progress.memoryCompactions || progress.stats?.memoryCompactions || 0),
+          safeTranspositionResets: Number(progress.transpositionResets || progress.stats?.safeTranspositionResets || 0),
           closest: progress.closest || lastClosestResult || null
         }));
       } catch (_) {}
@@ -2617,10 +2616,9 @@
       const result = await window.SokobanCore.solve(levelText, {
         mode: "deep",
         unlimited: true,
-        productiveMaxNodes: 2000000,
-        productiveMaxTimeMs: 120000,
-        featureMaxNodes: 3000000,
-        featureMaxTimeMs: 180000,
+        safeFallback: true,
+        safeTranspositionStates: 80000,
+        safeHeuristicCache: 60000,
         yieldEvery: 350,
         progressEveryMs: SOLVER_PROGRESS_UPDATE_MS,
         shouldStop: () => solverAbortRequested || id !== solverJobId,
@@ -2665,7 +2663,7 @@
     if (solverStats) solverStats.textContent = "0 states";
     if (solverStartBtn) solverStartBtn.disabled = true;
     if (solverCancelBtn) solverCancelBtn.hidden = false;
-    setSolverStatus("Search continues until a verified solution is found, the reachable search is exhausted, or you press Cancel Search. Resident memory is capped and the forward frontier is compacted as needed, so a long run should not grow until Opera kills the page. The closest forward-reachable position updates below.");
+    setSolverStatus("Search continues until a verified solution is found, every reachable push route is exhausted, or you press Cancel Search. Fast specialist searches run first, but they are never allowed to declare the puzzle unsolvable. The final exhaustive phase prunes only proven deadlocks and exact repeated states. Duplicate caches may be cleared to control memory; that repeats work but cannot delete an unexplored solution route. The closest forward-reachable position updates below.");
 
     let fellBack = false;
     const fallback = () => {
@@ -2681,7 +2679,7 @@
       return;
     }
     try {
-      solverWorker = new Worker("solver-worker.js?v=111");
+      solverWorker = new Worker("solver-worker.js?v=112");
       solverWorker.onmessage = event => {
         const message = event.data || {};
         if (message.id !== id || id !== solverJobId || !solverRunning) return;
