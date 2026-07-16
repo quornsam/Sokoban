@@ -28,7 +28,7 @@
   });
 })();
 
-/* BOXXY v116 — character renderer, game engine, level maker and pure FESS puzzle solving. */
+/* BOXXY v117 — character renderer, game engine, level maker and pure FESS puzzle solving. */
 (() => {
   "use strict";
 
@@ -2457,7 +2457,7 @@
       setSolverStatus(`A ${currentSolution.length.toLocaleString()}-move solution is already attached to this puzzle.`, "success");
     } else if (previousRun?.running) {
       const seconds = (Number(previousRun.elapsedMs || 0) / 1000).toFixed(1);
-      setSolverStatus(`The previous solver tab ended unexpectedly after ${seconds}s in ${previousRun.phase || "search"}, at ${Number(previousRun.generated || 0).toLocaleString()} generated push states. v116 uses one memory-bounded FESS search with cyclic feature cells, accumulated move weights and local corral-deadlock proofs.`, "error");
+      setSolverStatus(`The previous solver tab ended unexpectedly after ${seconds}s in ${previousRun.phase || "search"}, at ${Number(previousRun.generated || 0).toLocaleString()} generated push states. v117 uses one memory-bounded FESS search with cyclic feature cells, accumulated move weights and layered deadlock proofs.`, "error");
       if (previousRun.closest) showClosestDisplay(previousRun.closest, {});
       try { localStorage.removeItem(SOLVER_RUN_SNAPSHOT_KEY); } catch (_) {}
     } else {

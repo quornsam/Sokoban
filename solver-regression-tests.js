@@ -1,4 +1,4 @@
-/* BOXXY v116 pure-FESS solver regression tests.
+/* BOXXY v117 pure-FESS solver regression tests.
  * Run with: node solver-regression-tests.js
  */
 'use strict';
@@ -25,7 +25,7 @@ const microban = packs.find(pack => pack.id === 'microban');
 const chessboards = packs.find(pack => pack.id === 'chessboards');
 
 (async () => {
-  assert(core.version === '5.1.0', `Unexpected solver-core version ${core.version}.`);
+  assert(core.version === '5.2.0', `Unexpected solver-core version ${core.version}.`);
 
   // Structural pruning must not falsely reject any supplied starting board.
   let analysed = 0;
@@ -88,9 +88,32 @@ const chessboards = packs.find(pack => pack.id === 'chessboards');
   const matching = core.analyseDeadlocks(matchingDead);
   assert(matching.dead && matching.reason === 'box-goal-matching', 'Box-goal matching deadlock was not proved.');
 
-  // Sam's local corral regression: the starting position is not rejected, but
-  // uuRRRR seals the upper-right pocket and leaves the lower box with no
-  // recoverable continuation. This must be proved before FESS expands it.
+  const freezeDead = [
+    '#######',
+    '#@# # #',
+    '# #$ .#',
+    '## $# #',
+    '#.   $#',
+    '#    .#',
+    '#######',
+  ].join('\n');
+  const freeze = core.analyseDeadlocks(freezeDead);
+  assert(freeze.dead && freeze.reason === 'freeze-deadlock', 'Mutually frozen box group was not proved.');
+
+  const frozenGoalInterference = [
+    '########',
+    '#*     #',
+    '###$ #.#',
+    '#  @   #',
+    '########',
+  ].join('\n');
+  const frozenGoal = core.analyseDeadlocks(frozenGoalInterference);
+  assert(frozenGoal.dead && frozenGoal.reason === 'frozen-goal-interference',
+    'Frozen goal box was not converted to a wall for the remaining assignment.');
+
+  // Local sealed-region regression: the starting position is live, while the
+  // demonstrated later state has no recoverable continuation. The structural
+  // position, not the notation used to reach it, must be recognised.
   const corralLevel = [
     '#########################',
     '# $ . . #   .   #   .   #',
@@ -106,13 +129,14 @@ const chessboards = packs.find(pack => pack.id === 'chessboards');
   const corralState = core.createInitialState(corralBoard);
   assert(!core.analyseDeadlocks(corralBoard, corralState.boxes, corralState.player).dead,
     'Corral regression was falsely rejected before the bad sequence.');
-  for (const move of 'uuRRRR') {
+  const demonstrationMoves = 'uuRRRR';
+  for (const move of demonstrationMoves) {
     const result = core.applyMove(corralBoard, corralState, move);
     assert(result.ok, `Corral regression move ${move} was unexpectedly illegal.`);
   }
   const corral = core.analyseDeadlocks(corralBoard, corralState.boxes, corralState.player);
-  assert(corral.dead && corral.reason === 'corral-pattern',
-    `uuRRRR corral was not proved; got ${corral.reason || 'live'}.`);
+  assert(corral.dead && ['corral-deadlock','maze-pattern-deadlock'].includes(corral.reason),
+    `Demonstrated corral state was not proved; got ${corral.reason || 'live'}.`);
   const corralExhaustion = await core.solve(core.boardToXSB(corralBoard, corralState), {
     featureMaxTimeMs: 3000,
     maxNodes: 100000,
@@ -165,7 +189,7 @@ const chessboards = packs.find(pack => pack.id === 'chessboards');
   }
 
   console.log([
-    'BOXXY v116 pure-FESS regression tests passed.',
+    'BOXXY v117 pure-FESS regression tests passed.',
     `${analysed} supplied starting boards accepted.`,
     `${replayed} stored routes replayed.`,
     `${freshlySolved} Microban levels solved afresh in ${freshElapsedMs} ms of reported solver time.`,

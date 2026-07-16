@@ -1,13 +1,15 @@
-BOXXY v116
+BOXXY v117
 
 Solver update:
-- The puzzle solver remains one pure Feature Space Search (FESS) engine.
-- FESS now stores compact single-push states under a hard resident-state limit, so a difficult search stops cleanly rather than exhausting the browser tab.
-- Static dead squares, solid 2 x 2 deadlocks, box-to-goal matching and tiny exact corral-pattern proofs are checked before a child state enters the search.
+- The puzzle solver remains one memory-bounded Feature Space Search (FESS) engine.
+- Every generated push is passed through a separate layered deadlock engine before it can enter FESS.
+- The engine checks static dead squares, solid 2 x 2 blocks, mutually frozen box groups, frozen boxes on goals that obstruct the remaining assignment, dynamic bipartite box-to-goal matching, maze-specific exact 4 x 4 pattern searches, exact corral subproblems and articulation-room subproblems.
+- Local and corral searches are optimistic: boxes outside the tested subproblem are removed and exits are treated as available. Therefore a branch is pruned only when the easier subproblem is completely exhausted. Reaching a safety limit is treated as unknown, never dead.
+- FESS stores compact single-push states under a hard resident-state limit, so difficult searches stop cleanly rather than exhausting the browser tab.
 - Failed searches still return the strongest verified forward position and its partial route.
 - Every completed route is replayed before it can be attached to a puzzle.
 
-BOXXY — Pushbox Puzzle v116
+BOXXY — Pushbox Puzzle v117
 
 Open index.html in a web browser.
 
@@ -365,5 +367,14 @@ BOXXY v114 — pure FESS solver rebuild
 BOXXY v116 solver correction
 -----------------------------
 - Replaced unbounded solver storage with compact memory-bounded push states.
-- Added sound tiny-corral pattern proofs. The supplied uuRRRR regression is rejected immediately as a corral-pattern deadlock.
-- Corral proof limits are conservative: an incomplete local search is treated as unknown and is not pruned.
+- Added the first conservative corral proof.
+
+BOXXY v117 deadlock engine
+---------------------------
+- Replaced the narrow corral check with a generic deadlock gate applied after every push.
+- Added mutually frozen-group detection and dynamic matching with frozen goal boxes treated as walls.
+- Added lazy maze-specific exact pattern tables for local wall/goal/box configurations.
+- Added general exact corral-opening searches and exact articulation-room release searches.
+- Retained static dead-square, 2 x 2 and complete bipartite matching checks.
+- Backward pull reachability is used only for valid structural tests such as dead-square and box-to-goal reachability; the puzzle is still solved forward by FESS.
+- Any bounded sub-search that is not exhausted returns unknown and does not prune the branch.

@@ -1,5 +1,5 @@
 /*
- * BOXXY Sokoban Solver Core v5.1.0
+ * BOXXY Sokoban Solver Core v5.2.0
  *
  * Clean Feature Space Search (FESS) implementation for the BOXXY Level Maker.
  * The search follows Shoham & Schaeffer's FESS design:
@@ -200,7 +200,11 @@
       packingGroups: [],
       featureCache: new Map(),
       deadlockCache: new Map(),
-      corralPatternCache: new Map(),
+      localPatternCache: new Map(),
+      corralSearchCache: new Map(),
+      localWindowsBySquare: Array.from({ length: count }, () => []),
+      roomRegions: [],
+      roomSearchCache: new Map(),
     };
     for (let p = 0; p < count; p++) if (floor[p]) board.floorList.push(p);
     board.floorCount = board.floorList.length;
@@ -388,6 +392,84 @@
     }
     board.oopReachByStage = buildOutOfPlanReach(board);
 
+    // Build articulation-separated room/branch regions. These are not used
+    // as FESS heuristics here; they define exact local subproblems for room
+    // deadlock detection. Removing an articulation square and taking one of
+    // the resulting components gives a region with a single static doorway.
+    const roomRegionKeys = new Set();
+    for (const door of board.floorList) {
+      if (!board.roomLinks[door]) continue;
+      const seen = new Uint8Array(board.count);
+      seen[door] = 1;
+      const queue = new Int32Array(board.count);
+      for (const start of board.floorList) {
+        if (seen[start]) continue;
+        let qh = 0;
+        let qt = 0;
+        const cells = [];
+        seen[start] = 1;
+        queue[qt++] = start;
+        while (qh < qt) {
+          const p = queue[qh++];
+          cells.push(p);
+          for (let d = 0; d < 4; d++) {
+            const n = board.neighbours[p][d];
+            if (n < 0 || seen[n] || n === door) continue;
+            seen[n] = 1;
+            queue[qt++] = n;
+          }
+        }
+        if (cells.length < 3 || cells.length >= board.floorCount - 1) continue;
+        let touchesDoor = false;
+        for (const p of cells) {
+          for (let d = 0; d < 4; d++) if (board.neighbours[p][d] === door) { touchesDoor = true; break; }
+          if (touchesDoor) break;
+        }
+        if (!touchesDoor) continue;
+        cells.sort((a, b) => a - b);
+        const key = cells.join(',');
+        if (roomRegionKeys.has(key)) continue;
+        roomRegionKeys.add(key);
+        const mask = new Uint8Array(board.count);
+        for (const p of cells) mask[p] = 1;
+        board.roomRegions.push({ id: board.roomRegions.length, door, cells, mask });
+      }
+    }
+
+    // Precompute every distinct 4x4 maze window containing each square.
+    // These are used as lazy, maze-specific deadlock tables. A window is
+    // searched exactly only when a push changes boxes inside it; the result is
+    // cached by the local wall/goal/box pattern.
+    const windowSeen = new Set();
+    for (let y0 = 0; y0 <= Math.max(0, board.height - 4); y0++) {
+      for (let x0 = 0; x0 <= Math.max(0, board.width - 4); x0++) {
+        const cells = [];
+        let floorCells = 0;
+        for (let y = y0; y < Math.min(board.height, y0 + 4); y++) {
+          for (let x = x0; x < Math.min(board.width, x0 + 4); x++) {
+            const p = y * board.width + x;
+            cells.push(p);
+            if (board.floor[p]) floorCells++;
+          }
+        }
+        if (!floorCells) continue;
+        const key = `${x0},${y0}`;
+        if (windowSeen.has(key)) continue;
+        windowSeen.add(key);
+        const mask = new Uint8Array(board.count);
+        const portals = [];
+        for (const p of cells) if (board.floor[p]) {
+          mask[p] = 1;
+          for (let d = 0; d < 4; d++) {
+            const n = board.neighbours[p][d];
+            if (n >= 0 && !cells.includes(n)) { portals.push(p); break; }
+          }
+        }
+        const window = { x0, y0, cells, mask, portals: Array.from(new Set(portals)) };
+        for (const p of cells) if (board.floor[p]) board.localWindowsBySquare[p].push(window);
+      }
+    }
+
     // Hotspot blocker maps are calculated lazily for squares that actually
     // hold boxes during the search, then cached for the rest of the run.
   }
@@ -512,14 +594,21 @@
     return false;
   }
 
-  function hasGoalMatching(board, boxes) {
-    const goalCount = board.goalList.length;
+  function hasGoalMatching(board, boxes, goals = board.goalList, walls = null) {
+    if (boxes.length > goals.length) return false;
+    const goalCount = goals.length;
     const matchedBox = new Int32Array(goalCount);
     matchedBox.fill(-1);
+    const dynamicReach = walls ? goals.map(goal => reverseReachWithWalls(board, [goal], walls)) : null;
+    const staticGoalIndex = walls ? null : new Map(board.goalList.map((goal, index) => [goal, index]));
     const visit = (boxIndex, seenGoals) => {
       const pos = boxes[boxIndex];
       for (let g = 0; g < goalCount; g++) {
-        if (seenGoals[g] || board.reverseDistances[g][pos] < 0) continue;
+        if (seenGoals[g]) continue;
+        const canReach = walls
+          ? dynamicReach[g][pos]
+          : board.reverseDistances[staticGoalIndex.get(goals[g])][pos] >= 0;
+        if (!canReach) continue;
         seenGoals[g] = 1;
         if (matchedBox[g] < 0 || visit(matchedBox[g], seenGoals)) {
           matchedBox[g] = boxIndex;
@@ -544,14 +633,101 @@
     return '';
   }
 
-  function relaxedSubsetCanReachGoals(board, subsetBoxes, player, stateLimit = 400) {
-    const startBoxes = subsetBoxes.slice().sort((a, b) => a - b);
-    const startCanonical = canonicalState(board, startBoxes, player);
-    const cacheKey = compactKey(startBoxes, startCanonical.representative);
-    if (board.corralPatternCache.has(cacheKey)) return board.corralPatternCache.get(cacheKey);
+  // Find boxes that remain immovable even after every box outside the frozen
+  // set is optimistically removed. This is a greatest-fixed-point proof, so it
+  // catches wall chains, 2x2 blocks and mutually supporting frozen groups
+  // without assuming that a merely adjacent box is permanent.
+  function findMutuallyFrozenBoxes(board, boxes) {
+    const active = new Uint8Array(board.count);
+    for (const p of boxes) active[p] = 1;
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const p of boxes) {
+        if (!active[p]) continue;
+        let canEscape = false;
+        for (let d = 0; d < 4; d++) {
+          const dest = board.neighbours[p][d];
+          const support = board.neighbours[p][OPP[d]];
+          if (dest >= 0 && support >= 0 && !active[dest] && !active[support]) {
+            canEscape = true;
+            break;
+          }
+        }
+        if (canEscape) {
+          active[p] = 0;
+          changed = true;
+        }
+      }
+    }
+    const frozen = [];
+    for (const p of boxes) if (active[p]) frozen.push(p);
+    return frozen;
+  }
 
-    const states = [{ boxes: startBoxes, player: startCanonical.representative }];
-    const seen = new Set([cacheKey]);
+  function frozenAndDynamicMatchingDeadlock(board, boxes) {
+    const frozen = findMutuallyFrozenBoxes(board, boxes);
+    if (!frozen.length) return '';
+    for (const p of frozen) if (!board.goals[p]) return 'freeze-deadlock';
+
+    // Frozen boxes on goals are valid only if the remaining boxes still have a
+    // complete assignment when those frozen boxes are converted into walls.
+    const frozenMask = new Uint8Array(board.count);
+    for (const p of frozen) frozenMask[p] = 1;
+    const remainingBoxes = boxes.filter(p => !frozenMask[p]);
+    const remainingGoals = board.goalList.filter(p => !frozenMask[p]);
+    if (remainingBoxes.length !== remainingGoals.length) return 'frozen-goal-interference';
+    if (!hasGoalMatching(board, remainingBoxes, remainingGoals, frozenMask)) return 'frozen-goal-interference';
+    return '';
+  }
+
+  function localReach(board, window, boxes, player) {
+    const occupied = new Uint8Array(board.count);
+    for (const p of boxes) occupied[p] = 1;
+    const seen = new Uint8Array(board.count);
+    const queue = new Int32Array(window.cells.length + 4);
+    let qh = 0;
+    let qt = 0;
+    const seed = p => {
+      if (p < 0 || !window.mask[p] || occupied[p] || seen[p]) return;
+      seen[p] = 1;
+      queue[qt++] = p;
+    };
+    // The outside of the window is deliberately treated as one freely
+    // accessible region. This makes the local proof optimistic and therefore
+    // safe: failure despite this extra freedom is a genuine deadlock.
+    for (const p of window.portals) seed(p);
+    seed(player);
+    while (qh < qt) {
+      const p = queue[qh++];
+      for (let d = 0; d < 4; d++) {
+        const n = board.neighbours[p][d];
+        if (n < 0 || !window.mask[n] || occupied[n] || seen[n]) continue;
+        seen[n] = 1;
+        queue[qt++] = n;
+      }
+    }
+    let bits = 0;
+    for (let i = 0; i < window.cells.length; i++) if (seen[window.cells[i]]) bits |= (1 << i);
+    return { seen, bits };
+  }
+
+  function exactLocalWindowCanEscape(board, window, subsetBoxes, player, stateLimit = 3500) {
+    const localIndex = new Int16Array(board.count);
+    localIndex.fill(-1);
+    for (let i = 0; i < window.cells.length; i++) localIndex[window.cells[i]] = i;
+
+    const normalise = boxes => boxes.filter(p => !board.goals[p]).sort((a, b) => a - b);
+    const startBoxes = normalise(subsetBoxes);
+    if (!startBoxes.length) return true;
+    const startReach = localReach(board, window, startBoxes, player);
+    const encode = (boxes, bits) => boxes.map(p => String.fromCharCode(localIndex[p] + 1)).join('') + '/' + bits;
+    const startKey = encode(startBoxes, startReach.bits);
+    const patternKey = `${window.x0},${window.y0}:${startKey}`;
+    if (board.localPatternCache.has(patternKey)) return board.localPatternCache.get(patternKey);
+
+    const states = [{ boxes: startBoxes, player }];
+    const seen = new Set([startKey]);
     let head = 0;
     let complete = true;
 
@@ -561,26 +737,141 @@
         break;
       }
       const state = states[head++];
-      if (allBoxesOnGoals(board, state.boxes)) {
-        if (board.corralPatternCache.size >= 20000) board.corralPatternCache.clear();
-        board.corralPatternCache.set(cacheKey, true);
+      if (!state.boxes.length) {
+        if (board.localPatternCache.size >= 40000) board.localPatternCache.clear();
+        board.localPatternCache.set(patternKey, true);
         return true;
       }
+      const occupied = new Uint8Array(board.count);
+      for (const p of state.boxes) occupied[p] = 1;
+      const reach = localReach(board, window, state.boxes, state.player);
+      for (let i = 0; i < state.boxes.length; i++) {
+        const from = state.boxes[i];
+        for (let d = 0; d < 4; d++) {
+          const dest = board.neighbours[from][d];
+          const support = board.neighbours[from][OPP[d]];
+          if (dest < 0 || support < 0) continue;
+          const supportReachable = window.mask[support] ? reach.seen[support] : true;
+          if (!supportReachable) continue;
+          if (window.mask[dest] && occupied[dest]) continue;
 
+          let childBoxes = state.boxes.slice();
+          if (!window.mask[dest] || board.goals[dest]) {
+            // Leaving the local pattern or reaching a goal is counted as
+            // success for this box. This is more permissive than the real
+            // puzzle and therefore cannot create a false deadlock proof.
+            childBoxes.splice(i, 1);
+          } else {
+            childBoxes[i] = dest;
+          }
+          childBoxes = normalise(childBoxes);
+          if (!childBoxes.length) {
+            if (board.localPatternCache.size >= 40000) board.localPatternCache.clear();
+            board.localPatternCache.set(patternKey, true);
+            return true;
+          }
+          const childReach = localReach(board, window, childBoxes, from);
+          const key = encode(childBoxes, childReach.bits);
+          if (seen.has(key)) continue;
+          seen.add(key);
+          states.push({ boxes: childBoxes, player: from });
+        }
+      }
+    }
+
+    const result = complete ? false : null;
+    if (board.localPatternCache.size >= 40000) board.localPatternCache.clear();
+    board.localPatternCache.set(patternKey, result);
+    return result;
+  }
+
+  function hasMazeSpecificLocalDeadlock(board, boxes, player, focusBox = -1) {
+    if (focusBox < 0 || !board.localWindowsBySquare[focusBox]) return false;
+    const occupied = boxesMask(board, boxes);
+    for (const window of board.localWindowsBySquare[focusBox]) {
+      const subset = [];
+      let wallLike = 0;
+      for (const p of window.cells) {
+        if (!board.floor[p]) wallLike++;
+        else if (occupied[p]) subset.push(p);
+      }
+      if (subset.length < 2 || subset.length > 4 || wallLike < 2) continue;
+      const canEscape = exactLocalWindowCanEscape(board, window, subset, player);
+      if (canEscape === false) return true;
+    }
+    return false;
+  }
+
+  function corralComponents(board, boxes, player, playerReach = null) {
+    const blocked = boxesMask(board, boxes);
+    const reach = playerReach || floodReach(board, blocked, player, false);
+    const visited = new Uint8Array(board.count);
+    const queue = new Int32Array(board.count);
+    const corrals = [];
+    for (const start of board.floorList) {
+      if (blocked[start] || reach.seen[start] || visited[start]) continue;
+      let qh = 0;
+      let qt = 0;
+      const cells = [];
+      const boundary = new Set();
+      visited[start] = 1;
+      queue[qt++] = start;
+      while (qh < qt) {
+        const p = queue[qh++];
+        cells.push(p);
+        for (let d = 0; d < 4; d++) {
+          const n = board.neighbours[p][d];
+          if (n < 0) continue;
+          if (blocked[n]) boundary.add(n);
+          else if (!reach.seen[n] && !visited[n]) {
+            visited[n] = 1;
+            queue[qt++] = n;
+          }
+        }
+      }
+      if (boundary.size) corrals.push({ cells, boundary: Array.from(boundary).sort((a, b) => a - b) });
+    }
+    return corrals;
+  }
+
+  function exactCorralCanOpen(board, corral, player, stateLimit = 12000) {
+    const corralMask = new Uint8Array(board.count);
+    for (const p of corral.cells) corralMask[p] = 1;
+    const startBoxes = corral.boundary.slice();
+    const startCanonical = canonicalState(board, startBoxes, player);
+    const componentKey = corral.cells.join(',');
+    const cacheKey = componentKey + '|' + compactKey(startBoxes, startCanonical.representative);
+    if (board.corralSearchCache.has(cacheKey)) return board.corralSearchCache.get(cacheKey);
+
+    const states = [{ boxes: startBoxes, player: startCanonical.representative }];
+    const seen = new Set([compactKey(startBoxes, startCanonical.representative)]);
+    let head = 0;
+    let complete = true;
+    while (head < states.length) {
+      if (states.length >= stateLimit) {
+        complete = false;
+        break;
+      }
+      const state = states[head++];
       const blocked = boxesMask(board, state.boxes);
       const reach = floodReach(board, blocked, state.player, false);
-      for (let boxIndex = 0; boxIndex < state.boxes.length; boxIndex++) {
-        const from = state.boxes[boxIndex];
-        for (let dir = 0; dir < 4; dir++) {
-          const support = board.neighbours[from][OPP[dir]];
-          const to = board.neighbours[from][dir];
-          if (support < 0 || to < 0 || !reach.seen[support] || blocked[to]) continue;
-
+      let opened = false;
+      for (const p of corral.cells) if (reach.seen[p]) { opened = true; break; }
+      if (opened || allBoxesOnGoals(board, state.boxes)) {
+        if (board.corralSearchCache.size >= 15000) board.corralSearchCache.clear();
+        board.corralSearchCache.set(cacheKey, true);
+        return true;
+      }
+      for (let i = 0; i < state.boxes.length; i++) {
+        const from = state.boxes[i];
+        for (let d = 0; d < 4; d++) {
+          const support = board.neighbours[from][OPP[d]];
+          const dest = board.neighbours[from][d];
+          if (support < 0 || dest < 0 || !reach.seen[support] || blocked[dest]) continue;
           const childBoxes = state.boxes.slice();
-          childBoxes[boxIndex] = to;
+          childBoxes[i] = dest;
           childBoxes.sort((a, b) => a - b);
-          if (quickMacroDeadlock(board, childBoxes) || !hasGoalMatching(board, childBoxes)) continue;
-
+          if (quickMacroDeadlock(board, childBoxes)) continue;
           const canonical = canonicalState(board, childBoxes, from);
           const key = compactKey(childBoxes, canonical.representative);
           if (seen.has(key)) continue;
@@ -589,63 +880,89 @@
         }
       }
     }
-
-    // A false result is a proof only when the relaxed search was exhausted.
-    // Hitting the small pattern-search limit means "unknown", never dead.
     const result = complete ? false : null;
-    if (board.corralPatternCache.size >= 20000) board.corralPatternCache.clear();
-    board.corralPatternCache.set(cacheKey, result);
+    if (board.corralSearchCache.size >= 15000) board.corralSearchCache.clear();
+    board.corralSearchCache.set(cacheKey, result);
     return result;
   }
 
-  function hasSmallCorralPatternDeadlock(board, boxes, player, playerReach = null, focusBox = -1) {
-    const blocked = boxesMask(board, boxes);
-    const reach = playerReach || floodReach(board, blocked, player, false);
-    const occupiedIndex = new Int32Array(board.count);
-    occupiedIndex.fill(-1);
-    for (let i = 0; i < boxes.length; i++) occupiedIndex[boxes[i]] = i;
+  function hasCorralDeadlock(board, boxes, player, playerReach = null, focusBox = -1) {
+    const corrals = corralComponents(board, boxes, player, playerReach);
+    for (const corral of corrals) {
+      if (focusBox >= 0 && !corral.boundary.includes(focusBox)) continue;
+      // Exact corral searches are independent of the FESS ordering. The boxes
+      // outside the corral are removed, giving the subproblem extra freedom.
+      // Exhaustion therefore proves the original position dead.
+      if (corral.boundary.length > 10) continue;
+      const canOpen = exactCorralCanOpen(board, corral, player,
+        corral.boundary.length <= 5 ? 18000 : 6000);
+      if (canOpen === false) return true;
+    }
+    return false;
+  }
 
-    const visited = new Uint8Array(board.count);
-    const queue = new Int32Array(board.count);
-    const tested = new Set();
-
-    for (const start of board.floorList) {
-      if (blocked[start] || reach.seen[start] || visited[start]) continue;
-      let qh = 0;
-      let qt = 0;
-      let componentSize = 0;
-      const boundary = new Set();
-      visited[start] = 1;
-      queue[qt++] = start;
-
-      while (qh < qt) {
-        const p = queue[qh++];
-        componentSize++;
-        for (let dir = 0; dir < 4; dir++) {
-          const n = board.neighbours[p][dir];
-          if (n < 0) continue;
-          if (blocked[n]) {
-            boundary.add(n);
-          } else if (!reach.seen[n] && !visited[n]) {
-            visited[n] = 1;
-            queue[qt++] = n;
+  function exactRoomCanRelease(board, room, subsetBoxes, player, stateLimit = 10000) {
+    const startBoxes = subsetBoxes.slice().sort((a, b) => a - b);
+    if (!startBoxes.length || allBoxesOnGoals(board, startBoxes)) return true;
+    const startCanonical = canonicalState(board, startBoxes, player);
+    const cacheKey = `${room.id}|${compactKey(startBoxes, startCanonical.representative)}`;
+    if (board.roomSearchCache.has(cacheKey)) return board.roomSearchCache.get(cacheKey);
+    const states = [{ boxes: startBoxes, player: startCanonical.representative }];
+    const seen = new Set([compactKey(startBoxes, startCanonical.representative)]);
+    let head = 0;
+    let complete = true;
+    while (head < states.length) {
+      if (states.length >= stateLimit) {
+        complete = false;
+        break;
+      }
+      const state = states[head++];
+      if (allBoxesOnGoals(board, state.boxes)) {
+        if (board.roomSearchCache.size >= 12000) board.roomSearchCache.clear();
+        board.roomSearchCache.set(cacheKey, true);
+        return true;
+      }
+      const blocked = boxesMask(board, state.boxes);
+      const reach = floodReach(board, blocked, state.player, false);
+      for (let i = 0; i < state.boxes.length; i++) {
+        const from = state.boxes[i];
+        for (let d = 0; d < 4; d++) {
+          const support = board.neighbours[from][OPP[d]];
+          const dest = board.neighbours[from][d];
+          if (support < 0 || dest < 0 || !reach.seen[support] || blocked[dest]) continue;
+          if (!room.mask[dest]) {
+            if (board.roomSearchCache.size >= 12000) board.roomSearchCache.clear();
+            board.roomSearchCache.set(cacheKey, true);
+            return true;
           }
+          const childBoxes = state.boxes.slice();
+          childBoxes[i] = dest;
+          childBoxes.sort((a, b) => a - b);
+          if (quickMacroDeadlock(board, childBoxes)) continue;
+          const canonical = canonicalState(board, childBoxes, from);
+          const key = compactKey(childBoxes, canonical.representative);
+          if (seen.has(key)) continue;
+          seen.add(key);
+          states.push({ boxes: childBoxes, player: canonical.representative });
         }
       }
+    }
+    const result = complete ? false : null;
+    if (board.roomSearchCache.size >= 12000) board.roomSearchCache.clear();
+    board.roomSearchCache.set(cacheKey, result);
+    return result;
+  }
 
-      // Exact relaxed pattern searches are deliberately limited to tiny
-      // inaccessible pockets. Larger corrals remain searchable by FESS rather
-      // than risking either a false proof or expensive work at every node.
-      const maxComponentSize = focusBox >= 0 ? 8 : 2;
-      if (componentSize > maxComponentSize || boundary.size < 2 || boundary.size > 4) continue;
-      if (focusBox >= 0 && !boundary.has(focusBox)) continue;
-      const subset = Array.from(boundary).sort((a, b) => a - b);
-      const subsetKey = subset.join(',');
-      if (tested.has(subsetKey)) continue;
-      tested.add(subsetKey);
-
-      const canSolveRelaxed = relaxedSubsetCanReachGoals(board, subset, player, focusBox >= 0 ? 800 : 300);
-      if (canSolveRelaxed === false) return true;
+  function hasRoomDeadlock(board, boxes, player, focusBox = -1) {
+    if (focusBox < 0) return false;
+    for (const room of board.roomRegions) {
+      if (!room.mask[focusBox]) continue;
+      const subset = boxes.filter(p => room.mask[p]);
+      if (!subset.length || subset.every(p => board.goals[p])) continue;
+      if (subset.length > 9) continue;
+      const canRelease = exactRoomCanRelease(board, room, subset, player,
+        subset.length <= 5 ? 16000 : 6000);
+      if (canRelease === false) return true;
     }
     return false;
   }
@@ -654,21 +971,26 @@
     const staticKey = `S${compactKey(boxes)}`;
     if (board.deadlockCache.has(staticKey)) return board.deadlockCache.get(staticKey);
     const quick = quickMacroDeadlock(board, boxes);
-    const staticReason = quick || (!hasCompleteGoalMatching(board, boxes) ? 'box-goal-matching' : '');
-    if (staticReason) {
-      if (board.deadlockCache.size >= 50000) board.deadlockCache.clear();
-      board.deadlockCache.set(staticKey, staticReason);
-      return staticReason;
+    const structural = quick || frozenAndDynamicMatchingDeadlock(board, boxes) ||
+      (!hasCompleteGoalMatching(board, boxes) ? 'box-goal-matching' : '');
+    if (structural) {
+      if (board.deadlockCache.size >= 60000) board.deadlockCache.clear();
+      board.deadlockCache.set(staticKey, structural);
+      return structural;
     }
 
     if (player >= 0) {
       const reach = playerReach || floodReach(board, boxesMask(board, boxes), player, false);
       const dynamicKey = `C${compactKey(boxes, reach.representative)}`;
       if (board.deadlockCache.has(dynamicKey)) return board.deadlockCache.get(dynamicKey);
-      if (hasSmallCorralPatternDeadlock(board, boxes, player, reach, focusBox)) {
-        if (board.deadlockCache.size >= 50000) board.deadlockCache.clear();
-        board.deadlockCache.set(dynamicKey, 'corral-pattern');
-        return 'corral-pattern';
+      let dynamicReason = '';
+      if (hasMazeSpecificLocalDeadlock(board, boxes, player, focusBox)) dynamicReason = 'maze-pattern-deadlock';
+      else if (hasCorralDeadlock(board, boxes, player, reach, focusBox)) dynamicReason = 'corral-deadlock';
+      else if (hasRoomDeadlock(board, boxes, player, focusBox)) dynamicReason = 'room-deadlock';
+      if (dynamicReason) {
+        if (board.deadlockCache.size >= 60000) board.deadlockCache.clear();
+        board.deadlockCache.set(dynamicKey, dynamicReason);
+        return dynamicReason;
       }
     }
     return '';
@@ -1083,7 +1405,10 @@
       nonAdvisorMoves: 0,
       staticDeadlocks: 0,
       assignmentDeadlocks: 0,
+      freezeDeadlocks: 0,
+      patternDeadlocks: 0,
       corralDeadlocks: 0,
+      roomDeadlocks: 0,
       provenDeadStates: 0,
       deadStateHits: 0,
       transpositions: 0,
@@ -1334,7 +1659,7 @@
         safePacked: closest.safePacked, totalGoals: board.goalList.length,
         estimate: closest.remainingEstimate, bestEstimate: closest.remainingEstimate,
         featureCells: cells.size, activeCells, activeFeatureCells: activeCells,
-        deadlocks: stats.staticDeadlocks + stats.assignmentDeadlocks + stats.corralDeadlocks,
+        deadlocks: stats.staticDeadlocks + stats.assignmentDeadlocks + stats.freezeDeadlocks + stats.patternDeadlocks + stats.corralDeadlocks + stats.roomDeadlocks,
         advisorMoves: stats.advisorMoves, nonAdvisorMoves: stats.nonAdvisorMoves,
         provenDeadStates: 0, deadStateHits: 0, residentNodes: nodeCount,
         residentNodeLimit: nodeLimit, closest, stats: { ...stats },
@@ -1395,8 +1720,11 @@
           const canonical = canonicalState(board, childBoxes, from);
           const deadReason = provedDeadlock(board, childBoxes, from, canonical.reach, to);
           if (deadReason) {
-            if (deadReason === 'box-goal-matching') stats.assignmentDeadlocks++;
-            else if (deadReason === 'corral-pattern') stats.corralDeadlocks++;
+            if (deadReason === 'box-goal-matching' || deadReason === 'frozen-goal-interference') stats.assignmentDeadlocks++;
+            else if (deadReason === 'freeze-deadlock') stats.freezeDeadlocks++;
+            else if (deadReason === 'maze-pattern-deadlock') stats.patternDeadlocks++;
+            else if (deadReason === 'corral-deadlock') stats.corralDeadlocks++;
+            else if (deadReason === 'room-deadlock') stats.roomDeadlocks++;
             else stats.staticDeadlocks++;
             continue;
           }
@@ -1458,7 +1786,7 @@
   }
 
   return Object.freeze({
-    version: '5.1.0',
+    version: '5.2.0',
     DIRS,
     SolverError,
     parseLevel,

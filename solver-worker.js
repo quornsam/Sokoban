@@ -1,5 +1,5 @@
-/* BOXXY v116 solver worker — pure Feature Space Search. */
-importScripts("solver-core.js?v=116");
+/* BOXXY v117 solver worker — pure Feature Space Search. */
+importScripts("solver-core.js?v=117");
 
 self.onmessage = async event => {
   const message = event.data || {};

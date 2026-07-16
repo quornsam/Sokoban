@@ -1,0 +1,31 @@
+BOXXY v117 — FESS AND DEADLOCK ENGINE TEST REPORT
+=================================================
+
+Solver-core version: 5.2.0
+
+Regression coverage
+-------------------
+- 238 supplied starting boards analysed without a false initial deadlock.
+- 50 stored Microban routes replayed successfully.
+- All 50 Microban levels solved afresh by the FESS engine and replay-verified.
+- Static dead-square deadlock proved.
+- Solid 2 x 2 deadlock retained.
+- Complete bipartite box-to-goal matching deadlock proved.
+- Mutually frozen box group proved.
+- Frozen box on a goal converted to a wall and the resulting assignment failure proved.
+- The supplied local sealed-region demonstration is proved as a generic corral deadlock before FESS generates a child state.
+- Dead-state exhaustion and propagation retained.
+- Small Chessboards 38 remains accepted and reaches the configured safety limit without a tab crash.
+
+10-second Small Chessboards 38 diagnostic
+------------------------------------------
+- Status: time limit, not solved.
+- Generated states: 46,284.
+- Expanded states: 2,044.
+- Dead branches rejected included 33,089 static/local structural cases, 146 maze-pattern cases and 25 exact corral cases.
+- Closest displayed state: 24 of 39 goals occupied; FESS packing score 8.
+- Node.js heap at completion: approximately 70 MB.
+
+Safety rule
+-----------
+The local, corral and room searches prune only after complete exhaustion of an optimistic subproblem. If their state limit is reached, the result is unknown and the branch remains searchable.
