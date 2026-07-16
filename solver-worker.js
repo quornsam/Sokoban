@@ -1,5 +1,5 @@
-/* BOXXY v112 solver worker — complete push search with safe pruning only. */
-importScripts("solver-core.js?v=112");
+/* BOXXY v113 solver worker — complete push search with safe pruning only. */
+importScripts("solver-core.js?v=113");
 
 self.onmessage = async event => {
   const message = event.data || {};
@@ -10,6 +10,17 @@ self.onmessage = async event => {
       mode: "deep",
       unlimited: true,
       safeFallback: true,
+      // Dense boards now begin with FESS. The older specialist searches are
+      // disabled here because their heuristic pruning did not understand the
+      // trapped 26-goal plateau seen on Small Chessboards 38.
+      reverseAStar: false,
+      reverse: false,
+      productiveBridge: false,
+      boundedBest: false,
+      boundedIDA: false,
+      featureSpace: true,
+      featureMaxTimeMs: 600000,
+      fessNonAdvisorWeight: 50,
       // The exhaustive fallback stores only the current depth-first route and
       // a disposable duplicate cache. Cache resets repeat work but cannot lose
       // an unexplored solution route.

@@ -1,5 +1,5 @@
 /*
- * BOXXY Sokoban Solver Core v2.8.0
+ * BOXXY Sokoban Solver Core v2.9.0
  * Original browser-first implementation by OpenAI for Sam Cornwell / BOXXY.
  *
  * Search model:
@@ -183,6 +183,8 @@
       neighbours: buildNeighbours(width, height, floor),
       reverseDistances: null,
       deadSquares: null,
+      chokeScore: null,
+      blockerImpact: null,
       floorCount: floor.reduce((sum, value) => sum + value, 0),
     };
     precomputeBoard(board);
@@ -243,6 +245,82 @@
       if (!reachesGoal) dead[pos] = 1;
     }
     board.deadSquares = dead;
+    precomputeStructuralFeatures(board);
+  }
+
+  // FESS uses room-connectivity and hotspot features. These are guidance only:
+  // they never remove a route. A floor articulation score measures how many
+  // regions a box blocks, while blockerImpact measures how many optimistic
+  // box-to-goal reverse paths disappear when that square is occupied.
+  function precomputeStructuralFeatures(board) {
+    const chokeScore = new Int16Array(board.count);
+    const floorPositions = [];
+    for (let p = 0; p < board.count; p++) if (board.floor[p]) floorPositions.push(p);
+
+    const seen = new Uint32Array(board.count);
+    let generation = 0;
+    const queue = new Int32Array(board.count);
+    for (const removed of floorPositions) {
+      generation++;
+      let components = 0;
+      for (const start of floorPositions) {
+        if (start === removed || seen[start] === generation) continue;
+        components++;
+        let qh = 0, qt = 0;
+        seen[start] = generation;
+        queue[qt++] = start;
+        while (qh < qt) {
+          const pos = queue[qh++];
+          for (let d = 0; d < 4; d++) {
+            const next = board.neighbours[pos][d];
+            if (next < 0 || next === removed || seen[next] === generation) continue;
+            seen[next] = generation;
+            queue[qt++] = next;
+          }
+        }
+      }
+      chokeScore[removed] = Math.max(0, components - 1);
+    }
+    board.chokeScore = chokeScore;
+
+    const blockerImpact = new Int32Array(board.count);
+    // Exact hotspot preprocessing is intentionally bounded. Larger boards use
+    // the articulation score as a cheap, still useful feature.
+    if (board.floorCount <= 220 && board.goalList.length <= 60) {
+      const local = new Int32Array(board.count);
+      const bfsQueue = new Int32Array(board.count);
+      for (const blocker of floorPositions) {
+        let lost = 0;
+        for (let gi = 0; gi < board.goalList.length; gi++) {
+          const goal = board.goalList[gi];
+          local.fill(-1);
+          if (goal !== blocker) {
+            let qh = 0, qt = 0;
+            local[goal] = 0;
+            bfsQueue[qt++] = goal;
+            while (qh < qt) {
+              const current = bfsQueue[qh++];
+              for (let d = 0; d < 4; d++) {
+                const predecessor = board.neighbours[current][OPP[d]];
+                if (predecessor < 0 || predecessor === blocker || local[predecessor] >= 0) continue;
+                const support = board.neighbours[predecessor][OPP[d]];
+                if (support < 0 || support === blocker) continue;
+                local[predecessor] = local[current] + 1;
+                bfsQueue[qt++] = predecessor;
+              }
+            }
+          }
+          const baseline = board.reverseDistances[gi];
+          for (const pos of floorPositions) {
+            if (pos !== blocker && baseline[pos] >= 0 && local[pos] < 0) lost++;
+          }
+        }
+        blockerImpact[blocker] = lost + chokeScore[blocker] * Math.max(4, board.goalList.length);
+      }
+    } else {
+      for (const pos of floorPositions) blockerImpact[pos] = chokeScore[pos] * Math.max(4, board.goalList.length);
+    }
+    board.blockerImpact = blockerImpact;
   }
 
   function createScratch(board) {
@@ -642,6 +720,369 @@
     return false;
   }
 
+
+  // Identify only boxes that are proven unable to move. Movable boxes are
+  // deliberately treated as empty during the fixed-point pass, so this cannot
+  // freeze a box merely because another box happens to be in its way today.
+  // A connected cluster with no geometrically legal first push is also fixed:
+  // no member can move before some member makes that impossible first push.
+  function analyseFixedBoxes(board, boxes) {
+    const occupied = new Uint8Array(board.count);
+    const fixed = new Uint8Array(board.count);
+    for (const box of boxes) occupied[box] = 1;
+
+    const closeUnderFixedWalls = () => {
+      let changed = false;
+      for (const box of boxes) {
+        if (fixed[box]) continue;
+        let canMove = false;
+        for (let d = 0; d < 4; d++) {
+          const destination = board.neighbours[box][d];
+          const support = board.neighbours[box][OPP[d]];
+          if (destination < 0 || support < 0) continue;
+          if (fixed[destination] || fixed[support]) continue;
+          canMove = true;
+          break;
+        }
+        if (!canMove) {
+          fixed[box] = 1;
+          changed = true;
+        }
+      }
+      return changed;
+    };
+    while (closeUnderFixedWalls()) {}
+
+    const seen = new Uint8Array(board.count);
+    for (const start of boxes) {
+      if (seen[start] || fixed[start]) continue;
+      const component = [];
+      const stack = [start];
+      let hasGeometricPush = false;
+      while (stack.length) {
+        const pos = stack.pop();
+        if (seen[pos]) continue;
+        seen[pos] = 1;
+        component.push(pos);
+        for (let d = 0; d < 4; d++) {
+          const neighbour = board.neighbours[pos][d];
+          if (neighbour >= 0 && occupied[neighbour] && !seen[neighbour]) stack.push(neighbour);
+          const destination = board.neighbours[pos][d];
+          const support = board.neighbours[pos][OPP[d]];
+          if (destination >= 0 && support >= 0 && !occupied[destination] && !occupied[support]) {
+            hasGeometricPush = true;
+          }
+        }
+      }
+      if (!hasGeometricPush) for (const pos of component) fixed[pos] = 1;
+    }
+    while (closeUnderFixedWalls()) {}
+
+    const fixedList = [];
+    let offGoalFixed = -1;
+    for (const box of boxes) {
+      if (!fixed[box]) continue;
+      fixedList.push(box);
+      if (!board.goals[box] && offGoalFixed < 0) offGoalFixed = box;
+    }
+    return {
+      fixed,
+      fixedList,
+      fixedCount: fixedList.length,
+      safePacked: fixedList.length - (offGoalFixed >= 0 ? 1 : 0),
+      offGoalFixed,
+      dead: offGoalFixed >= 0,
+    };
+  }
+
+  function maximumBipartiteMatching(boxes, distanceTables) {
+    const n = boxes.length;
+    if (n === 0) return 0;
+    if (distanceTables.length !== n) return -1;
+    const adjacency = boxes.map((box) => {
+      const goals = [];
+      for (let g = 0; g < distanceTables.length; g++) if (distanceTables[g][box] >= 0) goals.push(g);
+      return goals;
+    });
+    for (const list of adjacency) if (list.length === 0) return 0;
+    const order = Array.from({ length: n }, (_, i) => i).sort((a, b) => adjacency[a].length - adjacency[b].length);
+    const matchedBox = new Int32Array(n);
+    matchedBox.fill(-1);
+    let matched = 0;
+    const visit = (boxIndex, seenGoals) => {
+      for (const goalIndex of adjacency[boxIndex]) {
+        if (seenGoals[goalIndex]) continue;
+        seenGoals[goalIndex] = 1;
+        if (matchedBox[goalIndex] < 0 || visit(matchedBox[goalIndex], seenGoals)) {
+          matchedBox[goalIndex] = boxIndex;
+          return true;
+        }
+      }
+      return false;
+    };
+    for (const boxIndex of order) {
+      const seenGoals = new Uint8Array(n);
+      if (visit(boxIndex, seenGoals)) matched++;
+      else break;
+    }
+    return matched;
+  }
+
+  function feasibilityWithFixedMask(board, boxes, fixed) {
+    const remainingBoxes = boxes.filter((box) => !fixed[box]);
+    const remainingGoals = board.goalList.filter((goal) => !fixed[goal]);
+    if (remainingBoxes.length !== remainingGoals.length) {
+      return { dead: true, reason: 'fixed-goal-balance', matchingSize: 0 };
+    }
+
+    const component = new Int32Array(board.count);
+    component.fill(-1);
+    const queue = new Int32Array(board.count);
+    let componentCount = 0;
+    for (let start = 0; start < board.count; start++) {
+      if (!board.floor[start] || fixed[start] || component[start] >= 0) continue;
+      let qh = 0, qt = 0;
+      component[start] = componentCount;
+      queue[qt++] = start;
+      while (qh < qt) {
+        const pos = queue[qh++];
+        for (let d = 0; d < 4; d++) {
+          const next = board.neighbours[pos][d];
+          if (next < 0 || fixed[next] || component[next] >= 0) continue;
+          component[next] = componentCount;
+          queue[qt++] = next;
+        }
+      }
+      componentCount++;
+    }
+    const boxCounts = new Int16Array(componentCount);
+    const goalCounts = new Int16Array(componentCount);
+    for (const box of remainingBoxes) {
+      const c = component[box];
+      if (c < 0) return { dead: true, reason: 'sealed-box', matchingSize: 0 };
+      boxCounts[c]++;
+    }
+    for (const goal of remainingGoals) {
+      const c = component[goal];
+      if (c < 0) return { dead: true, reason: 'sealed-goal', matchingSize: 0 };
+      goalCounts[c]++;
+    }
+    for (let c = 0; c < componentCount; c++) {
+      if (boxCounts[c] !== goalCounts[c]) return { dead: true, reason: 'sealed-component-balance', matchingSize: 0 };
+    }
+
+    const distances = [];
+    for (const goal of remainingGoals) {
+      const dist = new Int32Array(board.count);
+      dist.fill(-1);
+      let qh = 0, qt = 0;
+      dist[goal] = 0;
+      queue[qt++] = goal;
+      while (qh < qt) {
+        const current = queue[qh++];
+        for (let d = 0; d < 4; d++) {
+          const predecessor = board.neighbours[current][OPP[d]];
+          if (predecessor < 0 || fixed[predecessor] || dist[predecessor] >= 0) continue;
+          const support = board.neighbours[predecessor][OPP[d]];
+          if (support < 0 || fixed[support]) continue;
+          dist[predecessor] = dist[current] + 1;
+          queue[qt++] = predecessor;
+        }
+      }
+      distances.push(dist);
+    }
+    const matchingSize = maximumBipartiteMatching(remainingBoxes, distances);
+    return {
+      dead: matchingSize !== remainingBoxes.length,
+      reason: matchingSize !== remainingBoxes.length ? 'dynamic-bipartite' : '',
+      matchingSize,
+    };
+  }
+
+  function dynamicDeadlockAnalysis(board, boxes, cache = null) {
+    const key = boxesKey(boxes);
+    const cached = cache?.get(key);
+    if (cached) return cached;
+
+    const fixedInfo = analyseFixedBoxes(board, boxes);
+    if (fixedInfo.dead) {
+      const result = { dead: true, reason: 'frozen-off-goal', safePacked: 0, fixedCount: fixedInfo.fixedCount, matchingSize: 0, packingFeasible: false };
+      cache?.set(key, result);
+      return result;
+    }
+
+    const base = feasibilityWithFixedMask(board, boxes, fixedInfo.fixed);
+    if (base.dead) {
+      const result = {
+        ...base,
+        dead: true,
+        safePacked: fixedInfo.fixedCount,
+        fixedCount: fixedInfo.fixedCount,
+        packingFeasible: false,
+      };
+      cache?.set(key, result);
+      return result;
+    }
+
+    // FESS packing feature: tentatively leave every currently occupied goal in
+    // place and ask whether the remaining boxes still have a complete optimistic
+    // assignment with those goal boxes acting as walls. This is guidance, not a
+    // pruning proof. A high raw goal count therefore scores as packed only when
+    // the rest of the puzzle remains structurally feasible around it.
+    const provisional = fixedInfo.fixed.slice();
+    let occupiedGoals = 0;
+    for (const box of boxes) {
+      if (!board.goals[box]) continue;
+      provisional[box] = 1;
+      occupiedGoals++;
+    }
+    let packingFeasible = true;
+    if (occupiedGoals > fixedInfo.fixedCount && occupiedGoals < boxes.length) {
+      packingFeasible = !feasibilityWithFixedMask(board, boxes, provisional).dead;
+    }
+    const safePacked = packingFeasible ? occupiedGoals : fixedInfo.fixedCount;
+    const result = {
+      dead: false,
+      reason: '',
+      safePacked,
+      fixedCount: fixedInfo.fixedCount,
+      matchingSize: base.matchingSize,
+      packingFeasible,
+    };
+    cache?.set(key, result);
+    return result;
+  }
+
+
+
+  // Exact optimistic corral proof. Outside boxes are removed and the player is
+  // given every square they can reach in that easier subproblem. If a small
+  // inaccessible box region still cannot be opened or locally completed after
+  // its entire push graph is exhausted, the real position is dead as well.
+  function optimisticCorralDeadlock(board, boxes, player, cache = null, options = {}) {
+    const reachScratch = createScratch(board);
+    const boxGenReach = computeReachability(board, boxes, player, reachScratch, false);
+    const cacheKey = stateKey(boxes, boxGenReach.anchor);
+    const cached = cache?.get(cacheKey);
+    if (cached) return cached;
+
+    const maxCorralBoxes = Math.max(2, Number(options.maxCorralBoxes) || 8);
+    const maxStates = Math.max(500, Number(options.maxCorralStates) || 12000);
+    const occupied = new Uint8Array(board.count);
+    for (const box of boxes) occupied[box] = 1;
+    const componentSeen = new Uint8Array(board.count);
+    const queue = new Int32Array(board.count);
+
+    for (let start = 0; start < board.count; start++) {
+      if (!board.floor[start] || occupied[start] || componentSeen[start] || reachScratch.reachMarks[start] === boxGenReach.reachGen) continue;
+      const corralCells = [];
+      let qh = 0, qt = 0;
+      componentSeen[start] = 1;
+      queue[qt++] = start;
+      while (qh < qt) {
+        const pos = queue[qh++];
+        corralCells.push(pos);
+        for (let d = 0; d < 4; d++) {
+          const next = board.neighbours[pos][d];
+          if (next < 0 || occupied[next] || componentSeen[next] || reachScratch.reachMarks[next] === boxGenReach.reachGen) continue;
+          componentSeen[next] = 1;
+          queue[qt++] = next;
+        }
+      }
+
+      const corralMask = new Uint8Array(board.count);
+      for (const pos of corralCells) corralMask[pos] = 1;
+      const includedMask = new Uint8Array(board.count);
+      const boxStack = [];
+      for (const pos of corralCells) {
+        for (let d = 0; d < 4; d++) {
+          const neighbour = board.neighbours[pos][d];
+          if (neighbour >= 0 && occupied[neighbour] && !includedMask[neighbour]) {
+            includedMask[neighbour] = 1;
+            boxStack.push(neighbour);
+          }
+        }
+      }
+      while (boxStack.length) {
+        const pos = boxStack.pop();
+        for (let d = 0; d < 4; d++) {
+          const neighbour = board.neighbours[pos][d];
+          if (neighbour >= 0 && occupied[neighbour] && !includedMask[neighbour]) {
+            includedMask[neighbour] = 1;
+            boxStack.push(neighbour);
+          }
+        }
+      }
+      const subBoxes = boxes.filter((box) => includedMask[box]);
+      if (!subBoxes.length || subBoxes.length > maxCorralBoxes) continue;
+      if (subBoxes.every((box) => board.goals[box])) continue;
+
+      const subScratch = createScratch(board);
+      const childScratch = createScratch(board);
+      const rootReach = computeReachability(board, subBoxes, player, subScratch, false);
+      if (corralCells.some((pos) => subScratch.reachMarks[pos] === rootReach.reachGen)) continue;
+
+      const rootKey = stateKey(subBoxes, rootReach.anchor);
+      const states = [{ boxes: subBoxes, player }];
+      const visited = new Set([rootKey]);
+      let stateIndex = 0;
+      let escaped = false;
+      while (stateIndex < states.length && states.length <= maxStates) {
+        const state = states[stateIndex++];
+        const reach = computeReachability(board, state.boxes, state.player, subScratch, false);
+        if (corralCells.some((pos) => subScratch.reachMarks[pos] === reach.reachGen)) { escaped = true; break; }
+        if (state.boxes.every((box) => board.goals[box])) { escaped = true; break; }
+        for (const box of state.boxes) {
+          for (let d = 0; d < 4; d++) {
+            const destination = board.neighbours[box][d];
+            const support = board.neighbours[box][OPP[d]];
+            if (destination < 0 || support < 0) continue;
+            if (subScratch.boxMarks[destination] === reach.boxGen) continue;
+            if (subScratch.reachMarks[support] !== reach.reachGen) continue;
+            if (board.deadSquares[destination]) continue;
+            const childBoxes = moveBox(state.boxes, box, destination);
+            if (twoByTwoDeadlock(board, childBoxes, destination)) continue;
+            if (clusterImmobileDeadlock(board, childBoxes, destination, childScratch)) continue;
+            const childPlayer = box;
+            const childReach = computeReachability(board, childBoxes, childPlayer, childScratch, false);
+            const key = stateKey(childBoxes, childReach.anchor);
+            if (visited.has(key)) continue;
+            visited.add(key);
+            states.push({ boxes: childBoxes, player: childPlayer });
+            if (states.length > maxStates) break;
+          }
+          if (states.length > maxStates) break;
+        }
+      }
+      if (!escaped && states.length <= maxStates && stateIndex >= states.length) {
+        const result = { dead: true, reason: 'optimistic-corral', corralBoxes: subBoxes.length, corralStates: states.length };
+        cache?.set(cacheKey, result);
+        return result;
+      }
+    }
+
+    const result = { dead: false, reason: '', corralBoxes: 0, corralStates: 0 };
+    cache?.set(cacheKey, result);
+    return result;
+  }
+
+  function structuralScores(board, boxes) {
+    let roomPenalty = 0;
+    let hotspot = 0;
+    for (const box of boxes) {
+      roomPenalty += board.chokeScore?.[box] || 0;
+      hotspot += board.blockerImpact?.[box] || 0;
+    }
+    return { roomPenalty, hotspot };
+  }
+
+  function noteStructuralDeadlock(stats, analysis) {
+    if (!analysis?.dead) return;
+    if (analysis.reason === 'dynamic-bipartite') stats.bipartiteDeadlocks++;
+    else if (analysis.reason === 'sealed-component-balance' || analysis.reason === 'sealed-box' || analysis.reason === 'sealed-goal' || analysis.reason === 'fixed-goal-balance') stats.sealedDeadlocks++;
+    else stats.frozenStructuralDeadlocks++;
+  }
+
   function precomputeForwardPushDistances(board, sources) {
     const result = [];
     for (const source of sources) {
@@ -889,7 +1330,7 @@
           bestEstimate: nodes[closestReverseId].h,
           patternMatched: nodes[closestReverseId].matches,
           patternTotal: targetBoxes.length,
-          deadlocks: stats.staticDeadlocks + stats.blockDeadlocks + stats.freezeDeadlocks + stats.assignmentDeadlocks,
+          deadlocks: stats.staticDeadlocks + stats.blockDeadlocks + stats.freezeDeadlocks + stats.assignmentDeadlocks + stats.bipartiteDeadlocks + stats.sealedDeadlocks + stats.frozenStructuralDeadlocks + stats.corralDeadlocks,
           peakOpen: stats.peakOpen,
         });
       }
@@ -1132,7 +1573,7 @@
           open: stack.length,
           bestPushDepth: nodes[childId].g,
           bestEstimate: nodes[childId].h,
-          deadlocks: stats.staticDeadlocks + stats.blockDeadlocks + stats.freezeDeadlocks + stats.assignmentDeadlocks,
+          deadlocks: stats.staticDeadlocks + stats.blockDeadlocks + stats.freezeDeadlocks + stats.assignmentDeadlocks + stats.bipartiteDeadlocks + stats.sealedDeadlocks + stats.frozenStructuralDeadlocks + stats.corralDeadlocks,
           peakOpen: Math.max(stats.peakOpen, stack.length),
         });
       }
@@ -1301,7 +1742,7 @@
               const oldG = bestG.get(key);
               if (oldG !== undefined && oldG <= g) continue;
               const goals = countGoals(board, childBoxes);
-              const mobility = countLegalPushes(board, childBoxes, childPlayer, metricScratch);
+              const mobility = countLegalPushes(board, childBoxes, childPlayer, mobilityScratch);
               candidates.push({ box, destination, d, childBoxes, childPlayer, anchor: childReach.anchor, key, g, h, goals, mobility: mobility.pushes, reachCount: mobility.reachCount });
             }
           }
@@ -1484,7 +1925,6 @@
         if (clusterImmobileDeadlock(board, childBoxes, candidate.destination, childScratch)) { stats.freezeDeadlocks++; continue; }
         const h = heuristic(childBoxes);
         if (h >= INF) { stats.assignmentDeadlocks++; continue; }
-        const childPlayer = candidate.box;
         const childReach = computeReachability(board, childBoxes, childPlayer, childScratch, false);
         const key = stateKey(childBoxes, childReach.anchor);
         const g = node.g + 1;
@@ -1535,7 +1975,7 @@
           open: open.size, bestPushDepth: best.g, bestEstimate: best.h,
           goalsFilled: best.goals, totalGoals: board.goalList.length,
           stagnation: best.stagnation, plateauPruned: stats.plateauPruned, bridgeHits: stats.bridgeHits,
-          deadlocks: stats.staticDeadlocks + stats.blockDeadlocks + stats.freezeDeadlocks + stats.assignmentDeadlocks,
+          deadlocks: stats.staticDeadlocks + stats.blockDeadlocks + stats.freezeDeadlocks + stats.assignmentDeadlocks + stats.bipartiteDeadlocks + stats.sealedDeadlocks + stats.frozenStructuralDeadlocks + stats.corralDeadlocks,
           peakOpen: stats.peakOpen,
           closest: makeClosestResult(board, { solution: reconstructForwardSolution(board, nodes, closestId), boxes: best.boxes, player: best.player, goals: best.goals, h: best.h, g: best.g, components: best.components, reachCount: best.reachCount, mobility: best.mobility, stagnation: best.stagnation }),
           stats: { ...stats },
@@ -1698,7 +2138,7 @@
           bestPushDepth: depth + 1,
           bestEstimate: best ? best.h : null,
           beamWidth,
-          deadlocks: stats.staticDeadlocks + stats.blockDeadlocks + stats.freezeDeadlocks + stats.assignmentDeadlocks,
+          deadlocks: stats.staticDeadlocks + stats.blockDeadlocks + stats.freezeDeadlocks + stats.assignmentDeadlocks + stats.bipartiteDeadlocks + stats.sealedDeadlocks + stats.frozenStructuralDeadlocks + stats.corralDeadlocks,
           peakOpen: stats.peakOpen,
         });
       }
@@ -1758,6 +2198,9 @@
       components: attempt.components,
       reachableSquares: attempt.reachCount,
       legalPushes: attempt.mobility,
+      safePacked: attempt.safePacked,
+      roomPenalty: attempt.roomPenalty,
+      hotspot: attempt.hotspot,
       stagnation: Number(attempt.stagnation || 0),
     };
   }
@@ -1845,10 +2288,15 @@
   }
 
   function featureCellKey(node) {
-    const hBucket = Math.min(99, Math.floor(node.h / 2));
-    const reachBucket = Math.min(31, Math.floor(node.reachCount / 4));
+    const hBucket = Math.min(127, Math.floor(node.h / 2));
+    const hotspotBucket = Math.min(31, Math.floor(Math.log2(node.hotspot + 1)));
+    const roomBucket = Math.min(31, node.roomPenalty);
     const mobilityBucket = Math.min(31, Math.floor(node.mobility / 3));
-    return `${node.goals}|${hBucket}|${node.components}|${reachBucket}|${mobilityBucket}`;
+    // These mirror the FESS paper's packed-box, connectivity,
+    // room-connectivity and hotspot dimensions. Raw goals occupied is
+    // deliberately not the leading feature: a box on a goal may still be badly
+    // placed and may have to move again.
+    return `${node.safePacked}|${hBucket}|${node.components}|${roomBucket}|${hotspotBucket}|${mobilityBucket}`;
   }
 
   function reconstructMacroSolution(board, nodes, nodeId) {
@@ -1915,179 +2363,332 @@
       startedAt, stats, maxNodes, maxTimeMs, yieldEvery, progressEveryMs,
       onProgress, shouldStop,
     } = shared;
-    const featureDefaultNodes = maxNodes > 1_000_000_000 ? 3_000_000 : Math.floor(maxNodes * 0.30);
-    const featureDefaultTime = maxTimeMs > 1_000_000_000 ? 180_000 : Math.floor(maxTimeMs * 0.30);
+    const featureDefaultNodes = maxNodes;
+    const featureDefaultTime = maxTimeMs > 1_000_000_000 ? 600_000 : Math.floor(maxTimeMs * 0.70);
     const nodeCap = Math.max(20_000, Math.min(Number(options.featureMaxNodes) || featureDefaultNodes, maxNodes));
     const timeCap = Math.max(2_000, Math.min(Number(options.featureMaxTimeMs) || featureDefaultTime, maxTimeMs - 500));
+    const advisorMissWeight = Math.max(5, Number(options.fessNonAdvisorWeight) || 50);
     const featureScratch = createScratch(board);
     const metricScratch = createScratch(board);
+    const mobilityScratch = createScratch(board);
     const childScratch = createScratch(board);
+    const structuralCache = new Map();
+    const corralCache = new Map();
+    const structuralCacheLimit = Math.max(20_000, Number(options.structuralCacheStates) || nodeCap * 2);
+    const analyse = (boxes) => {
+      if (structuralCache.size >= structuralCacheLimit) structuralCache.clear();
+      return dynamicDeadlockAnalysis(board, boxes, structuralCache);
+    };
+
     const initialBoxes = board.initialBoxes.slice();
+    const initialStructural = analyse(initialBoxes);
+    if (initialStructural.dead) {
+      noteStructuralDeadlock(stats, initialStructural);
+      return { provenUnsolvable: true, message: 'The starting box pattern fails a proven structural box-to-goal feasibility test.' };
+    }
     const initialMobility = countLegalPushes(board, initialBoxes, board.initialPlayer, metricScratch);
     const initialComp = countFreeComponents(board, initialBoxes, featureScratch);
+    const initialScores = structuralScores(board, initialBoxes);
     const initialH = heuristic(initialBoxes);
+    const initialReach = computeReachability(board, initialBoxes, board.initialPlayer, childScratch, false);
+
     const nodes = [];
-    const queues = [];
     const expanded = new Uint8Array(nodeCap + 8);
     const bestCost = new Map();
-    const cellCounts = new Map();
+    const cells = new Map();
+    const activeCells = [];
+    let cellCursor = 0;
+
+    const compareNodeIds = (aId, bId) => {
+      const a = nodes[aId], b = nodes[bId];
+      return (a.advisorCost - b.advisorCost) ||
+        (a.h - b.h) ||
+        (b.safePacked - a.safePacked) ||
+        (a.components - b.components) ||
+        (a.roomPenalty - b.roomPenalty) ||
+        (a.hotspot - b.hotspot) ||
+        (b.reachCount - a.reachCount) ||
+        (a.g - b.g) ||
+        (aId - bId);
+    };
+
+    const enqueue = (node) => {
+      let cell = cells.get(node.cell);
+      if (!cell) {
+        cell = { heap: new MinHeap(compareNodeIds), active: false, visits: 0 };
+        cells.set(node.cell, cell);
+      }
+      cell.heap.push(node.id);
+      if (!cell.active) {
+        cell.active = true;
+        activeCells.push(node.cell);
+      }
+    };
+
+    const popScheduled = () => {
+      while (activeCells.length) {
+        if (cellCursor >= activeCells.length) cellCursor = 0;
+        const index = cellCursor;
+        const key = activeCells[index];
+        const cell = cells.get(key);
+        let nodeId = null;
+        while (cell?.heap.size) {
+          const candidate = cell.heap.pop();
+          if (candidate !== null && !expanded[candidate]) { nodeId = candidate; break; }
+        }
+        if (nodeId !== null) {
+          cell.visits++;
+          cellCursor = activeCells.length ? (index + 1) % activeCells.length : 0;
+          return nodeId;
+        }
+        if (cell) cell.active = false;
+        activeCells.splice(index, 1);
+        if (cellCursor >= activeCells.length) cellCursor = 0;
+      }
+      return null;
+    };
+
     const makeNode = (data) => {
       const id = nodes.length;
       const node = { id, ...data };
       node.cell = featureCellKey(node);
       nodes.push(node);
-      cellCounts.set(node.cell, (cellCounts.get(node.cell) || 0) + 1);
+      enqueue(node);
       return node;
     };
-    const comparators = [
-      (aId,bId)=>{const a=nodes[aId],b=nodes[bId];return (a.advisorCost-b.advisorCost)||(a.h-b.h)||(b.goals-a.goals)||(a.g-b.g)||(aId-bId);},
-      (aId,bId)=>{const a=nodes[aId],b=nodes[bId];return (b.goals-a.goals)||(a.h-b.h)||(a.components-b.components)||(a.advisorCost-b.advisorCost)||(aId-bId);},
-      (aId,bId)=>{const a=nodes[aId],b=nodes[bId];return (a.h-b.h)||(b.goals-a.goals)||(b.reachCount-a.reachCount)||(a.advisorCost-b.advisorCost)||(aId-bId);},
-      (aId,bId)=>{const a=nodes[aId],b=nodes[bId];return (a.components-b.components)||(b.reachCount-a.reachCount)||(b.mobility-a.mobility)||(a.h-b.h)||(aId-bId);},
-      (aId,bId)=>{const a=nodes[aId],b=nodes[bId];return ((cellCounts.get(a.cell)||0)-(cellCounts.get(b.cell)||0))||(a.advisorCost-b.advisorCost)||(a.h-b.h)||(aId-bId);},
-    ];
-    for (const compare of comparators) queues.push(new MinHeap(compare));
-    const initialReach = computeReachability(board, initialBoxes, board.initialPlayer, childScratch, false);
+
     const root = makeNode({
-      boxes: initialBoxes, player: board.initialPlayer, anchor: initialReach.anchor,
-      parent: -1, edgeActions: [], g: 0, h: initialH,
-      goals: countGoals(board, initialBoxes), components: initialComp.components,
-      reachCount: initialMobility.reachCount, mobility: initialMobility.pushes,
-      advisorCost: 0, key: stateKey(initialBoxes, initialReach.anchor),
+      boxes: initialBoxes,
+      player: board.initialPlayer,
+      anchor: initialReach.anchor,
+      parent: -1,
+      edgeActions: [],
+      g: 0,
+      h: initialH,
+      goals: countGoals(board, initialBoxes),
+      safePacked: initialStructural.safePacked,
+      components: initialComp.components,
+      reachCount: initialMobility.reachCount,
+      mobility: initialMobility.pushes,
+      roomPenalty: initialScores.roomPenalty,
+      hotspot: initialScores.hotspot,
+      advisorCost: 0,
+      key: stateKey(initialBoxes, initialReach.anchor),
     });
     bestCost.set(root.key, { cost: 0, g: 0 });
-    for (const q of queues) q.push(root.id);
+
     let closestId = root.id;
-    const betterClosest = (a,b) => {
-      if (a.goals !== b.goals) return a.goals > b.goals;
+    const betterClosest = (a, b) => {
       if (a.h !== b.h) return a.h < b.h;
+      if (a.safePacked !== b.safePacked) return a.safePacked > b.safePacked;
       if (a.components !== b.components) return a.components < b.components;
+      if (a.roomPenalty !== b.roomPenalty) return a.roomPenalty < b.roomPenalty;
+      if (a.hotspot !== b.hotspot) return a.hotspot < b.hotspot;
       if (a.reachCount !== b.reachCount) return a.reachCount > b.reachCount;
       if (a.mobility !== b.mobility) return a.mobility > b.mobility;
+      if (a.goals !== b.goals) return a.goals > b.goals;
       return a.g < b.g;
     };
+
     let generated = 1;
     let expandedCount = 0;
-    let queueCursor = 0;
     let lastProgress = startedAt;
     const phaseStartedAt = performanceNow();
     stats.phase = 'feature-space';
-    stats.strategy = 'feature-space-macro';
+    stats.strategy = 'fess-advisors';
     stats.featureCells = 1;
 
     while (generated < nodeCap && performanceNow() - phaseStartedAt < timeCap && performanceNow() - startedAt < maxTimeMs) {
-      if (shouldStop()) return { stopped: true, closest: closestId };
-      let nodeId = null;
-      for (let tries = 0; tries < queues.length; tries++) {
-        const q = queues[queueCursor++ % queues.length];
-        while (q.size) {
-          const candidate = q.pop();
-          if (candidate !== null && !expanded[candidate]) { nodeId = candidate; break; }
-        }
-        if (nodeId !== null) break;
-      }
+      if (shouldStop()) return { stopped: true, closest: nodes[closestId] };
+      const nodeId = popScheduled();
       if (nodeId === null) break;
       const node = nodes[nodeId];
+      const incumbent = bestCost.get(node.key);
+      if (incumbent && (incumbent.cost < node.advisorCost || (incumbent.cost === node.advisorCost && incumbent.g < node.g))) {
+        expanded[nodeId] = 1;
+        continue;
+      }
       expanded[nodeId] = 1;
       expandedCount++;
       if (betterClosest(node, nodes[closestId])) closestId = nodeId;
       if (allBoxesOnGoals(board, node.boxes)) {
         stats.featureExpanded = expandedCount;
         stats.featureGenerated = generated;
-        stats.featureCells = cellCounts.size;
-        return { solution: reconstructMacroSolution(board, nodes, nodeId), closest: nodeId };
+        stats.featureCells = cells.size;
+        return { solution: reconstructMacroSolution(board, nodes, nodeId), closest: node };
       }
 
       const reach = computeReachability(board, node.boxes, node.player, metricScratch, false);
-      const legalBoxes = [];
+      const children = [];
       for (const box of node.boxes) {
-        let canPush = false;
         for (let d = 0; d < 4; d++) {
           const destination = board.neighbours[box][d];
           const support = board.neighbours[box][OPP[d]];
-          if (destination >= 0 && support >= 0 && metricScratch.boxMarks[destination] !== reach.boxGen && metricScratch.reachMarks[support] === reach.reachGen) { canPush = true; break; }
-        }
-        if (canPush) legalBoxes.push(box);
-      }
+          if (destination < 0 || support < 0) continue;
+          if (metricScratch.boxMarks[destination] === reach.boxGen) continue;
+          if (metricScratch.reachMarks[support] !== reach.reachGen) continue;
+          if (board.deadSquares[destination]) { stats.staticDeadlocks++; continue; }
 
-      const generatedChildren = [];
-      for (const box of legalBoxes) {
-        // Single-box macro endpoints include all one-push children and selected
-        // longer paths. This collapses several pushes by the same box into one strategic branch.
-        const macros = generateSameBoxMacros(board, node, box, options, shared);
-        for (const macro of macros) {
-          const childBoxes = macro.boxes;
+          const childBoxes = moveBox(node.boxes, box, destination);
+          if (twoByTwoDeadlock(board, childBoxes, destination)) { stats.blockDeadlocks++; continue; }
+          if (clusterImmobileDeadlock(board, childBoxes, destination, childScratch)) { stats.freezeDeadlocks++; continue; }
+
+          const structural = analyse(childBoxes);
+          if (structural.dead) {
+            noteStructuralDeadlock(stats, structural);
+            continue;
+          }
           const h = heuristic(childBoxes);
           if (h >= INF) { stats.assignmentDeadlocks++; continue; }
-          const childMobility = countLegalPushes(board, childBoxes, macro.player, childScratch);
-          const childComp = countFreeComponents(board, childBoxes, featureScratch);
-          const childReach = computeReachability(board, childBoxes, macro.player, childScratch, false);
+          const childPlayer = box;
+          const occupiedGoals = countGoals(board, childBoxes);
+          if (childBoxes.length <= 12 || occupiedGoals >= Math.ceil(childBoxes.length * 0.45)) {
+            const corral = optimisticCorralDeadlock(board, childBoxes, childPlayer, corralCache, options);
+            if (corral.dead) { stats.corralDeadlocks++; continue; }
+          }
+          const childReach = computeReachability(board, childBoxes, childPlayer, childScratch, false);
           const key = stateKey(childBoxes, childReach.anchor);
-          const g = node.g + macro.actions.length;
-          const goals = countGoals(board, childBoxes);
-          let edgeCost = 1;
-          if (goals > node.goals || h < node.h || childComp.components < node.components || childMobility.reachCount > node.reachCount + 2) edgeCost = 0;
-          if (goals < node.goals) edgeCost += 2;
-          if (h > node.h) edgeCost += 1;
-          if (childComp.components > node.components) edgeCost += 1;
-          const advisorCost = node.advisorCost + edgeCost;
-          const old = bestCost.get(key);
-          if (old && (old.cost < advisorCost || (old.cost === advisorCost && old.g <= g))) { stats.duplicates++; continue; }
-          bestCost.set(key, { cost: advisorCost, g });
-          generatedChildren.push({ boxes: childBoxes, player: macro.player, anchor: childReach.anchor, parent: nodeId, edgeActions: macro.actions, g, h, goals, components: childComp.components, reachCount: childMobility.reachCount, mobility: childMobility.pushes, advisorCost, key });
+          const mobility = countLegalPushes(board, childBoxes, childPlayer, mobilityScratch);
+          const free = countFreeComponents(board, childBoxes, featureScratch);
+          const scores = structuralScores(board, childBoxes);
+          children.push({
+            boxes: childBoxes,
+            player: childPlayer,
+            anchor: childReach.anchor,
+            parent: nodeId,
+            edgeActions: [{ box, dir: d }],
+            g: node.g + 1,
+            h,
+            goals: occupiedGoals,
+            safePacked: structural.safePacked,
+            components: free.components,
+            reachCount: mobility.reachCount,
+            mobility: mobility.pushes,
+            roomPenalty: scores.roomPenalty,
+            hotspot: scores.hotspot,
+            key,
+            box,
+            destination,
+            d,
+          });
         }
       }
-      // Keep all novel / improving children, but cap highly redundant macro
-      // endpoints from one expansion. One-push states remain represented across
-      // repeated feature-space scans.
-      generatedChildren.sort((a,b)=>(a.advisorCost-b.advisorCost)||(b.goals-a.goals)||(a.h-b.h)||(a.components-b.components)||(b.reachCount-a.reachCount)||(a.g-b.g));
-      const perExpansionCap = Math.max(80, Number(options.featureChildrenCap) || 420);
-      for (const childData of generatedChildren.slice(0, perExpansionCap)) {
-        if (generated >= nodeCap) break;
-        const child = makeNode(childData);
-        if (betterClosest(child, nodes[closestId])) closestId = child.id;
-        for (const q of queues) q.push(child.id);
-        generated++;
-        stats.generated++;
-        if (allBoxesOnGoals(board, child.boxes)) {
-          stats.featureExpanded = expandedCount;
-          stats.featureGenerated = generated;
-          stats.featureCells = cellCounts.size;
-          return { solution: reconstructMacroSolution(board, nodes, child.id), closest: child.id };
+
+      if (children.length) {
+        const selected = new Set();
+        const choose = (compare) => {
+          let best = children[0];
+          for (let i = 1; i < children.length; i++) if (compare(children[i], best) < 0) best = children[i];
+          selected.add(best);
+        };
+        // FESS advisors nominate moves; they do not delete the others.
+        choose((a, b) => (b.safePacked - a.safePacked) || (b.goals - a.goals) || (a.h - b.h)); // packing
+        choose((a, b) => (a.h - b.h) || (b.safePacked - a.safePacked)); // assignment
+        choose((a, b) => (a.components - b.components) || (b.reachCount - a.reachCount)); // connectivity
+        choose((a, b) => (a.roomPenalty - b.roomPenalty) || (a.hotspot - b.hotspot)); // room connectivity
+        choose((a, b) => (a.hotspot - b.hotspot) || (a.roomPenalty - b.roomPenalty)); // hotspot
+        choose((a, b) => (b.reachCount - a.reachCount) || (b.mobility - a.mobility)); // explorer
+        choose((a, b) => {
+          const openerA = (node.hotspot - a.hotspot) + 8 * (node.roomPenalty - a.roomPenalty) + 2 * (a.reachCount - node.reachCount);
+          const openerB = (node.hotspot - b.hotspot) + 8 * (node.roomPenalty - b.roomPenalty) + 2 * (b.reachCount - node.reachCount);
+          return openerB - openerA || a.h - b.h;
+        });
+
+        // Stable insertion order is useful for reproducible diagnostics.
+        children.sort((a, b) =>
+          ((selected.has(b) ? 1 : 0) - (selected.has(a) ? 1 : 0)) ||
+          (a.h - b.h) ||
+          (b.safePacked - a.safePacked) ||
+          (a.components - b.components) ||
+          (a.hotspot - b.hotspot) ||
+          (a.destination - b.destination) ||
+          (a.d - b.d));
+
+        for (const childData of children) {
+          if (generated >= nodeCap) break;
+          const advisorSelected = selected.has(childData);
+          const edgeWeight = advisorSelected ? 1 : advisorMissWeight;
+          const advisorCost = node.advisorCost + edgeWeight;
+          const old = bestCost.get(childData.key);
+          if (old && (old.cost < advisorCost || (old.cost === advisorCost && old.g <= childData.g))) {
+            stats.duplicates++;
+            continue;
+          }
+          bestCost.set(childData.key, { cost: advisorCost, g: childData.g });
+          const child = makeNode({ ...childData, advisorCost });
+          if (advisorSelected) stats.advisorMoves++;
+          else stats.nonAdvisorMoves++;
+          if (betterClosest(child, nodes[closestId])) closestId = child.id;
+          generated++;
+          stats.generated++;
+          if (allBoxesOnGoals(board, child.boxes)) {
+            stats.featureExpanded = expandedCount;
+            stats.featureGenerated = generated;
+            stats.featureCells = cells.size;
+            return { solution: reconstructMacroSolution(board, nodes, child.id), closest: child };
+          }
         }
       }
-      stats.peakOpen = Math.max(stats.peakOpen, ...queues.map(q=>q.size));
+
+      stats.peakOpen = Math.max(stats.peakOpen, activeCells.reduce((sum, key) => sum + (cells.get(key)?.heap.size || 0), 0));
       const now = performanceNow();
       if (onProgress && now - lastProgress >= progressEveryMs) {
         lastProgress = now;
         const closest = nodes[closestId];
         onProgress({
-          phase: 'feature-space', elapsedMs: Math.round(now-startedAt), expanded: expandedCount,
-          generated, open: queues.reduce((sum,q)=>sum+q.size,0), bestPushDepth: closest.g,
-          bestEstimate: closest.h, goalsFilled: closest.goals, totalGoals: board.goalList.length,
-          featureCells: cellCounts.size,
-          deadlocks: stats.staticDeadlocks + stats.blockDeadlocks + stats.freezeDeadlocks + stats.assignmentDeadlocks,
+          phase: 'feature-space',
+          elapsedMs: Math.round(now - startedAt),
+          expanded: expandedCount,
+          generated,
+          open: activeCells.reduce((sum, key) => sum + (cells.get(key)?.heap.size || 0), 0),
+          bestPushDepth: closest.g,
+          bestEstimate: closest.h,
+          goalsFilled: closest.goals,
+          safePacked: closest.safePacked,
+          totalGoals: board.goalList.length,
+          featureCells: cells.size,
+          activeFeatureCells: activeCells.length,
+          advisorMoves: stats.advisorMoves,
+          nonAdvisorMoves: stats.nonAdvisorMoves,
+          deadlocks: stats.staticDeadlocks + stats.blockDeadlocks + stats.freezeDeadlocks + stats.assignmentDeadlocks + stats.bipartiteDeadlocks + stats.sealedDeadlocks + stats.frozenStructuralDeadlocks + stats.corralDeadlocks,
           peakOpen: stats.peakOpen,
-          closest: makeClosestResult(board, { solution: reconstructMacroSolution(board, nodes, closestId), boxes: closest.boxes, player: closest.player, goals: closest.goals, h: closest.h, g: closest.g, components: closest.components, reachCount: closest.reachCount, mobility: closest.mobility }),
+          closest: makeClosestResult(board, {
+            solution: reconstructMacroSolution(board, nodes, closestId),
+            boxes: closest.boxes,
+            player: closest.player,
+            goals: closest.goals,
+            safePacked: closest.safePacked,
+            h: closest.h,
+            g: closest.g,
+            components: closest.components,
+            reachCount: closest.reachCount,
+            mobility: closest.mobility,
+            roomPenalty: closest.roomPenalty,
+            hotspot: closest.hotspot,
+          }),
           stats: { ...stats },
         });
       }
       if (expandedCount % Math.max(20, Math.floor(yieldEvery / 8)) === 0) await immediateYield();
     }
+
     stats.featureExpanded = expandedCount;
     stats.featureGenerated = generated;
-    stats.featureCells = cellCounts.size;
+    stats.featureCells = cells.size;
     const closestNode = nodes[closestId];
     return { closest: {
       solution: reconstructMacroSolution(board, nodes, closestId),
       boxes: closestNode.boxes,
       player: closestNode.player,
       goals: closestNode.goals,
+      safePacked: closestNode.safePacked,
       h: closestNode.h,
       g: closestNode.g,
       components: closestNode.components,
       reachCount: closestNode.reachCount,
       mobility: closestNode.mobility,
+      roomPenalty: closestNode.roomPenalty,
+      hotspot: closestNode.hotspot,
     }};
   }
 
@@ -2107,6 +2708,13 @@
     const lowerCacheLimit = Math.max(10_000, Number(options.safeHeuristicCache) || 60_000);
     const transpositionLimit = Math.max(5_000, Number(options.safeTranspositionStates) || 80_000);
     const useExactAssignment = options.safeExactMatching === true || rootBoxes.length <= 18;
+    let structuralCache = new Map();
+    let corralCache = new Map();
+    const structuralCacheLimit = Math.max(10_000, Number(options.structuralCacheStates) || 80_000);
+    const structural = (boxes) => {
+      if (structuralCache.size >= structuralCacheLimit) structuralCache = new Map();
+      return dynamicDeadlockAnalysis(board, boxes, structuralCache);
+    };
 
     const lowerBound = (boxes) => {
       const key = boxesKey(boxes);
@@ -2136,8 +2744,14 @@
 
     const rootReach = computeReachability(board, rootBoxes, rootPlayer, currentScratch, false);
     const rootKey = stateKey(rootBoxes, rootReach.anchor);
+    const rootStructural = structural(rootBoxes);
+    if (rootStructural.dead) {
+      noteStructuralDeadlock(stats, rootStructural);
+      return { unsolvable: true, message: `The position is structurally unsolvable (${rootStructural.reason}).` };
+    }
     const rootH = lowerBound(rootBoxes);
     if (rootH >= INF) return { unsolvable: true, message: 'No box-to-goal assignment exists under the board geometry.' };
+    const rootScores = structuralScores(board, rootBoxes);
 
     let closest = {
       boxes: rootBoxes,
@@ -2147,11 +2761,17 @@
       g: 0,
       actions: [],
       mobility: countLegalPushes(board, rootBoxes, rootPlayer, metricScratch).pushes,
+      safePacked: rootStructural.safePacked,
+      hotspot: rootScores.hotspot,
+      roomPenalty: rootScores.roomPenalty,
     };
     const isCloser = (candidate) => {
       if (candidate.h !== closest.h) return candidate.h < closest.h;
-      if (candidate.goals !== closest.goals) return candidate.goals > closest.goals;
+      if (candidate.safePacked !== closest.safePacked) return candidate.safePacked > closest.safePacked;
+      if (candidate.hotspot !== closest.hotspot) return candidate.hotspot < closest.hotspot;
+      if (candidate.roomPenalty !== closest.roomPenalty) return candidate.roomPenalty < closest.roomPenalty;
       if (candidate.mobility !== closest.mobility) return candidate.mobility > closest.mobility;
+      if (candidate.goals !== closest.goals) return candidate.goals > closest.goals;
       return candidate.g < closest.g;
     };
 
@@ -2159,6 +2779,7 @@
     let lastProgress = startedAt;
     let totalExpanded = 0;
     let totalGenerated = 1;
+    const provenDead = new Set();
 
     while (true) {
       if (shouldStop()) return { stopped: true, closest };
@@ -2181,6 +2802,7 @@
         candidates: null,
         next: 0,
         action: null,
+        hadCutoff: false,
       }];
 
       while (stack.length) {
@@ -2215,7 +2837,9 @@
               const oldDist = minGoalDistance[box];
               const newDist = minGoalDistance[destination];
               const distanceGain = oldDist >= INF || newDist >= INF ? 0 : oldDist - newDist;
-              candidates.push({ box, destination, d, goalDelta, distanceGain });
+              const hotspotGain = (board.blockerImpact?.[box] || 0) - (board.blockerImpact?.[destination] || 0);
+              const roomGain = (board.chokeScore?.[box] || 0) - (board.chokeScore?.[destination] || 0);
+              candidates.push({ box, destination, d, goalDelta, distanceGain, hotspotGain, roomGain });
             }
           }
           // Ordering affects speed only. Detours remain in the list and are
@@ -2223,6 +2847,8 @@
           candidates.sort((a, b) =>
             (b.goalDelta - a.goalDelta) ||
             (b.distanceGain - a.distanceGain) ||
+            (b.roomGain - a.roomGain) ||
+            (b.hotspotGain - a.hotspotGain) ||
             (a.destination - b.destination) ||
             (a.d - b.d));
           frame.candidates = candidates;
@@ -2230,9 +2856,15 @@
         }
 
         if (frame.next >= frame.candidates.length) {
+          const exactDead = !frame.hadCutoff;
+          if (exactDead) {
+            provenDead.add(frame.key);
+            stats.provenDeadStates = provenDead.size;
+          }
           stack.pop();
           onPath.delete(frame.key);
           if (frame.action) actions.pop();
+          if (!exactDead && stack.length) stack[stack.length - 1].hadCutoff = true;
           continue;
         }
 
@@ -2248,6 +2880,19 @@
           stats.freezeDeadlocks++;
           continue;
         }
+        const childStructural = structural(childBoxes);
+        if (childStructural.dead) {
+          noteStructuralDeadlock(stats, childStructural);
+          continue;
+        }
+
+        const childPlayer = candidate.box;
+        const childGoals = countGoals(board, childBoxes);
+        if (childBoxes.length <= 12 || childGoals >= Math.ceil(childBoxes.length * 0.45)) {
+          if (corralCache.size >= structuralCacheLimit) corralCache = new Map();
+          const corral = optimisticCorralDeadlock(board, childBoxes, childPlayer, corralCache, options);
+          if (corral.dead) { stats.corralDeadlocks++; continue; }
+        }
 
         const childH = lowerBound(childBoxes);
         if (childH >= INF) {
@@ -2257,13 +2902,17 @@
         const childG = frame.g + 1;
         const f = childG + childH;
         if (f > threshold) {
+          frame.hadCutoff = true;
           if (f < nextThreshold) nextThreshold = f;
           continue;
         }
 
-        const childPlayer = candidate.box;
         const childReach = computeReachability(board, childBoxes, childPlayer, childScratch, false);
         const childKey = stateKey(childBoxes, childReach.anchor);
+        if (provenDead.has(childKey)) {
+          stats.deadStateHits++;
+          continue;
+        }
         if (onPath.has(childKey)) {
           stats.pathCycles++;
           continue;
@@ -2271,6 +2920,10 @@
         const priorG = transposition.get(childKey);
         if (priorG !== undefined && priorG <= childG) {
           stats.duplicates++;
+          // The lower-cost occurrence may have crossed the current threshold.
+          // Unless it has already been proved dead, do not propagate a global
+          // dead proof through this duplicate shortcut.
+          frame.hadCutoff = true;
           continue;
         }
         transposition.set(childKey, childG);
@@ -2285,8 +2938,9 @@
         const action = { box: candidate.box, dir: candidate.d };
         actions.push(action);
         onPath.add(childKey);
-        const goals = countGoals(board, childBoxes);
+        const goals = childGoals;
         const mobility = countLegalPushes(board, childBoxes, childPlayer, metricScratch).pushes;
+        const childScores = structuralScores(board, childBoxes);
         const closeCandidate = {
           boxes: childBoxes,
           player: childPlayer,
@@ -2295,6 +2949,9 @@
           g: childG,
           actions: actions.slice(),
           mobility,
+          safePacked: childStructural.safePacked,
+          hotspot: childScores.hotspot,
+          roomPenalty: childScores.roomPenalty,
         };
         if (isCloser(closeCandidate)) closest = closeCandidate;
 
@@ -2308,6 +2965,7 @@
           candidates: null,
           next: 0,
           action,
+          hadCutoff: false,
         });
         totalGenerated++;
         stats.generated++;
@@ -2326,12 +2984,15 @@
             bestPushDepth: closest.g,
             bestEstimate: closest.h,
             goalsFilled: closest.goals,
+            safePacked: closest.safePacked,
             totalGoals: board.goalList.length,
             threshold,
             iteration: stats.safeIterations,
-            deadlocks: stats.staticDeadlocks + stats.blockDeadlocks + stats.freezeDeadlocks + stats.assignmentDeadlocks,
+            deadlocks: stats.staticDeadlocks + stats.blockDeadlocks + stats.freezeDeadlocks + stats.assignmentDeadlocks + stats.bipartiteDeadlocks + stats.sealedDeadlocks + stats.frozenStructuralDeadlocks + stats.corralDeadlocks,
             duplicates: stats.duplicates,
             pathCycles: stats.pathCycles,
+            provenDeadStates: provenDead.size,
+            deadStateHits: stats.deadStateHits,
             transpositionResets: stats.safeTranspositionResets,
             peakOpen: stats.peakOpen,
             residentNodes: stack.length + transposition.size,
@@ -2341,6 +3002,7 @@
               boxes: closest.boxes,
               player: closest.player,
               goals: closest.goals,
+              safePacked: closest.safePacked,
               h: closest.h,
               g: closest.g,
               mobility: closest.mobility,
@@ -2401,7 +3063,14 @@
       duplicates: 0,
       staticDeadlocks: 0,
       blockDeadlocks: 0,
-      freezeDeadlocks: 0,      assignmentDeadlocks: 0,
+      freezeDeadlocks: 0,
+      assignmentDeadlocks: 0,
+      bipartiteDeadlocks: 0,
+      sealedDeadlocks: 0,
+      frozenStructuralDeadlocks: 0,
+      corralDeadlocks: 0,
+      advisorMoves: 0,
+      nonAdvisorMoves: 0,
       beamPruned: 0,
       reverseExpanded: 0,
       reverseGenerated: 0,
@@ -2437,6 +3106,8 @@
       safeTranspositionResets: 0,
       safeHeuristicResets: 0,
       pathCycles: 0,
+      provenDeadStates: 0,
+      deadStateHits: 0,
     };
 
     const currentScratch = createScratch(board);
@@ -2482,6 +3153,22 @@
           message: 'A box starts on a static dead square from which no goal can be reached.',
         });
       }
+    }
+
+    const initialStructural = dynamicDeadlockAnalysis(board, initialBoxes, new Map());
+    if (initialStructural.dead) {
+      noteStructuralDeadlock(stats, initialStructural);
+      return makeResult('unsolvable', startedAt, stats, {
+        message: `The starting position is structurally unsolvable (${initialStructural.reason}).`,
+      });
+    }
+
+    const initialCorral = optimisticCorralDeadlock(board, initialBoxes, board.initialPlayer, new Map(), options);
+    if (initialCorral.dead) {
+      stats.corralDeadlocks++;
+      return makeResult('unsolvable', startedAt, stats, {
+        message: `The starting position contains a proven sealed corral deadlock (${initialCorral.corralBoxes} boxes).`,
+      });
     }
 
     const initialH = safeOnly ? cheapGoalDistance(board, initialBoxes) : heuristic(initialBoxes);
@@ -2668,7 +3355,7 @@
         open: 0,
         bestPushDepth: 0,
         bestEstimate: initialH,
-        deadlocks: stats.staticDeadlocks + stats.blockDeadlocks + stats.freezeDeadlocks + stats.assignmentDeadlocks,
+        deadlocks: stats.staticDeadlocks + stats.blockDeadlocks + stats.freezeDeadlocks + stats.assignmentDeadlocks + stats.bipartiteDeadlocks + stats.sealedDeadlocks + stats.frozenStructuralDeadlocks + stats.corralDeadlocks,
         peakOpen: stats.peakOpen,
       });
     }
@@ -2737,12 +3424,16 @@
         stats.heuristicCache = heuristicCache.size;
         return makeResult('stopped', startedAt, stats, { message: 'Search stopped.' });
       }
+      if (featureResult?.provenUnsolvable) {
+        stats.heuristicCache = heuristicCache.size;
+        return makeResult('unsolvable', startedAt, stats, { message: featureResult.message });
+      }
       if (featureResult?.solution) {
         stats.heuristicCache = heuristicCache.size;
         return makeResult('solved', startedAt, stats, {
           ...featureResult.solution,
-          strategy: 'feature-space-macro',
-          message: 'Solved with multi-feature space search and same-box macro moves.',
+          strategy: 'fess-advisors',
+          message: 'Solved with FESS feature cells and non-pruning move advisors.',
         });
       }
       if (featureResult?.closest) closestAttempt = chooseClosestAttempt(closestAttempt, featureResult.closest);
@@ -3013,7 +3704,7 @@
           open: open.size,
           bestPushDepth: node.g,
           bestEstimate: node.h,
-          deadlocks: stats.staticDeadlocks + stats.blockDeadlocks + stats.freezeDeadlocks + stats.assignmentDeadlocks,
+          deadlocks: stats.staticDeadlocks + stats.blockDeadlocks + stats.freezeDeadlocks + stats.assignmentDeadlocks + stats.bipartiteDeadlocks + stats.sealedDeadlocks + stats.frozenStructuralDeadlocks + stats.corralDeadlocks,
           peakOpen: stats.peakOpen,
           residentNodes: nodes.length,
           residentNodeLimit: forwardResidentLimit,
@@ -3108,7 +3799,7 @@
   }
 
   return Object.freeze({
-    version: '2.8.0',
+    version: '2.9.0',
     DIRS,
     SolverError,
     parseLevel,
@@ -3117,5 +3808,14 @@
     createInitialState,
     applyMove,
     boardToXSB,
-    allBoxesOnGoals,  });
+    allBoxesOnGoals,
+    analyseDeadlocks(levelOrBoard, boxes = null) {
+      const board = typeof levelOrBoard === 'string' ? parseLevel(levelOrBoard) : levelOrBoard;
+      const positions = boxes ? boxes.slice().sort((a, b) => a - b) : board.initialBoxes.slice();
+      const structural = dynamicDeadlockAnalysis(board, positions, new Map());
+      if (structural.dead) return structural;
+      const corral = optimisticCorralDeadlock(board, positions, board.initialPlayer, new Map(), { maxCorralBoxes: 10, maxCorralStates: 30000 });
+      return corral.dead ? { ...structural, ...corral, dead: true } : structural;
+    },
+  });
 });

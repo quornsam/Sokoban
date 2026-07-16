@@ -28,7 +28,7 @@
   });
 })();
 
-/* BOXXY v112 — character renderer, game engine, level maker and complete safe-pruning puzzle solving. */
+/* BOXXY v113 — character renderer, game engine, level maker and complete safe-pruning puzzle solving. */
 (() => {
   "use strict";
 
@@ -2386,7 +2386,8 @@
     const stagnation = Number(closest.stagnation || 0);
     solverClosest.hidden = false;
     if (solverClosestStats) {
-      solverClosestStats.textContent = `${goals}/${total} goals occupied · ${pushes} pushes · ${moves} moves${remaining === null ? "" : ` · estimate ${remaining}`}${legal === null ? "" : ` · ${legal} legal pushes`}${stagnation > 0 ? ` · ${stagnation} pushes since structural progress` : ""}`;
+      const safePacked = Number.isFinite(Number(closest.safePacked)) ? Number(closest.safePacked) : null;
+      solverClosestStats.textContent = `${goals}/${total} goals occupied${safePacked === null ? "" : ` · ${safePacked} safely packed`} · ${pushes} pushes · ${moves} moves${remaining === null ? "" : ` · estimate ${remaining}`}${legal === null ? "" : ` · ${legal} legal pushes`}${stagnation > 0 ? ` · ${stagnation} pushes since structural progress` : ""}`;
     }
     if (solverClosestBoard) solverClosestBoard.textContent = String(closest.boardText || "");
     if (solverDiagnostics) {
@@ -2399,8 +2400,16 @@
       add("bounded deepening", stats.idaExpanded);
       add("feature-space", stats.featureExpanded);
       add("forward", stats.expanded);
-      const deadlocks = Number(stats.staticDeadlocks || 0) + Number(stats.blockDeadlocks || 0) + Number(stats.freezeDeadlocks || 0) + Number(stats.assignmentDeadlocks || 0);
+      const deadlocks = Number(stats.staticDeadlocks || 0) + Number(stats.blockDeadlocks || 0) + Number(stats.freezeDeadlocks || 0) + Number(stats.assignmentDeadlocks || 0) + Number(stats.bipartiteDeadlocks || 0) + Number(stats.sealedDeadlocks || 0) + Number(stats.frozenStructuralDeadlocks || 0) + Number(stats.corralDeadlocks || 0);
       add("dead ends pruned", deadlocks);
+      add("dynamic matching deadlocks", stats.bipartiteDeadlocks);
+      add("sealed-region deadlocks", stats.sealedDeadlocks);
+      add("frozen structural deadlocks", stats.frozenStructuralDeadlocks);
+      add("corral deadlocks", stats.corralDeadlocks);
+      add("advisor-ranked moves", stats.advisorMoves);
+      add("non-advisor moves retained", stats.nonAdvisorMoves);
+      add("proven dead states", stats.provenDeadStates);
+      add("dead-state revisits avoided", stats.deadStateHits);
       add("stagnant branches pruned", stats.plateauPruned);
       add("forward/reverse joins", stats.bridgeHits);
       solverDiagnostics.textContent = parts.length ? `Search work — ${parts.join(" · ")}.` : "The search stopped before a detailed phase breakdown was available.";
@@ -2456,7 +2465,7 @@
       setSolverStatus(`A ${currentSolution.length.toLocaleString()}-move solution is already attached to this puzzle.`, "success");
     } else if (previousRun?.running) {
       const seconds = (Number(previousRun.elapsedMs || 0) / 1000).toFixed(1);
-      setSolverStatus(`The previous solver tab ended unexpectedly after ${seconds}s in ${previousRun.phase || "search"}, at ${Number(previousRun.generated || 0).toLocaleString()} generated push states. v112 uses depth-first iterative deepening and safe disposable caches rather than deleting frontier routes.`, "error");
+      setSolverStatus(`The previous solver tab ended unexpectedly after ${seconds}s in ${previousRun.phase || "search"}, at ${Number(previousRun.generated || 0).toLocaleString()} generated push states. v113 begins dense puzzles with FESS feature cells and then falls back to complete safe iterative deepening.`, "error");
       if (previousRun.closest) showClosestDisplay(previousRun.closest, {});
       try { localStorage.removeItem(SOLVER_RUN_SNAPSHOT_KEY); } catch (_) {}
     } else {
@@ -2489,7 +2498,7 @@
         "bounded-best": "Searching a narrow push-cost band above the lower bound…",
         "bounded-ida": "Deepening the push bound around the best assignments…",
         "safe-ida": "Exhaustively deepening the push bound with safe pruning only…",
-        "feature-space": "Exploring packing, connectivity, mobility and macro-push patterns…",
+        "feature-space": "Cycling through FESS packing, connectivity, room, hotspot and explorer feature cells…",
         forward: "Searching forward push positions with deadlock pruning…"
       };
       solverProgressLabel.textContent = phaseLabels[phase] || phaseLabels.forward;
@@ -2503,10 +2512,15 @@
       const goalsText = Number.isFinite(Number(progress.goalsFilled)) && Number.isFinite(Number(progress.totalGoals))
         ? ` · ${Number(progress.goalsFilled)}/${Number(progress.totalGoals)} goals`
         : "";
+      const packedText = Number.isFinite(Number(progress.safePacked))
+        ? ` · ${Number(progress.safePacked)} structurally packed`
+        : "";
       const patternText = Number.isFinite(Number(progress.patternMatched)) && Number.isFinite(Number(progress.patternTotal))
         ? ` · ${Number(progress.patternMatched)}/${Number(progress.patternTotal)} starting positions matched`
         : "";
       const cellsText = Number(progress.featureCells || 0) > 0 ? ` · ${Number(progress.featureCells).toLocaleString()} feature cells` : "";
+      const activeCellsText = Number(progress.activeFeatureCells || 0) > 0 ? ` · ${Number(progress.activeFeatureCells).toLocaleString()} active cells` : "";
+      const advisorText = Number(progress.advisorMoves || 0) > 0 ? ` · ${Number(progress.advisorMoves).toLocaleString()} advisor moves` : "";
       const stagnantText = Number(progress.plateauPruned || 0) > 0 ? ` · ${Number(progress.plateauPruned).toLocaleString()} stagnant branches pruned` : "";
       const bridgeText = Number(progress.bridgeHits || 0) > 0 ? ` · ${Number(progress.bridgeHits).toLocaleString()} frontier joins` : "";
       const thresholdText = Number.isFinite(Number(progress.threshold)) ? ` · bound ${Number(progress.threshold)}` : "";
@@ -2514,7 +2528,9 @@
       const duplicateText = Number(progress.duplicates || 0) > 0 ? ` · ${Number(progress.duplicates).toLocaleString()} repeated states pruned` : "";
       const cycleText = Number(progress.pathCycles || 0) > 0 ? ` · ${Number(progress.pathCycles).toLocaleString()} route loops pruned` : "";
       const resetText = Number(progress.transpositionResets || 0) > 0 ? ` · ${Number(progress.transpositionResets).toLocaleString()} cache resets` : "";
-      solverStats.textContent = `${Number(progress.generated || 0).toLocaleString()} push states · ${Number(progress.open || 0).toLocaleString()} route depth${depth}${estimateText}${goalsText}${patternText}${cellsText}${prunedText}${stagnantText}${bridgeText}${thresholdText}${iterationText}${duplicateText}${cycleText}${resetText} · ${seconds}s`;
+      const provenDeadText = Number(progress.provenDeadStates || 0) > 0 ? ` · ${Number(progress.provenDeadStates).toLocaleString()} proven dead states` : "";
+      const deadHitText = Number(progress.deadStateHits || 0) > 0 ? ` · ${Number(progress.deadStateHits).toLocaleString()} dead-state revisits avoided` : "";
+      solverStats.textContent = `${Number(progress.generated || 0).toLocaleString()} push states · ${Number(progress.open || 0).toLocaleString()} route depth${depth}${estimateText}${goalsText}${packedText}${patternText}${cellsText}${activeCellsText}${advisorText}${prunedText}${stagnantText}${bridgeText}${thresholdText}${iterationText}${duplicateText}${cycleText}${provenDeadText}${deadHitText}${resetText} · ${seconds}s`;
     }
     const now = Date.now();
     if (now - solverLastSnapshotAt >= 5000) {
@@ -2617,6 +2633,14 @@
         mode: "deep",
         unlimited: true,
         safeFallback: true,
+        reverseAStar: false,
+        reverse: false,
+        productiveBridge: false,
+        boundedBest: false,
+        boundedIDA: false,
+        featureSpace: true,
+        featureMaxTimeMs: 600000,
+        fessNonAdvisorWeight: 50,
         safeTranspositionStates: 80000,
         safeHeuristicCache: 60000,
         yieldEvery: 350,
@@ -2663,7 +2687,7 @@
     if (solverStats) solverStats.textContent = "0 states";
     if (solverStartBtn) solverStartBtn.disabled = true;
     if (solverCancelBtn) solverCancelBtn.hidden = false;
-    setSolverStatus("Search continues until a verified solution is found, every reachable push route is exhausted, or you press Cancel Search. Fast specialist searches run first, but they are never allowed to declare the puzzle unsolvable. The final exhaustive phase prunes only proven deadlocks and exact repeated states. Duplicate caches may be cleared to control memory; that repeats work but cannot delete an unexplored solution route. The closest forward-reachable position updates below.");
+    setSolverStatus("Dense puzzles now begin with FESS feature cells. Packing, connectivity, room access, hotspot, explorer and opener advisors change move order only; every non-dead move remains eligible. Frozen-box, sealed-region and dynamic box-to-goal matching tests can reject a position only when they provide a structural proof. Complete safe iterative deepening follows if FESS does not solve it.");
 
     let fellBack = false;
     const fallback = () => {
@@ -2679,7 +2703,7 @@
       return;
     }
     try {
-      solverWorker = new Worker("solver-worker.js?v=112");
+      solverWorker = new Worker("solver-worker.js?v=113");
       solverWorker.onmessage = event => {
         const message = event.data || {};
         if (message.id !== id || id !== solverJobId || !solverRunning) return;

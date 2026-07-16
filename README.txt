@@ -327,3 +327,19 @@ BOXXY v112 safe-search update
 - Prunes only proven deadlocks, exact route cycles and exact repeated push states.
 - Duplicate and heuristic caches are disposable: clearing them repeats work but cannot remove a solution route.
 - Search runs until solved, exhausted or cancelled.
+
+
+
+BOXXY v113 FESS and structural-deadlock rebuild
+------------------------------------------------
+- Replaced the old five-global-queue "feature-space" approximation with cyclic FESS feature cells.
+- Feature cells now use safely packed boxes, assignment distance, free-space connectivity, room connectivity, hotspots and mobility.
+- Packing, assignment, connectivity, room, hotspot, explorer and opener advisors nominate moves. Non-advisor moves receive a larger scheduling weight but are retained, so guidance cannot hide a solution route.
+- "Closest position" no longer ranks raw goals occupied first. A box on a goal is not treated as safely packed unless it is proven immovable there.
+- Added conservative fixed-box analysis, sealed-component box/goal balance and dynamic bipartite box-to-goal matching with fixed boxes treated as permanent walls.
+- The same structural proofs run in FESS and in the complete safe iterative-deepening fallback.
+- Added separate diagnostics for dynamic matching, sealed regions, frozen structures, advisor-ranked moves and retained non-advisor moves.
+- Dense browser searches now begin directly with FESS rather than the older reverse/bounded specialist portfolio that repeatedly converged on the same 26-goal plateau on Small Chessboards level 38.
+- Added solver-core analyseDeadlocks() for repeatable regression tests of supplied dead positions.
+- Complete safe iterative deepening now records states proved dead without a threshold cutoff and propagates that proof to their parents; later revisits are skipped.
+- Included solver-regression-tests.js covering stored Microban route replay, frozen corners, dynamic matching, exact optimistic corrals, dead-descendant propagation and the Small Chessboards 38 starting position.
