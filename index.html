@@ -257,6 +257,7 @@
         <div id="makerStatus" class="maker-status" aria-live="polite">Ready.</div>
         <div class="maker-main-actions">
           <button id="makerExitTestBtn" class="maker-exit" type="button" hidden>EXIT TEST</button>
+          <button id="makerSolveBtn" class="maker-solve" type="button">SOLVE PUZZLE</button>
           <button id="makerTestBtn" class="maker-test" type="button">TEST LEVEL <b aria-hidden="true">→</b></button>
         </div>
       </aside>
@@ -264,9 +265,44 @@
   </section>
 </div>
 
+
+<div id="makerSolverModal" class="modal maker-solver-modal" hidden>
+  <section class="maker-solver-card" role="dialog" aria-modal="true" aria-labelledby="makerSolverTitle">
+    <header class="maker-solver-head">
+      <div>
+        <span class="complete-kicker">LEVEL MAKER</span>
+        <h2 id="makerSolverTitle">PUZZLE SOLVER</h2>
+        <p>Searches for a complete player-movement string and attaches it to this puzzle's hidden walkthrough.</p>
+      </div>
+      <button id="makerSolverCloseBtn" class="maker-close" type="button" aria-label="Close puzzle solver">×</button>
+    </header>
+
+    <div id="makerSolverProgressWrap" class="maker-solver-progress" hidden>
+      <progress id="makerSolverProgress" max="100" value="0">0%</progress>
+      <div class="maker-solver-progress-line">
+        <strong id="makerSolverProgressLabel">Preparing search…</strong>
+        <span id="makerSolverStats"></span>
+      </div>
+      <p>Search progress is not linear. The bar reflects the current time and search limits rather than a guaranteed percentage of the puzzle.</p>
+    </div>
+
+    <label class="maker-solution-label" for="makerSolutionOutput">SOLUTION STRING</label>
+    <textarea id="makerSolutionOutput" class="maker-solution-output" readonly spellcheck="false" placeholder="The UDLR solution string will appear here."></textarea>
+    <p id="makerSolverStatus" class="maker-solver-status" aria-live="polite">Ready to solve the current editor puzzle.</p>
+
+    <div class="maker-solver-actions">
+      <button id="makerSolverStartBtn" class="maker-solver-start" type="button">SOLVE THIS PUZZLE</button>
+      <button id="makerSolverCancelBtn" type="button" hidden>CANCEL SEARCH</button>
+      <button id="makerSolverCopyBtn" type="button" disabled>COPY STRING</button>
+      <button id="makerSolverApplyBtn" type="button" disabled>APPLY TO PUZZLE</button>
+    </div>
+  </section>
+</div>
+
 <button id="autoSolveBtn" type="button" hidden tabindex="-1" aria-hidden="true">PLAY SOLUTION</button>
 <audio id="bgMusic" src="assets/audio/cracked-ivory-drift.mp3" preload="auto" autoplay loop playsinline></audio>
 
+<script src="solver-core.js"></script>
 <script src="data.js"></script>
 <script src="boxxy.js"></script>
 </body>

@@ -1,4 +1,34 @@
-/* BOXXY v100 — character renderer, game engine and level maker. */
+/* Stored solver routes are kept separate from the authored pack data. */
+(() => {
+  "use strict";
+  const STORAGE_KEY = "boxxy-solver-solutions-v1";
+  function readAll() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+    } catch (_) {
+      return {};
+    }
+  }
+  function key(packId, levelIndex) { return `${packId}:${Number(levelIndex)}`; }
+  window.BoxxySolutionStore = Object.freeze({
+    get(packId, levelIndex) {
+      const value = readAll()[key(packId, levelIndex)];
+      return typeof value === "string" ? value : "";
+    },
+    set(packId, levelIndex, moves) {
+      const all = readAll();
+      const id = key(packId, levelIndex);
+      const clean = String(moves || "").replace(/[^udlrUDLR]/g, "");
+      if (clean) all[id] = clean;
+      else delete all[id];
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(all)); } catch (_) {}
+      return clean;
+    }
+  });
+})();
+
+/* BOXXY v101 — character renderer, game engine, level maker and integrated solver. */
 (() => {
   "use strict";
 
@@ -564,6 +594,7 @@
   let completed = false;
   let makerTesting = false;
   let makerLayout = null;
+  let makerSolution = "";
   let completeMode = "normal";
   let startedAt = 0;
   let timer = null;
@@ -1472,6 +1503,7 @@
   function loadLevel(index, preserveAutoplay = false, preserveBackground = false) {
     makerTesting = false;
     makerLayout = null;
+    makerSolution = "";
     document.body.classList.remove("maker-testing");
     if (makerReturnBtn) makerReturnBtn.hidden = true;
     const requestedIndex = (index + LEVELS.length) % LEVELS.length;
@@ -1483,7 +1515,8 @@
     levelIndex = requestedIndex;
     localStorage.setItem(currentLevelStorageKey(), String(levelIndex));
     if (activePack.id === "microban") localStorage.setItem("push-bauhaus-v33-level", levelIndex);
-    levelData = LEVELS[levelIndex];
+    const storedSolverRoute = window.BoxxySolutionStore?.get?.(activePack.id, levelIndex) || "";
+    levelData = storedSolverRoute ? { ...LEVELS[levelIndex], solution: storedSolverRoute } : LEVELS[levelIndex];
     const parsed = parseLayout(levelData.layout);
     width = parsed.width;
     height = parsed.height;
@@ -1533,7 +1566,7 @@
     refreshLevelButtons();
   }
 
-  function loadMakerTest(layoutRows) {
+  function loadMakerTest(layoutRows, attachedSolution = "") {
     try {
       if (!Array.isArray(layoutRows) || !layoutRows.length) throw new Error("The level is empty.");
       const cleanRows = layoutRows.map(row => String(row));
@@ -1545,6 +1578,7 @@
       clearTimeout(animTimer);
       makerTesting = true;
       makerLayout = cleanRows.slice();
+      makerSolution = String(attachedSolution || "").replace(/[^udlrUDLR]/g, "");
       completeMode = "normal";
       document.body.classList.add("maker-testing");
       if (makerReturnBtn) makerReturnBtn.hidden = false;
@@ -1554,7 +1588,7 @@
         tier: "LEVEL MAKER",
         minimum: "—",
         pushMinimum: parsed.boxes.length,
-        solution: "",
+        solution: makerSolution,
         layout: cleanRows
       };
       width = parsed.width;
@@ -1601,13 +1635,14 @@
 
   function restartMakerTest() {
     if (!makerTesting || !makerLayout) return;
-    loadMakerTest(makerLayout);
+    loadMakerTest(makerLayout, makerSolution);
   }
 
   function exitMakerTest() {
     if (!makerTesting) return;
     makerTesting = false;
     makerLayout = null;
+    makerSolution = "";
     document.body.classList.remove("maker-testing");
     if (makerReturnBtn) makerReturnBtn.hidden = true;
     loadLevel(levelIndex);
@@ -2060,7 +2095,7 @@
     if (event.key === "Escape" && !levelPicker.hidden) closeLevelPicker();
   });
   window.BoxxyGameAPI = {
-    startMakerTest(layoutRows) { return loadMakerTest(layoutRows); },
+    startMakerTest(layoutRows, attachedSolution = "") { return loadMakerTest(layoutRows, attachedSolution); },
     exitMakerTest() { exitMakerTest(); },
     restartMakerTest() { restartMakerTest(); },
     isMakerTesting() { return makerTesting; }
@@ -2115,6 +2150,19 @@
   const existingLevelSelect = document.getElementById("makerLevelSelect");
   const openExistingLevelBtn = document.getElementById("makerOpenLevelBtn");
   const toolButtons = [...document.querySelectorAll("[data-maker-tool]")];
+  const solveBtn = document.getElementById("makerSolveBtn");
+  const solverModal = document.getElementById("makerSolverModal");
+  const solverCloseBtn = document.getElementById("makerSolverCloseBtn");
+  const solverStartBtn = document.getElementById("makerSolverStartBtn");
+  const solverCancelBtn = document.getElementById("makerSolverCancelBtn");
+  const solverCopyBtn = document.getElementById("makerSolverCopyBtn");
+  const solverApplyBtn = document.getElementById("makerSolverApplyBtn");
+  const solverOutput = document.getElementById("makerSolutionOutput");
+  const solverStatus = document.getElementById("makerSolverStatus");
+  const solverProgressWrap = document.getElementById("makerSolverProgressWrap");
+  const solverProgress = document.getElementById("makerSolverProgress");
+  const solverProgressLabel = document.getElementById("makerSolverProgressLabel");
+  const solverStats = document.getElementById("makerSolverStats");
 
   if (!modal || !gridEl) return;
 
@@ -2160,6 +2208,16 @@
   let pendingDeleteId = "";
   let deleteTimer = null;
   let fitFrame = 0;
+  let currentSolution = "";
+  let currentSolutionLevelText = "";
+  let currentPuzzleRef = null;
+  let solverWorker = null;
+  let solverRunning = false;
+  let solverAbortRequested = false;
+  let solverJobId = 0;
+  let solverStartedAt = 0;
+  const SOLVER_MAX_NODES = 2500000;
+  const SOLVER_MAX_TIME_MS = 180000;
 
   const clampSize = value => Math.max(MIN_SIZE, Math.min(MAX_SIZE, Math.round(Number(value) || 10)));
   const clampGeneratorSize = value => Math.max(GENERATOR_MIN_SIZE, clampSize(value));
@@ -2209,6 +2267,257 @@
     statusEl.classList.toggle("success", type === "success");
   }
 
+  function currentLevelText() {
+    return exportRows().join("\n");
+  }
+
+  function solutionMatchesCurrentBoard() {
+    return Boolean(currentSolution && currentSolutionLevelText === currentLevelText());
+  }
+
+  function updateSolverControls() {
+    const matched = solutionMatchesCurrentBoard();
+    if (solverOutput && !solverRunning) solverOutput.value = matched ? currentSolution : "";
+    if (solverCopyBtn) solverCopyBtn.disabled = !matched;
+    if (solverApplyBtn) solverApplyBtn.disabled = !matched;
+  }
+
+  function setAttachedSolution(moves, levelText = currentLevelText(), puzzleRef = currentPuzzleRef) {
+    currentSolution = String(moves || "").replace(/[^udlrUDLR]/g, "");
+    currentSolutionLevelText = currentSolution ? String(levelText || "") : "";
+    currentPuzzleRef = puzzleRef || null;
+    if (currentSolution && currentPuzzleRef) {
+      window.BoxxySolutionStore?.set?.(currentPuzzleRef.packId, currentPuzzleRef.levelIndex, currentSolution);
+      const pack = existingPacks.find(item => item.id === currentPuzzleRef.packId);
+      const level = pack?.levels?.[currentPuzzleRef.levelIndex];
+      if (level) level.solution = currentSolution;
+    }
+    updateSolverControls();
+  }
+
+  function clearAttachedSolution(clearReference = true) {
+    currentSolution = "";
+    currentSolutionLevelText = "";
+    if (clearReference) currentPuzzleRef = null;
+    updateSolverControls();
+  }
+
+  function markBoardEdited() {
+    if (solutionMatchesCurrentBoard()) return;
+    clearAttachedSolution(true);
+  }
+
+  function setSolverStatus(message, type = "") {
+    if (!solverStatus) return;
+    solverStatus.textContent = message;
+    solverStatus.classList.toggle("error", type === "error");
+    solverStatus.classList.toggle("success", type === "success");
+  }
+
+  function finishSolverRun() {
+    if (solverWorker) solverWorker.terminate();
+    solverWorker = null;
+    solverRunning = false;
+    if (solverStartBtn) solverStartBtn.disabled = false;
+    if (solverCancelBtn) solverCancelBtn.hidden = true;
+  }
+
+  function openSolverDialog() {
+    const validation = validate();
+    if (!validation.ok) {
+      setStatus(validation.error, "error");
+      return;
+    }
+    if (!solverModal) return;
+    solverModal.hidden = false;
+    if (solverProgressWrap) solverProgressWrap.hidden = true;
+    if (solverProgress) solverProgress.value = 0;
+    if (solverProgressLabel) solverProgressLabel.textContent = "Ready.";
+    if (solverStats) solverStats.textContent = "";
+    updateSolverControls();
+    if (solutionMatchesCurrentBoard()) {
+      setSolverStatus(`A ${currentSolution.length.toLocaleString()}-move solution is already attached to this puzzle.`, "success");
+    } else {
+      setSolverStatus("Ready to solve the current editor puzzle.");
+    }
+    solverStartBtn?.focus({ preventScroll: true });
+  }
+
+  function closeSolverDialog() {
+    if (!solverModal) return;
+    if (solverRunning) {
+      setSolverStatus("Cancel the running search before closing the solver.", "error");
+      return;
+    }
+    solverModal.hidden = true;
+    solveBtn?.focus({ preventScroll: true });
+  }
+
+  function updateSearchProgress(progress = {}) {
+    const elapsedRatio = Number(progress.elapsedMs || 0) / SOLVER_MAX_TIME_MS;
+    const nodeRatio = Number(progress.generated || 0) / SOLVER_MAX_NODES;
+    const estimate = Math.max(elapsedRatio, nodeRatio);
+    if (solverProgress) solverProgress.value = Math.max(1, Math.min(98, Math.round(estimate * 100)));
+    if (solverProgressLabel) solverProgressLabel.textContent = "Searching push positions…";
+    if (solverStats) {
+      const seconds = (Number(progress.elapsedMs || 0) / 1000).toFixed(1);
+      solverStats.textContent = `${Number(progress.generated || 0).toLocaleString()} states · ${Number(progress.open || 0).toLocaleString()} open · ${seconds}s`;
+    }
+  }
+
+  function handleSolverResult(result, id, levelText) {
+    if (id !== solverJobId || !solverRunning) return;
+    finishSolverRun();
+    updateSolverControls();
+    result = result || {};
+    if (result.status === "solved") {
+      const route = String(result.mixedMoves || result.moves || "").replace(/[^udlrUDLR]/g, "");
+      setAttachedSolution(route, levelText, currentPuzzleRef);
+      if (solverOutput) solverOutput.value = route;
+      if (solverProgress) solverProgress.value = 100;
+      if (solverProgressLabel) solverProgressLabel.textContent = "Solution found and verified.";
+      if (solverStats) solverStats.textContent = `${Number(result.moveCount || route.length).toLocaleString()} moves · ${Number(result.pushCount || 0).toLocaleString()} pushes · ${(Number(result.elapsedMs || 0) / 1000).toFixed(2)}s`;
+      setSolverStatus("The solution string has been attached to this puzzle. Testing it now enables the five-click + S walkthrough.", "success");
+      setStatus(`Solver attached a ${route.length}-move walkthrough to the current puzzle.`, "success");
+    } else if (result.status === "unsolvable") {
+      if (solverProgress) solverProgress.value = 100;
+      if (solverProgressLabel) solverProgressLabel.textContent = "Search exhausted.";
+      setSolverStatus(result.message || "No solution exists from this starting position.", "error");
+    } else if (result.status === "limit") {
+      if (solverProgress) solverProgress.value = 100;
+      if (solverProgressLabel) solverProgressLabel.textContent = "Search limit reached.";
+      setSolverStatus(`${result.message || "The search limit was reached."} This does not prove that the puzzle is unsolvable.`, "error");
+    } else if (result.status === "stopped") {
+      setSolverStatus("Search cancelled.");
+    } else {
+      setSolverStatus(result.message || "The solver stopped before finding a route.", "error");
+    }
+  }
+
+  async function runSolverOnMainThread(id, levelText) {
+    if (!window.SokobanCore?.solve) {
+      if (id === solverJobId) {
+        finishSolverRun();
+        setSolverStatus("The solver engine could not be loaded.", "error");
+      }
+      return;
+    }
+    setSolverStatus("The browser blocked the background worker, so BOXXY is using the solver's yielding browser mode instead. The progress display will continue to update.");
+    try {
+      const result = await window.SokobanCore.solve(levelText, {
+        mode: "fast",
+        maxNodes: SOLVER_MAX_NODES,
+        maxTimeMs: SOLVER_MAX_TIME_MS,
+        yieldEvery: 350,
+        progressEveryMs: 100,
+        shouldStop: () => solverAbortRequested || id !== solverJobId,
+        onProgress: progress => {
+          if (id === solverJobId && solverRunning) updateSearchProgress(progress);
+        }
+      });
+      handleSolverResult(result, id, levelText);
+    } catch (error) {
+      if (id !== solverJobId) return;
+      finishSolverRun();
+      setSolverStatus(error?.message || "The solver stopped unexpectedly.", "error");
+    }
+  }
+
+  async function startSolverSearch() {
+    const validation = validate();
+    if (!validation.ok) {
+      setSolverStatus(validation.error, "error");
+      return;
+    }
+    if (solverRunning) return;
+    const levelText = validation.rows.join("\n");
+    const id = ++solverJobId;
+    solverAbortRequested = false;
+    solverRunning = true;
+    solverStartedAt = performance.now();
+    const existingRoute = solutionMatchesCurrentBoard() ? currentSolution : "";
+    if (solverOutput) solverOutput.value = existingRoute;
+    if (solverCopyBtn) solverCopyBtn.disabled = true;
+    if (solverApplyBtn) solverApplyBtn.disabled = true;
+    if (solverProgressWrap) solverProgressWrap.hidden = false;
+    if (solverProgress) solverProgress.value = 1;
+    if (solverProgressLabel) solverProgressLabel.textContent = "Analysing walls, goals and dead squares…";
+    if (solverStats) solverStats.textContent = "0 states";
+    if (solverStartBtn) solverStartBtn.disabled = true;
+    if (solverCancelBtn) solverCancelBtn.hidden = false;
+    setSolverStatus("Searching for a complete route. The calculation runs away from the game interface when the browser permits it.");
+
+    let fellBack = false;
+    const fallback = () => {
+      if (fellBack || id !== solverJobId || !solverRunning) return;
+      fellBack = true;
+      if (solverWorker) solverWorker.terminate();
+      solverWorker = null;
+      runSolverOnMainThread(id, levelText);
+    };
+
+    if (!window.Worker) {
+      fallback();
+      return;
+    }
+    try {
+      solverWorker = new Worker("solver-worker.js");
+      solverWorker.onmessage = event => {
+        const message = event.data || {};
+        if (message.id !== id || id !== solverJobId || !solverRunning) return;
+        if (message.type === "progress") updateSearchProgress(message.progress || {});
+        else if (message.type === "result") handleSolverResult(message.result || {}, id, levelText);
+        else if (message.type === "error") {
+          finishSolverRun();
+          setSolverStatus(message.error || "The solver stopped unexpectedly.", "error");
+        }
+      };
+      solverWorker.onerror = event => {
+        event.preventDefault?.();
+        fallback();
+      };
+      solverWorker.postMessage({
+        type: "solve",
+        id,
+        level: levelText,
+        maxNodes: SOLVER_MAX_NODES,
+        maxTimeMs: SOLVER_MAX_TIME_MS
+      });
+    } catch (_) {
+      fallback();
+    }
+  }
+
+  function cancelSolverSearch() {
+    if (!solverRunning) return;
+    const elapsed = Math.max(0, performance.now() - solverStartedAt);
+    solverAbortRequested = true;
+    solverJobId += 1;
+    finishSolverRun();
+    if (solverProgressLabel) solverProgressLabel.textContent = "Search cancelled.";
+    setSolverStatus(`Search cancelled after ${(elapsed / 1000).toFixed(1)} seconds.`);
+  }
+
+  async function copySolverString() {
+    if (!solutionMatchesCurrentBoard()) return;
+    try {
+      await navigator.clipboard.writeText(currentSolution);
+      setSolverStatus("Solution string copied to the clipboard.", "success");
+    } catch (_) {
+      solverOutput?.focus();
+      solverOutput?.select();
+      const copied = document.execCommand?.("copy");
+      setSolverStatus(copied ? "Solution string copied to the clipboard." : "The solution is selected for manual copying.", copied ? "success" : "");
+    }
+  }
+
+  function applyCurrentSolution() {
+    if (!solutionMatchesCurrentBoard()) return;
+    setAttachedSolution(currentSolution, currentSolutionLevelText, currentPuzzleRef);
+    setSolverStatus("Solution attached. Test the puzzle, click the character five times, then press S.", "success");
+    setStatus("The solver route is attached to the current puzzle.", "success");
+  }
+
   function blankGrid(width, height, value = VOID) {
     return Array.from({ length: width * height }, () => value);
   }
@@ -2227,6 +2536,7 @@
     cols = clampSize(width);
     rows = clampSize(height);
     cells = blankGrid(cols, rows, VOID);
+    clearAttachedSolution(true);
     for (let y = 0; y < rows; y++) {
       for (let x = 0; x < cols; x++) {
         const edge = x === 0 || y === 0 || x === cols - 1 || y === rows - 1;
@@ -2309,6 +2619,7 @@
     updateCellElement(index);
     lastPaintIndex = index;
     updateTextFromGrid(false);
+    if (before.some((value, i) => value !== cells[i])) clearAttachedSolution(true);
   }
 
   function renderGrid() {
@@ -2342,6 +2653,7 @@
     cols = nextCols;
     rows = nextRows;
     cells = next;
+    clearAttachedSolution(true);
     syncSizeInputs();
     renderGrid();
     updateTextFromGrid();
@@ -3109,6 +3421,7 @@
     cols = generated.width;
     rows = generated.height;
     cells = generated.cells.slice();
+    clearAttachedSolution(true);
     syncSizeInputs();
     boxesInput.value = String(generated.boxes);
     renderGrid();
@@ -3216,6 +3529,9 @@
     try {
       importRows(level.layout, { quiet: true });
       clearActiveSave();
+      currentPuzzleRef = { packId: pack.id || existingPackSelect.value, levelIndex };
+      const knownRoute = window.BoxxySolutionStore?.get?.(currentPuzzleRef.packId, levelIndex) || level.solution || "";
+      setAttachedSolution(knownRoute, currentLevelText(), currentPuzzleRef);
       const packName = pack.displayName || pack.title || "Puzzle pack";
       const levelName = level.name || `Level ${levelIndex + 1}`;
       if (saveNameInput) saveNameInput.value = `${packName} — ${levelName}`.slice(0, 48);
@@ -3277,6 +3593,8 @@
       rows,
       cells: cells.slice(),
       boxes: countBoxes(),
+      solution: solutionMatchesCurrentBoard() ? currentSolution : "",
+      solutionLevelText: solutionMatchesCurrentBoard() ? currentSolutionLevelText : "",
       createdAt: existingIndex >= 0 ? records[existingIndex].createdAt || now : now,
       updatedAt: now
     };
@@ -3315,8 +3633,12 @@
     boxesInput.value = String(Math.max(1, countBoxes()));
     renderGrid();
     updateTextFromGrid();
+    currentPuzzleRef = null;
+    const restoredText = currentLevelText();
+    const restoredSolution = typeof record.solution === "string" && (!record.solutionLevelText || record.solutionLevelText === restoredText) ? record.solution : "";
+    setAttachedSolution(restoredSolution, restoredText, null);
     renderSavedLevels(record.id);
-    setStatus(`Loaded “${record.name}”.`, "success");
+    setStatus(`Loaded “${record.name}”.${restoredSolution ? " Its attached walkthrough was restored." : ""}`, "success");
   }
 
   function resetDeleteButton() {
@@ -3361,6 +3683,8 @@
   }
 
   function closeMaker() {
+    if (solverRunning) cancelSolverSearch();
+    if (solverModal) solverModal.hidden = true;
     modal.hidden = true;
   }
 
@@ -3425,6 +3749,7 @@
     cols = clampSize(widthInput.value);
     rows = clampSize(heightInput.value);
     cells = blankGrid(cols, rows, VOID);
+    clearAttachedSolution(true);
     syncSizeInputs();
     renderGrid();
     updateTextFromGrid();
@@ -3435,6 +3760,7 @@
   importBtn.addEventListener("click", () => {
     try {
       importRows(normalizePastedText(textEl.value));
+      clearAttachedSolution(true);
     } catch (error) {
       setStatus(error?.message || "The level could not be imported.", "error");
     }
@@ -3468,13 +3794,23 @@
     }
   });
 
+  solveBtn?.addEventListener("click", openSolverDialog);
+  solverCloseBtn?.addEventListener("click", closeSolverDialog);
+  solverStartBtn?.addEventListener("click", startSolverSearch);
+  solverCancelBtn?.addEventListener("click", cancelSolverSearch);
+  solverCopyBtn?.addEventListener("click", copySolverString);
+  solverApplyBtn?.addEventListener("click", applyCurrentSolution);
+  solverModal?.addEventListener("click", event => {
+    if (event.target === solverModal) closeSolverDialog();
+  });
+
   testBtn.addEventListener("click", () => {
     const validation = validate();
     if (!validation.ok) {
       setStatus(validation.error, "error");
       return;
     }
-    const result = window.BoxxyGameAPI?.startMakerTest?.(validation.rows);
+    const result = window.BoxxyGameAPI?.startMakerTest?.(validation.rows, solutionMatchesCurrentBoard() ? currentSolution : "");
     if (!result?.ok) {
       setStatus(result?.error || "The game could not load this level.", "error");
       return;
@@ -3521,6 +3857,12 @@
       unlockArmed = false;
       clearTimeout(unlockTimer);
       openMaker();
+      return;
+    }
+    if (event.key === "Escape" && solverModal && !solverModal.hidden) {
+      event.preventDefault();
+      event.stopPropagation();
+      closeSolverDialog();
       return;
     }
     if (event.key === "Escape" && !modal.hidden) {

@@ -1,4 +1,4 @@
-BOXXY — Pushbox Puzzle
+BOXXY — Pushbox Puzzle v101
 
 Open index.html in a web browser.
 
@@ -6,6 +6,8 @@ Files
 - index.html: compact interface structure
 - styles.css: all visual design and responsive layout
 - boxxy.js: character renderer, game engine and level maker
+- solver-core.js: standalone Sokoban search engine used by the Level Maker
+- solver-worker.js: background bridge that keeps long solves responsive
 - data.js: all four puzzle packs, metadata and stored walkthrough strings
 - CREDITS-AND-LICENCES.txt: additional-pack authorship and distribution terms
 - assets/: active Bauhaus artwork, board atlas, splash art and music
@@ -225,3 +227,15 @@ VERSION 100
 - Existing puzzles up to 36 × 36 can be loaded, edited, exported and tested.
 - Corrected the LOCKED stamp so it remains dark and readable on the blue puzzle-pack artwork.
 - No Chrysalis walkthrough strings were added: sokoban-solver.com visibly plays stored solutions, but a directly reusable text sequence or public data endpoint was not immediately exposed.
+
+
+Version 101 — integrated Level Maker solver
+- SOLVE PUZZLE opens a dedicated backend solver dialogue.
+- SOLVE THIS PUZZLE runs the original BOXXY Sokoban Solver core in a Web Worker.
+- Long searches show elapsed time, generated states and a limit-based progress bar.
+- Successful routes are verified, displayed as a mixed-case UDLR string and attached automatically.
+- Uppercase letters in the displayed route mark pushes; the game accepts either case during playback.
+- Testing the editor puzzle then supports the existing five-click character + S walkthrough.
+- Solutions found for installed pack levels are stored locally and used when that level is later opened in normal play.
+- Saved custom levels retain a matching solver route in their local save record.
+- Search limit: 2,500,000 generated states or 180 seconds. Reaching a limit does not prove a puzzle unsolvable.
