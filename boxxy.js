@@ -28,7 +28,7 @@
   });
 })();
 
-/* BOXXY v114 — character renderer, game engine, level maker and pure FESS puzzle solving. */
+/* BOXXY v116 — character renderer, game engine, level maker and pure FESS puzzle solving. */
 (() => {
   "use strict";
 
@@ -2393,7 +2393,7 @@
     if (solverDiagnostics) {
       const parts = [];
       const add = (label, value) => { if (Number(value || 0) > 0) parts.push(`${label}: ${Number(value).toLocaleString()}`); };
-      add("FESS macro expansions", stats.featureExpanded);
+      add("FESS push expansions", stats.featureExpanded);
       add("feature cells", stats.featureCells);
       add("transpositions", stats.transpositions);
       add("lower-weight revisits", stats.weightRelaxations);
@@ -2457,7 +2457,7 @@
       setSolverStatus(`A ${currentSolution.length.toLocaleString()}-move solution is already attached to this puzzle.`, "success");
     } else if (previousRun?.running) {
       const seconds = (Number(previousRun.elapsedMs || 0) / 1000).toFixed(1);
-      setSolverStatus(`The previous solver tab ended unexpectedly after ${seconds}s in ${previousRun.phase || "search"}, at ${Number(previousRun.generated || 0).toLocaleString()} generated push states. v114 uses one pure FESS search with cyclic feature cells, accumulated move weights and advisor-ranked macro moves.`, "error");
+      setSolverStatus(`The previous solver tab ended unexpectedly after ${seconds}s in ${previousRun.phase || "search"}, at ${Number(previousRun.generated || 0).toLocaleString()} generated push states. v116 uses one memory-bounded FESS search with cyclic feature cells, accumulated move weights and local corral-deadlock proofs.`, "error");
       if (previousRun.closest) showClosestDisplay(previousRun.closest, {});
       try { localStorage.removeItem(SOLVER_RUN_SNAPSHOT_KEY); } catch (_) {}
     } else {
@@ -2483,7 +2483,7 @@
     if (solverProgressLabel) {
       const phaseLabels = {
         "feature-space": "Cycling through FESS packing, connectivity, room and out-of-plan feature cells…",
-        forward: "Searching FESS macro moves…"
+        forward: "Searching FESS push states…"
       };
       solverProgressLabel.textContent = phaseLabels[phase] || phaseLabels.forward;
     }
@@ -2514,7 +2514,7 @@
       const resetText = Number(progress.transpositionResets || 0) > 0 ? ` · ${Number(progress.transpositionResets).toLocaleString()} cache resets` : "";
       const provenDeadText = Number(progress.provenDeadStates || 0) > 0 ? ` · ${Number(progress.provenDeadStates).toLocaleString()} proven dead states` : "";
       const deadHitText = Number(progress.deadStateHits || 0) > 0 ? ` · ${Number(progress.deadStateHits).toLocaleString()} dead-state revisits avoided` : "";
-      solverStats.textContent = `${Number(progress.generated || 0).toLocaleString()} push states · ${Number(progress.open || 0).toLocaleString()} open macro moves${depth}${estimateText}${goalsText}${packedText}${patternText}${cellsText}${activeCellsText}${advisorText}${prunedText}${stagnantText}${bridgeText}${thresholdText}${iterationText}${duplicateText}${cycleText}${provenDeadText}${deadHitText}${resetText} · ${seconds}s`;
+      solverStats.textContent = `${Number(progress.generated || 0).toLocaleString()} push states · ${Number(progress.open || 0).toLocaleString()} open push states${depth}${estimateText}${goalsText}${packedText}${patternText}${cellsText}${activeCellsText}${advisorText}${prunedText}${stagnantText}${bridgeText}${thresholdText}${iterationText}${duplicateText}${cycleText}${provenDeadText}${deadHitText}${resetText} · ${seconds}s`;
     }
     const now = Date.now();
     if (now - solverLastSnapshotAt >= 5000) {
@@ -2594,8 +2594,8 @@
       setSolverStatus(result.message || "No solution exists from this starting position.", "error");
     } else if (result.status === "limit") {
       showClosestDisplay(result.closest, result.stats || {});
-      if (solverProgressLabel) solverProgressLabel.textContent = "Search stopped unexpectedly.";
-      setSolverStatus(result.message || "The search stopped unexpectedly before exhausting the puzzle.", "error");
+      if (solverProgressLabel) solverProgressLabel.textContent = "Search stopped safely.";
+      setSolverStatus(result.message || "The search stopped safely before exhausting the puzzle.", "error");
     } else if (result.status === "stopped") {
       setSolverStatus("Search cancelled.");
     } else {
@@ -2659,7 +2659,7 @@
     if (solverStats) solverStats.textContent = "0 states";
     if (solverStartBtn) solverStartBtn.disabled = true;
     if (solverCancelBtn) solverCancelBtn.hidden = false;
-    setSolverStatus("Solving with one pure FESS search. Retrograde packing, connectivity, room access, hotspots, out-of-plan, explorer and opener advisors alter macro-move weight only; non-advisor moves remain eligible unless a structural deadlock is proved.");
+    setSolverStatus("Solving with one pure FESS search. Retrograde packing, connectivity, room access, hotspots, out-of-plan, explorer and opener advisors alter push weight only; non-advisor pushes remain eligible unless a structural deadlock is proved.");
 
     let fellBack = false;
     const fallback = () => {
@@ -2675,7 +2675,7 @@
       return;
     }
     try {
-      solverWorker = new Worker("solver-worker.js?v=114");
+      solverWorker = new Worker("solver-worker.js?v=116");
       solverWorker.onmessage = event => {
         const message = event.data || {};
         if (message.id !== id || id !== solverJobId || !solverRunning) return;

@@ -1,0 +1,9 @@
+<!doctype html><meta charset="utf-8"><title>worker smoke</title><pre id="out">starting</pre><script>
+const level=["         #########","   #######       #","#### . . .$.$.$. #","# .$.$.$.$.$.$.$ #","# $.$.$.$ $*$.  ##","# .$.$*$.$.$.$ ##","## .$.$@$.$.  ##"," # $.$.$.$. ###"," ##  .$.$.$ #","  ##.$.$.$ ##","   #  $.  ##","   ##   ###","    #####"].join("\n");
+const out=document.getElementById('out');
+const w=new Worker('solver-worker.js?v=116');
+let last=null;
+w.onmessage=e=>{const m=e.data||{}; if(m.type==='progress'){last=m.progress; out.textContent='progress '+last.generated;} else {out.textContent=JSON.stringify({type:m.type,status:m.result&&m.result.status,generated:m.result&&m.result.stats&&m.result.stats.generated,last:last&&last.generated}); document.documentElement.dataset.done='yes';}};
+w.onerror=e=>{out.textContent='ERROR '+e.message;document.documentElement.dataset.done='error'};
+w.postMessage({type:'solve',id:1,level,maxTimeMs:2000,maxNodes:50000,progressEveryMs:250});
+</script>

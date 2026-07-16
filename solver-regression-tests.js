@@ -1,4 +1,4 @@
-/* BOXXY v114 pure-FESS solver regression tests.
+/* BOXXY v116 pure-FESS solver regression tests.
  * Run with: node solver-regression-tests.js
  */
 'use strict';
@@ -25,7 +25,7 @@ const microban = packs.find(pack => pack.id === 'microban');
 const chessboards = packs.find(pack => pack.id === 'chessboards');
 
 (async () => {
-  assert(core.version === '4.0.0', `Unexpected solver-core version ${core.version}.`);
+  assert(core.version === '5.1.0', `Unexpected solver-core version ${core.version}.`);
 
   // Structural pruning must not falsely reject any supplied starting board.
   let analysed = 0;
@@ -88,8 +88,41 @@ const chessboards = packs.find(pack => pack.id === 'chessboards');
   const matching = core.analyseDeadlocks(matchingDead);
   assert(matching.dead && matching.reason === 'box-goal-matching', 'Box-goal matching deadlock was not proved.');
 
-  // This board is not rejected initially. FESS must exhaust it and propagate
-  // dead descendants through the transposition graph.
+  // Sam's local corral regression: the starting position is not rejected, but
+  // uuRRRR seals the upper-right pocket and leaves the lower box with no
+  // recoverable continuation. This must be proved before FESS expands it.
+  const corralLevel = [
+    '#########################',
+    '# $ . . #   .   #   .   #',
+    '# #$# #$# #$# #$# #$# # #',
+    '#@  #   .   #   .   # $ #',
+    '#######################.#',
+    '#   #   .   #   .   #   #',
+    '# # # # #$# #$# #$# #$# #',
+    '#  $.   #   .   #   .   #',
+    '#########################',
+  ].join('\n');
+  const corralBoard = core.parseLevel(corralLevel);
+  const corralState = core.createInitialState(corralBoard);
+  assert(!core.analyseDeadlocks(corralBoard, corralState.boxes, corralState.player).dead,
+    'Corral regression was falsely rejected before the bad sequence.');
+  for (const move of 'uuRRRR') {
+    const result = core.applyMove(corralBoard, corralState, move);
+    assert(result.ok, `Corral regression move ${move} was unexpectedly illegal.`);
+  }
+  const corral = core.analyseDeadlocks(corralBoard, corralState.boxes, corralState.player);
+  assert(corral.dead && corral.reason === 'corral-pattern',
+    `uuRRRR corral was not proved; got ${corral.reason || 'live'}.`);
+  const corralExhaustion = await core.solve(core.boardToXSB(corralBoard, corralState), {
+    featureMaxTimeMs: 3000,
+    maxNodes: 100000,
+    yieldEvery: 1000,
+  });
+  assert(corralExhaustion.status === 'unsolvable' && corralExhaustion.stats.generated === 0,
+    'Dead corral was not rejected before search generation.');
+
+  // This board is not rejected initially. FESS must exhaust it and exhaust
+  // all reachable non-dead states without crashing or looping.
   const propagatedDead = [
     '#######',
     '## # ##',
@@ -106,7 +139,7 @@ const chessboards = packs.find(pack => pack.id === 'chessboards');
     yieldEvery: 1000,
   });
   assert(exhausted.strategy === 'fess' && exhausted.status === 'unsolvable', 'FESS did not exhaust the propagated-dead test.');
-  assert(exhausted.stats.provenDeadStates > 0, 'Dead descendants were not propagated.');
+  assert(exhausted.stats.provenDeadStates > 0, 'Terminal dead states were not recorded.');
 
   // The known dense stress board must remain accepted and searchable.
   const chess38 = chessboards.levels[37];
@@ -132,7 +165,7 @@ const chessboards = packs.find(pack => pack.id === 'chessboards');
   }
 
   console.log([
-    'BOXXY v114 pure-FESS regression tests passed.',
+    'BOXXY v116 pure-FESS regression tests passed.',
     `${analysed} supplied starting boards accepted.`,
     `${replayed} stored routes replayed.`,
     `${freshlySolved} Microban levels solved afresh in ${freshElapsedMs} ms of reported solver time.`,

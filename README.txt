@@ -1,12 +1,13 @@
-BOXXY v114
+BOXXY v116
 
 Solver update:
-- The puzzle solver has been rebuilt from scratch as one pure Feature Space Search (FESS) engine.
-- FESS uses same-box macro moves, cyclic feature cells, accumulated 0/1 advisor weights, a transposition table and dead-descendant propagation.
+- The puzzle solver remains one pure Feature Space Search (FESS) engine.
+- FESS now stores compact single-push states under a hard resident-state limit, so a difficult search stops cleanly rather than exhausting the browser tab.
+- Static dead squares, solid 2 x 2 deadlocks, box-to-goal matching and tiny exact corral-pattern proofs are checked before a child state enters the search.
 - Failed searches still return the strongest verified forward position and its partial route.
 - Every completed route is replayed before it can be attached to a puzzle.
 
-BOXXY — Pushbox Puzzle v114
+BOXXY — Pushbox Puzzle v116
 
 Open index.html in a web browser.
 
@@ -359,3 +360,10 @@ BOXXY v114 — pure FESS solver rebuild
 - Exact transpositions reuse feature scores and deadlock results. A newly found lower accumulated weight requeues that state’s remaining macro moves at the improved priority.
 - Pruning is limited to structural dead squares, solid 2 × 2 blocks, impossible complete box-to-goal matching, and states whose complete descendants have been proved dead.
 - Added a v114 regression suite covering all 238 supplied starting boards, all 50 stored Microban routes, fresh FESS solves of all 50 authored levels, structural deadlocks, dead-descendant propagation and a dense Small Chessboards 38 stress run.
+
+
+BOXXY v116 solver correction
+-----------------------------
+- Replaced unbounded solver storage with compact memory-bounded push states.
+- Added sound tiny-corral pattern proofs. The supplied uuRRRR regression is rejected immediately as a corral-pattern deadlock.
+- Corral proof limits are conservative: an incomplete local search is treated as unknown and is not pruned.

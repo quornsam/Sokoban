@@ -1,5 +1,5 @@
 /*
- * BOXXY Sokoban Solver Core v4.0.0
+ * BOXXY Sokoban Solver Core v5.1.0
  *
  * Clean Feature Space Search (FESS) implementation for the BOXXY Level Maker.
  * The search follows Shoham & Schaeffer's FESS design:
@@ -7,7 +7,7 @@
  *   - projection of every state into a multi-dimensional feature-space cell;
  *   - cyclic coverage of all populated cells;
  *   - selection of the least accumulated-weight unexpanded move in each cell;
- *   - same-box macro moves as the domain-space move unit;
+ *   - single legal pushes as the compact domain-space move unit;
  *   - advisor moves receive weight 0, all other moves weight 1;
  *   - no move is pruned unless a deadlock is structurally proved;
  *   - transpositions are stored and dead descendants propagate to parents.
@@ -200,6 +200,7 @@
       packingGroups: [],
       featureCache: new Map(),
       deadlockCache: new Map(),
+      corralPatternCache: new Map(),
     };
     for (let p = 0; p < count; p++) if (floor[p]) board.floorList.push(p);
     board.floorCount = board.floorList.length;
@@ -443,12 +444,20 @@
     return chars.join('');
   }
 
+  function compactKey(boxes, representative = -1) {
+    // Board positions fit in 16 bits. A binary string is dramatically smaller
+    // than a comma-separated decimal key and is safe as a JavaScript Map key.
+    let key = String.fromCharCode(representative + 1);
+    for (let i = 0; i < boxes.length; i++) key += String.fromCharCode(boxes[i] + 1);
+    return key;
+  }
+
   function canonicalState(board, boxes, player) {
     const blocked = boxesMask(board, boxes);
     const reach = floodReach(board, blocked, player, false);
     return {
       representative: reach.representative,
-      key: `${boxes.join(',')}|${reach.representative}`,
+      key: compactKey(boxes, reach.representative),
       playerReach: reach.count,
       reach,
     };
@@ -503,13 +512,13 @@
     return false;
   }
 
-  function hasCompleteGoalMatching(board, boxes) {
-    const n = boxes.length;
-    const matchedBox = new Int32Array(n);
+  function hasGoalMatching(board, boxes) {
+    const goalCount = board.goalList.length;
+    const matchedBox = new Int32Array(goalCount);
     matchedBox.fill(-1);
     const visit = (boxIndex, seenGoals) => {
       const pos = boxes[boxIndex];
-      for (let g = 0; g < n; g++) {
+      for (let g = 0; g < goalCount; g++) {
         if (seenGoals[g] || board.reverseDistances[g][pos] < 0) continue;
         seenGoals[g] = 1;
         if (matchedBox[g] < 0 || visit(matchedBox[g], seenGoals)) {
@@ -519,10 +528,14 @@
       }
       return false;
     };
-    for (let b = 0; b < n; b++) {
-      if (!visit(b, new Uint8Array(n))) return false;
+    for (let b = 0; b < boxes.length; b++) {
+      if (!visit(b, new Uint8Array(goalCount))) return false;
     }
     return true;
+  }
+
+  function hasCompleteGoalMatching(board, boxes) {
+    return boxes.length === board.goalList.length && hasGoalMatching(board, boxes);
   }
 
   function quickMacroDeadlock(board, boxes) {
@@ -531,13 +544,134 @@
     return '';
   }
 
-  function provedDeadlock(board, boxes) {
-    const key = boxes.join(',');
-    if (board.deadlockCache.has(key)) return board.deadlockCache.get(key);
+  function relaxedSubsetCanReachGoals(board, subsetBoxes, player, stateLimit = 400) {
+    const startBoxes = subsetBoxes.slice().sort((a, b) => a - b);
+    const startCanonical = canonicalState(board, startBoxes, player);
+    const cacheKey = compactKey(startBoxes, startCanonical.representative);
+    if (board.corralPatternCache.has(cacheKey)) return board.corralPatternCache.get(cacheKey);
+
+    const states = [{ boxes: startBoxes, player: startCanonical.representative }];
+    const seen = new Set([cacheKey]);
+    let head = 0;
+    let complete = true;
+
+    while (head < states.length) {
+      if (states.length >= stateLimit) {
+        complete = false;
+        break;
+      }
+      const state = states[head++];
+      if (allBoxesOnGoals(board, state.boxes)) {
+        if (board.corralPatternCache.size >= 20000) board.corralPatternCache.clear();
+        board.corralPatternCache.set(cacheKey, true);
+        return true;
+      }
+
+      const blocked = boxesMask(board, state.boxes);
+      const reach = floodReach(board, blocked, state.player, false);
+      for (let boxIndex = 0; boxIndex < state.boxes.length; boxIndex++) {
+        const from = state.boxes[boxIndex];
+        for (let dir = 0; dir < 4; dir++) {
+          const support = board.neighbours[from][OPP[dir]];
+          const to = board.neighbours[from][dir];
+          if (support < 0 || to < 0 || !reach.seen[support] || blocked[to]) continue;
+
+          const childBoxes = state.boxes.slice();
+          childBoxes[boxIndex] = to;
+          childBoxes.sort((a, b) => a - b);
+          if (quickMacroDeadlock(board, childBoxes) || !hasGoalMatching(board, childBoxes)) continue;
+
+          const canonical = canonicalState(board, childBoxes, from);
+          const key = compactKey(childBoxes, canonical.representative);
+          if (seen.has(key)) continue;
+          seen.add(key);
+          states.push({ boxes: childBoxes, player: canonical.representative });
+        }
+      }
+    }
+
+    // A false result is a proof only when the relaxed search was exhausted.
+    // Hitting the small pattern-search limit means "unknown", never dead.
+    const result = complete ? false : null;
+    if (board.corralPatternCache.size >= 20000) board.corralPatternCache.clear();
+    board.corralPatternCache.set(cacheKey, result);
+    return result;
+  }
+
+  function hasSmallCorralPatternDeadlock(board, boxes, player, playerReach = null, focusBox = -1) {
+    const blocked = boxesMask(board, boxes);
+    const reach = playerReach || floodReach(board, blocked, player, false);
+    const occupiedIndex = new Int32Array(board.count);
+    occupiedIndex.fill(-1);
+    for (let i = 0; i < boxes.length; i++) occupiedIndex[boxes[i]] = i;
+
+    const visited = new Uint8Array(board.count);
+    const queue = new Int32Array(board.count);
+    const tested = new Set();
+
+    for (const start of board.floorList) {
+      if (blocked[start] || reach.seen[start] || visited[start]) continue;
+      let qh = 0;
+      let qt = 0;
+      let componentSize = 0;
+      const boundary = new Set();
+      visited[start] = 1;
+      queue[qt++] = start;
+
+      while (qh < qt) {
+        const p = queue[qh++];
+        componentSize++;
+        for (let dir = 0; dir < 4; dir++) {
+          const n = board.neighbours[p][dir];
+          if (n < 0) continue;
+          if (blocked[n]) {
+            boundary.add(n);
+          } else if (!reach.seen[n] && !visited[n]) {
+            visited[n] = 1;
+            queue[qt++] = n;
+          }
+        }
+      }
+
+      // Exact relaxed pattern searches are deliberately limited to tiny
+      // inaccessible pockets. Larger corrals remain searchable by FESS rather
+      // than risking either a false proof or expensive work at every node.
+      const maxComponentSize = focusBox >= 0 ? 8 : 2;
+      if (componentSize > maxComponentSize || boundary.size < 2 || boundary.size > 4) continue;
+      if (focusBox >= 0 && !boundary.has(focusBox)) continue;
+      const subset = Array.from(boundary).sort((a, b) => a - b);
+      const subsetKey = subset.join(',');
+      if (tested.has(subsetKey)) continue;
+      tested.add(subsetKey);
+
+      const canSolveRelaxed = relaxedSubsetCanReachGoals(board, subset, player, focusBox >= 0 ? 800 : 300);
+      if (canSolveRelaxed === false) return true;
+    }
+    return false;
+  }
+
+  function provedDeadlock(board, boxes, player = -1, playerReach = null, focusBox = -1) {
+    const staticKey = `S${compactKey(boxes)}`;
+    if (board.deadlockCache.has(staticKey)) return board.deadlockCache.get(staticKey);
     const quick = quickMacroDeadlock(board, boxes);
-    const reason = quick || (!hasCompleteGoalMatching(board, boxes) ? 'box-goal-matching' : '');
-    board.deadlockCache.set(key, reason);
-    return reason;
+    const staticReason = quick || (!hasCompleteGoalMatching(board, boxes) ? 'box-goal-matching' : '');
+    if (staticReason) {
+      if (board.deadlockCache.size >= 50000) board.deadlockCache.clear();
+      board.deadlockCache.set(staticKey, staticReason);
+      return staticReason;
+    }
+
+    if (player >= 0) {
+      const reach = playerReach || floodReach(board, boxesMask(board, boxes), player, false);
+      const dynamicKey = `C${compactKey(boxes, reach.representative)}`;
+      if (board.deadlockCache.has(dynamicKey)) return board.deadlockCache.get(dynamicKey);
+      if (hasSmallCorralPatternDeadlock(board, boxes, player, reach, focusBox)) {
+        if (board.deadlockCache.size >= 50000) board.deadlockCache.clear();
+        board.deadlockCache.set(dynamicKey, 'corral-pattern');
+        return 'corral-pattern';
+      }
+    }
+    return '';
   }
 
   function immediatePushCountFromReach(board, boxes, blocked, reach) {
@@ -724,7 +858,7 @@
 
     const moves = [];
     for (const move of endpointMap.values()) {
-      const deadReason = provedDeadlock(board, move.childBoxes);
+      const deadReason = provedDeadlock(board, move.childBoxes, move.endPlayer, null, move.to);
       if (deadReason) {
         if (deadReason === 'box-goal-matching') stats.assignmentDeadlocks++;
         else stats.staticDeadlocks++;
@@ -925,11 +1059,16 @@
     const board = typeof levelOrBoard === 'string' ? parseLevel(levelOrBoard) : levelOrBoard;
     const startedAt = Date.now();
     const timeLimit = Math.max(1000, Number(options.featureMaxTimeMs || options.maxTimeMs || 600000));
-    const nodeLimit = Number.isFinite(Number(options.maxNodes)) ? Math.max(1, Number(options.maxNodes)) : INF;
+    const requestedLimit = Number(options.maxNodes);
+    const defaultNodeLimit = board.initialBoxes.length >= 32 ? 180000
+      : board.initialBoxes.length >= 16 ? 240000 : 400000;
+    const nodeLimit = Number.isFinite(requestedLimit) ? Math.max(1, Math.floor(requestedLimit)) : defaultNodeLimit;
     const progressEveryMs = Math.max(100, Number(options.progressEveryMs || 750));
     const yieldEvery = Math.max(1, Number(options.yieldEvery || 250));
     const shouldStop = typeof options.shouldStop === 'function' ? options.shouldStop : () => false;
     const onProgress = typeof options.onProgress === 'function' ? options.onProgress : null;
+
+    if (board.count > 65534) throw new SolverError('This board is too large for the compact browser solver.', 'BOARD_TOO_LARGE');
 
     const stats = {
       phase: 'feature-space',
@@ -944,176 +1083,240 @@
       nonAdvisorMoves: 0,
       staticDeadlocks: 0,
       assignmentDeadlocks: 0,
+      corralDeadlocks: 0,
       provenDeadStates: 0,
       deadStateHits: 0,
       transpositions: 0,
       weightRelaxations: 0,
       residentNodes: 0,
-      residentNodeLimit: nodeLimit === INF ? 0 : nodeLimit,
+      residentNodeLimit: nodeLimit,
+      memorySafeStops: 0,
     };
 
-    const initialDead = provedDeadlock(board, board.initialBoxes);
+    const initialCanonical = canonicalState(board, board.initialBoxes, board.initialPlayer);
+    const initialDead = provedDeadlock(board, board.initialBoxes, board.initialPlayer, initialCanonical.reach);
     if (initialDead) {
       return {
-        status: 'unsolvable',
-        strategy: 'fess',
-        elapsedMs: Date.now() - startedAt,
-        stats,
+        status: 'unsolvable', strategy: 'fess', elapsedMs: Date.now() - startedAt, stats,
         message: `The starting position contains a proved deadlock (${initialDead}).`,
         closest: {
           boardText: boardToXSB(board), mixedMoves: '', moveCount: 0, pushCount: 0,
-          goalsFilled: board.initialBoxes.reduce((s, p) => s + (board.goals[p] ? 1 : 0), 0),
-          safePacked: packingAnalysis(board, board.initialBoxes).score, totalGoals: board.goalList.length, remainingEstimate: null,
+          goalsFilled: board.initialBoxes.reduce((sum, p) => sum + (board.goals[p] ? 1 : 0), 0),
+          safePacked: packingAnalysis(board, board.initialBoxes).score,
+          totalGoals: board.goalList.length, remainingEstimate: null,
           legalPushes: immediatePushCount(board, board.initialBoxes, board.initialPlayer), stagnation: 0,
         },
       };
     }
 
-    const nodes = [];
-    const table = new Map();
-    const cells = new Map();
-    const cellOrder = [];
-    let cellCursor = 0;
-    let candidateSerial = 0;
-    let openMoves = 0;
+    const boxCount = board.initialBoxes.length;
+    const boxPool = new Uint16Array(nodeLimit * boxCount);
+    const parentIds = new Int32Array(nodeLimit);
+    parentIds.fill(-1);
+    const players = new Uint16Array(nodeLimit);
+    const pushedFrom = new Uint16Array(nodeLimit);
+    const pushedDir = new Uint8Array(nodeLimit);
+    const pushDepth = new Uint32Array(nodeLimit);
+    const weights = new Uint32Array(nodeLimit);
+    const expanded = new Uint8Array(nodeLimit);
+
+    const fPacking = new Uint16Array(nodeLimit);
+    const fRawGoals = new Uint16Array(nodeLimit);
+    const fConnectivity = new Uint16Array(nodeLimit);
+    const fRoomConnectivity = new Uint16Array(nodeLimit);
+    const fHotspots = new Uint16Array(nodeLimit);
+    const fHotspotWeight = new Uint32Array(nodeLimit);
+    const fOutOfPlan = new Uint16Array(nodeLimit);
+    const fPlayerReach = new Uint16Array(nodeLimit);
+    const fMobility = new Uint16Array(nodeLimit);
+
+    let nodeCount = 0;
+    let openNodes = 0;
     let closestNodeId = 0;
     let closestValue = INF;
     let bestFessNodeId = 0;
     let lastProgress = 0;
+    let cellCursor = 0;
     let selectionCount = 0;
+    let closestRouteCacheId = -1;
+    let closestRouteCache = '';
 
-    const getCell = key => {
+    const table = new Map();
+    const cells = new Map();
+    const cellOrder = [];
+
+    const boxesAt = id => boxPool.subarray(id * boxCount, (id + 1) * boxCount);
+    const writeBoxes = (id, boxes) => boxPool.set(boxes, id * boxCount);
+
+    const featureAt = id => ({
+      packing: fPacking[id], rawGoals: fRawGoals[id], connectivity: fConnectivity[id],
+      roomConnectivity: fRoomConnectivity[id], hotspots: fHotspots[id],
+      hotspotWeight: fHotspotWeight[id], outOfPlan: fOutOfPlan[id],
+      playerReach: fPlayerReach[id], mobility: fMobility[id],
+    });
+    const writeFeatures = (id, f) => {
+      fPacking[id] = f.packing;
+      fRawGoals[id] = f.rawGoals;
+      fConnectivity[id] = f.connectivity;
+      fRoomConnectivity[id] = f.roomConnectivity;
+      fHotspots[id] = f.hotspots;
+      fHotspotWeight[id] = f.hotspotWeight;
+      fOutOfPlan[id] = f.outOfPlan;
+      fPlayerReach[id] = f.playerReach;
+      fMobility[id] = f.mobility;
+    };
+
+    const scoreFeature = f => (board.goalList.length - f.packing) * 100
+      + (board.goalList.length - f.rawGoals) * 6
+      + f.outOfPlan * 12
+      + Math.max(0, f.connectivity - 1) * 4
+      + f.roomConnectivity * 3
+      + f.hotspots * 2;
+
+    const cellKeyFor = f => `${f.packing}|${f.connectivity}|${f.roomConnectivity}|${f.outOfPlan}`;
+    const getCell = f => {
+      const key = cellKeyFor(f);
       let cell = cells.get(key);
       if (!cell) {
         cell = {
           key,
-          heap: new MinHeap((a, b) => (a.priority - b.priority) || (a.serial - b.serial)),
+          heap: new MinHeap((a, b) => (weights[a] - weights[b]) || (pushDepth[a] - pushDepth[b]) || (a - b)),
         };
         cells.set(key, cell);
-        cellOrder.push(key);
+        cellOrder.push(cell);
         stats.featureCells = cells.size;
       }
       return cell;
     };
 
-    const markNodeDead = nodeId => {
-      const stack = [nodeId];
-      while (stack.length) {
-        const id = stack.pop();
-        const node = nodes[id];
-        if (!node || node.dead) continue;
-        let allDead = node.moves.length === 0;
-        if (!allDead) {
-          allDead = true;
-          for (const move of node.moves) {
-            if (move.status !== 2) {
-              allDead = false;
-              break;
-            }
-          }
-        }
-        if (!allDead) continue;
-        node.dead = true;
-        stats.provenDeadStates++;
-        for (const ref of node.parents) {
-          const parent = nodes[ref.nodeId];
-          if (!parent || parent.dead) continue;
-          const edge = parent.moves[ref.moveIndex];
-          if (edge && edge.status !== 2) {
-            edge.status = 2;
-            stack.push(ref.nodeId);
-          }
-        }
-      }
-    };
+    const addNode = (boxes, player, parentId, from, dir, weight, features, key) => {
+      if (nodeCount >= nodeLimit) return -1;
+      const id = nodeCount++;
+      writeBoxes(id, boxes);
+      players[id] = player;
+      parentIds[id] = parentId;
+      pushedFrom[id] = from < 0 ? 0 : from;
+      pushedDir[id] = dir < 0 ? 0 : dir;
+      pushDepth[id] = parentId < 0 ? 0 : pushDepth[parentId] + 1;
+      weights[id] = weight;
+      writeFeatures(id, features);
+      table.set(key, id);
+      getCell(features).heap.push(id);
+      openNodes++;
+      stats.generated = nodeCount;
+      stats.residentNodes = nodeCount;
 
-    const addNode = (boxes, player, parentId, macroRoute, macroPushes, weight, knownKey = null, knownFeatures = null) => {
-      const canonical = knownKey ? { key: knownKey } : canonicalState(board, boxes, player);
-      const id = nodes.length;
-      const node = {
-        id,
-        key: canonical.key,
-        boxes,
-        player,
-        parentId,
-        macroRoute,
-        pushDepth: parentId < 0 ? 0 : nodes[parentId].pushDepth + macroPushes,
-        weight,
-        features: null,
-        moves: [],
-        parents: [],
-        dead: false,
-      };
-      node.features = knownFeatures || board.featureCache.get(node.key) || featureValues(board, boxes, player);
-      board.featureCache.set(node.key, node.features);
-      nodes.push(node);
-      table.set(node.key, id);
-      stats.generated = nodes.length;
-      stats.residentNodes = nodes.length;
-
-      const score = closestScore(board, node);
-      if (score < closestValue || (score === closestValue && node.pushDepth < nodes[closestNodeId].pushDepth)) {
+      const score = scoreFeature(features);
+      if (id === 0 || score < closestValue || (score === closestValue && pushDepth[id] < pushDepth[closestNodeId])) {
         closestValue = score;
         closestNodeId = id;
+        closestRouteCacheId = -1;
       }
-      if (id === 0 || betterFessScore(node.features, nodes[bestFessNodeId].features)) bestFessNodeId = id;
-
-      if (!allBoxesOnGoals(board, boxes)) {
-        node.moves = generateMacroMoves(board, node, stats);
-        assignAdvisorWeights(board, node, node.moves, stats);
-        const cell = getCell(node.features.cellKey);
-        for (let i = 0; i < node.moves.length; i++) {
-          const move = node.moves[i];
-          cell.heap.push({ nodeId: id, moveIndex: i, priority: node.weight + move.weight, serial: candidateSerial++ });
-          openMoves++;
-        }
-        stats.featureGenerated += node.moves.length;
-        if (!node.moves.length) markNodeDead(id);
-      }
+      if (id === 0 || betterFessScore(features, featureAt(bestFessNodeId))) bestFessNodeId = id;
       return id;
     };
 
+    const buildCompactRoute = nodeId => {
+      if (nodeId === closestRouteCacheId) return closestRouteCache;
+      const chain = [];
+      let id = nodeId;
+      while (id > 0) {
+        chain.push(id);
+        id = parentIds[id];
+      }
+      chain.reverse();
+      let route = '';
+      for (const childId of chain) {
+        const parentId = parentIds[childId];
+        const boxes = boxesAt(parentId);
+        const blocked = boxesMask(board, boxes);
+        const reach = floodReach(board, blocked, players[parentId], true);
+        const from = pushedFrom[childId];
+        const dir = pushedDir[childId];
+        const support = board.neighbours[from][OPP[dir]];
+        const walk = pathTo(reach, players[parentId], support);
+        if (walk === null) throw new SolverError('Could not reconstruct a legal FESS route.', 'ROUTE_RECONSTRUCTION');
+        route += walk + DIRS[dir].upper;
+      }
+      if (nodeId === closestNodeId) {
+        closestRouteCacheId = nodeId;
+        closestRouteCache = route;
+      }
+      return route;
+    };
+
+    const makeClosest = () => {
+      const id = closestNodeId;
+      const f = featureAt(id);
+      const route = buildCompactRoute(id);
+      return {
+        boardText: boardToXSB(board, { boxes: boxesAt(id), player: players[id] }),
+        mixedMoves: route,
+        moveCount: route.length,
+        pushCount: pushDepth[id],
+        goalsFilled: f.rawGoals,
+        safePacked: f.packing,
+        totalGoals: board.goalList.length,
+        remainingEstimate: scoreFeature(f),
+        legalPushes: f.mobility,
+        stagnation: 0,
+      };
+    };
+
     const rootCanonical = canonicalState(board, board.initialBoxes, board.initialPlayer);
-    addNode(board.initialBoxes.slice(), board.initialPlayer, -1, '', 0, 0, rootCanonical.key);
+    const rootFeatures = featureValues(board, board.initialBoxes, board.initialPlayer, rootCanonical.reach);
+    addNode(board.initialBoxes, board.initialPlayer, -1, -1, -1, 0, rootFeatures, rootCanonical.key);
 
     if (allBoxesOnGoals(board, board.initialBoxes)) {
       return { status: 'solved', strategy: 'fess', moves: '', mixedMoves: '', moveCount: 0, pushCount: 0, elapsedMs: Date.now() - startedAt, stats, message: 'The puzzle is already solved.' };
     }
 
-    const popFromCell = key => {
-      const cell = cells.get(key);
+    const popFromCell = cell => {
       while (cell && cell.heap.size) {
-        const candidate = cell.heap.pop();
-        const node = nodes[candidate.nodeId];
-        const move = node && node.moves[candidate.moveIndex];
-        if (!node || node.dead || !move || move.status !== 0) continue;
-        return candidate;
+        const id = cell.heap.pop();
+        if (id === null || expanded[id]) continue;
+        return id;
       }
-      return null;
+      return -1;
     };
 
-    const selectCandidate = () => {
-      if (!cellOrder.length) return null;
+    const selectNode = () => {
+      if (!cellOrder.length) return -1;
       selectionCount++;
 
-      // Festival alternates broad cyclic coverage with exploitation of the
-      // best feature cell seen so far. Both selections use the same FESS cells
-      // and the same accumulated-weight queues.
+      // Retain FESS's broad cyclic coverage, but spend every second expansion
+      // exploiting the strongest populated feature cell. This changes only
+      // selection order; every other cell remains in the cycle.
       if ((selectionCount & 1) === 0) {
-        const bestNode = nodes[bestFessNodeId];
-        const focused = bestNode ? popFromCell(bestNode.features.cellKey) : null;
-        if (focused) return focused;
+        const bestFeature = featureAt(bestFessNodeId);
+        const focused = cells.get(cellKeyFor(bestFeature));
+        const focusedId = popFromCell(focused);
+        if (focusedId >= 0) return focusedId;
       }
 
       let checked = 0;
       while (checked < cellOrder.length) {
-        const key = cellOrder[cellCursor % cellOrder.length];
+        const cell = cellOrder[cellCursor % cellOrder.length];
         cellCursor = (cellCursor + 1) % cellOrder.length;
         checked++;
-        const candidate = popFromCell(key);
-        if (candidate) return candidate;
+        const id = popFromCell(cell);
+        if (id >= 0) return id;
       }
-      return null;
+      return -1;
+    };
+
+    const advisorIndexes = (moves, parentFeature) => {
+      const selected = new Set();
+      const add = index => { if (index >= 0) selected.add(index); };
+      add(chooseAdvisorMove(moves, parentFeature, child => child.packing > parentFeature.packing));
+      add(chooseAdvisorMove(moves, parentFeature, child => child.connectivity < parentFeature.connectivity));
+      add(chooseAdvisorMove(moves, parentFeature, child => child.roomConnectivity < parentFeature.roomConnectivity));
+      add(chooseAdvisorMove(moves, parentFeature, child => child.hotspots < parentFeature.hotspots ||
+        (child.hotspots === parentFeature.hotspots && child.hotspotWeight < parentFeature.hotspotWeight)));
+      add(chooseAdvisorMove(moves, parentFeature, child => child.outOfPlan < parentFeature.outOfPlan));
+      add(chooseAdvisorMove(moves, parentFeature, child => child.playerReach > parentFeature.playerReach));
+      add(chooseAdvisorMove(moves, parentFeature, child => child.mobility > parentFeature.mobility));
+      return selected;
     };
 
     const sendProgress = force => {
@@ -1121,33 +1324,20 @@
       if (!force && now - lastProgress < progressEveryMs) return;
       lastProgress = now;
       let activeCells = 0;
-      for (const cell of cells.values()) if (cell.heap.size) activeCells++;
+      for (const cell of cellOrder) if (cell.heap.size) activeCells++;
       stats.activeCells = activeCells;
-      const closest = makeClosest(board, nodes, closestNodeId);
+      const closest = makeClosest();
       onProgress?.({
-        phase: 'feature-space',
-        generated: nodes.length,
-        open: openMoves,
-        depth: nodes[closestNodeId].pushDepth,
-        bestPushDepth: nodes[closestNodeId].pushDepth,
-        elapsedMs: now - startedAt,
-        goalsFilled: closest.goalsFilled,
-        safePacked: closest.safePacked,
-        totalGoals: board.goalList.length,
-        estimate: closest.remainingEstimate,
-        bestEstimate: closest.remainingEstimate,
-        featureCells: cells.size,
-        activeCells,
-        activeFeatureCells: activeCells,
-        deadlocks: stats.staticDeadlocks + stats.assignmentDeadlocks,
-        advisorMoves: stats.advisorMoves,
-        nonAdvisorMoves: stats.nonAdvisorMoves,
-        provenDeadStates: stats.provenDeadStates,
-        deadStateHits: stats.deadStateHits,
-        residentNodes: nodes.length,
-        residentNodeLimit: stats.residentNodeLimit,
-        closest,
-        stats: { ...stats },
+        phase: 'feature-space', generated: nodeCount, open: openNodes,
+        depth: pushDepth[closestNodeId], bestPushDepth: pushDepth[closestNodeId],
+        elapsedMs: now - startedAt, goalsFilled: closest.goalsFilled,
+        safePacked: closest.safePacked, totalGoals: board.goalList.length,
+        estimate: closest.remainingEstimate, bestEstimate: closest.remainingEstimate,
+        featureCells: cells.size, activeCells, activeFeatureCells: activeCells,
+        deadlocks: stats.staticDeadlocks + stats.assignmentDeadlocks + stats.corralDeadlocks,
+        advisorMoves: stats.advisorMoves, nonAdvisorMoves: stats.nonAdvisorMoves,
+        provenDeadStates: 0, deadStateHits: 0, residentNodes: nodeCount,
+        residentNodeLimit: nodeLimit, closest, stats: { ...stats },
       });
     };
 
@@ -1156,95 +1346,96 @@
     while (true) {
       if (shouldStop()) {
         sendProgress(true);
-        return { status: 'stopped', strategy: 'fess', elapsedMs: Date.now() - startedAt, stats, closest: makeClosest(board, nodes, closestNodeId), message: 'Search cancelled.' };
+        return { status: 'stopped', strategy: 'fess', elapsedMs: Date.now() - startedAt, stats, closest: makeClosest(), message: 'Search cancelled.' };
       }
       if (Date.now() - startedAt >= timeLimit) {
         sendProgress(true);
-        return { status: 'limit', strategy: 'fess', elapsedMs: Date.now() - startedAt, stats, closest: makeClosest(board, nodes, closestNodeId), message: 'FESS reached its solving-time limit before exhausting the puzzle.' };
+        return { status: 'limit', strategy: 'fess', elapsedMs: Date.now() - startedAt, stats, closest: makeClosest(), message: 'FESS reached its solving-time limit before exhausting the puzzle.' };
       }
-      if (nodes.length >= nodeLimit) {
-        sendProgress(true);
-        return { status: 'limit', strategy: 'fess', elapsedMs: Date.now() - startedAt, stats, closest: makeClosest(board, nodes, closestNodeId), message: 'FESS reached its state limit before exhausting the puzzle.' };
-      }
-
-      const candidate = selectCandidate();
-      if (!candidate) {
+      if (nodeCount >= nodeLimit) {
+        stats.memorySafeStops++;
         sendProgress(true);
         return {
-          status: 'unsolvable',
-          strategy: 'fess',
-          elapsedMs: Date.now() - startedAt,
-          stats,
-          closest: makeClosest(board, nodes, closestNodeId),
-          message: 'FESS exhausted every reachable non-dead macro move without finding a solution.',
+          status: 'limit', strategy: 'fess', elapsedMs: Date.now() - startedAt, stats, closest: makeClosest(),
+          message: `FESS reached its memory-safe limit of ${nodeLimit.toLocaleString()} resident states. The search stopped cleanly rather than risking a browser crash.`,
         };
       }
 
-      const parent = nodes[candidate.nodeId];
-      const move = parent.moves[candidate.moveIndex];
-      move.status = 1;
-      openMoves--;
+      const nodeId = selectNode();
+      if (nodeId < 0) {
+        sendProgress(true);
+        return {
+          status: 'unsolvable', strategy: 'fess', elapsedMs: Date.now() - startedAt, stats,
+          closest: makeClosest(), message: 'FESS exhausted every reachable non-dead push state without finding a solution.',
+        };
+      }
+
+      expanded[nodeId] = 1;
+      openNodes--;
       stats.expanded++;
       stats.featureExpanded++;
 
-      const childBoxes = replaceBox(parent.boxes, move.from, move.to);
-      const deadReason = childBoxes ? provedDeadlock(board, childBoxes) : 'invalid-macro';
-      if (deadReason) {
-        move.status = 2;
-        if (deadReason === 'box-goal-matching') stats.assignmentDeadlocks++;
-        else stats.staticDeadlocks++;
-        markNodeDead(parent.id);
-      } else {
-        const existingId = table.get(move.childKey);
-        if (existingId !== undefined) {
-          stats.transpositions++;
-          move.childId = existingId;
-          const existing = nodes[existingId];
-          existing.parents.push({ nodeId: parent.id, moveIndex: candidate.moveIndex });
-          if (existing.dead) {
-            move.status = 2;
-            stats.deadStateHits++;
-            markNodeDead(parent.id);
-          } else {
-            const improvedWeight = parent.weight + move.weight;
-            if (improvedWeight < existing.weight) {
-              existing.weight = improvedWeight;
-              stats.weightRelaxations++;
-              const cell = getCell(existing.features.cellKey);
-              for (let i = 0; i < existing.moves.length; i++) {
-                const pending = existing.moves[i];
-                if (pending.status !== 0) continue;
-                cell.heap.push({ nodeId: existingId, moveIndex: i, priority: existing.weight + pending.weight, serial: candidateSerial++ });
-              }
-            }
-          }
-        } else {
-          const childWeight = parent.weight + move.weight;
-          const childId = addNode(childBoxes, move.endPlayer, parent.id, move.route, move.pushes, childWeight, move.childKey, move.features);
-          move.childId = childId;
-          nodes[childId].parents.push({ nodeId: parent.id, moveIndex: candidate.moveIndex });
+      const boxes = boxesAt(nodeId);
+      const blocked = boxesMask(board, boxes);
+      const reach = floodReach(board, blocked, players[nodeId], false);
+      const parentFeature = featureAt(nodeId);
+      const candidates = [];
+      const localKeys = new Set();
 
-          if (allBoxesOnGoals(board, childBoxes)) {
-            const route = buildRoute(nodes, childId);
-            const validation = validateSolution(board, route);
-            if (!validation.valid || !validation.solved) throw new SolverError('FESS constructed a route that failed replay verification.', 'INVALID_SOLUTION');
-            sendProgress(true);
-            return {
-              status: 'solved',
-              strategy: 'fess',
-              moves: route,
-              mixedMoves: route,
-              moveCount: validation.moveCount,
-              pushCount: validation.pushCount,
-              elapsedMs: Date.now() - startedAt,
-              stats,
-              message: 'Solved by Feature Space Search.',
-            };
+      for (let boxIndex = 0; boxIndex < boxCount; boxIndex++) {
+        const from = boxes[boxIndex];
+        for (let dir = 0; dir < 4; dir++) {
+          const support = board.neighbours[from][OPP[dir]];
+          const to = board.neighbours[from][dir];
+          if (support < 0 || to < 0 || !reach.seen[support] || blocked[to]) continue;
+
+          const childBoxes = boxes.slice();
+          childBoxes[boxIndex] = to;
+          childBoxes.sort();
+          const canonical = canonicalState(board, childBoxes, from);
+          const deadReason = provedDeadlock(board, childBoxes, from, canonical.reach, to);
+          if (deadReason) {
+            if (deadReason === 'box-goal-matching') stats.assignmentDeadlocks++;
+            else if (deadReason === 'corral-pattern') stats.corralDeadlocks++;
+            else stats.staticDeadlocks++;
+            continue;
           }
-          if (nodes[childId].dead) {
-            move.status = 2;
-            markNodeDead(parent.id);
+
+          if (localKeys.has(canonical.key)) continue;
+          localKeys.add(canonical.key);
+          if (table.has(canonical.key)) {
+            stats.transpositions++;
+            continue;
           }
+
+          const features = featureValues(board, childBoxes, from, canonical.reach);
+          candidates.push({ from, dir, childBoxes, key: canonical.key, features });
+        }
+      }
+
+      if (!candidates.length) stats.provenDeadStates++;
+      const selected = advisorIndexes(candidates, parentFeature);
+      for (let i = 0; i < candidates.length; i++) {
+        if (nodeCount >= nodeLimit) break;
+        const move = candidates[i];
+        const edgeWeight = selected.has(i) ? 0 : 1;
+        if (edgeWeight === 0) stats.advisorMoves++;
+        else stats.nonAdvisorMoves++;
+        const childId = addNode(move.childBoxes, move.from, nodeId, move.from, move.dir,
+          weights[nodeId] + edgeWeight, move.features, move.key);
+        if (childId < 0) break;
+        stats.featureGenerated++;
+
+        if (allBoxesOnGoals(board, move.childBoxes)) {
+          const route = buildCompactRoute(childId);
+          const validation = validateSolution(board, route);
+          if (!validation.valid || !validation.solved) throw new SolverError('FESS constructed a route that failed replay verification.', 'INVALID_SOLUTION');
+          sendProgress(true);
+          return {
+            status: 'solved', strategy: 'fess', moves: route, mixedMoves: route,
+            moveCount: validation.moveCount, pushCount: validation.pushCount,
+            elapsedMs: Date.now() - startedAt, stats, message: 'Solved by Feature Space Search.',
+          };
         }
       }
 
@@ -1253,10 +1444,12 @@
     }
   }
 
-  function analyseDeadlocks(levelOrBoard, boxes = null) {
+  function analyseDeadlocks(levelOrBoard, boxes = null, player = null) {
     const board = typeof levelOrBoard === 'string' ? parseLevel(levelOrBoard) : levelOrBoard;
     const positions = boxes ? boxes.slice().sort((a, b) => a - b) : board.initialBoxes.slice();
-    const reason = provedDeadlock(board, positions);
+    const playerPosition = Number.isInteger(player) ? player : board.initialPlayer;
+    const canonical = canonicalState(board, positions, playerPosition);
+    const reason = provedDeadlock(board, positions, playerPosition, canonical.reach);
     return {
       dead: Boolean(reason),
       reason,
@@ -1265,7 +1458,7 @@
   }
 
   return Object.freeze({
-    version: '4.0.0',
+    version: '5.1.0',
     DIRS,
     SolverError,
     parseLevel,
