@@ -194,6 +194,14 @@
           <button type="button" data-maker-tool="playergoal"><i class="maker-tool-icon playergoal"></i><span>PLAYER + GOAL</span></button>
           <button type="button" data-maker-tool="void"><i class="maker-tool-icon void"></i><span>VOID</span></button>
         </div>
+        <section class="maker-existing-strip" aria-labelledby="makerExistingTitle">
+          <h3 id="makerExistingTitle">OPEN EXISTING PUZZLE</h3>
+          <div class="maker-existing-row">
+            <select id="makerPackSelect" aria-label="Puzzle pack"></select>
+            <select id="makerLevelSelect" aria-label="Puzzle from selected pack"></select>
+            <button id="makerOpenLevelBtn" type="button">OPEN PUZZLE</button>
+          </div>
+        </section>
         <div class="maker-grid-shell">
           <div id="makerGrid" class="maker-grid" role="grid" aria-label="Level editor grid"></div>
         </div>
@@ -203,9 +211,9 @@
         <section class="maker-panel maker-generator-panel">
           <h3>GENERATE NEW LEVEL</h3>
           <div class="maker-generator-fields">
-            <label>WIDTH<input id="makerWidth" type="number" min="5" max="24" value="10"></label>
+            <label>WIDTH<input id="makerWidth" type="number" min="5" max="36" value="10"></label>
             <span>×</span>
-            <label>HEIGHT<input id="makerHeight" type="number" min="5" max="24" value="10"></label>
+            <label>HEIGHT<input id="makerHeight" type="number" min="5" max="36" value="10"></label>
             <label>BOXES<input id="makerBoxes" type="number" min="1" max="12" value="3"></label>
           </div>
           <div class="maker-generator-options">

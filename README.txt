@@ -216,3 +216,12 @@ VERSION 99
 - Completing level 50 permanently unlocks Chrysalis Variations, Haikemono and Small Chessboards in that browser.
 - Existing players who had already completed level 50 are detected automatically from their saved completion or best-score data.
 - A previously selected additional pack is safely replaced by Microban on startup while the additional packs are still locked; its saved progress is preserved.
+
+
+VERSION 100
+-----------
+- Added an unrestricted OPEN EXISTING PUZZLE browser inside the hidden Level Maker.
+- All four installed packs and every puzzle are available in this backend tool even when the additional packs remain locked in normal play.
+- Existing puzzles up to 36 × 36 can be loaded, edited, exported and tested.
+- Corrected the LOCKED stamp so it remains dark and readable on the blue puzzle-pack artwork.
+- No Chrysalis walkthrough strings were added: sokoban-solver.com visibly plays stored solutions, but a directly reusable text sequence or public data endpoint was not immediately exposed.

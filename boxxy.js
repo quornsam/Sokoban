@@ -1,4 +1,4 @@
-/* BOXXY v99 — character renderer, game engine and level maker. */
+/* BOXXY v100 — character renderer, game engine and level maker. */
 (() => {
   "use strict";
 
@@ -2111,13 +2111,16 @@
   const savedSelect = document.getElementById("makerSavedSelect");
   const loadBtn = document.getElementById("makerLoadBtn");
   const deleteBtn = document.getElementById("makerDeleteBtn");
+  const existingPackSelect = document.getElementById("makerPackSelect");
+  const existingLevelSelect = document.getElementById("makerLevelSelect");
+  const openExistingLevelBtn = document.getElementById("makerOpenLevelBtn");
   const toolButtons = [...document.querySelectorAll("[data-maker-tool]")];
 
   if (!modal || !gridEl) return;
 
   const MIN_SIZE = 3;
   const GENERATOR_MIN_SIZE = 5;
-  const MAX_SIZE = 24;
+  const MAX_SIZE = 36;
   const MAX_GENERATOR_BOXES = 12;
   const VOID = "~";
   const SAVE_KEY = "boxxy-level-maker-saves-v1";
@@ -2168,6 +2171,7 @@
   const waitForPaint = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
   const randomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
   const randomItem = list => list[Math.floor(Math.random() * list.length)];
+  const existingPacks = Array.isArray(window.BOXXY_LEVEL_PACKS) ? window.BOXXY_LEVEL_PACKS : [];
 
   function shuffled(list) {
     const copy = list.slice();
@@ -3161,6 +3165,66 @@
     }
   }
 
+  function populateExistingPacks(preferredPackId = "") {
+    if (!existingPackSelect) return;
+    const previous = preferredPackId || existingPackSelect.value;
+    existingPackSelect.innerHTML = "";
+    existingPacks.forEach((pack, index) => {
+      const option = document.createElement("option");
+      option.value = pack.id || String(index);
+      option.textContent = `${pack.displayName || pack.title || `Pack ${index + 1}`} · ${pack.levels?.length || 0} levels`;
+      existingPackSelect.appendChild(option);
+    });
+    if (existingPacks.some(pack => pack.id === previous)) existingPackSelect.value = previous;
+    else if (existingPackSelect.options.length) existingPackSelect.selectedIndex = 0;
+    populateExistingLevels();
+  }
+
+  function selectedExistingPack() {
+    if (!existingPackSelect) return null;
+    return existingPacks.find((pack, index) => (pack.id || String(index)) === existingPackSelect.value) || existingPacks[0] || null;
+  }
+
+  function populateExistingLevels(preferredIndex = 0) {
+    if (!existingLevelSelect) return;
+    const pack = selectedExistingPack();
+    existingLevelSelect.innerHTML = "";
+    const levels = Array.isArray(pack?.levels) ? pack.levels : [];
+    levels.forEach((level, index) => {
+      const option = document.createElement("option");
+      option.value = String(index);
+      const width = Math.max(0, ...(level.layout || []).map(row => String(row).length));
+      const height = Array.isArray(level.layout) ? level.layout.length : 0;
+      const title = level.name && !/^level\s+\d+$/i.test(level.name)
+        ? `${index + 1}. ${level.name}`
+        : `Level ${index + 1}`;
+      option.textContent = `${title} · ${width}×${height}`;
+      existingLevelSelect.appendChild(option);
+    });
+    existingLevelSelect.value = levels.length ? String(Math.max(0, Math.min(levels.length - 1, Number(preferredIndex) || 0))) : "";
+    if (openExistingLevelBtn) openExistingLevelBtn.disabled = !levels.length;
+  }
+
+  function openExistingPuzzle() {
+    const pack = selectedExistingPack();
+    const levelIndex = Number(existingLevelSelect?.value);
+    const level = Array.isArray(pack?.levels) ? pack.levels[levelIndex] : null;
+    if (!level || !Array.isArray(level.layout)) {
+      setStatus("Choose an existing puzzle first.", "error");
+      return;
+    }
+    try {
+      importRows(level.layout, { quiet: true });
+      clearActiveSave();
+      const packName = pack.displayName || pack.title || "Puzzle pack";
+      const levelName = level.name || `Level ${levelIndex + 1}`;
+      if (saveNameInput) saveNameInput.value = `${packName} — ${levelName}`.slice(0, 48);
+      setStatus(`Opened ${packName}, ${levelName}. All backend packs are available here regardless of game progress.`, "success");
+    } catch (error) {
+      setStatus(error?.message || "That puzzle could not be opened in the editor.", "error");
+    }
+  }
+
   function readSavedLevels() {
     try {
       const parsed = JSON.parse(localStorage.getItem(SAVE_KEY) || "[]");
@@ -3291,6 +3355,7 @@
     modal.hidden = false;
     exitTestBtn.hidden = !window.BoxxyGameAPI?.isMakerTesting?.();
     renderSavedLevels(activeSaveId);
+    populateExistingPacks(existingPackSelect?.value);
     scheduleGridFit();
     closeBtn.focus({ preventScroll: true });
   }
@@ -3390,6 +3455,9 @@
   });
 
   saveBtn.addEventListener("click", saveCurrentLevel);
+  existingPackSelect?.addEventListener("change", () => populateExistingLevels());
+  existingLevelSelect?.addEventListener("dblclick", openExistingPuzzle);
+  openExistingLevelBtn?.addEventListener("click", openExistingPuzzle);
   loadBtn.addEventListener("click", loadSavedLevel);
   deleteBtn.addEventListener("click", deleteSavedLevel);
   savedSelect.addEventListener("change", resetDeleteButton);
@@ -3474,4 +3542,5 @@
   makeRoom(10, 10, false);
   boxesInput.value = "3";
   renderSavedLevels();
+  populateExistingPacks();
 })();
