@@ -490,6 +490,7 @@
   const currentLevelStorageKey = () => packStorageKey("level");
   const currentProgressStorageKey = () => packStorageKey("progress");
   const currentCompletedStorageKey = () => packStorageKey("completed");
+  const currentAssistedStorageKey = () => packStorageKey("assisted");
   const currentBestStorageKey = level => packStorageKey(`best-${level.sourceNumber}`);
 
   function storedLevelIndexForPack(pack = activePack) {
@@ -621,10 +622,12 @@
   let backgroundFadeTimer = null;
   let backgroundBuildNonce = 0;
   let completedLevels = new Set();
+  let assistedLevels = new Set();
   let highestUnlockedLevel = 0;
 
   function loadLevelProgress() {
     completedLevels = new Set();
+    assistedLevels = new Set();
     try {
       const currentRaw = localStorage.getItem(currentCompletedStorageKey());
       const legacyRaw = activePack.id === "microban" ? localStorage.getItem("boxxy-completed-levels-v1") : null;
@@ -637,10 +640,24 @@
       }
     } catch (_) {}
 
+    try {
+      const savedAssisted = JSON.parse(localStorage.getItem(currentAssistedStorageKey()) ?? "[]");
+      if (Array.isArray(savedAssisted)) {
+        savedAssisted.forEach(value => {
+          const index = Number(value);
+          if (Number.isInteger(index) && index >= 0 && index < LEVELS.length) assistedLevels.add(index);
+        });
+      }
+    } catch (_) {}
+
     if (activePack.id === "microban") {
       LEVELS.forEach((level, index) => {
         if (localStorage.getItem(`push-bauhaus-v22-best-${level.sourceNumber}`)) completedLevels.add(index);
       });
+    }
+
+    for (const index of [...assistedLevels]) {
+      if (!completedLevels.has(index)) assistedLevels.delete(index);
     }
 
     const currentProgress = localStorage.getItem(currentProgressStorageKey());
@@ -660,6 +677,7 @@
   function saveLevelProgress() {
     localStorage.setItem(currentProgressStorageKey(), String(highestUnlockedLevel));
     localStorage.setItem(currentCompletedStorageKey(), JSON.stringify([...completedLevels].sort((a, b) => a - b)));
+    localStorage.setItem(currentAssistedStorageKey(), JSON.stringify([...assistedLevels].sort((a, b) => a - b)));
   }
 
   function applyTheme(_theme, redraw = true) {
@@ -804,6 +822,7 @@
 
   function resetLevelProgress() {
     completedLevels = new Set();
+    assistedLevels = new Set();
     highestUnlockedLevel = 0;
     saveLevelProgress();
     LEVELS.forEach((level) => {
@@ -820,9 +839,11 @@
     [...levelButtons.children].forEach((button, index) => {
       const isCurrent = index === levelIndex;
       const isCompleted = completedLevels.has(index);
+      const isAssisted = assistedLevels.has(index);
       const isLocked = index > highestUnlockedLevel;
       button.classList.toggle("current", isCurrent);
-      button.classList.toggle("completed", isCompleted && !isCurrent);
+      button.classList.toggle("completed", isCompleted && !isCurrent && !isAssisted);
+      button.classList.toggle("assisted", isAssisted && !isCurrent);
       button.classList.toggle("locked", isLocked);
       button.disabled = isLocked;
       button.setAttribute("aria-disabled", String(isLocked));
@@ -1754,46 +1775,50 @@
       if (nextBtnLabel) nextBtnLabel.textContent = "BACK TO MAKER";
       if (nextBtnIcon) nextBtnIcon.textContent = "←";
     } else {
+      const solvedWithWalkthrough = autoplayRunning;
       const packsWereUnlocked = additionalPacksUnlocked();
       const bestKey = currentBestStorageKey(levelData);
       const oldBest = Number(readBest(levelData) || 0);
-      if (!autoplayRunning && (!oldBest || moves < oldBest)) localStorage.setItem(bestKey, moves);
-      if (!autoplayRunning) {
-        completedLevels.add(levelIndex);
-        highestUnlockedLevel = Math.max(highestUnlockedLevel, Math.min(levelIndex + 1, LEVELS.length - 1));
-        saveLevelProgress();
-        refreshLevelButtons();
-      }
+      if (!solvedWithWalkthrough && (!oldBest || moves < oldBest)) localStorage.setItem(bestKey, moves);
 
-      if (levelIndex === LEVELS.length - 1 && !autoplayRunning) {
+      completedLevels.add(levelIndex);
+      if (solvedWithWalkthrough) assistedLevels.add(levelIndex);
+      else assistedLevels.delete(levelIndex);
+      highestUnlockedLevel = Math.max(highestUnlockedLevel, Math.min(levelIndex + 1, LEVELS.length - 1));
+      saveLevelProgress();
+      refreshLevelButtons();
+
+      if (levelIndex === LEVELS.length - 1) {
         const unlockedAdditionalPacksNow = activePack.id === PRIMARY_PACK_ID && !packsWereUnlocked;
         if (activePack.id === PRIMARY_PACK_ID) localStorage.setItem(ADDITIONAL_PACKS_UNLOCK_KEY, "true");
         completeMode = "final";
         completeCard?.classList.add("final-complete");
         if (completeKicker) completeKicker.textContent = "CONGRATULATIONS";
         if (completeTitle) completeTitle.innerHTML = "WELL<br>DONE";
-        completeText.textContent = `You have completed ${activePack.displayName}. Level ${LEVELS.length} was solved in ${moves} moves and ${pushes} pushes.${unlockedAdditionalPacksNow ? " The additional Bauhaus level packs are now unlocked." : ""}`;
+        completeText.textContent = `You have completed ${activePack.displayName}. Level ${LEVELS.length} was solved in ${moves} moves and ${pushes} pushes.${solvedWithWalkthrough ? " This completion used the walkthrough." : ""}${unlockedAdditionalPacksNow ? " The additional Bauhaus level packs are now unlocked." : ""}`;
         buildPackSelectors();
         if (finalPackPicker) finalPackPicker.hidden = false;
-        if (finalPackStatus) finalPackStatus.textContent = "";
+        if (finalPackStatus) finalPackStatus.textContent = solvedWithWalkthrough ? "Walkthrough-assisted completions are shown in yellow in the level list." : "";
         if (nextBtnLabel) nextBtnLabel.textContent = "CHOOSE A LEVEL";
         if (nextBtnIcon) nextBtnIcon.textContent = "✓";
       } else {
         completeMode = "normal";
         completeCard?.classList.remove("final-complete");
         if (finalPackPicker) finalPackPicker.hidden = true;
-        if (finalPackStatus) finalPackStatus.textContent = "";
+        if (finalPackStatus) finalPackStatus.textContent = solvedWithWalkthrough ? "Walkthrough-assisted completions are marked yellow in the level list." : "";
         if (completeKicker) completeKicker.textContent = activePack.title;
-        if (completeTitle) completeTitle.innerHTML = "PUZZLE<br>CLEARED";
+        if (completeTitle) completeTitle.innerHTML = solvedWithWalkthrough ? "WALKTHROUGH<br>USED" : "PUZZLE<br>CLEARED";
         const statedMinimum = Number(levelData.minimum);
+        let summary;
         if (Number.isFinite(statedMinimum) && statedMinimum > 0) {
           const difference = moves - statedMinimum;
-          completeText.textContent = difference === 0
+          summary = difference === 0
             ? `Perfect route: ${moves} moves and ${pushes} pushes.`
             : `Solved in ${moves} moves and ${pushes} pushes — ${difference} over the minimum.`;
         } else {
-          completeText.textContent = `Solved in ${moves} moves and ${pushes} pushes.`;
+          summary = `Solved in ${moves} moves and ${pushes} pushes.`;
         }
+        completeText.textContent = solvedWithWalkthrough ? `${summary} This level is now counted as completed, and its button will appear in yellow.` : summary;
         if (nextBtnLabel) nextBtnLabel.textContent = "NEXT LEVEL";
         if (nextBtnIcon) nextBtnIcon.textContent = "→";
       }
