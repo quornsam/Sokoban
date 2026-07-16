@@ -1,15 +1,15 @@
-BOXXY v117
+BOXXY v118
 
 Solver update:
-- The puzzle solver remains one memory-bounded Feature Space Search (FESS) engine.
+- The puzzle solver remains one pure Feature Space Search (FESS) engine with adaptive, staged memory growth.
 - Every generated push is passed through a separate layered deadlock engine before it can enter FESS.
 - The engine checks static dead squares, solid 2 x 2 blocks, mutually frozen box groups, frozen boxes on goals that obstruct the remaining assignment, dynamic bipartite box-to-goal matching, maze-specific exact 4 x 4 pattern searches, exact corral subproblems and articulation-room subproblems.
 - Local and corral searches are optimistic: boxes outside the tested subproblem are removed and exits are treated as available. Therefore a branch is pruned only when the easier subproblem is completely exhausted. Reaching a safety limit is treated as unknown, never dead.
-- FESS stores compact single-push states under a hard resident-state limit, so difficult searches stop cleanly rather than exhausting the browser tab.
+- FESS begins with a modest compact allocation and expands its typed-array state store only when needed. Desktop systems receive a much larger allowance than phones and low-memory devices.
 - Failed searches still return the strongest verified forward position and its partial route.
 - Every completed route is replayed before it can be attached to a puzzle.
 
-BOXXY — Pushbox Puzzle v117
+BOXXY — Pushbox Puzzle v118
 
 Open index.html in a web browser.
 
@@ -378,3 +378,14 @@ BOXXY v117 deadlock engine
 - Retained static dead-square, 2 x 2 and complete bipartite matching checks.
 - Backward pull reachability is used only for valid structural tests such as dead-square and box-to-goal reachability; the puzzle is still solved forward by FESS.
 - Any bounded sub-search that is not exhausted returns unknown and does not prune the branch.
+
+
+BOXXY v118 adaptive-memory solver
+----------------------------------
+- Removed v117's small fixed 180,000-state ceiling for dense puzzles.
+- Added device-aware resident-state allowances: high-memory desktop systems can search up to 900,000 dense states, 1,250,000 medium states or 1,800,000 small-puzzle states.
+- Compact typed-array storage now grows in stages instead of allocating the full allowance immediately.
+- Replaced the global JavaScript string transposition Set with a compact typed-array hash table. Hash matches are verified against the complete stored box arrangement and canonical player region before a state is treated as a duplicate.
+- Fixed stale v116 cache tags on the v117 HTML and worker URLs. All v118 solver and application files use v118 cache tags.
+- A requested unlimited solve now receives a 12-hour time allowance rather than silently stopping after ten minutes.
+- The progress display reports the current device's state allowance, and a limit result identifies whether memory or time was reached.

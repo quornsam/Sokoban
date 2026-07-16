@@ -1,5 +1,5 @@
-/* BOXXY v117 solver worker — pure Feature Space Search. */
-importScripts("solver-core.js?v=117");
+/* BOXXY v118 solver worker — pure Feature Space Search. */
+importScripts("solver-core.js?v=118");
 
 self.onmessage = async event => {
   const message = event.data || {};
@@ -7,7 +7,7 @@ self.onmessage = async event => {
   const id = message.id;
   try {
     const result = await self.SokobanCore.solve(message.level, {
-      featureMaxTimeMs: Number(message.maxTimeMs) || 600000,
+      featureMaxTimeMs: message.unlimited ? 43200000 : (Number(message.maxTimeMs) || 600000),
       maxNodes: Number(message.maxNodes) || undefined,
       yieldEvery: 200,
       progressEveryMs: message.progressEveryMs || 750,

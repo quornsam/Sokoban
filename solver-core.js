@@ -1,5 +1,5 @@
 /*
- * BOXXY Sokoban Solver Core v5.2.0
+ * BOXXY Sokoban Solver Core v5.3.0
  *
  * Clean Feature Space Search (FESS) implementation for the BOXXY Level Maker.
  * The search follows Shoham & Schaeffer's FESS design:
@@ -1382,8 +1382,11 @@
     const startedAt = Date.now();
     const timeLimit = Math.max(1000, Number(options.featureMaxTimeMs || options.maxTimeMs || 600000));
     const requestedLimit = Number(options.maxNodes);
-    const defaultNodeLimit = board.initialBoxes.length >= 32 ? 180000
-      : board.initialBoxes.length >= 16 ? 240000 : 400000;
+    // v118 no longer treats the small v117 resident-state guard as the normal
+    // end of a serious search. Compact storage grows in stages up to this
+    // allowance. The browser UI supplies a lower allowance on mobile devices.
+    const defaultNodeLimit = board.initialBoxes.length >= 32 ? 750000
+      : board.initialBoxes.length >= 16 ? 1000000 : 1500000;
     const nodeLimit = Number.isFinite(requestedLimit) ? Math.max(1, Math.floor(requestedLimit)) : defaultNodeLimit;
     const progressEveryMs = Math.max(100, Number(options.progressEveryMs || 750));
     const yieldEvery = Math.max(1, Number(options.yieldEvery || 250));
@@ -1416,6 +1419,8 @@
       residentNodes: 0,
       residentNodeLimit: nodeLimit,
       memorySafeStops: 0,
+      storageGrowths: 0,
+      nodeCapacity: 0,
     };
 
     const initialCanonical = canonicalState(board, board.initialBoxes, board.initialPlayer);
@@ -1435,25 +1440,65 @@
     }
 
     const boxCount = board.initialBoxes.length;
-    const boxPool = new Uint16Array(nodeLimit * boxCount);
-    const parentIds = new Int32Array(nodeLimit);
-    parentIds.fill(-1);
-    const players = new Uint16Array(nodeLimit);
-    const pushedFrom = new Uint16Array(nodeLimit);
-    const pushedDir = new Uint8Array(nodeLimit);
-    const pushDepth = new Uint32Array(nodeLimit);
-    const weights = new Uint32Array(nodeLimit);
-    const expanded = new Uint8Array(nodeLimit);
+    let nodeCapacity = Math.min(nodeLimit, board.initialBoxes.length >= 32 ? 90000
+      : board.initialBoxes.length >= 16 ? 120000 : 160000);
 
-    const fPacking = new Uint16Array(nodeLimit);
-    const fRawGoals = new Uint16Array(nodeLimit);
-    const fConnectivity = new Uint16Array(nodeLimit);
-    const fRoomConnectivity = new Uint16Array(nodeLimit);
-    const fHotspots = new Uint16Array(nodeLimit);
-    const fHotspotWeight = new Uint32Array(nodeLimit);
-    const fOutOfPlan = new Uint16Array(nodeLimit);
-    const fPlayerReach = new Uint16Array(nodeLimit);
-    const fMobility = new Uint16Array(nodeLimit);
+    let boxPool = new Uint16Array(nodeCapacity * boxCount);
+    let parentIds = new Int32Array(nodeCapacity);
+    parentIds.fill(-1);
+    let players = new Uint16Array(nodeCapacity);
+    let representatives = new Uint16Array(nodeCapacity);
+    let pushedFrom = new Uint16Array(nodeCapacity);
+    let pushedDir = new Uint8Array(nodeCapacity);
+    let pushDepth = new Uint32Array(nodeCapacity);
+    let weights = new Uint32Array(nodeCapacity);
+    let expanded = new Uint8Array(nodeCapacity);
+
+    let fPacking = new Uint16Array(nodeCapacity);
+    let fRawGoals = new Uint16Array(nodeCapacity);
+    let fConnectivity = new Uint16Array(nodeCapacity);
+    let fRoomConnectivity = new Uint16Array(nodeCapacity);
+    let fHotspots = new Uint16Array(nodeCapacity);
+    let fHotspotWeight = new Uint32Array(nodeCapacity);
+    let fOutOfPlan = new Uint16Array(nodeCapacity);
+    let fPlayerReach = new Uint16Array(nodeCapacity);
+    let fMobility = new Uint16Array(nodeCapacity);
+    stats.nodeCapacity = nodeCapacity;
+
+    const grow = (source, length, fillValue = null) => {
+      const target = new source.constructor(length);
+      target.set(source);
+      if (fillValue !== null && length > source.length) target.fill(fillValue, source.length);
+      return target;
+    };
+
+    const ensureNodeCapacity = required => {
+      if (required <= nodeCapacity) return true;
+      if (nodeCapacity >= nodeLimit) return false;
+      const nextCapacity = Math.min(nodeLimit, Math.max(required, nodeCapacity + 65536, Math.floor(nodeCapacity * 1.5)));
+      boxPool = grow(boxPool, nextCapacity * boxCount);
+      parentIds = grow(parentIds, nextCapacity, -1);
+      players = grow(players, nextCapacity);
+      representatives = grow(representatives, nextCapacity);
+      pushedFrom = grow(pushedFrom, nextCapacity);
+      pushedDir = grow(pushedDir, nextCapacity);
+      pushDepth = grow(pushDepth, nextCapacity);
+      weights = grow(weights, nextCapacity);
+      expanded = grow(expanded, nextCapacity);
+      fPacking = grow(fPacking, nextCapacity);
+      fRawGoals = grow(fRawGoals, nextCapacity);
+      fConnectivity = grow(fConnectivity, nextCapacity);
+      fRoomConnectivity = grow(fRoomConnectivity, nextCapacity);
+      fHotspots = grow(fHotspots, nextCapacity);
+      fHotspotWeight = grow(fHotspotWeight, nextCapacity);
+      fOutOfPlan = grow(fOutOfPlan, nextCapacity);
+      fPlayerReach = grow(fPlayerReach, nextCapacity);
+      fMobility = grow(fMobility, nextCapacity);
+      nodeCapacity = nextCapacity;
+      stats.nodeCapacity = nodeCapacity;
+      stats.storageGrowths++;
+      return true;
+    };
 
     let nodeCount = 0;
     let openNodes = 0;
@@ -1466,12 +1511,91 @@
     let closestRouteCacheId = -1;
     let closestRouteCache = '';
 
-    const table = new Map();
     const cells = new Map();
     const cellOrder = [];
 
     const boxesAt = id => boxPool.subarray(id * boxCount, (id + 1) * boxCount);
     const writeBoxes = (id, boxes) => boxPool.set(boxes, id * boxCount);
+
+    const stateHashes = (boxes, representative) => {
+      let h1 = (0x9e3779b9 ^ (representative + 1)) >>> 0;
+      let h2 = (0x85ebca6b ^ Math.imul(representative + 1, 0xc2b2ae35)) >>> 0;
+      for (let i = 0; i < boxes.length; i++) {
+        const value = (boxes[i] + 1) >>> 0;
+        h1 = Math.imul((h1 ^ value) >>> 0, 0x85ebca6b) >>> 0;
+        h1 ^= h1 >>> 13;
+        h2 = Math.imul((h2 + value + 0x9e3779b9) >>> 0, 0xc2b2ae35) >>> 0;
+        h2 ^= h2 >>> 16;
+      }
+      h1 = Math.imul((h1 ^ (h1 >>> 16)) >>> 0, 0x7feb352d) >>> 0;
+      h2 = Math.imul((h2 ^ (h2 >>> 15)) >>> 0, 0x846ca68b) >>> 0;
+      return [h1 || 1, h2 || 1];
+    };
+
+    class ExactStateTable {
+      constructor() {
+        this.capacity = 262144;
+        while (this.capacity < nodeCapacity * 2) this.capacity <<= 1;
+        this.mask = this.capacity - 1;
+        this.ids = new Int32Array(this.capacity);
+        this.hash1 = new Uint32Array(this.capacity);
+        this.hash2 = new Uint32Array(this.capacity);
+        this.size = 0;
+      }
+      same(id, boxes, representative) {
+        if (representatives[id] !== representative) return false;
+        const stored = boxesAt(id);
+        for (let i = 0; i < boxCount; i++) if (stored[i] !== boxes[i]) return false;
+        return true;
+      }
+      locate(boxes, representative, h1, h2) {
+        let slot = (h1 ^ Math.imul(h2, 0x9e3779b1)) & this.mask;
+        while (true) {
+          const stored = this.ids[slot];
+          if (stored === 0) return ~slot;
+          if (this.hash1[slot] === h1 && this.hash2[slot] === h2 && this.same(stored - 1, boxes, representative)) return slot;
+          slot = (slot + 1) & this.mask;
+        }
+      }
+      has(boxes, representative) {
+        const [h1, h2] = stateHashes(boxes, representative);
+        return this.locate(boxes, representative, h1, h2) >= 0;
+      }
+      add(boxes, representative, id) {
+        if ((this.size + 1) * 10 >= this.capacity * 7) this.grow();
+        const [h1, h2] = stateHashes(boxes, representative);
+        const found = this.locate(boxes, representative, h1, h2);
+        if (found >= 0) return false;
+        const slot = ~found;
+        this.ids[slot] = id + 1;
+        this.hash1[slot] = h1;
+        this.hash2[slot] = h2;
+        this.size++;
+        return true;
+      }
+      grow() {
+        const oldIds = this.ids;
+        const oldH1 = this.hash1;
+        const oldH2 = this.hash2;
+        this.capacity <<= 1;
+        this.mask = this.capacity - 1;
+        this.ids = new Int32Array(this.capacity);
+        this.hash1 = new Uint32Array(this.capacity);
+        this.hash2 = new Uint32Array(this.capacity);
+        for (let i = 0; i < oldIds.length; i++) {
+          const stored = oldIds[i];
+          if (!stored) continue;
+          const h1 = oldH1[i];
+          const h2 = oldH2[i];
+          let slot = (h1 ^ Math.imul(h2, 0x9e3779b1)) & this.mask;
+          while (this.ids[slot]) slot = (slot + 1) & this.mask;
+          this.ids[slot] = stored;
+          this.hash1[slot] = h1;
+          this.hash2[slot] = h2;
+        }
+      }
+    }
+    const table = new ExactStateTable();
 
     const featureAt = id => ({
       packing: fPacking[id], rawGoals: fRawGoals[id], connectivity: fConnectivity[id],
@@ -1514,18 +1638,19 @@
       return cell;
     };
 
-    const addNode = (boxes, player, parentId, from, dir, weight, features, key) => {
-      if (nodeCount >= nodeLimit) return -1;
+    const addNode = (boxes, player, representative, parentId, from, dir, weight, features) => {
+      if (nodeCount >= nodeLimit || !ensureNodeCapacity(nodeCount + 1)) return -1;
       const id = nodeCount++;
       writeBoxes(id, boxes);
       players[id] = player;
+      representatives[id] = representative;
       parentIds[id] = parentId;
       pushedFrom[id] = from < 0 ? 0 : from;
       pushedDir[id] = dir < 0 ? 0 : dir;
       pushDepth[id] = parentId < 0 ? 0 : pushDepth[parentId] + 1;
       weights[id] = weight;
       writeFeatures(id, features);
-      table.set(key, id);
+      table.add(boxes, representative, id);
       getCell(features).heap.push(id);
       openNodes++;
       stats.generated = nodeCount;
@@ -1590,7 +1715,7 @@
 
     const rootCanonical = canonicalState(board, board.initialBoxes, board.initialPlayer);
     const rootFeatures = featureValues(board, board.initialBoxes, board.initialPlayer, rootCanonical.reach);
-    addNode(board.initialBoxes, board.initialPlayer, -1, -1, -1, 0, rootFeatures, rootCanonical.key);
+    addNode(board.initialBoxes, board.initialPlayer, rootCanonical.representative, -1, -1, -1, 0, rootFeatures);
 
     if (allBoxesOnGoals(board, board.initialBoxes)) {
       return { status: 'solved', strategy: 'fess', moves: '', mixedMoves: '', moveCount: 0, pushCount: 0, elapsedMs: Date.now() - startedAt, stats, message: 'The puzzle is already solved.' };
@@ -1682,7 +1807,7 @@
         sendProgress(true);
         return {
           status: 'limit', strategy: 'fess', elapsedMs: Date.now() - startedAt, stats, closest: makeClosest(),
-          message: `FESS reached its memory-safe limit of ${nodeLimit.toLocaleString()} resident states. The search stopped cleanly rather than risking a browser crash.`,
+          message: `FESS used its full allowance of ${nodeLimit.toLocaleString()} resident states. This machine was allowed a substantially larger search than v117, but the position still needs more search space.`,
         };
       }
 
@@ -1731,13 +1856,13 @@
 
           if (localKeys.has(canonical.key)) continue;
           localKeys.add(canonical.key);
-          if (table.has(canonical.key)) {
+          if (table.has(childBoxes, canonical.representative)) {
             stats.transpositions++;
             continue;
           }
 
           const features = featureValues(board, childBoxes, from, canonical.reach);
-          candidates.push({ from, dir, childBoxes, key: canonical.key, features });
+          candidates.push({ from, dir, childBoxes, key: canonical.key, representative: canonical.representative, features });
         }
       }
 
@@ -1749,8 +1874,8 @@
         const edgeWeight = selected.has(i) ? 0 : 1;
         if (edgeWeight === 0) stats.advisorMoves++;
         else stats.nonAdvisorMoves++;
-        const childId = addNode(move.childBoxes, move.from, nodeId, move.from, move.dir,
-          weights[nodeId] + edgeWeight, move.features, move.key);
+        const childId = addNode(move.childBoxes, move.from, move.representative, nodeId, move.from, move.dir,
+          weights[nodeId] + edgeWeight, move.features);
         if (childId < 0) break;
         stats.featureGenerated++;
 
@@ -1786,7 +1911,7 @@
   }
 
   return Object.freeze({
-    version: '5.2.0',
+    version: '5.3.0',
     DIRS,
     SolverError,
     parseLevel,

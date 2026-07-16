@@ -28,7 +28,7 @@
   });
 })();
 
-/* BOXXY v117 — character renderer, game engine, level maker and pure FESS puzzle solving. */
+/* BOXXY v118 — character renderer, game engine, level maker and pure FESS puzzle solving. */
 (() => {
   "use strict";
 
@@ -2249,6 +2249,24 @@
   let solverStartedAt = 0;
   let lastClosestResult = null;
   const SOLVER_PROGRESS_UPDATE_MS = 750;
+
+  function solverMemoryPlan(levelText) {
+    const boxCount = (String(levelText || "").match(/[$*]/g) || []).length;
+    const coarseSmallScreen = Boolean(window.matchMedia?.("(pointer: coarse)")?.matches) && Math.min(window.innerWidth || 0, window.innerHeight || 0) < 900;
+    const deviceMemory = Number(navigator.deviceMemory || 0);
+    const heapLimitMb = Number(performance?.memory?.jsHeapSizeLimit || 0) / (1024 * 1024);
+
+    let tier = "high";
+    if (coarseSmallScreen || (deviceMemory > 0 && deviceMemory <= 4) || (heapLimitMb > 0 && heapLimitMb < 1400)) tier = "low";
+    else if ((deviceMemory > 0 && deviceMemory < 8) || (heapLimitMb > 0 && heapLimitMb < 2600)) tier = "standard";
+
+    const limits = {
+      low: boxCount >= 32 ? 220000 : boxCount >= 16 ? 320000 : 500000,
+      standard: boxCount >= 32 ? 500000 : boxCount >= 16 ? 750000 : 1100000,
+      high: boxCount >= 32 ? 900000 : boxCount >= 16 ? 1250000 : 1800000,
+    };
+    return { maxNodes: limits[tier], tier, boxCount };
+  }
   const SOLVER_RUN_SNAPSHOT_KEY = "boxxy-solver-last-run-v1";
   let solverLastSnapshotAt = 0;
   let solverAudioContext = null;
@@ -2457,7 +2475,7 @@
       setSolverStatus(`A ${currentSolution.length.toLocaleString()}-move solution is already attached to this puzzle.`, "success");
     } else if (previousRun?.running) {
       const seconds = (Number(previousRun.elapsedMs || 0) / 1000).toFixed(1);
-      setSolverStatus(`The previous solver tab ended unexpectedly after ${seconds}s in ${previousRun.phase || "search"}, at ${Number(previousRun.generated || 0).toLocaleString()} generated push states. v117 uses one memory-bounded FESS search with cyclic feature cells, accumulated move weights and layered deadlock proofs.`, "error");
+      setSolverStatus(`The previous solver tab ended unexpectedly after ${seconds}s in ${previousRun.phase || "search"}, at ${Number(previousRun.generated || 0).toLocaleString()} generated push states. v118 uses one adaptive-memory FESS search with cyclic feature cells, accumulated move weights and layered deadlock proofs.`, "error");
       if (previousRun.closest) showClosestDisplay(previousRun.closest, {});
       try { localStorage.removeItem(SOLVER_RUN_SNAPSHOT_KEY); } catch (_) {}
     } else {
@@ -2514,7 +2532,9 @@
       const resetText = Number(progress.transpositionResets || 0) > 0 ? ` · ${Number(progress.transpositionResets).toLocaleString()} cache resets` : "";
       const provenDeadText = Number(progress.provenDeadStates || 0) > 0 ? ` · ${Number(progress.provenDeadStates).toLocaleString()} proven dead states` : "";
       const deadHitText = Number(progress.deadStateHits || 0) > 0 ? ` · ${Number(progress.deadStateHits).toLocaleString()} dead-state revisits avoided` : "";
-      solverStats.textContent = `${Number(progress.generated || 0).toLocaleString()} push states · ${Number(progress.open || 0).toLocaleString()} open push states${depth}${estimateText}${goalsText}${packedText}${patternText}${cellsText}${activeCellsText}${advisorText}${prunedText}${stagnantText}${bridgeText}${thresholdText}${iterationText}${duplicateText}${cycleText}${provenDeadText}${deadHitText}${resetText} · ${seconds}s`;
+      const residentLimit = Number(progress.residentNodeLimit || progress.stats?.residentNodeLimit || 0);
+      const allowanceText = residentLimit > 0 ? ` · allowance ${residentLimit.toLocaleString()}` : "";
+      solverStats.textContent = `${Number(progress.generated || 0).toLocaleString()} push states · ${Number(progress.open || 0).toLocaleString()} open push states${depth}${estimateText}${goalsText}${packedText}${patternText}${cellsText}${activeCellsText}${advisorText}${prunedText}${stagnantText}${bridgeText}${thresholdText}${iterationText}${duplicateText}${cycleText}${provenDeadText}${deadHitText}${resetText}${allowanceText} · ${seconds}s`;
     }
     const now = Date.now();
     if (now - solverLastSnapshotAt >= 5000) {
@@ -2594,8 +2614,10 @@
       setSolverStatus(result.message || "No solution exists from this starting position.", "error");
     } else if (result.status === "limit") {
       showClosestDisplay(result.closest, result.stats || {});
-      if (solverProgressLabel) solverProgressLabel.textContent = "Search stopped safely.";
-      setSolverStatus(result.message || "The search stopped safely before exhausting the puzzle.", "error");
+      if (solverProgressLabel) solverProgressLabel.textContent = Number(result.stats?.memorySafeStops || 0) > 0
+        ? "Memory allowance reached."
+        : "Search time allowance reached.";
+      setSolverStatus(result.message || "The search reached its configured allowance before exhausting the puzzle.", "error");
     } else if (result.status === "stopped") {
       setSolverStatus("Search cancelled.");
     } else {
@@ -2611,10 +2633,12 @@
       }
       return;
     }
-    setSolverStatus("The browser blocked the background worker, so BOXXY is using the solver's yielding browser mode instead. The progress display will continue to update.");
+    const memoryPlan = solverMemoryPlan(levelText);
+    setSolverStatus(`The browser blocked the background worker, so BOXXY is using the solver's yielding browser mode instead. The ${memoryPlan.tier} memory allowance is ${memoryPlan.maxNodes.toLocaleString()} resident states.`);
     try {
       const result = await window.SokobanCore.solve(levelText, {
-        featureMaxTimeMs: 600000,
+        featureMaxTimeMs: 43200000,
+        maxNodes: memoryPlan.maxNodes,
         yieldEvery: 350,
         progressEveryMs: SOLVER_PROGRESS_UPDATE_MS,
         shouldStop: () => solverAbortRequested || id !== solverJobId,
@@ -2659,7 +2683,8 @@
     if (solverStats) solverStats.textContent = "0 states";
     if (solverStartBtn) solverStartBtn.disabled = true;
     if (solverCancelBtn) solverCancelBtn.hidden = false;
-    setSolverStatus("Solving with one pure FESS search. Retrograde packing, connectivity, room access, hotspots, out-of-plan, explorer and opener advisors alter push weight only; non-advisor pushes remain eligible unless a structural deadlock is proved.");
+    const memoryPlan = solverMemoryPlan(levelText);
+    setSolverStatus(`Solving with one pure FESS search. This device has the ${memoryPlan.tier} allowance: up to ${memoryPlan.maxNodes.toLocaleString()} resident states. Storage expands only as the search needs it.`);
 
     let fellBack = false;
     const fallback = () => {
@@ -2675,7 +2700,7 @@
       return;
     }
     try {
-      solverWorker = new Worker("solver-worker.js?v=116");
+      solverWorker = new Worker("solver-worker.js?v=118");
       solverWorker.onmessage = event => {
         const message = event.data || {};
         if (message.id !== id || id !== solverJobId || !solverRunning) return;
@@ -2703,6 +2728,7 @@
         id,
         level: levelText,
         unlimited: true,
+        maxNodes: memoryPlan.maxNodes,
         progressEveryMs: SOLVER_PROGRESS_UPDATE_MS
       });
     } catch (_) {
