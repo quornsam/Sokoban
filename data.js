@@ -1,4 +1,4 @@
-/* BOXXY v113 — level data and puzzle-pack metadata. */
+/* BOXXY v124 — level data and puzzle-pack metadata. */
 window.SOKOBAN_LEVELS = [
   {
     "rank": 1,

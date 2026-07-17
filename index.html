@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#efe5d4">
 <title>BOXXY — Pushbox Puzzle</title>
-<link rel="stylesheet" href="styles.css?v=113">
+<link rel="stylesheet" href="styles.css?v=124">
 <link rel="preload" as="image" href="assets/board/board-atlas.png">
 <link rel="preload" as="image" href="assets/characters/boy/base.png">
 <link rel="preload" as="image" href="assets/characters/girl/base.png">
@@ -272,36 +272,23 @@
       <div>
         <span class="complete-kicker">LEVEL MAKER</span>
         <h2 id="makerSolverTitle">PUZZLE SOLVER</h2>
-        <p>Constructs and verifies a complete player-movement string, then attaches it to this puzzle's hidden walkthrough. It seeks a reliable solution first; it does not attempt to prove the shortest possible route.</p>
+        <p>Uses a Rust/WebAssembly Sokoban engine to seek a complete route, then independently replays every move in BOXXY before attaching the guided solve. It seeks a reliable solution rather than the shortest route.</p>
       </div>
       <button id="makerSolverCloseBtn" class="maker-close" type="button" aria-label="Close puzzle solver">×</button>
     </header>
 
     <div id="makerSolverProgressWrap" class="maker-solver-progress" hidden>
-      <progress id="makerSolverProgress" max="100" value="0">0%</progress>
+      <progress id="makerSolverProgress" max="100">Searching</progress>
       <div class="maker-solver-progress-line">
-        <strong id="makerSolverProgressLabel">Preparing search…</strong>
+        <strong id="makerSolverProgressLabel">Preparing Rust/WebAssembly engine…</strong>
         <span id="makerSolverStats"></span>
       </div>
-      <p>The bar remains active while the search continues. There is no automatic time or push-state limit; use Cancel Search to stop it.</p>
+      <p>The solver runs in a separate worker. Cancel Search stops it immediately. Solving requires an internet connection because the external Rust/WebAssembly engine is loaded at runtime.</p>
     </div>
 
     <label class="maker-solution-label" for="makerSolutionOutput">SOLUTION STRING</label>
-    <textarea id="makerSolutionOutput" class="maker-solution-output" readonly spellcheck="false" placeholder="The UDLR solution string will appear here."></textarea>
+    <textarea id="makerSolutionOutput" class="maker-solution-output" readonly spellcheck="false" placeholder="The verified UDLR solution string will appear here."></textarea>
     <p id="makerSolverStatus" class="maker-solver-status" aria-live="polite">Ready to solve the current editor puzzle.</p>
-
-    <section id="makerSolverClosest" class="maker-solver-closest" hidden aria-live="polite">
-      <div class="maker-solver-closest-head">
-        <strong>CLOSEST POSITION REACHED</strong>
-        <span id="makerSolverClosestStats"></span>
-      </div>
-      <p>This is the strongest forward-reachable position found so far. It updates whenever the solver finds a genuinely better position. A promising position is guidance, not proof that its branch can ultimately be completed.</p>
-      <pre id="makerSolverClosestBoard" class="maker-solver-closest-board" aria-label="Closest Sokoban position"></pre>
-      <p id="makerSolverDiagnostics" class="maker-solver-diagnostics"></p>
-      <label class="maker-solution-label" for="makerSolverClosestRoute">PARTIAL ROUTE TO THIS POSITION</label>
-      <textarea id="makerSolverClosestRoute" class="maker-solver-closest-route" readonly spellcheck="false"></textarea>
-      <button id="makerSolverClosestCopyBtn" type="button">COPY PARTIAL ROUTE</button>
-    </section>
 
     <div class="maker-solver-actions">
       <button id="makerSolverStartBtn" class="maker-solver-start" type="button">SOLVE THIS PUZZLE</button>
@@ -315,8 +302,8 @@
 <button id="autoSolveBtn" type="button" hidden tabindex="-1" aria-hidden="true">PLAY SOLUTION</button>
 <audio id="bgMusic" src="assets/audio/cracked-ivory-drift.mp3" preload="auto" autoplay loop playsinline></audio>
 
-<script src="solver-core.js?v=120"></script>
-<script src="data.js?v=113"></script>
-<script src="boxxy.js?v=120"></script>
+<script src="data.js?v=124"></script>
+<script src="solver-route-verifier.js?v=124"></script>
+<script src="boxxy.js?v=124"></script>
 </body>
 </html>

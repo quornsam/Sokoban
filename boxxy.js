@@ -28,7 +28,7 @@
   });
 })();
 
-/* BOXXY v120 — character renderer, game engine, level maker and pure FESS puzzle solving. */
+/* BOXXY v124 — character renderer, game engine, level maker and Rust/WASM solver adapter. */
 (() => {
   "use strict";
 
@@ -1795,17 +1795,17 @@
         completeCard?.classList.add("final-complete");
         if (completeKicker) completeKicker.textContent = "CONGRATULATIONS";
         if (completeTitle) completeTitle.innerHTML = "WELL<br>DONE";
-        completeText.textContent = `You have completed ${activePack.displayName}. Level ${LEVELS.length} was solved in ${moves} moves and ${pushes} pushes.${solvedWithWalkthrough ? " This completion used the walkthrough." : ""}${unlockedAdditionalPacksNow ? " The additional Bauhaus level packs are now unlocked." : ""}`;
+        completeText.textContent = `You have completed ${activePack.displayName}. Level ${LEVELS.length} was solved in ${moves} moves and ${pushes} pushes.${solvedWithWalkthrough ? " This completion used the guided solve." : ""}${unlockedAdditionalPacksNow ? " The additional Bauhaus level packs are now unlocked." : ""}`;
         buildPackSelectors();
         if (finalPackPicker) finalPackPicker.hidden = false;
-        if (finalPackStatus) finalPackStatus.textContent = solvedWithWalkthrough ? "Walkthrough-assisted completions are shown in yellow in the level list." : "";
+        if (finalPackStatus) finalPackStatus.textContent = solvedWithWalkthrough ? "Guided-solve completions are shown in yellow in the level list." : "";
         if (nextBtnLabel) nextBtnLabel.textContent = "CHOOSE A LEVEL";
         if (nextBtnIcon) nextBtnIcon.textContent = "✓";
       } else {
         completeMode = "normal";
         completeCard?.classList.remove("final-complete");
         if (finalPackPicker) finalPackPicker.hidden = true;
-        if (finalPackStatus) finalPackStatus.textContent = solvedWithWalkthrough ? "Walkthrough-assisted completions are marked yellow in the level list." : "";
+        if (finalPackStatus) finalPackStatus.textContent = solvedWithWalkthrough ? "Guided-solve completions are marked yellow in the level list." : "";
         if (completeKicker) completeKicker.textContent = activePack.title;
         if (completeTitle) completeTitle.innerHTML = solvedWithWalkthrough ? "GUIDED<br>SOLVE" : "PUZZLE<br>CLEARED";
         const statedMinimum = Number(levelData.minimum);
@@ -2188,12 +2188,6 @@
   const solverProgress = document.getElementById("makerSolverProgress");
   const solverProgressLabel = document.getElementById("makerSolverProgressLabel");
   const solverStats = document.getElementById("makerSolverStats");
-  const solverClosest = document.getElementById("makerSolverClosest");
-  const solverClosestStats = document.getElementById("makerSolverClosestStats");
-  const solverClosestBoard = document.getElementById("makerSolverClosestBoard");
-  const solverDiagnostics = document.getElementById("makerSolverDiagnostics");
-  const solverClosestRoute = document.getElementById("makerSolverClosestRoute");
-  const solverClosestCopyBtn = document.getElementById("makerSolverClosestCopyBtn");
 
   if (!modal || !gridEl) return;
 
@@ -2244,32 +2238,10 @@
   let currentPuzzleRef = null;
   let solverWorker = null;
   let solverRunning = false;
-  let solverAbortRequested = false;
   let solverJobId = 0;
   let solverStartedAt = 0;
-  let lastClosestResult = null;
-  const SOLVER_PROGRESS_UPDATE_MS = 750;
-
-  function solverMemoryPlan(levelText) {
-    const boxCount = (String(levelText || "").match(/[$*]/g) || []).length;
-    const coarseSmallScreen = Boolean(window.matchMedia?.("(pointer: coarse)")?.matches) && Math.min(window.innerWidth || 0, window.innerHeight || 0) < 900;
-    const deviceMemory = Number(navigator.deviceMemory || 0);
-    const heapLimitMb = Number(performance?.memory?.jsHeapSizeLimit || 0) / (1024 * 1024);
-
-    let tier = "high";
-    if (coarseSmallScreen || (deviceMemory > 0 && deviceMemory <= 4) || (heapLimitMb > 0 && heapLimitMb < 1400)) tier = "low";
-    else if ((deviceMemory > 0 && deviceMemory < 8) || (heapLimitMb > 0 && heapLimitMb < 2600)) tier = "standard";
-
-    const limits = {
-      low: boxCount >= 32 ? 300000 : boxCount >= 16 ? 450000 : 650000,
-      standard: boxCount >= 32 ? 900000 : boxCount >= 16 ? 1200000 : 1600000,
-      high: boxCount >= 32 ? 2000000 : boxCount >= 16 ? 2200000 : 2600000,
-    };
-    return { maxNodes: limits[tier], tier, boxCount };
-  }
-  const SOLVER_RUN_SNAPSHOT_KEY = "boxxy-solver-last-run-v1";
-  let solverLastSnapshotAt = 0;
   let solverAudioContext = null;
+  const SOLVER_TIMEOUT_MS = 12 * 60 * 60 * 1000;
 
   const clampSize = value => Math.max(MIN_SIZE, Math.min(MAX_SIZE, Math.round(Number(value) || 10)));
   const clampGeneratorSize = value => Math.max(GENERATOR_MIN_SIZE, clampSize(value));
@@ -2366,121 +2338,34 @@
     solverStatus.classList.toggle("success", type === "success");
   }
 
-  function clearClosestDisplay() {
-    lastClosestResult = null;
-    if (solverClosest) solverClosest.hidden = true;
-    if (solverClosestStats) solverClosestStats.textContent = "";
-    if (solverClosestBoard) solverClosestBoard.textContent = "";
-    if (solverDiagnostics) solverDiagnostics.textContent = "";
-    if (solverClosestRoute) solverClosestRoute.value = "";
+  function formatSolverTime(milliseconds) {
+    const ms = Math.max(0, Number(milliseconds) || 0);
+    if (ms < 1000) return `${Math.round(ms)}ms`;
+    if (ms < 60000) return `${(ms / 1000).toFixed(2)}s`;
+    const minutes = Math.floor(ms / 60000);
+    const seconds = Math.floor((ms % 60000) / 1000);
+    return `${minutes}m ${String(seconds).padStart(2, "0")}s`;
   }
 
-  function isBetterLiveClosest(candidate, current) {
-    if (!candidate) return false;
-    if (!current) return true;
-    if (String(candidate.boardText || "") === String(current.boardText || "")) return false;
-    const distance = value => value === null || value === undefined || !Number.isFinite(Number(value)) ? Number.POSITIVE_INFINITY : Number(value);
-    const candidateH = distance(candidate.remainingEstimate) + Math.max(0, Number(candidate.stagnation || 0) - 8);
-    const currentH = distance(current.remainingEstimate) + Math.max(0, Number(current.stagnation || 0) - 8);
-    if (candidateH !== currentH) return candidateH < currentH;
-    const candidateGoals = Number(candidate.goalsFilled || 0);
-    const currentGoals = Number(current.goalsFilled || 0);
-    if (candidateGoals !== currentGoals) return candidateGoals > currentGoals;
-    const candidateLegal = Number(candidate.legalPushes || 0);
-    const currentLegal = Number(current.legalPushes || 0);
-    if (candidateLegal !== currentLegal) return candidateLegal > currentLegal;
-    return Number(candidate.pushCount || 0) < Number(current.pushCount || 0);
-  }
-
-  function showClosestDisplay(closest, stats = {}) {
-    if (!closest || !solverClosest) return;
-    lastClosestResult = closest;
-    const goals = Number(closest.goalsFilled || 0);
-    const total = Number(closest.totalGoals || 0);
-    const remaining = Number.isFinite(Number(closest.remainingEstimate)) ? Number(closest.remainingEstimate) : null;
-    const pushes = Number(closest.pushCount || 0);
-    const moves = Number(closest.moveCount || 0);
-    const legal = Number.isFinite(Number(closest.legalPushes)) ? Number(closest.legalPushes) : null;
-    const stagnation = Number(closest.stagnation || 0);
-    solverClosest.hidden = false;
-    if (solverClosestStats) {
-      const safePacked = Number.isFinite(Number(closest.safePacked)) ? Number(closest.safePacked) : null;
-      solverClosestStats.textContent = `${goals}/${total} goals occupied${safePacked === null ? "" : ` · FESS packing ${safePacked}`} · ${pushes} pushes · ${moves} moves${remaining === null ? "" : ` · estimate ${remaining}`}${legal === null ? "" : ` · ${legal} legal pushes`}${stagnation > 0 ? ` · ${stagnation} pushes since structural progress` : ""}`;
-    }
-    if (solverClosestBoard) solverClosestBoard.textContent = String(closest.boardText || "");
-    if (solverDiagnostics) {
-      const parts = [];
-      const add = (label, value) => { if (Number(value || 0) > 0) parts.push(`${label}: ${Number(value).toLocaleString()}`); };
-      add("FESS push expansions", stats.featureExpanded);
-      add("feature cells", stats.featureCells);
-      add("transpositions", stats.transpositions);
-      add("lower-weight revisits", stats.weightRelaxations);
-      const deadlocks = Number(stats.staticDeadlocks || 0) + Number(stats.blockDeadlocks || 0) + Number(stats.freezeDeadlocks || 0) + Number(stats.assignmentDeadlocks || 0) + Number(stats.bipartiteDeadlocks || 0) + Number(stats.sealedDeadlocks || 0) + Number(stats.frozenStructuralDeadlocks || 0) + Number(stats.corralDeadlocks || 0);
-      add("dead ends pruned", deadlocks);
-      add("box-goal matching deadlocks", stats.assignmentDeadlocks);
-      add("advisor-ranked moves", stats.advisorMoves);
-      add("non-advisor moves retained", stats.nonAdvisorMoves);
-      add("proven dead states", stats.provenDeadStates);
-      add("dead-state revisits avoided", stats.deadStateHits);
-      solverDiagnostics.textContent = parts.length ? `Search work — ${parts.join(" · ")}.` : "The search stopped before a detailed phase breakdown was available.";
-    }
-    if (solverClosestRoute) solverClosestRoute.value = String(closest.mixedMoves || "");
-  }
-
-  async function copyClosestRoute() {
-    const route = String(lastClosestResult?.mixedMoves || "");
-    if (!route) {
-      setSolverStatus("The closest position is the starting position, so there is no partial route to copy.");
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(route);
-      setSolverStatus("Partial route to the closest position copied to the clipboard.", "success");
-    } catch (_) {
-      solverClosestRoute?.focus();
-      solverClosestRoute?.select();
-      const copied = document.execCommand?.("copy");
-      setSolverStatus(copied ? "Partial route copied to the clipboard." : "The partial route is selected for manual copying.", copied ? "success" : "");
-    }
-  }
-
-  function finishSolverRun(preserveSnapshot = false) {
-    if (solverWorker) solverWorker.terminate();
+  function finishSolverRun(keepWorker = false) {
+    if (!keepWorker && solverWorker) solverWorker.terminate();
     solverWorker = null;
     solverRunning = false;
-    if (!preserveSnapshot) {
-      try { localStorage.removeItem(SOLVER_RUN_SNAPSHOT_KEY); } catch (_) {}
-    }
     if (solverStartBtn) solverStartBtn.disabled = false;
     if (solverCancelBtn) solverCancelBtn.hidden = true;
+    updateSolverControls();
   }
 
   function openSolverDialog() {
-    const validation = validate();
-    if (!validation.ok) {
-      setStatus(validation.error, "error");
-      return;
-    }
     if (!solverModal) return;
     solverModal.hidden = false;
     if (solverProgressWrap) solverProgressWrap.hidden = true;
-    if (solverProgress) solverProgress.value = 0;
+    if (solverProgress) solverProgress.removeAttribute("value");
     if (solverProgressLabel) solverProgressLabel.textContent = "Ready.";
     if (solverStats) solverStats.textContent = "";
-    clearClosestDisplay();
+    if (solverOutput) solverOutput.value = solutionMatchesCurrentBoard() ? currentSolution : "";
+    setSolverStatus("Ready to solve the current editor puzzle.");
     updateSolverControls();
-    let previousRun = null;
-    try { previousRun = JSON.parse(localStorage.getItem(SOLVER_RUN_SNAPSHOT_KEY) || "null"); } catch (_) {}
-    if (solutionMatchesCurrentBoard()) {
-      setSolverStatus(`A ${currentSolution.length.toLocaleString()}-move solution is already attached to this puzzle.`, "success");
-    } else if (previousRun?.running) {
-      const seconds = (Number(previousRun.elapsedMs || 0) / 1000).toFixed(1);
-      setSolverStatus(`The previous solver tab ended unexpectedly after ${seconds}s in ${previousRun.phase || "search"}, at ${Number(previousRun.generated || 0).toLocaleString()} generated push states. v120 uses the fixed compact FESS store and the expanded maze-specific deadlock gate.`, "error");
-      if (previousRun.closest) showClosestDisplay(previousRun.closest, {});
-      try { localStorage.removeItem(SOLVER_RUN_SNAPSHOT_KEY); } catch (_) {}
-    } else {
-      setSolverStatus("Ready to solve the current editor puzzle.");
-    }
     solverStartBtn?.focus({ preventScroll: true });
   }
 
@@ -2491,71 +2376,24 @@
       return;
     }
     solverModal.hidden = true;
-    solveBtn?.focus({ preventScroll: true });
   }
 
   function updateSearchProgress(progress = {}) {
     if (solverProgress) solverProgress.removeAttribute("value");
-    if (progress.closest && isBetterLiveClosest(progress.closest, lastClosestResult)) showClosestDisplay(progress.closest, progress.stats || {});
-    const phase = progress.phase || "forward";
-    if (solverProgressLabel) {
-      const phaseLabels = {
-        "feature-space": "Cycling through FESS packing, connectivity, room and out-of-plan feature cells…",
-        forward: "Searching FESS push states…"
-      };
-      solverProgressLabel.textContent = phaseLabels[phase] || phaseLabels.forward;
-    }
+    if (solverProgressLabel) solverProgressLabel.textContent = "Searching Rust/WASM push states…";
     if (solverStats) {
-      const seconds = (Number(progress.elapsedMs || 0) / 1000).toFixed(1);
-      const depth = Number.isFinite(Number(progress.bestPushDepth)) ? ` · depth ${Number(progress.bestPushDepth)}` : "";
-      const estimateText = Number.isFinite(Number(progress.bestEstimate)) ? ` · remaining ${Number(progress.bestEstimate)}` : "";
-      const pruned = Number(progress.deadlocks || 0);
-      const prunedText = pruned > 0 ? ` · ${pruned.toLocaleString()} dead ends pruned` : "";
-      const goalsText = Number.isFinite(Number(progress.goalsFilled)) && Number.isFinite(Number(progress.totalGoals))
-        ? ` · ${Number(progress.goalsFilled)}/${Number(progress.totalGoals)} goals`
-        : "";
-      const packedText = Number.isFinite(Number(progress.safePacked))
-        ? ` · FESS packing ${Number(progress.safePacked)}`
-        : "";
-      const patternText = Number.isFinite(Number(progress.patternMatched)) && Number.isFinite(Number(progress.patternTotal))
-        ? ` · ${Number(progress.patternMatched)}/${Number(progress.patternTotal)} starting positions matched`
-        : "";
-      const cellsText = Number(progress.featureCells || 0) > 0 ? ` · ${Number(progress.featureCells).toLocaleString()} feature cells` : "";
-      const activeCellsText = Number(progress.activeFeatureCells || 0) > 0 ? ` · ${Number(progress.activeFeatureCells).toLocaleString()} active cells` : "";
-      const advisorText = Number(progress.advisorMoves || 0) > 0 ? ` · ${Number(progress.advisorMoves).toLocaleString()} advisor moves` : "";
-      const stagnantText = Number(progress.plateauPruned || 0) > 0 ? ` · ${Number(progress.plateauPruned).toLocaleString()} stagnant branches pruned` : "";
-      const bridgeText = Number(progress.bridgeHits || 0) > 0 ? ` · ${Number(progress.bridgeHits).toLocaleString()} frontier joins` : "";
-      const thresholdText = Number.isFinite(Number(progress.threshold)) ? ` · bound ${Number(progress.threshold)}` : "";
-      const iterationText = Number(progress.iteration || 0) > 0 ? ` · pass ${Number(progress.iteration).toLocaleString()}` : "";
-      const duplicateText = Number(progress.duplicates || 0) > 0 ? ` · ${Number(progress.duplicates).toLocaleString()} repeated states pruned` : "";
-      const cycleText = Number(progress.pathCycles || 0) > 0 ? ` · ${Number(progress.pathCycles).toLocaleString()} route loops pruned` : "";
-      const resetText = Number(progress.transpositionResets || 0) > 0 ? ` · ${Number(progress.transpositionResets).toLocaleString()} cache resets` : "";
-      const provenDeadText = Number(progress.provenDeadStates || 0) > 0 ? ` · ${Number(progress.provenDeadStates).toLocaleString()} proven dead states` : "";
-      const deadHitText = Number(progress.deadStateHits || 0) > 0 ? ` · ${Number(progress.deadStateHits).toLocaleString()} dead-state revisits avoided` : "";
-      const residentLimit = Number(progress.residentNodeLimit || progress.stats?.residentNodeLimit || 0);
-      const allowanceText = residentLimit > 0 ? ` · allowance ${residentLimit.toLocaleString()}` : "";
-      const storeBytes = Number(progress.stats?.searchStoreBytes || 0);
-      const storeText = storeBytes > 0 ? ` · fixed store ${(storeBytes / (1024 * 1024)).toFixed(0)} MB` : "";
-      solverStats.textContent = `${Number(progress.generated || 0).toLocaleString()} push states · ${Number(progress.open || 0).toLocaleString()} open push states${depth}${estimateText}${goalsText}${packedText}${patternText}${cellsText}${activeCellsText}${advisorText}${prunedText}${stagnantText}${bridgeText}${thresholdText}${iterationText}${duplicateText}${cycleText}${provenDeadText}${deadHitText}${resetText}${allowanceText}${storeText} · ${seconds}s`;
+      const explored = Number(progress.explored || 0);
+      const frontier = Number(progress.frontier || 0);
+      const elapsedSeconds = Number(progress.elapsedSeconds || 0);
+      solverStats.textContent = `${explored.toLocaleString()} explored · ${frontier.toLocaleString()} frontier · ${elapsedSeconds.toLocaleString()}s`;
     }
-    const now = Date.now();
-    if (now - solverLastSnapshotAt >= 5000) {
-      solverLastSnapshotAt = now;
-      try {
-        localStorage.setItem(SOLVER_RUN_SNAPSHOT_KEY, JSON.stringify({
-          running: true,
-          savedAt: now,
-          phase: progress.phase || "forward",
-          elapsedMs: Number(progress.elapsedMs || 0),
-          generated: Number(progress.generated || 0),
-          open: Number(progress.open || 0),
-          residentNodes: Number(progress.residentNodes || progress.stats?.residentNodes || 0),
-          residentNodeLimit: Number(progress.residentNodeLimit || progress.stats?.residentNodeLimit || 0),
-          safeTranspositionResets: Number(progress.transpositionResets || progress.stats?.safeTranspositionResets || 0),
-          closest: progress.closest || lastClosestResult || null
-        }));
-      } catch (_) {}
+  }
+
+  function verifySolverRoute(levelText, route) {
+    if (!window.BoxxyRouteVerifier?.verify) {
+      return { valid: false, solved: false, route: "", moves: 0, pushes: 0, error: "BOXXY's independent route verifier did not load." };
     }
+    return window.BoxxyRouteVerifier.verify(levelText, route);
   }
 
   function prepareSolverDing() {
@@ -2590,70 +2428,42 @@
 
   function handleSolverResult(result, id, levelText) {
     if (id !== solverJobId || !solverRunning) return;
-    finishSolverRun();
-    updateSolverControls();
     result = result || {};
-    if (result.status === "solved") {
-      playSolverDing();
-      clearClosestDisplay();
-      const route = String(result.mixedMoves || result.moves || "").replace(/[^udlrUDLR]/g, "");
-      setAttachedSolution(route, levelText, currentPuzzleRef);
-      if (solverOutput) solverOutput.value = route;
-      if (solverProgress) solverProgress.value = 100;
-      if (solverProgressLabel) {
-        const reverseStrategies = new Set(["reverse-construction", "exact-pattern-reverse", "reverse-a-star", "productive-bidirectional"]);
-        solverProgressLabel.textContent = reverseStrategies.has(result.strategy)
-          ? "Solution constructed backwards and verified forwards."
-          : "Solution found and verified.";
-      }
-      if (solverStats) solverStats.textContent = `${Number(result.moveCount || route.length).toLocaleString()} moves · ${Number(result.pushCount || 0).toLocaleString()} pushes · ${(Number(result.elapsedMs || 0) / 1000).toFixed(2)}s`;
-      setSolverStatus("The solution string has been attached to this puzzle. Testing it now enables the five-click + S guided solve.", "success");
-      setStatus(`Solver attached a ${route.length}-move guided route to the current puzzle.`, "success");
-    } else if (result.status === "unsolvable") {
-      showClosestDisplay(result.closest, result.stats || {});
-      if (solverProgress) solverProgress.value = 100;
-      if (solverProgressLabel) solverProgressLabel.textContent = "Search exhausted.";
-      setSolverStatus(result.message || "No solution exists from this starting position.", "error");
-    } else if (result.status === "limit") {
-      showClosestDisplay(result.closest, result.stats || {});
-      if (solverProgressLabel) solverProgressLabel.textContent = Number(result.stats?.memorySafeStops || 0) > 0
-        ? "Memory allowance reached."
-        : "Search time allowance reached.";
-      setSolverStatus(result.message || "The search reached its configured allowance before exhausting the puzzle.", "error");
-    } else if (result.status === "stopped") {
-      setSolverStatus("Search cancelled.");
-    } else {
-      setSolverStatus(result.message || "The solver stopped before finding a route.", "error");
-    }
-  }
 
-  async function runSolverOnMainThread(id, levelText) {
-    if (!window.SokobanCore?.solve) {
-      if (id === solverJobId) {
-        finishSolverRun();
-        setSolverStatus("The solver engine could not be loaded.", "error");
-      }
+    if (!result.solved) {
+      finishSolverRun();
+      if (solverProgressLabel) solverProgressLabel.textContent = result.failReason === "Time limit exceeded" ? "Time allowance reached." : "Search stopped.";
+      if (solverStats) solverStats.textContent = `${Number(result.nodesSearched || 0).toLocaleString()} explored · ${formatSolverTime(result.timeMs)}`;
+      const reason = result.failReason || "No solution was returned.";
+      setSolverStatus(`The Rust/WASM engine did not return a solution: ${reason}`, "error");
       return;
     }
-    const memoryPlan = solverMemoryPlan(levelText);
-    setSolverStatus(`The browser blocked the background worker, so BOXXY is using the solver's yielding browser mode instead. The ${memoryPlan.tier} memory allowance is ${memoryPlan.maxNodes.toLocaleString()} resident states.`);
-    try {
-      const result = await window.SokobanCore.solve(levelText, {
-        featureMaxTimeMs: 43200000,
-        maxNodes: memoryPlan.maxNodes,
-        yieldEvery: 350,
-        progressEveryMs: SOLVER_PROGRESS_UPDATE_MS,
-        shouldStop: () => solverAbortRequested || id !== solverJobId,
-        onProgress: progress => {
-          if (id === solverJobId && solverRunning) updateSearchProgress(progress);
-        }
-      });
-      handleSolverResult(result, id, levelText);
-    } catch (error) {
-      if (id !== solverJobId) return;
+
+    const verification = verifySolverRoute(levelText, result.solution);
+    if (!verification.valid || !verification.solved) {
       finishSolverRun();
-      setSolverStatus(error?.message || "The solver stopped unexpectedly.", "error");
+      if (solverProgressLabel) solverProgressLabel.textContent = "Returned route rejected.";
+      if (solverStats) solverStats.textContent = `${Number(result.nodesSearched || 0).toLocaleString()} explored · ${formatSolverTime(result.timeMs)}`;
+      setSolverStatus(`The external solver reported success, but BOXXY rejected its route: ${verification.error || "the puzzle was not solved."}`, "error");
+      return;
     }
+
+    finishSolverRun();
+    playSolverDing();
+    if (solverProgress) solverProgress.value = 100;
+    if (solverProgressLabel) solverProgressLabel.textContent = "Solution found and independently verified.";
+    if (solverStats) solverStats.textContent = `${verification.moves.toLocaleString()} moves · ${verification.pushes.toLocaleString()} pushes · ${Number(result.nodesSearched || 0).toLocaleString()} explored · ${formatSolverTime(result.timeMs)}`;
+
+    if (verification.route.length === 0) {
+      if (solverOutput) solverOutput.value = "";
+      setSolverStatus("The starting position is already solved; no guided route is required.", "success");
+      return;
+    }
+
+    setAttachedSolution(verification.route, levelText, currentPuzzleRef);
+    if (solverOutput) solverOutput.value = verification.route;
+    setSolverStatus("The verified solution has been attached. Test the puzzle, click the character five times, then press S for the guided solve.", "success");
+    setStatus(`Solver attached a verified ${verification.moves}-move guided solve to the current puzzle.`, "success");
   }
 
   async function startSolverSearch() {
@@ -2663,82 +2473,88 @@
       return;
     }
     if (solverRunning) return;
+
     const levelText = validation.rows.join("\n");
+    const alreadySolved = verifySolverRoute(levelText, "");
+    if (alreadySolved.valid && alreadySolved.solved) {
+      if (solverProgressWrap) solverProgressWrap.hidden = false;
+      if (solverProgress) solverProgress.value = 100;
+      if (solverProgressLabel) solverProgressLabel.textContent = "Already solved.";
+      if (solverStats) solverStats.textContent = "0 moves · 0 pushes";
+      if (solverOutput) solverOutput.value = "";
+      setSolverStatus("The starting position already has every box on a goal; no route is required.", "success");
+      return;
+    }
+
+    if (!window.Worker || location.protocol === "file:") {
+      setSolverStatus("The Rust/WebAssembly solver must be run from GitHub Pages or another web server; browsers block its module worker when index.html is opened directly from disk.", "error");
+      return;
+    }
+
     const id = ++solverJobId;
-    solverAbortRequested = false;
     solverRunning = true;
     solverStartedAt = performance.now();
-    solverLastSnapshotAt = 0;
-    try { localStorage.removeItem(SOLVER_RUN_SNAPSHOT_KEY); } catch (_) {}
-    const existingRoute = solutionMatchesCurrentBoard() ? currentSolution : "";
-    clearClosestDisplay();
-    const totalGoals = (levelText.match(/[.*+]/g) || []).length;
-    const goalsFilled = (levelText.match(/\*/g) || []).length;
-    showClosestDisplay({ boardText: levelText, mixedMoves: "", moveCount: 0, pushCount: 0, goalsFilled, totalGoals, remainingEstimate: null, stagnation: 0 }, {});
     prepareSolverDing();
-    if (solverOutput) solverOutput.value = existingRoute;
+
+    if (solverOutput) solverOutput.value = solutionMatchesCurrentBoard() ? currentSolution : "";
     if (solverCopyBtn) solverCopyBtn.disabled = true;
     if (solverApplyBtn) solverApplyBtn.disabled = true;
     if (solverProgressWrap) solverProgressWrap.hidden = false;
     if (solverProgress) solverProgress.removeAttribute("value");
-    if (solverProgressLabel) solverProgressLabel.textContent = "Analysing walls, goals and dead squares…";
-    if (solverStats) solverStats.textContent = "0 states";
+    if (solverProgressLabel) solverProgressLabel.textContent = "Loading Rust/WebAssembly engine…";
+    if (solverStats) solverStats.textContent = "";
     if (solverStartBtn) solverStartBtn.disabled = true;
     if (solverCancelBtn) solverCancelBtn.hidden = false;
-    const memoryPlan = solverMemoryPlan(levelText);
-    setSolverStatus("Solving with the Rust/WebAssembly engine. BOXXY will remain responsive while the solver works in the background.");
+    setSolverStatus("Loading the external Rust/WebAssembly solver. An internet connection is required for the solver only.");
 
-    if (!window.Worker || location.protocol === "file:") {
-      finishSolverRun();
-      setSolverStatus("The Rust/WASM solver must be run from GitHub Pages or another web server, not by opening index.html directly.", "error");
-      return;
-    }
     try {
-      solverWorker = new Worker("solver-worker.js?v=121", { type: "module" });
+      solverWorker = new Worker("solver-worker.js?v=124", { type: "module" });
       solverWorker.onmessage = event => {
         const message = event.data || {};
         if (message.id !== id || id !== solverJobId || !solverRunning) return;
-        if (message.type === "progress") updateSearchProgress(message.progress || {});
-        else if (message.type === "result") handleSolverResult(message.result || {}, id, levelText);
-        else if (message.type === "error") {
+        if (message.type === "loading") {
+          if (solverProgressLabel) solverProgressLabel.textContent = "Downloading Rust/WASM engine…";
+        } else if (message.type === "ready") {
+          if (solverProgressLabel) solverProgressLabel.textContent = "Rust/WASM engine loaded. Searching…";
+          setSolverStatus("The Rust/WebAssembly engine is searching in a background worker.");
+        } else if (message.type === "progress") {
+          updateSearchProgress(message.progress || {});
+        } else if (message.type === "result") {
+          handleSolverResult(message.result || {}, id, levelText);
+        } else if (message.type === "error") {
           finishSolverRun();
-          setSolverStatus(message.error || "The solver stopped unexpectedly.", "error");
+          if (solverProgressLabel) solverProgressLabel.textContent = "Engine unavailable.";
+          setSolverStatus(`The Rust/WebAssembly solver could not run: ${message.error || "unknown error"}`, "error");
         }
       };
       solverWorker.onerror = event => {
         event.preventDefault?.();
         if (id !== solverJobId || !solverRunning) return;
         const detail = event?.message ? ` ${event.message}` : "";
-        finishSolverRun(true);
-        setSolverStatus(`The background solver worker stopped unexpectedly.${detail} The game page has been kept alive; reopen Solve Puzzle to inspect the saved progress report.`, "error");
+        finishSolverRun();
+        if (solverProgressLabel) solverProgressLabel.textContent = "Worker stopped.";
+        setSolverStatus(`The Rust/WebAssembly worker stopped unexpectedly.${detail}`, "error");
       };
       solverWorker.onmessageerror = () => {
         if (id !== solverJobId || !solverRunning) return;
-        finishSolverRun(true);
-        setSolverStatus("The browser could not read a message from the background solver. The game page has been kept alive; reopen Solve Puzzle to inspect the saved progress report.", "error");
+        finishSolverRun();
+        if (solverProgressLabel) solverProgressLabel.textContent = "Worker message error.";
+        setSolverStatus("The browser could not read a message from the Rust/WebAssembly worker.", "error");
       };
-      solverWorker.postMessage({
-        type: "solve",
-        id,
-        level: levelText,
-        unlimited: true,
-        maxNodes: memoryPlan.maxNodes,
-        progressEveryMs: SOLVER_PROGRESS_UPDATE_MS
-      });
+      solverWorker.postMessage({ type: "solve", id, level: levelText, timeoutMs: SOLVER_TIMEOUT_MS });
     } catch (error) {
       finishSolverRun();
-      setSolverStatus(error?.message || "The Rust/WASM solver worker could not be started.", "error");
+      setSolverStatus(`The Rust/WebAssembly worker could not be started: ${error?.message || error}`, "error");
     }
   }
 
   function cancelSolverSearch() {
     if (!solverRunning) return;
-    const elapsed = Math.max(0, performance.now() - solverStartedAt);
-    solverAbortRequested = true;
+    const elapsed = performance.now() - solverStartedAt;
     solverJobId += 1;
     finishSolverRun();
     if (solverProgressLabel) solverProgressLabel.textContent = "Search cancelled.";
-    setSolverStatus(`Search cancelled after ${(elapsed / 1000).toFixed(1)} seconds.`);
+    setSolverStatus(`Search cancelled after ${formatSolverTime(elapsed)}.`);
   }
 
   async function copySolverString() {
@@ -3881,7 +3697,7 @@
     const restoredSolution = typeof record.solution === "string" && (!record.solutionLevelText || record.solutionLevelText === restoredText) ? record.solution : "";
     setAttachedSolution(restoredSolution, restoredText, null);
     renderSavedLevels(record.id);
-    setStatus(`Loaded “${record.name}”.${restoredSolution ? " Its attached walkthrough was restored." : ""}`, "success");
+    setStatus(`Loaded “${record.name}”.${restoredSolution ? " Its attached guided solve was restored." : ""}`, "success");
   }
 
   function resetDeleteButton() {
@@ -4043,7 +3859,6 @@
   solverCancelBtn?.addEventListener("click", cancelSolverSearch);
   solverCopyBtn?.addEventListener("click", copySolverString);
   solverApplyBtn?.addEventListener("click", applyCurrentSolution);
-  solverClosestCopyBtn?.addEventListener("click", copyClosestRoute);
   solverModal?.addEventListener("click", event => {
     if (event.target === solverModal) closeSolverDialog();
   });
