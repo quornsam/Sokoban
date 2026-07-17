@@ -28,7 +28,7 @@
   });
 })();
 
-/* BOXXY v119 — character renderer, game engine, level maker and pure FESS puzzle solving. */
+/* BOXXY v120 — character renderer, game engine, level maker and pure FESS puzzle solving. */
 (() => {
   "use strict";
 
@@ -2475,7 +2475,7 @@
       setSolverStatus(`A ${currentSolution.length.toLocaleString()}-move solution is already attached to this puzzle.`, "success");
     } else if (previousRun?.running) {
       const seconds = (Number(previousRun.elapsedMs || 0) / 1000).toFixed(1);
-      setSolverStatus(`The previous solver tab ended unexpectedly after ${seconds}s in ${previousRun.phase || "search"}, at ${Number(previousRun.generated || 0).toLocaleString()} generated push states. v119 uses a fixed compact FESS store, avoiding the reallocations and short-lived buffers that exhausted v118.`, "error");
+      setSolverStatus(`The previous solver tab ended unexpectedly after ${seconds}s in ${previousRun.phase || "search"}, at ${Number(previousRun.generated || 0).toLocaleString()} generated push states. v120 uses the fixed compact FESS store and the expanded maze-specific deadlock gate.`, "error");
       if (previousRun.closest) showClosestDisplay(previousRun.closest, {});
       try { localStorage.removeItem(SOLVER_RUN_SNAPSHOT_KEY); } catch (_) {}
     } else {
@@ -2702,7 +2702,7 @@
       return;
     }
     try {
-      solverWorker = new Worker("solver-worker.js?v=119");
+      solverWorker = new Worker("solver-worker.js?v=120");
       solverWorker.onmessage = event => {
         const message = event.data || {};
         if (message.id !== id || id !== solverJobId || !solverRunning) return;

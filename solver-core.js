@@ -1,5 +1,5 @@
 /*
- * BOXXY Sokoban Solver Core v5.4.0
+ * BOXXY Sokoban Solver Core v5.5.0
  *
  * Clean Feature Space Search (FESS) implementation for the BOXXY Level Maker.
  * The search follows Shoham & Schaeffer's FESS design:
@@ -201,6 +201,7 @@
       featureCache: new Map(),
       deadlockCache: new Map(),
       localPatternCache: new Map(),
+      subsetDeadlockCache: new Map(),
       corralSearchCache: new Map(),
       localWindowsBySquare: Array.from({ length: count }, () => []),
       roomRegions: [],
@@ -692,31 +693,27 @@
   // without assuming that a merely adjacent box is permanent.
   function findMutuallyFrozenBoxes(board, boxes) {
     if (!board.freezeScratch) board.freezeScratch = new Uint8Array(board.count);
-    const active = board.freezeScratch;
-    active.fill(0);
-    for (const p of boxes) active[p] = 1;
-    let changed = true;
-    while (changed) {
-      changed = false;
-      for (const p of boxes) {
-        if (!active[p]) continue;
-        let canEscape = false;
-        for (let d = 0; d < 4; d++) {
-          const dest = board.neighbours[p][d];
-          const support = board.neighbours[p][OPP[d]];
-          if (dest >= 0 && support >= 0 && !active[dest] && !active[support]) {
-            canEscape = true;
-            break;
-          }
-        }
-        if (canEscape) {
-          active[p] = 0;
-          changed = true;
-        }
-      }
-    }
+    const occupied = board.freezeScratch;
+    occupied.fill(0);
+    for (const p of boxes) occupied[p] = 1;
+    const temporaryWalls = new Uint8Array(board.count);
+    const axisBlocked = (position, axisDirection) => {
+      const left = board.neighbours[position][axisDirection];
+      const right = board.neighbours[position][OPP[axisDirection]];
+      if (left < 0 || right < 0 || temporaryWalls[left] || temporaryWalls[right]) return true;
+      if (board.deadSquares[left] && board.deadSquares[right]) return true;
+      temporaryWalls[position] = 1;
+      occupied[position] = 0;
+      let blocked = false;
+      if (occupied[left]) blocked = boxFrozen(left);
+      if (!blocked && occupied[right]) blocked = boxFrozen(right);
+      occupied[position] = 1;
+      temporaryWalls[position] = 0;
+      return blocked;
+    };
+    const boxFrozen = position => axisBlocked(position, 1) && axisBlocked(position, 0);
     const frozen = [];
-    for (const p of boxes) if (active[p]) frozen.push(p);
+    for (const p of boxes) if (boxFrozen(p)) frozen.push(p);
     return frozen;
   }
 
@@ -734,6 +731,98 @@
     if (remainingBoxes.length !== remainingGoals.length) return 'frozen-goal-interference';
     if (!hasGoalMatching(board, remainingBoxes, remainingGoals, frozenMask)) return 'frozen-goal-interference';
     return '';
+  }
+
+  // Cazenave-style maze-specific subset proof. Other boxes are removed,
+  // giving this selected group more freedom. A group is dead when every legal
+  // push in that relaxed position leads to an already proved deadlock. Boxes
+  // already on goals remain part of the group because they can close a
+  // diagonal or block the remaining boxes.
+  function subsetRetrogradeDead(board, subsetBoxes, player, remainingDepth = 1, localMemo = null) {
+    const boxes = subsetBoxes.slice().sort((a, b) => a - b);
+    if (boxes.every(p => board.goals[p])) return false;
+    if (!hasGoalMatching(board, boxes, board.goalList)) return true;
+    const canonical = canonicalState(board, boxes, player);
+    const cacheKey = `${remainingDepth}|${compactKey(boxes, canonical.representative)}`;
+    const memo = localMemo || new Map();
+    if (memo.has(cacheKey)) return memo.get(cacheKey);
+    if (board.subsetDeadlockCache.has(cacheKey)) return board.subsetDeadlockCache.get(cacheKey);
+
+    // Mark as unknown while descending. Encountering the same state through a
+    // cycle cannot prove it dead; it is therefore treated as a live escape.
+    memo.set(cacheKey, false);
+    const blocked = boxesMask(board, boxes);
+    const reach = canonical.reach;
+    let legalPushes = 0;
+    for (let i = 0; i < boxes.length; i++) {
+      const from = boxes[i];
+      for (let d = 0; d < 4; d++) {
+        const support = board.neighbours[from][OPP[d]];
+        const dest = board.neighbours[from][d];
+        if (support < 0 || dest < 0 || !reach.seen[support] || blocked[dest]) continue;
+        legalPushes++;
+        const childBoxes = boxes.slice();
+        childBoxes[i] = dest;
+        childBoxes.sort((a, b) => a - b);
+        let childDead = Boolean(quickMacroDeadlock(board, childBoxes));
+        if (!childDead && !hasGoalMatching(board, childBoxes, board.goalList)) childDead = true;
+        if (!childDead && remainingDepth > 0) {
+          childDead = subsetRetrogradeDead(board, childBoxes, from, remainingDepth - 1, memo);
+        }
+        if (!childDead) {
+          memo.set(cacheKey, false);
+          if (board.subsetDeadlockCache.size >= 30000) board.subsetDeadlockCache.clear();
+          board.subsetDeadlockCache.set(cacheKey, false);
+          return false;
+        }
+      }
+    }
+    const dead = true; // The loop returned only after every legal child was proved dead.
+    memo.set(cacheKey, dead);
+    if (board.subsetDeadlockCache.size >= 30000) board.subsetDeadlockCache.clear();
+    board.subsetDeadlockCache.set(cacheKey, dead);
+    return dead;
+  }
+
+  function hasMazeSubsetDeadlock(board, boxes, player, focusBox = -1) {
+    const boxSet = new Set(boxes);
+    const adjacency = new Map();
+    for (const p of boxes) {
+      const x = p % board.width;
+      const y = Math.floor(p / board.width);
+      const adjacent = [];
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          if (!dx && !dy) continue;
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || nx >= board.width || ny < 0 || ny >= board.height) continue;
+          const n = ny * board.width + nx;
+          if (boxSet.has(n)) adjacent.push(n);
+        }
+      }
+      adjacency.set(p, adjacent);
+    }
+
+    const roots = focusBox >= 0 && boxSet.has(focusBox) ? [focusBox] : boxes;
+    const tested = new Set();
+    const visit = subset => {
+      const sorted = subset.slice().sort((a, b) => a - b);
+      const key = sorted.join(',');
+      if (tested.has(key)) return false;
+      tested.add(key);
+      if (sorted.length >= 2 && sorted.some(p => !board.goals[p])) {
+        const depth = sorted.length <= 3 ? 1 : 0;
+        if (subsetRetrogradeDead(board, sorted, player, depth)) return true;
+      }
+      if (sorted.length >= 4) return false;
+      const expansion = new Set();
+      for (const p of sorted) for (const n of adjacency.get(p) || []) if (!sorted.includes(n)) expansion.add(n);
+      for (const n of expansion) if (visit(sorted.concat(n))) return true;
+      return false;
+    };
+    for (const root of roots) if (visit([root])) return true;
+    return false;
   }
 
   function localReach(board, window, boxes, player) {
@@ -772,6 +861,9 @@
     localIndex.fill(-1);
     for (let i = 0; i < window.cells.length; i++) localIndex[window.cells[i]] = i;
 
+    // This older permissive window proof treats goal boxes as already solved.
+    // v120's separate maze-subset proof retains them when they are needed to
+    // prove an interacting deadlock, without making this local test unsound.
     const normalise = boxes => boxes.filter(p => !board.goals[p]).sort((a, b) => a - b);
     const startBoxes = normalise(subsetBoxes);
     if (!startBoxes.length) return true;
@@ -1041,7 +1133,8 @@
       const dynamicKey = useStateCache ? `C${compactKey(boxes, reach.representative)}` : '';
       if (useStateCache && board.deadlockCache.has(dynamicKey)) return board.deadlockCache.get(dynamicKey);
       let dynamicReason = '';
-      if (hasMazeSpecificLocalDeadlock(board, boxes, player, focusBox)) dynamicReason = 'maze-pattern-deadlock';
+      if (hasMazeSubsetDeadlock(board, boxes, player, focusBox)) dynamicReason = 'maze-subset-deadlock';
+      else if (hasMazeSpecificLocalDeadlock(board, boxes, player, focusBox)) dynamicReason = 'maze-pattern-deadlock';
       else if (hasCorralDeadlock(board, boxes, player, reach, focusBox)) dynamicReason = 'corral-deadlock';
       else if (hasRoomDeadlock(board, boxes, player, focusBox)) dynamicReason = 'room-deadlock';
       if (dynamicReason) {
@@ -1440,7 +1533,7 @@
     const startedAt = Date.now();
     const timeLimit = Math.max(1000, Number(options.featureMaxTimeMs || options.maxTimeMs || 600000));
     const requestedLimit = Number(options.maxNodes);
-    // v119 uses one fixed compact allocation. The browser UI supplies a smaller
+    // v120 retains the fixed compact allocation introduced in v119. The browser UI supplies a smaller
     // allowance on phones and a larger one on desktop machines.
     const defaultNodeLimit = board.initialBoxes.length >= 32 ? 2000000
       : board.initialBoxes.length >= 16 ? 2200000 : 2600000;
@@ -1498,7 +1591,7 @@
 
     const boxCount = board.initialBoxes.length;
 
-    // v119 reserves one compact store once. v118 repeatedly allocated a larger
+    // v120 retains one compact store allocated once. v118 repeatedly allocated a larger
     // replacement for every array and copied the full search into it. During a
     // growth step both generations remained live, causing a large transient
     // memory spike. Most BOXXY boards use fewer than 256 squares, so positions
@@ -1900,7 +1993,7 @@
           if (deadReason) {
             if (deadReason === 'box-goal-matching' || deadReason === 'frozen-goal-interference') stats.assignmentDeadlocks++;
             else if (deadReason === 'freeze-deadlock') stats.freezeDeadlocks++;
-            else if (deadReason === 'maze-pattern-deadlock') stats.patternDeadlocks++;
+            else if (deadReason === 'maze-pattern-deadlock' || deadReason === 'maze-subset-deadlock') stats.patternDeadlocks++;
             else if (deadReason === 'corral-deadlock') stats.corralDeadlocks++;
             else if (deadReason === 'room-deadlock') stats.roomDeadlocks++;
             else stats.staticDeadlocks++;
@@ -1957,7 +2050,7 @@
   }
 
   return Object.freeze({
-    version: '5.4.0',
+    version: '5.5.0',
     DIRS,
     SolverError,
     parseLevel,

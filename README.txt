@@ -1,15 +1,16 @@
-BOXXY v119
+BOXXY v120
 
 Solver update:
-- The puzzle solver remains one pure Feature Space Search (FESS) engine with a fixed compact memory store.
-- Every generated push is passed through a separate layered deadlock engine before it can enter FESS.
-- The engine checks static dead squares, solid 2 x 2 blocks, mutually frozen box groups, frozen boxes on goals that obstruct the remaining assignment, dynamic bipartite box-to-goal matching, maze-specific exact 4 x 4 pattern searches, exact corral subproblems and articulation-room subproblems.
-- Local and corral searches are optimistic: boxes outside the tested subproblem are removed and exits are treated as available. Therefore a branch is pruned only when the easier subproblem is completely exhausted. Reaching a safety limit is treated as unknown, never dead.
-- FESS allocates its compact typed-array state store and exact transposition table once at the start. No full-store growth or rehash operation can temporarily double memory. Boards of at most 256 squares store positions in 8 bits. Desktop systems receive a larger allowance than phones and low-memory devices.
-- Failed searches still return the strongest verified forward position and its partial route.
-- Every completed route is replayed before it can be attached to a puzzle.
+- The puzzle solver remains one forward Feature Space Search (FESS) engine. Deadlock analysis is a separate gate applied before the starting state and after every generated push.
+- v120 adds a separate maze-subset proof in which boxes already on goals remain part of the interacting group. The older permissive local-window check may still treat a goal box as solved, but it is no longer the only analysis applied to that configuration.
+- The deadlock gate now performs generic connected-subset proofs on nearby groups of two to four boxes. All other boxes are removed, making the test position easier. A group is rejected only when every legal push in that relaxed position leads to an already proved deadlock.
+- The subset proof is maze-specific rather than tied to a level, coordinate or move sequence. It catches the supplied Small Chessboards 12 locked position before a single FESS node is generated.
+- Frozen-box analysis now follows recursive two-axis blocking: walls, paired dead squares and recursively frozen neighbouring boxes can prove an interacting frozen group.
+- Existing static dead-square, solid 2 x 2, complete box-to-goal matching, frozen-goal interference, local pattern, corral and articulation-room checks remain in place.
+- Incomplete or capped local analysis means unknown, never dead. FESS therefore keeps any branch that has not been soundly proved impossible.
+- FESS retains the fixed compact typed-array state store introduced in v119. Every completed route is replayed before it can be attached to a puzzle.
 
-BOXXY — Pushbox Puzzle v119
+BOXXY — Pushbox Puzzle v120
 
 Open index.html in a web browser.
 
@@ -402,3 +403,22 @@ BOXXY v119 fixed-store memory rebuild
 - High-memory desktop allowance for 32+ box puzzles is now 2,000,000 states. The fixed compact store for Small Chessboards 38 is approximately 182 MB.
 - Progress now reports the fixed-store size as well as the state allowance.
 - All application and worker cache tags are v119.
+
+BOXXY v120 maze-subset deadlock correction
+-------------------------------------------
+- Added a separate maze-subset proof that retains boxes already standing on goals. This corrects the earlier blind spot without making the older permissive local-window proof over-aggressive.
+- Added generic maze-specific connected-subset analysis for groups of two, three and four neighbouring boxes, including diagonal neighbours.
+- Other boxes are removed during this proof, giving the selected group more freedom. A dead result is therefore accepted only when the easier subproblem is itself dead.
+- For two- and three-box groups, the proof follows legal pushes recursively and rejects a state when every continuation reaches a structural deadlock. Four-box groups use a conservative one-ply proof; an unproved continuation returns unknown.
+- Replaced the earlier simplified frozen-set pass with recursive horizontal-and-vertical freeze analysis.
+- Added the supplied locked Small Chessboards 12 position as a mandatory regression. It is classified as maze-subset-deadlock and rejected with zero generated FESS states.
+- Replayed all 50 stored Microban solutions and checked the deadlock gate after all 759 pushes along those known-solvable routes.
+- All 238 supplied starting boards remain accepted, and all 50 Microban levels are solved afresh by FESS.
+- Small Chessboards 12 and 38 are not claimed solved by this release. The change is dead-branch rejection, not a claimed solution to either large puzzle.
+- Current application and worker cache tags are v120.
+
+Algorithm references
+--------------------
+- Tristan Cazenave, "Sokoban Deadlocks": maze-specific deadlocks represented by box positions and player access, with combinations learned dead when every legal move reaches an already known deadlock.
+- Festival/FESS paper: deadlock matching is a move-generation gate separate from feature-space ordering; local, corral, matching, retrograde and room analyses are used to reject proved dead branches.
+- Sokoshell freeze-deadlock implementation: recursive two-axis blocking with the box under test temporarily treated as a wall.
