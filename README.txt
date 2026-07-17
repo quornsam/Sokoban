@@ -422,3 +422,13 @@ Algorithm references
 - Tristan Cazenave, "Sokoban Deadlocks": maze-specific deadlocks represented by box positions and player access, with combinations learned dead when every legal move reaches an already known deadlock.
 - Festival/FESS paper: deadlock matching is a move-generation gate separate from feature-space ordering; local, corral, matching, retrograde and room analyses are used to reject proved dead branches.
 - Sokoshell freeze-deadlock implementation: recursive two-axis blocking with the box under test temporarily treated as a wall.
+
+v121 RUST/WASM SOLVER INTEGRATION
+- Replaced BOXXY's experimental JavaScript solver worker with the browser-ready
+  Rust/WebAssembly solver from dangarfield/sokoban-solver.
+- The engine runs in a module Web Worker and returns its route to BOXXY's existing
+  solution attachment and guided-playback system.
+- The engine module is loaded from the upstream GitHub Pages deployment, so an
+  internet connection is required when solving. Normal play remains local.
+- The completion heading for assisted play is now "GUIDED SOLVE" rather than
+  "WALKTHROUGH USED", preventing the heading from being cropped.

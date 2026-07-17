@@ -39,3 +39,10 @@ The supplied notice permits unchanged, credited, non-commercial distribution and
 
 Licence text: https://creativecommons.org/licenses/by-nc-nd/3.0/
 Collection source: https://sokoban-jd.blogspot.com/p/all-my-sokoban-collections.html
+
+BOXXY SOLVER BACKEND — FESTIVAL-RUST WASM BRIDGE
+The BOXXY solver worker uses the browser WebAssembly module from:
+  dangarfield/sokoban-solver
+  https://github.com/dangarfield/sokoban-solver
+The project describes this engine as a Rust/WASM Sokoban solver inspired by
+Festival by Yaron Shoham. Attribution is retained here in the backend files.

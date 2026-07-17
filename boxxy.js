@@ -1807,7 +1807,7 @@
         if (finalPackPicker) finalPackPicker.hidden = true;
         if (finalPackStatus) finalPackStatus.textContent = solvedWithWalkthrough ? "Walkthrough-assisted completions are marked yellow in the level list." : "";
         if (completeKicker) completeKicker.textContent = activePack.title;
-        if (completeTitle) completeTitle.innerHTML = solvedWithWalkthrough ? "WALKTHROUGH<br>USED" : "PUZZLE<br>CLEARED";
+        if (completeTitle) completeTitle.innerHTML = solvedWithWalkthrough ? "GUIDED<br>SOLVE" : "PUZZLE<br>CLEARED";
         const statedMinimum = Number(levelData.minimum);
         let summary;
         if (Number.isFinite(statedMinimum) && statedMinimum > 0) {
@@ -2607,8 +2607,8 @@
           : "Solution found and verified.";
       }
       if (solverStats) solverStats.textContent = `${Number(result.moveCount || route.length).toLocaleString()} moves · ${Number(result.pushCount || 0).toLocaleString()} pushes · ${(Number(result.elapsedMs || 0) / 1000).toFixed(2)}s`;
-      setSolverStatus("The solution string has been attached to this puzzle. Testing it now enables the five-click + S walkthrough.", "success");
-      setStatus(`Solver attached a ${route.length}-move walkthrough to the current puzzle.`, "success");
+      setSolverStatus("The solution string has been attached to this puzzle. Testing it now enables the five-click + S guided solve.", "success");
+      setStatus(`Solver attached a ${route.length}-move guided route to the current puzzle.`, "success");
     } else if (result.status === "unsolvable") {
       showClosestDisplay(result.closest, result.stats || {});
       if (solverProgress) solverProgress.value = 100;
@@ -2686,23 +2686,15 @@
     if (solverStartBtn) solverStartBtn.disabled = true;
     if (solverCancelBtn) solverCancelBtn.hidden = false;
     const memoryPlan = solverMemoryPlan(levelText);
-    setSolverStatus(`Solving with one pure FESS search. This device has the ${memoryPlan.tier} allowance: up to ${memoryPlan.maxNodes.toLocaleString()} resident states. The compact search store is allocated once, so it cannot double in size during a reallocation.`);
-
-    let fellBack = false;
-    const fallback = () => {
-      if (fellBack || id !== solverJobId || !solverRunning) return;
-      fellBack = true;
-      if (solverWorker) solverWorker.terminate();
-      solverWorker = null;
-      runSolverOnMainThread(id, levelText);
-    };
+    setSolverStatus("Solving with the Rust/WebAssembly engine. BOXXY will remain responsive while the solver works in the background.");
 
     if (!window.Worker || location.protocol === "file:") {
-      fallback();
+      finishSolverRun();
+      setSolverStatus("The Rust/WASM solver must be run from GitHub Pages or another web server, not by opening index.html directly.", "error");
       return;
     }
     try {
-      solverWorker = new Worker("solver-worker.js?v=120");
+      solverWorker = new Worker("solver-worker.js?v=121", { type: "module" });
       solverWorker.onmessage = event => {
         const message = event.data || {};
         if (message.id !== id || id !== solverJobId || !solverRunning) return;
@@ -2733,8 +2725,9 @@
         maxNodes: memoryPlan.maxNodes,
         progressEveryMs: SOLVER_PROGRESS_UPDATE_MS
       });
-    } catch (_) {
-      fallback();
+    } catch (error) {
+      finishSolverRun();
+      setSolverStatus(error?.message || "The Rust/WASM solver worker could not be started.", "error");
     }
   }
 
