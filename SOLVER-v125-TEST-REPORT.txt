@@ -1,12 +1,12 @@
-BOXXY v125 SOLVER ADAPTER TEST REPORT
+BOXXY v126 SOLVER ADAPTER TEST REPORT
 ========================================
 
 Release structure
-- Top-level release directory: BOXXY_v125
+- Top-level release directory: BOXXY_v126
 - No solver-core.js
 - No legacy FESS worker
 - No JavaScript main-thread solving fallback
-- Active cache identifiers: v125
+- Active cache identifiers: v126
 
 Engine-loader checks
 - Remote JavaScript is fetched as text, avoiding strict cross-origin module

@@ -1,23 +1,19 @@
-/* BOXXY v125 Rust/WebAssembly solver worker.
+/* BOXXY v126 Rust/WebAssembly solver worker.
+ *
  * External engine: dangarfield/sokoban-solver, festival-rust browser build.
  *
- * v125 deliberately does not import a remote JavaScript module directly.
- * Some browsers and privacy settings reject cross-origin module imports inside
- * workers even when an ordinary CORS fetch succeeds. Instead, this adapter:
- *   1. fetches the generated JavaScript binding as text;
- *   2. imports that text from a local Blob URL;
- *   3. fetches the matching WASM binary as bytes; and
- *   4. passes those bytes explicitly to the generated initialiser.
+ * v126 avoids both forms which proved unreliable in Opera/GitHub Pages:
+ *   - importing the remote module URL directly; and
+ *   - importing fetched source through a Blob module URL.
  *
- * No legacy BOXXY/FESS search code or JavaScript solver fallback is present.
+ * Instead it fetches the generated binding as text, converts its three ES
+ * module exports into local worker bindings, evaluates it as ordinary worker
+ * code, and initialises it with separately downloaded WASM bytes. A tiny
+ * one-push Sokoban self-test must pass before the engine is reported ready.
+ * No legacy BOXXY solver or JavaScript fallback is present.
  */
 
 const ENGINE_SOURCES = [
-  {
-    name: "GitHub raw (pinned)",
-    js: "https://raw.githubusercontent.com/dangarfield/sokoban-solver/d355ece7272ec89071056ef64ce257c797f9c2b1/festival-rust/pkg/festival_rust.js",
-    wasm: "https://raw.githubusercontent.com/dangarfield/sokoban-solver/d355ece7272ec89071056ef64ce257c797f9c2b1/festival-rust/pkg/festival_rust_bg.wasm"
-  },
   {
     name: "jsDelivr (pinned)",
     js: "https://cdn.jsdelivr.net/gh/dangarfield/sokoban-solver@d355ece7272ec89071056ef64ce257c797f9c2b1/festival-rust/pkg/festival_rust.js",
@@ -27,9 +23,15 @@ const ENGINE_SOURCES = [
     name: "Maintainer GitHub Pages",
     js: "https://dangarfield.github.io/sokoban-solver/festival-rust/pkg/festival_rust.js",
     wasm: "https://dangarfield.github.io/sokoban-solver/festival-rust/pkg/festival_rust_bg.wasm"
+  },
+  {
+    name: "GitHub raw (pinned)",
+    js: "https://raw.githubusercontent.com/dangarfield/sokoban-solver/d355ece7272ec89071056ef64ce257c797f9c2b1/festival-rust/pkg/festival_rust.js",
+    wasm: "https://raw.githubusercontent.com/dangarfield/sokoban-solver/d355ece7272ec89071056ef64ce257c797f9c2b1/festival-rust/pkg/festival_rust_bg.wasm"
   }
 ];
 
+const SOURCE_TIMEOUT_MS = 15000;
 let enginePromise = null;
 let engineSourceName = "";
 
@@ -39,74 +41,124 @@ function describeError(error) {
   return `${name}${error.message || String(error)}`;
 }
 
-async function fetchChecked(url, responseType) {
-  const response = await fetch(url, {
-    method: "GET",
-    mode: "cors",
-    credentials: "omit",
-    cache: "force-cache",
-    redirect: "follow",
-    referrerPolicy: "no-referrer"
-  });
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status} ${response.statusText || ""}`.trim());
+async function fetchChecked(url, responseType, timeoutMs = SOURCE_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      mode: "cors",
+      credentials: "omit",
+      cache: "no-store",
+      redirect: "follow",
+      referrerPolicy: "no-referrer",
+      signal: controller.signal
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status} ${response.statusText || ""}`.trim());
+    }
+    return responseType === "arrayBuffer" ? response.arrayBuffer() : response.text();
+  } catch (error) {
+    if (error?.name === "AbortError") throw new Error(`request timed out after ${Math.round(timeoutMs / 1000)} seconds`);
+    throw error;
+  } finally {
+    clearTimeout(timer);
   }
-  return responseType === "arrayBuffer" ? response.arrayBuffer() : response.text();
 }
 
-async function loadSource(source) {
-  // Fetch both artefacts before evaluating anything, so a partial source cannot
-  // become the selected engine accidentally.
-  const [bindingSource, wasmBytes] = await Promise.all([
-    fetchChecked(source.js, "text"),
-    fetchChecked(source.wasm, "arrayBuffer")
-  ]);
-
-  if (!bindingSource.includes("FestivalSolver")) {
-    throw new Error("downloaded JavaScript does not export FestivalSolver");
+function compileBinding(bindingSource) {
+  if (typeof bindingSource !== "string" || bindingSource.length < 1000) {
+    throw new Error("downloaded JavaScript binding is empty or incomplete");
   }
+  if (!bindingSource.includes("class FestivalSolver") || !bindingSource.includes("__wbg_init")) {
+    throw new Error("downloaded JavaScript is not the expected Festival-Rust binding");
+  }
+
+  // wasm-bindgen's web target contains exactly these module exports. Replacing
+  // them lets the generated binding execute as ordinary worker code. The
+  // import.meta fallback cannot be parsed outside a module, so replace it too;
+  // v126 always passes WASM bytes explicitly and never uses that fallback.
+  let source = bindingSource
+    .replace(/export\s+class\s+FestivalSolver/, "class FestivalSolver")
+    .replace(/export\s*\{\s*initSync\s*\}\s*;?/, "")
+    .replace(/export\s+default\s+__wbg_init\s*;?/, "")
+    .replace(/import\.meta\.url/g, "self.location.href");
+
+  if (/\bexport\b/.test(source)) {
+    throw new Error("the generated binding contains an unsupported module export");
+  }
+
+  try {
+    // The binding itself already uses Function for wasm-bindgen imports, so
+    // this does not introduce a new browser capability requirement.
+    return new Function(`${source}\nreturn { FestivalSolver, init: __wbg_init };`)();
+  } catch (error) {
+    throw new Error(`JavaScript binding could not be initialised: ${describeError(error)}`);
+  }
+}
+
+function validateWasm(wasmBytes) {
   if (!(wasmBytes instanceof ArrayBuffer) || wasmBytes.byteLength < 8) {
     throw new Error("downloaded WASM file is empty or invalid");
   }
-
   const magic = new Uint8Array(wasmBytes, 0, 4);
   if (magic[0] !== 0x00 || magic[1] !== 0x61 || magic[2] !== 0x73 || magic[3] !== 0x6d) {
     throw new Error("downloaded file is not a WebAssembly binary");
   }
+}
 
-  const moduleUrl = URL.createObjectURL(new Blob([bindingSource], { type: "text/javascript" }));
+async function runSelfTest(FestivalSolver) {
+  let solver = null;
   try {
-    const module = await import(moduleUrl);
-    if (typeof module.default !== "function") {
-      throw new Error("generated WASM initialiser was not exported");
+    solver = new FestivalSolver();
+    const result = solver.solve("#####\n#@$.#\n#####", 5000, null) || {};
+    const route = String(result.solution || "");
+    if (!result.solved || !/[rR]/.test(route)) {
+      throw new Error(`engine self-test failed${result.fail_reason ? `: ${result.fail_reason}` : ""}`);
     }
-    if (typeof module.FestivalSolver !== "function") {
-      throw new Error("FestivalSolver class was not exported");
-    }
-
-    // Passing the bytes explicitly prevents the generated binding from trying
-    // to resolve festival_rust_bg.wasm relative to a remote or Blob module URL.
-    await module.default({ module_or_path: wasmBytes });
-    return module.FestivalSolver;
   } finally {
-    URL.revokeObjectURL(moduleUrl);
+    try { solver?.free?.(); } catch (_) {}
   }
+}
+
+async function loadSource(source) {
+  const [bindingSource, wasmBytes] = await Promise.all([
+    fetchChecked(source.js, "text"),
+    fetchChecked(source.wasm, "arrayBuffer")
+  ]);
+  validateWasm(wasmBytes);
+  const binding = compileBinding(bindingSource);
+  if (typeof binding.init !== "function" || typeof binding.FestivalSolver !== "function") {
+    throw new Error("FestivalSolver exports were not created");
+  }
+  await binding.init({ module_or_path: wasmBytes });
+  await runSelfTest(binding.FestivalSolver);
+  return binding.FestivalSolver;
 }
 
 async function loadEngine() {
   if (!enginePromise) {
     enginePromise = (async () => {
       const failures = [];
-      for (const source of ENGINE_SOURCES) {
-        try {
-          const FestivalSolver = await loadSource(source);
-          engineSourceName = source.name;
-          return FestivalSolver;
-        } catch (error) {
-          failures.push(`${source.name}: ${describeError(error)}`);
-        }
+
+      // Start all mirrors together. The first complete, self-tested engine wins,
+      // so one blocked host cannot impose three consecutive network timeouts.
+      const attempts = ENGINE_SOURCES.map(source =>
+        loadSource(source)
+          .then(FestivalSolver => ({ FestivalSolver, source }))
+          .catch(error => {
+            failures.push(`${source.name}: ${describeError(error)}`);
+            throw error;
+          })
+      );
+
+      try {
+        const winner = await Promise.any(attempts);
+        engineSourceName = winner.source.name;
+        return winner.FestivalSolver;
+      } catch (_) {
+        throw new Error(`All Rust/WASM sources failed. ${failures.join(" | ") || "No source returned a usable engine."}`);
       }
-      throw new Error(`All three Rust/WASM sources failed. ${failures.join(" | ")}`);
     })();
   }
   return enginePromise;
@@ -155,15 +207,9 @@ self.onmessage = async event => {
       }
     });
   } catch (error) {
-    // Reset the cached promise after a failed load. A second attempt can then
-    // succeed if a transient network or privacy-filter problem has cleared.
     enginePromise = null;
     engineSourceName = "";
-    self.postMessage({
-      type: "error",
-      id,
-      error: describeError(error)
-    });
+    self.postMessage({ type: "error", id, error: describeError(error) });
   } finally {
     try { solver?.free?.(); } catch (_) {}
   }

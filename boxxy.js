@@ -28,7 +28,7 @@
   });
 })();
 
-/* BOXXY v125 — character renderer, game engine, level maker and Rust/WASM solver adapter. */
+/* BOXXY v126 — character renderer, game engine, level maker and Rust/WASM solver adapter. */
 (() => {
   "use strict";
 
@@ -2508,7 +2508,7 @@
     setSolverStatus("Loading the external Rust/WebAssembly solver. An internet connection is required for the solver only.");
 
     try {
-      solverWorker = new Worker("solver-worker.js?v=125", { type: "module", name: "boxxy-rust-solver-v125" });
+      solverWorker = new Worker("solver-worker.js?v=126", { type: "module", name: "boxxy-rust-solver-v126" });
       solverWorker.onmessage = event => {
         const message = event.data || {};
         if (message.id !== id || id !== solverJobId || !solverRunning) return;
