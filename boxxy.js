@@ -28,7 +28,7 @@
   });
 })();
 
-/* BOXXY v124 — character renderer, game engine, level maker and Rust/WASM solver adapter. */
+/* BOXXY v125 — character renderer, game engine, level maker and Rust/WASM solver adapter. */
 (() => {
   "use strict";
 
@@ -2508,23 +2508,24 @@
     setSolverStatus("Loading the external Rust/WebAssembly solver. An internet connection is required for the solver only.");
 
     try {
-      solverWorker = new Worker("solver-worker.js?v=124", { type: "module" });
+      solverWorker = new Worker("solver-worker.js?v=125", { type: "module", name: "boxxy-rust-solver-v125" });
       solverWorker.onmessage = event => {
         const message = event.data || {};
         if (message.id !== id || id !== solverJobId || !solverRunning) return;
         if (message.type === "loading") {
           if (solverProgressLabel) solverProgressLabel.textContent = "Downloading Rust/WASM engine…";
         } else if (message.type === "ready") {
-          if (solverProgressLabel) solverProgressLabel.textContent = "Rust/WASM engine loaded. Searching…";
-          setSolverStatus("The Rust/WebAssembly engine is searching in a background worker.");
+          const sourceName = message.source ? ` via ${message.source}` : "";
+          if (solverProgressLabel) solverProgressLabel.textContent = `Rust/WASM engine loaded${sourceName}. Searching…`;
+          setSolverStatus(`The Rust/WebAssembly engine is searching in a background worker${sourceName}.`);
         } else if (message.type === "progress") {
           updateSearchProgress(message.progress || {});
         } else if (message.type === "result") {
           handleSolverResult(message.result || {}, id, levelText);
         } else if (message.type === "error") {
           finishSolverRun();
-          if (solverProgressLabel) solverProgressLabel.textContent = "Engine unavailable.";
-          setSolverStatus(`The Rust/WebAssembly solver could not run: ${message.error || "unknown error"}`, "error");
+          if (solverProgressLabel) solverProgressLabel.textContent = "Engine could not load.";
+          setSolverStatus(`The Rust/WebAssembly engine could not load. ${message.error || "Unknown error."}`, "error");
         }
       };
       solverWorker.onerror = event => {

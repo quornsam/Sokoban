@@ -1,57 +1,51 @@
-BOXXY — PUSHBOX PUZZLE v124
+BOXXY — Pushbox Puzzle v125
 ================================
 
-This is the full BOXXY game and Level Maker release.
+Open index.html through GitHub Pages or another web server.
 
-RUNNING
--------
-Upload the contents of the BOXXY_v124 folder to GitHub Pages, or serve the
-folder with a normal local web server. Opening index.html directly from disk
-will play the game, but browsers normally block the module worker used by the
-solver.
+SOLVER
+------
+The hidden Level Maker uses the browser Rust/WebAssembly engine from
+https://github.com/dangarfield/sokoban-solver at pinned commit:
+d355ece7272ec89071056ef64ce257c797f9c2b1
 
-SOLVER IN v124
---------------
-The former in-house BOXXY solver has been removed. The Level Maker now
-uses the browser Rust/WebAssembly engine hosted by:
+v125 fixes the v124 "Engine unavailable" failure mode. The worker no longer
+imports a remote JavaScript module directly. It fetches the generated binding
+and the matching WASM binary separately, imports the binding from a local Blob
+URL, and initialises it with the downloaded WASM bytes. Three pinned/fallback
+hosts are tried independently.
 
-    https://github.com/dangarfield/sokoban-solver
+The solver still requires internet access because the third-party repository
+contains no explicit redistribution licence. Normal BOXXY gameplay remains
+fully local.
 
-The engine is a push-state A* Sokoban solver with basic deadlock detection and
-box-to-goal heuristics. It is inspired by Festival but is not the complete
-native Festival solver.
+Every returned solution is replayed and verified by BOXXY before it is stored
+or offered as a guided solve. The old BOXXY FESS solver and fallback search are
+not included.
 
-The upstream repository does not currently state a redistribution licence.
-For that reason this BOXXY archive does not copy its JavaScript, WASM or Rust
-files. The module worker loads the browser build for upstream commit
-d355ece7272ec89071056ef64ce257c797f9c2b1 from a pinned CDN URL, with the
-maintainer-hosted GitHub Pages build as a fallback. Normal gameplay remains
-local; solver use requires an internet connection.
+HIDDEN LEVEL MAKER
+------------------
+Click the first X in the BOXXY title five times, then press X.
 
-Every route returned by the external engine is replayed independently by
-solver-route-verifier.js. BOXXY attaches the route only when every movement is
-legal and all boxes finish on goals. Solver cancellation terminates the worker
-immediately.
+HIDDEN GUIDED SOLVE
+-------------------
+On desktop, click the character five times, then press S. A solution must
+already be stored for that puzzle.
 
-GUIDED SOLVE
-------------
-The existing hidden five-click character + S playback remains in place.
-Completion wording now uses “GUIDED SOLVE” instead of the longer
-“WALKTHROUGH USED”, preventing the congratulations title from cropping.
-
-FILES
------
-index.html                   game and Level Maker interface
-styles.css                   visual styling
-boxxy.js                     game, Level Maker and solver adapter
-data.js                      level packs and authored solution data
-solver-worker.js             Rust/WASM worker adapter
-solver-route-verifier.js     independent Sokoban route replay
-solver-adapter-tests.js      local verification regression tests
-assets/                      artwork and audio
-CREDITS-AND-LICENCES.txt     collection and backend credits
-SOLVER-v124-TEST-REPORT.txt  release checks
+RELEASE CONTENTS
+----------------
+index.html
+styles.css
+boxxy.js
+data.js
+solver-worker.js
+solver-route-verifier.js
+assets/
+level-packs/
+CREDITS-AND-LICENCES.txt
+SOLVER-v125-TEST-REPORT.txt
 
 VERSION
 -------
-All application cache tags and package names are v124.
+All active script cache tags and solver-worker references are v125.
+The ZIP unpacks into the BOXXY_v125 folder.
