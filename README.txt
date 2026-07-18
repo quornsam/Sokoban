@@ -1,7 +1,23 @@
-BOXXY — Pushbox Puzzle v126
+BOXXY — Pushbox Puzzle v127
 ================================
 
 Open index.html through GitHub Pages or another web server.
+
+LEVEL MAKER SAVES
+-----------------
+Saved maker levels are stored locally in the current browser. They are not
+written to GitHub or automatically shared between devices.
+
+Saving now always creates a new saved-level record when the entered name is
+unique. Loading an older save does not put it into rename/update mode. Change
+the name and press SAVE LEVEL to preserve the original and make a new level.
+
+Saved-level names are compared case-insensitively and with repeated spaces
+normalised. If the name already exists, BOXXY warns before doing anything. A
+second deliberate press on OVERWRITE is required to replace that named save.
+Changing the name cancels the overwrite confirmation.
+
+The newest 100 saves are retained.
 
 SOLVER
 ------
@@ -9,18 +25,9 @@ The hidden Level Maker uses the browser Rust/WebAssembly engine from
 https://github.com/dangarfield/sokoban-solver at pinned commit:
 d355ece7272ec89071056ef64ce257c797f9c2b1
 
-v126 replaces the failed cross-origin and Blob-module loaders. It fetches the
-generated binding and WASM binary from three mirrors at the same time, converts
-the binding to ordinary worker code, initialises the WASM bytes directly, and
-runs a one-push self-test before reporting the engine ready. Each mirror has a
-15-second limit, so a blocked host cannot cause a minute of sequential waits.
-
-The solver still requires internet access because the third-party repository
-contains no explicit redistribution licence. Normal BOXXY gameplay remains
-fully local.
-
-Every returned solution is replayed and verified by BOXXY before it is stored
-or offered as a guided solve. The old BOXXY solver and fallback search are not included.
+The solver requires internet access. Normal BOXXY gameplay and saved maker
+levels remain local. Every returned solution is replayed and verified by BOXXY
+before it is stored or offered as a guided solve.
 
 HIDDEN LEVEL MAKER
 ------------------
@@ -42,9 +49,9 @@ solver-route-verifier.js
 assets/
 level-packs/
 CREDITS-AND-LICENCES.txt
-SOLVER-v126-TEST-REPORT.txt
+RELEASE-v127-TEST-REPORT.txt
 
 VERSION
 -------
-All active script cache tags and solver-worker references are v126.
-The ZIP unpacks into the BOXXY_v126 folder.
+All active script cache tags and solver-worker references are v127.
+The ZIP unpacks into the BOXXY_v127 folder.

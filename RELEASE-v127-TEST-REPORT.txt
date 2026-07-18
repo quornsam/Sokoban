@@ -1,0 +1,41 @@
+BOXXY v127 RELEASE TEST REPORT
+==============================
+
+Scope
+-----
+Level Maker saved-level behaviour and release packaging.
+
+Automated browser test
+----------------------
+The real v127 index markup and JavaScript were loaded into headless Chromium.
+A localStorage-compatible browser store was used because direct local-file and
+localhost navigation are blocked in the packaging environment.
+
+Passed scenarios:
+1. A uniquely named level creates one new saved record.
+2. Loading that save, changing its name and saving creates a second record.
+3. The original record remains unchanged and both records retain different IDs.
+4. Names are checked case-insensitively and repeated spaces are normalised.
+5. The first save attempt using an existing name does not modify localStorage.
+6. The first duplicate-name attempt changes the button to OVERWRITE and displays
+   an explicit warning.
+7. Editing the name cancels the pending overwrite confirmation.
+8. A second deliberate OVERWRITE press replaces only the matching named record.
+9. An overwrite retains the original record ID and does not change record count.
+10. No unexpected JavaScript page errors occurred in the save tests.
+
+Static checks
+-------------
+- boxxy.js: Node syntax check passed.
+- solver-worker.js: Node syntax check passed.
+- solver-route-verifier.js: Node syntax check passed.
+- All active HTML cache identifiers are v127.
+- The solver worker URL and worker name are v127.
+- No v125 or v126 release identifiers remain in active release files.
+- ZIP root folder is BOXXY_v127.
+
+Additional correction
+---------------------
+Saved records are written newest-first before the 100-record limit is applied,
+so a new save is not silently discarded when the store already contains 100
+records.

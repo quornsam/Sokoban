@@ -28,7 +28,7 @@
   });
 })();
 
-/* BOXXY v126 — character renderer, game engine, level maker and Rust/WASM solver adapter. */
+/* BOXXY v127 — character renderer, game engine, level maker and Rust/WASM solver adapter. */
 (() => {
   "use strict";
 
@@ -2230,6 +2230,8 @@
   let unlockArmed = false;
   let unlockTimer = null;
   let activeSaveId = "";
+  let pendingOverwriteId = "";
+  let overwriteTimer = null;
   let pendingDeleteId = "";
   let deleteTimer = null;
   let fitFrame = 0;
@@ -2508,7 +2510,7 @@
     setSolverStatus("Loading the external Rust/WebAssembly solver. An internet connection is required for the solver only.");
 
     try {
-      solverWorker = new Worker("solver-worker.js?v=126", { type: "module", name: "boxxy-rust-solver-v126" });
+      solverWorker = new Worker("solver-worker.js?v=127", { type: "module", name: "boxxy-rust-solver-v127" });
       solverWorker.onmessage = event => {
         const message = event.data || {};
         if (message.id !== id || id !== solverJobId || !solverRunning) return;
@@ -2584,6 +2586,7 @@
 
   function clearActiveSave() {
     activeSaveId = "";
+    resetSaveConfirmation();
     if (savedSelect) savedSelect.value = "";
     if (saveNameInput) saveNameInput.value = "";
   }
@@ -3612,7 +3615,32 @@
   }
 
   function writeSavedLevels(records) {
-    localStorage.setItem(SAVE_KEY, JSON.stringify(records.slice(0, 100)));
+    const newestFirst = records
+      .slice()
+      .sort((a, b) => Number(b.updatedAt || 0) - Number(a.updatedAt || 0))
+      .slice(0, 100);
+    localStorage.setItem(SAVE_KEY, JSON.stringify(newestFirst));
+  }
+
+  function normaliseSaveName(name) {
+    return String(name || "")
+      .normalize("NFKC")
+      .trim()
+      .replace(/\s+/g, " ")
+      .toLocaleLowerCase("en-GB");
+  }
+
+  function nextDefaultSaveName(records) {
+    const usedNames = new Set(records.map(record => normaliseSaveName(record.name)));
+    let number = Math.max(1, records.length + 1);
+    while (usedNames.has(normaliseSaveName(`Saved level ${number}`))) number += 1;
+    return `Saved level ${number}`;
+  }
+
+  function resetSaveConfirmation() {
+    pendingOverwriteId = "";
+    clearTimeout(overwriteTimer);
+    if (saveBtn) saveBtn.textContent = "SAVE LEVEL";
   }
 
   function newSaveId() {
@@ -3642,12 +3670,22 @@
 
   function saveCurrentLevel() {
     const records = readSavedLevels();
-    const existingIndex = activeSaveId ? records.findIndex(record => record.id === activeSaveId) : -1;
-    const defaultNumber = records.length + (existingIndex >= 0 ? 0 : 1);
-    const name = saveNameInput.value.trim() || `Saved level ${Math.max(1, defaultNumber)}`;
+    const name = saveNameInput.value.trim() || nextDefaultSaveName(records);
+    const matchingRecord = records.find(record => normaliseSaveName(record.name) === normaliseSaveName(name));
+
+    if (matchingRecord && pendingOverwriteId !== matchingRecord.id) {
+      resetSaveConfirmation();
+      pendingOverwriteId = matchingRecord.id;
+      saveBtn.textContent = "OVERWRITE";
+      setStatus(`A saved level named “${matchingRecord.name}” already exists. Press OVERWRITE to replace it, or change the name to save a new level.`, "error");
+      overwriteTimer = window.setTimeout(resetSaveConfirmation, 8000);
+      return;
+    }
+
     const now = Date.now();
+    const isOverwrite = Boolean(matchingRecord && pendingOverwriteId === matchingRecord.id);
     const record = {
-      id: existingIndex >= 0 ? records[existingIndex].id : newSaveId(),
+      id: isOverwrite ? matchingRecord.id : newSaveId(),
       name,
       cols,
       rows,
@@ -3655,18 +3693,26 @@
       boxes: countBoxes(),
       solution: solutionMatchesCurrentBoard() ? currentSolution : "",
       solutionLevelText: solutionMatchesCurrentBoard() ? currentSolutionLevelText : "",
-      createdAt: existingIndex >= 0 ? records[existingIndex].createdAt || now : now,
+      createdAt: isOverwrite ? matchingRecord.createdAt || now : now,
       updatedAt: now
     };
-    if (existingIndex >= 0) records[existingIndex] = record;
-    else records.push(record);
+
+    if (isOverwrite) {
+      const index = records.findIndex(item => item.id === matchingRecord.id);
+      records[index] = record;
+    } else {
+      records.push(record);
+    }
+
     try {
       writeSavedLevels(records);
       activeSaveId = record.id;
       saveNameInput.value = name;
+      resetSaveConfirmation();
       renderSavedLevels(record.id);
-      setStatus(`Saved “${name}”.`, "success");
+      setStatus(isOverwrite ? `Overwrote “${name}”.` : `Saved “${name}” as a new level.`, "success");
     } catch (_) {
+      resetSaveConfirmation();
       setStatus("This browser would not allow the level to be saved locally.", "error");
     }
   }
@@ -3688,6 +3734,7 @@
     rows = savedRows;
     cells = record.cells.slice();
     activeSaveId = record.id;
+    resetSaveConfirmation();
     saveNameInput.value = record.name;
     syncSizeInputs();
     boxesInput.value = String(Math.max(1, countBoxes()));
@@ -3698,7 +3745,7 @@
     const restoredSolution = typeof record.solution === "string" && (!record.solutionLevelText || record.solutionLevelText === restoredText) ? record.solution : "";
     setAttachedSolution(restoredSolution, restoredText, null);
     renderSavedLevels(record.id);
-    setStatus(`Loaded “${record.name}”.${restoredSolution ? " Its attached guided solve was restored." : ""}`, "success");
+    setStatus(`Loaded “${record.name}”.${restoredSolution ? " Its attached guided solve was restored." : ""} Change the name before saving to keep the original and create a new level.`, "success");
   }
 
   function resetDeleteButton() {
@@ -3846,7 +3893,11 @@
   openExistingLevelBtn?.addEventListener("click", openExistingPuzzle);
   loadBtn.addEventListener("click", loadSavedLevel);
   deleteBtn.addEventListener("click", deleteSavedLevel);
-  savedSelect.addEventListener("change", resetDeleteButton);
+  savedSelect.addEventListener("change", () => {
+    resetDeleteButton();
+    resetSaveConfirmation();
+  });
+  saveNameInput.addEventListener("input", resetSaveConfirmation);
   saveNameInput.addEventListener("keydown", event => {
     if (event.key === "Enter") {
       event.preventDefault();
