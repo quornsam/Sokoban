@@ -28,7 +28,7 @@
   });
 })();
 
-/* BOXXY v127 — character renderer, game engine, level maker and Rust/WASM solver adapter. */
+/* BOXXY v128 — character renderer, game engine, level maker and Rust/WASM solver adapter. */
 (() => {
   "use strict";
 
@@ -516,6 +516,7 @@
     down:  { dx:  0, dy: 1, code: "D" }
   };
   const DELTA_TO_FACING = (dx, dy) => dx < 0 ? "left" : dx > 0 ? "right" : dy < 0 ? "back" : "front";
+  const DELTA_TO_CODE = (dx, dy) => dx < 0 ? "L" : dx > 0 ? "R" : dy < 0 ? "U" : "D";
   const CODE_TO_DELTA = {
     L: [-1, 0], R: [1, 0], U: [0, -1], D: [0, 1]
   };
@@ -554,6 +555,7 @@
   const nextBtn = document.getElementById("nextBtn");
   const nextBtnLabel = nextBtn?.querySelector("span");
   const nextBtnIcon = nextBtn?.querySelector("b");
+  const makerApplySolveBtn = document.getElementById("makerApplySolveBtn");
   const finalPackPicker = document.getElementById("finalPackPicker");
   const finalPackStatus = document.getElementById("finalPackStatus");
   const finalPackGrid = document.getElementById("finalPackGrid");
@@ -596,6 +598,8 @@
   let makerTesting = false;
   let makerLayout = null;
   let makerSolution = "";
+  let playedRoute = "";
+  let makerCompletedRoute = "";
   let completeMode = "normal";
   let startedAt = 0;
   let timer = null;
@@ -1525,6 +1529,9 @@
     makerTesting = false;
     makerLayout = null;
     makerSolution = "";
+    playedRoute = "";
+    makerCompletedRoute = "";
+    if (makerApplySolveBtn) makerApplySolveBtn.hidden = true;
     document.body.classList.remove("maker-testing");
     if (makerReturnBtn) makerReturnBtn.hidden = true;
     const requestedIndex = (index + LEVELS.length) % LEVELS.length;
@@ -1600,6 +1607,9 @@
       makerTesting = true;
       makerLayout = cleanRows.slice();
       makerSolution = String(attachedSolution || "").replace(/[^udlrUDLR]/g, "");
+      playedRoute = "";
+      makerCompletedRoute = "";
+      if (makerApplySolveBtn) makerApplySolveBtn.hidden = true;
       completeMode = "normal";
       document.body.classList.add("maker-testing");
       if (makerReturnBtn) makerReturnBtn.hidden = false;
@@ -1675,7 +1685,8 @@
       boxes: copyBoxes(boxes),
       moves,
       pushes,
-      facing
+      facing,
+      route: playedRoute
     };
   }
 
@@ -1750,6 +1761,7 @@
       render("walking");
     }
 
+    playedRoute += DELTA_TO_CODE(dx, dy);
     scheduleIdle();
     animTimer = setTimeout(() => render("idle"), 180);
     if (solved()) finish();
@@ -1766,16 +1778,45 @@
     clearInterval(timer);
 
     if (makerTesting) {
+      const solvedWithGuidedRoute = autoplayRunning;
+      const capturedRoute = String(playedRoute || "").replace(/[^UDLR]/gi, "").toUpperCase();
+      const previousRoute = String(makerSolution || "").replace(/[^UDLR]/gi, "").toUpperCase();
+      const moveText = `${moves} ${moves === 1 ? "move" : "moves"}`;
+      const pushText = `${pushes} ${pushes === 1 ? "push" : "pushes"}`;
+      makerCompletedRoute = !solvedWithGuidedRoute ? capturedRoute : "";
       completeMode = "maker";
       if (finalPackPicker) finalPackPicker.hidden = true;
       if (finalPackStatus) finalPackStatus.textContent = "";
       if (completeKicker) completeKicker.textContent = "LEVEL MAKER";
-      if (completeTitle) completeTitle.innerHTML = "TEST<br>COMPLETE";
-      completeText.textContent = `Custom level solved in ${moves} moves and ${pushes} pushes.`;
+      if (completeTitle) completeTitle.innerHTML = solvedWithGuidedRoute ? "GUIDED<br>SOLVE" : "TEST<br>COMPLETE";
+      if (makerApplySolveBtn) makerApplySolveBtn.hidden = true;
+
+      if (solvedWithGuidedRoute) {
+        completeText.textContent = `The attached guided solve completed the custom level in ${moveText} and ${pushText}.`;
+      } else if (capturedRoute && !previousRoute) {
+        makerSolution = capturedRoute;
+        if (levelData) levelData.solution = capturedRoute;
+        window.dispatchEvent(new CustomEvent("boxxy-maker-solution-found", {
+          detail: { route: capturedRoute, moves, pushes, automatic: true }
+        }));
+        completeText.textContent = `Custom level solved in ${moveText} and ${pushText}. Your moves have been added as its guided solve.`;
+      } else if (capturedRoute && capturedRoute !== previousRoute) {
+        completeText.textContent = `Custom level solved in ${moveText} and ${pushText}. Apply this route to replace the puzzle's current guided solve.`;
+        if (makerApplySolveBtn) makerApplySolveBtn.hidden = false;
+      } else {
+        completeText.textContent = `Custom level solved in ${moveText} and ${pushText}. This matches the attached guided solve.`;
+      }
       if (nextBtnLabel) nextBtnLabel.textContent = "BACK TO MAKER";
       if (nextBtnIcon) nextBtnIcon.textContent = "←";
     } else {
       const solvedWithWalkthrough = autoplayRunning;
+      const learnedRoute = !solvedWithWalkthrough && !String(levelData?.solution || "").trim()
+        ? String(playedRoute || "").replace(/[^UDLR]/gi, "").toUpperCase()
+        : "";
+      if (learnedRoute) {
+        window.BoxxySolutionStore?.set?.(activePack.id, levelIndex, learnedRoute);
+        levelData = { ...levelData, solution: learnedRoute };
+      }
       const packsWereUnlocked = additionalPacksUnlocked();
       const bestKey = currentBestStorageKey(levelData);
       const oldBest = Number(readBest(levelData) || 0);
@@ -1795,7 +1836,7 @@
         completeCard?.classList.add("final-complete");
         if (completeKicker) completeKicker.textContent = "CONGRATULATIONS";
         if (completeTitle) completeTitle.innerHTML = "WELL<br>DONE";
-        completeText.textContent = `You have completed ${activePack.displayName}. Level ${LEVELS.length} was solved in ${moves} moves and ${pushes} pushes.${solvedWithWalkthrough ? " This completion used the guided solve." : ""}${unlockedAdditionalPacksNow ? " The additional Bauhaus level packs are now unlocked." : ""}`;
+        completeText.textContent = `You have completed ${activePack.displayName}. Level ${LEVELS.length} was solved in ${moves} moves and ${pushes} pushes.${solvedWithWalkthrough ? " This completion used the guided solve." : ""}${learnedRoute ? " Your route has been saved as this level's guided solve." : ""}${unlockedAdditionalPacksNow ? " The additional Bauhaus level packs are now unlocked." : ""}`;
         buildPackSelectors();
         if (finalPackPicker) finalPackPicker.hidden = false;
         if (finalPackStatus) finalPackStatus.textContent = solvedWithWalkthrough ? "Guided-solve completions are shown in yellow in the level list." : "";
@@ -1818,7 +1859,9 @@
         } else {
           summary = `Solved in ${moves} moves and ${pushes} pushes.`;
         }
-        completeText.textContent = solvedWithWalkthrough ? `${summary} This level is now counted as completed, and its button will appear in yellow.` : summary;
+        completeText.textContent = solvedWithWalkthrough
+          ? `${summary} This level is now counted as completed, and its button will appear in yellow.`
+          : `${summary}${learnedRoute ? " Your route has been saved as this level's guided solve." : ""}`;
         if (nextBtnLabel) nextBtnLabel.textContent = "NEXT LEVEL";
         if (nextBtnIcon) nextBtnIcon.textContent = "→";
       }
@@ -1860,6 +1903,7 @@
     moves = state.moves;
     pushes = state.pushes;
     facing = state.facing;
+    playedRoute = String(state.route || "");
     render("idle");
     scheduleIdle();
   }
@@ -1900,12 +1944,27 @@
 
   function startAutoplay() {
     if (!desktopEasterEggAvailable() || autoplayRunning) return;
+    const testingMaker = makerTesting;
+    const solution = String(testingMaker ? makerSolution : levelData?.solution || "").replace(/[^udlrUDLR]/g, "");
+    if (!solution) {
+      if (thoughtText) thoughtText.textContent = testingMaker
+        ? "This test puzzle does not have a guided solve attached yet."
+        : "No guided solve is available for this puzzle yet.";
+      resetEasterEgg();
+      return;
+    }
+
     stopAutoplay();
-    loadLevel(levelIndex, true, true);
+    if (testingMaker) {
+      const rows = makerLayout?.slice();
+      const restarted = rows ? loadMakerTest(rows, solution) : { ok: false };
+      if (!restarted?.ok) return;
+    } else {
+      loadLevel(levelIndex, true, true);
+    }
     autoplayRunning = true;
     document.body.classList.add("autoplaying");
     render("idle");
-    const solution = levelData.solution;
     let step = 0;
 
     const playNext = () => {
@@ -2046,6 +2105,19 @@
     closeResetConfirm();
     resetLevelProgress();
   });
+  makerApplySolveBtn?.addEventListener("click", () => {
+    const route = String(makerCompletedRoute || "").replace(/[^UDLR]/gi, "").toUpperCase();
+    if (!route) return;
+    makerSolution = route;
+    if (levelData) levelData.solution = route;
+    window.dispatchEvent(new CustomEvent("boxxy-maker-solution-found", {
+      detail: { route, moves, pushes, automatic: false }
+    }));
+    makerApplySolveBtn.hidden = true;
+    modal.hidden = true;
+    window.dispatchEvent(new CustomEvent("boxxy-maker-return"));
+  });
+
   nextBtn.addEventListener("click", () => {
     if (completeMode === "maker") {
       modal.hidden = true;
@@ -2154,6 +2226,7 @@
   const boxesInput = document.getElementById("makerBoxes");
   const testedInput = document.getElementById("makerTested");
   const squareInput = document.getElementById("makerSquare");
+  const mazeInput = document.getElementById("makerMaze");
   const generateBtn = document.getElementById("makerGenerateBtn");
   const resizeBtn = document.getElementById("makerResizeBtn");
   const roomBtn = document.getElementById("makerRoomBtn");
@@ -2510,7 +2583,7 @@
     setSolverStatus("Loading the external Rust/WebAssembly solver. An internet connection is required for the solver only.");
 
     try {
-      solverWorker = new Worker("solver-worker.js?v=127", { type: "module", name: "boxxy-rust-solver-v127" });
+      solverWorker = new Worker("solver-worker.js?v=128", { type: "module", name: "boxxy-rust-solver-v128" });
       solverWorker.onmessage = event => {
         const message = event.data || {};
         if (message.id !== id || id !== solverJobId || !solverRunning) return;
@@ -3184,6 +3257,104 @@
     }
   }
 
+  function buildMazeTerrain(width, height, boxCount) {
+    const terrain = Array.from({ length: width * height }, () => "#");
+    const roomSize = 2;
+    const step = roomSize + 1;
+    const cellXs = [];
+    const cellYs = [];
+    for (let x = 1; x + roomSize - 1 < width - 1; x += step) cellXs.push(x);
+    for (let y = 1; y + roomSize - 1 < height - 1; y += step) cellYs.push(y);
+
+    if (cellXs.length < 2 || cellYs.length < 2) return buildTerrain(width, height, true, boxCount);
+
+    const cellCount = cellXs.length * cellYs.length;
+    const visited = new Set();
+    const opened = new Set();
+    const coarseIndex = (cx, cy) => cy * cellXs.length + cx;
+    const edgeKey = (ax, ay, bx, by) => {
+      const a = coarseIndex(ax, ay);
+      const b = coarseIndex(bx, by);
+      return a < b ? `${a}:${b}` : `${b}:${a}`;
+    };
+    const carveRoom = (cx, cy) => {
+      const originX = cellXs[cx];
+      const originY = cellYs[cy];
+      for (let oy = 0; oy < roomSize; oy++) {
+        for (let ox = 0; ox < roomSize; ox++) terrain[localIndex(originX + ox, originY + oy, width)] = " ";
+      }
+    };
+    const carveConnection = (ax, ay, bx, by) => {
+      carveRoom(ax, ay);
+      carveRoom(bx, by);
+      const aX = cellXs[ax];
+      const aY = cellYs[ay];
+      const bX = cellXs[bx];
+      const bY = cellYs[by];
+      if (ay === by) {
+        const wallX = Math.min(aX, bX) + roomSize;
+        const topY = Math.min(aY, bY);
+        for (let oy = 0; oy < roomSize; oy++) terrain[localIndex(wallX, topY + oy, width)] = " ";
+      } else {
+        const wallY = Math.min(aY, bY) + roomSize;
+        const leftX = Math.min(aX, bX);
+        for (let ox = 0; ox < roomSize; ox++) terrain[localIndex(leftX + ox, wallY, width)] = " ";
+      }
+      opened.add(edgeKey(ax, ay, bx, by));
+    };
+    const neighbours = (cx, cy) => shuffled([
+      [cx + 1, cy], [cx - 1, cy], [cx, cy + 1], [cx, cy - 1]
+    ].filter(([nx, ny]) => nx >= 0 && ny >= 0 && nx < cellXs.length && ny < cellYs.length));
+
+    const startX = randomInt(0, cellXs.length - 1);
+    const startY = randomInt(0, cellYs.length - 1);
+    const stack = [[startX, startY]];
+    visited.add(coarseIndex(startX, startY));
+    carveRoom(startX, startY);
+
+    while (stack.length) {
+      const [cx, cy] = stack.at(-1);
+      const next = neighbours(cx, cy).find(([nx, ny]) => !visited.has(coarseIndex(nx, ny)));
+      if (!next) {
+        stack.pop();
+        continue;
+      }
+      const [nx, ny] = next;
+      carveConnection(cx, cy, nx, ny);
+      visited.add(coarseIndex(nx, ny));
+      stack.push([nx, ny]);
+    }
+
+    const possibleLoops = [];
+    for (let cy = 0; cy < cellYs.length; cy++) {
+      for (let cx = 0; cx < cellXs.length; cx++) {
+        if (cx + 1 < cellXs.length && !opened.has(edgeKey(cx, cy, cx + 1, cy))) possibleLoops.push([cx, cy, cx + 1, cy]);
+        if (cy + 1 < cellYs.length && !opened.has(edgeKey(cx, cy, cx, cy + 1))) possibleLoops.push([cx, cy, cx, cy + 1]);
+      }
+    }
+    const loopTarget = Math.max(1, Math.floor(possibleLoops.length * (0.16 + Math.random() * 0.12)));
+    shuffled(possibleLoops).slice(0, loopTarget).forEach(([ax, ay, bx, by]) => carveConnection(ax, ay, bx, by));
+
+    const roomExpansions = Math.max(1, Math.floor(cellCount / 7));
+    for (const [cx, cy] of shuffled(Array.from({ length: cellCount }, (_, index) => [index % cellXs.length, Math.floor(index / cellXs.length)])).slice(0, roomExpansions)) {
+      const originX = cellXs[cx];
+      const originY = cellYs[cy];
+      const candidates = shuffled([
+        [originX - 1, originY], [originX + roomSize, originY],
+        [originX, originY - 1], [originX, originY + roomSize]
+      ]);
+      for (const [x, y] of candidates) {
+        if (x <= 0 || y <= 0 || x >= width - 1 || y >= height - 1) continue;
+        terrain[localIndex(x, y, width)] = " ";
+        break;
+      }
+    }
+
+    return floorIsConnected(terrain, width, height) && terrainRemainsUseful(terrain, width, height, boxCount)
+      ? terrain
+      : buildTerrain(width, height, true, boxCount);
+  }
+
   function buildTerrain(width, height, square, boxCount) {
     let bestTerrain = null;
     let bestScore = -Infinity;
@@ -3306,9 +3477,11 @@
     return generated;
   }
 
-  function generateUnchecked(width, height, boxCount, square) {
+  function generateUnchecked(width, height, boxCount, square, maze = false) {
     for (let attempt = 0; attempt < 80; attempt++) {
-      const terrain = buildTerrain(width, height, square, boxCount);
+      const terrain = maze
+        ? buildMazeTerrain(width, height, boxCount)
+        : buildTerrain(width, height, square, boxCount);
       const floors = terrain.map((value, index) => value === " " ? index : -1).filter(index => index >= 0);
       if (floors.length < boxCount * 3 + 2) continue;
       const goals = chooseGoalPositions(floors, boxCount, terrain, width, height);
@@ -3327,7 +3500,8 @@
         boxes: boxCount,
         cells: composeGeneratedCells(terrain, goals, boxes, player),
         tested: false,
-        square
+        square,
+        maze
       };
     }
     return null;
@@ -3464,12 +3638,16 @@
     };
   }
 
-  async function generateChecked(width, height, boxCount, square) {
-    for (let attempt = 1; attempt <= 180; attempt++) {
-      const terrain = buildTerrain(width, height, square, boxCount);
+  async function generateChecked(width, height, boxCount, square, maze = false) {
+    const maximumAttempts = maze ? 260 : 180;
+    for (let attempt = 1; attempt <= maximumAttempts; attempt++) {
+      const terrain = maze
+        ? buildMazeTerrain(width, height, boxCount)
+        : buildTerrain(width, height, square, boxCount);
       const generated = reverseBuildTested(terrain, width, height, boxCount);
       if (generated) {
         generated.square = square;
+        generated.maze = maze;
         return generated;
       }
       if (attempt % 10 === 0) {
@@ -3498,11 +3676,12 @@
     const boxCount = clampBoxes(boxesInput.value);
     const square = Boolean(squareInput.checked);
     const tested = Boolean(testedInput.checked);
+    const maze = Boolean(mazeInput?.checked);
     widthInput.value = String(width);
     heightInput.value = String(height);
     boxesInput.value = String(boxCount);
 
-    const approximateFloor = Math.max(1, (width - 2) * (height - 2));
+    const approximateFloor = Math.max(1, Math.floor((width - 2) * (height - 2) * (maze ? 0.62 : 1)));
     const sensibleMaximum = Math.min(MAX_GENERATOR_BOXES, Math.max(1, Math.floor((approximateFloor - 1) / 3)));
     if (boxCount > sensibleMaximum) {
       setStatus(`That size has too little working space for ${boxCount} boxes. Try ${sensibleMaximum} or fewer.`, "error");
@@ -3513,24 +3692,26 @@
     generateBtn.setAttribute("aria-busy", "true");
     const originalLabel = generateBtn.textContent;
     generateBtn.textContent = tested ? "GENERATING + CHECKING…" : "GENERATING…";
-    setStatus(tested ? "Generating a level and checking its solution path…" : "Generating a new level…");
+    setStatus(tested
+      ? `Generating a ${maze ? "complex maze" : "level"} and checking its solution path…`
+      : `Generating a new ${maze ? "complex maze" : "level"}…`);
     await waitForPaint();
 
     try {
       const generated = tested
-        ? await generateChecked(width, height, boxCount, square)
-        : generateUnchecked(width, height, boxCount, square);
+        ? await generateChecked(width, height, boxCount, square, maze)
+        : generateUnchecked(width, height, boxCount, square, maze);
       if (!generated) {
         setStatus(tested
-          ? "A checked level could not be built with those settings. Try fewer boxes or a larger grid."
-          : "A level could not be built with those settings. Try fewer boxes or a larger grid.", "error");
+          ? `A checked ${maze ? "maze" : "level"} could not be built with those settings. Try fewer boxes or a larger grid.`
+          : `A ${maze ? "maze" : "level"} could not be built with those settings. Try fewer boxes or a larger grid.`, "error");
         return;
       }
       applyGeneratedLevel(generated);
       if (tested) {
-        setStatus(`Generated and checked: ${boxCount} ${boxCount === 1 ? "box" : "boxes"}, verified ${generated.solutionPushes}-push path across ${generated.solutionLines} box lines.`, "success");
+        setStatus(`Generated and checked ${maze ? "maze" : "level"}: ${boxCount} ${boxCount === 1 ? "box" : "boxes"}, verified ${generated.solutionPushes}-push path across ${generated.solutionLines} box lines.`, "success");
       } else {
-        setStatus(`Generated ${boxCount}-box level without a completion check.`, "success");
+        setStatus(`Generated ${boxCount}-box ${maze ? "maze" : "level"} without a completion check.`, "success");
       }
     } catch (error) {
       setStatus(error?.message || "The level generator stopped unexpectedly.", "error");
@@ -3649,7 +3830,10 @@
   }
 
   function renderSavedLevels(preferredId = "") {
-    const records = readSavedLevels().sort((a, b) => Number(b.updatedAt || 0) - Number(a.updatedAt || 0));
+    const records = readSavedLevels().sort((a, b) => {
+      const byName = String(a.name || "").localeCompare(String(b.name || ""), "en-GB", { sensitivity: "base", numeric: true });
+      return byName || Number(b.updatedAt || 0) - Number(a.updatedAt || 0);
+    });
     savedSelect.innerHTML = "";
     const emptyOption = document.createElement("option");
     emptyOption.value = "";
@@ -3982,6 +4166,22 @@
       closeMaker();
     }
   }, { capture: true });
+
+  window.addEventListener("boxxy-maker-solution-found", event => {
+    const route = String(event?.detail?.route || "").replace(/[^UDLR]/gi, "").toUpperCase();
+    if (!route) return;
+    const levelText = currentLevelText();
+    const verification = verifySolverRoute(levelText, route);
+    if (!verification.valid || !verification.solved) {
+      setStatus(`The completed route could not be attached: ${verification.error || "it did not solve the editor puzzle."}`, "error");
+      return;
+    }
+    setAttachedSolution(verification.route, levelText, currentPuzzleRef);
+    const automatic = Boolean(event?.detail?.automatic);
+    setStatus(automatic
+      ? `Your ${verification.moves}-move test route has been added as the guided solve. Save the level to keep it.`
+      : `Applied your ${verification.moves}-move test route as the puzzle's guided solve. Save the level to keep it.`, "success");
+  });
 
   window.addEventListener("boxxy-maker-return", openMaker);
   window.addEventListener("resize", scheduleGridFit);

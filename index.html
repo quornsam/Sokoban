@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#efe5d4">
 <title>BOXXY — Pushbox Puzzle</title>
-<link rel="stylesheet" href="styles.css?v=127">
+<link rel="stylesheet" href="styles.css?v=128">
 <link rel="preload" as="image" href="assets/board/board-atlas.png">
 <link rel="preload" as="image" href="assets/characters/boy/base.png">
 <link rel="preload" as="image" href="assets/characters/girl/base.png">
@@ -166,7 +166,10 @@
         <div id="finalPackGrid" class="final-pack-grid" aria-label="Other puzzle packs"></div>
         <p id="finalPackStatus" class="final-pack-status" aria-live="polite"></p>
       </section>
-      <button id="nextBtn" class="complete-primary"><span>NEXT LEVEL</span><b aria-hidden="true">→</b></button>
+      <div class="complete-actions">
+        <button id="makerApplySolveBtn" class="complete-secondary" type="button" hidden>APPLY SOLVE</button>
+        <button id="nextBtn" class="complete-primary"><span>NEXT LEVEL</span><b aria-hidden="true">→</b></button>
+      </div>
     </div>
   </div>
 </div>
@@ -219,6 +222,7 @@
           <div class="maker-generator-options">
             <label class="maker-check-option"><input id="makerTested" type="checkbox"><span><b>TESTED</b><small>Checks that the generated puzzle can be completed. This takes longer.</small></span></label>
             <label class="maker-check-option"><input id="makerSquare" type="checkbox" checked><span><b>SQUARE</b><small>Keeps the outside wall as a clean quadrilateral with no odd edges.</small></span></label>
+            <label class="maker-check-option"><input id="makerMaze" type="checkbox"><span><b>MAZE</b><small>Builds a dense, connected maze with broad passages suitable for boxes.</small></span></label>
           </div>
           <button id="makerGenerateBtn" class="maker-generate" type="button">GENERATE NEW LEVEL</button>
           <div class="maker-mini-actions maker-three-actions">
@@ -302,8 +306,8 @@
 <button id="autoSolveBtn" type="button" hidden tabindex="-1" aria-hidden="true">PLAY SOLUTION</button>
 <audio id="bgMusic" src="assets/audio/cracked-ivory-drift.mp3" preload="auto" autoplay loop playsinline></audio>
 
-<script src="data.js?v=127"></script>
-<script src="solver-route-verifier.js?v=127"></script>
-<script src="boxxy.js?v=127"></script>
+<script src="data.js?v=128"></script>
+<script src="solver-route-verifier.js?v=128"></script>
+<script src="boxxy.js?v=128"></script>
 </body>
 </html>
