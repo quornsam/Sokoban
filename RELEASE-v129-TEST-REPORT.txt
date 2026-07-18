@@ -1,0 +1,52 @@
+BOXXY v129 RELEASE TEST REPORT
+================================
+
+SCOPE
+-----
+This release changes the Level Maker MAZE terrain generator only. It replaces
+v128's repeated two-by-two rooms and two-cell passages with a depth-first thin
+maze, sparse loop openings and a small number of box-turning bays.
+
+STATIC CHECKS
+-------------
+- boxxy.js: JavaScript syntax check passed.
+- data.js: JavaScript syntax check passed.
+- solver-route-verifier.js: JavaScript syntax check passed.
+- solver-worker.js: JavaScript syntax check passed.
+- Active cache and worker identifiers use v129.
+- No v128 references remain in active release files.
+
+MAZE TERRAIN TESTS
+------------------
+The exact v129 buildMazeTerrain function was extracted from boxxy.js and run
+250 times for each configuration below. Every generated floor network was
+connected, every outer border remained closed, and no 3 x 3 solid internal wall
+mass was produced.
+
+Grid / boxes       Mean one-cell share    Minimum observed
+10 x 10 / 2              65.2%                  56.3%
+15 x 15 / 4              88.8%                  82.5%
+20 x 14 / 5              67.0%                  57.9%
+ 9 x 13 / 2              88.2%                  81.6%
+36 x 36 / 12             87.5%                  82.9%
+
+The lower figures on even-sized boards are caused by the single unavoidable
+localised wider run needed to fill an even interior while retaining a one-cell
+outer wall. Large open areas were effectively absent in the test set.
+
+PLACEMENT AND TESTED-GENERATION CHECKS
+--------------------------------------
+- 300 / 300 unchecked 10 x 10, three-box mazes placed player, boxes and goals.
+- Reverse tested construction succeeded on individual attempts at these rates:
+    10 x 10 / 2 boxes: 75 / 120
+    15 x 15 / 3 boxes: 44 / 120
+    20 x 14 / 4 boxes: 50 / 120
+  The application permits up to 260 attempts for a TESTED maze, so these rates
+  leave ample retry capacity.
+
+LIMITATION
+----------
+The container's managed Chromium policy blocked local page navigation, so a
+full click-driven browser run was not available. The production JavaScript
+functions themselves were executed directly in Node, including unchecked
+placement and reverse tested construction.

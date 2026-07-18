@@ -818,6 +818,6 @@ body.maker-testing .level-picker{display:none!important}
   .maker-solution-output{height:130px}
 }
 
-/* v128 level-maker additions */
+/* v129 level-maker additions */
 @media(max-width:1120px){.maker-generator-options{grid-template-columns:1fr 1fr}.maker-generator-options .maker-check-option:last-child{grid-column:1/-1}}
 @media(max-width:560px){.complete-actions{display:grid;grid-template-columns:1fr}.complete-secondary,.complete-primary{width:100%;min-width:0}}

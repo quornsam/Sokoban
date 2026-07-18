@@ -28,7 +28,7 @@
   });
 })();
 
-/* BOXXY v128 — character renderer, game engine, level maker and Rust/WASM solver adapter. */
+/* BOXXY v129 — character renderer, game engine, level maker and Rust/WASM solver adapter. */
 (() => {
   "use strict";
 
@@ -2583,7 +2583,7 @@
     setSolverStatus("Loading the external Rust/WebAssembly solver. An internet connection is required for the solver only.");
 
     try {
-      solverWorker = new Worker("solver-worker.js?v=128", { type: "module", name: "boxxy-rust-solver-v128" });
+      solverWorker = new Worker("solver-worker.js?v=128", { type: "module", name: "boxxy-rust-solver-v129" });
       solverWorker.onmessage = event => {
         const message = event.data || {};
         if (message.id !== id || id !== solverJobId || !solverRunning) return;
@@ -3258,101 +3258,215 @@
   }
 
   function buildMazeTerrain(width, height, boxCount) {
-    const terrain = Array.from({ length: width * height }, () => "#");
-    const roomSize = 2;
-    const step = roomSize + 1;
-    const cellXs = [];
-    const cellYs = [];
-    for (let x = 1; x + roomSize - 1 < width - 1; x += step) cellXs.push(x);
-    for (let y = 1; y + roomSize - 1 < height - 1; y += step) cellYs.push(y);
+    const interiorArea = Math.max(1, (width - 2) * (height - 2));
 
-    if (cellXs.length < 2 || cellYs.length < 2) return buildTerrain(width, height, true, boxCount);
-
-    const cellCount = cellXs.length * cellYs.length;
-    const visited = new Set();
-    const opened = new Set();
-    const coarseIndex = (cx, cy) => cy * cellXs.length + cx;
-    const edgeKey = (ax, ay, bx, by) => {
-      const a = coarseIndex(ax, ay);
-      const b = coarseIndex(bx, by);
-      return a < b ? `${a}:${b}` : `${b}:${a}`;
-    };
-    const carveRoom = (cx, cy) => {
-      const originX = cellXs[cx];
-      const originY = cellYs[cy];
-      for (let oy = 0; oy < roomSize; oy++) {
-        for (let ox = 0; ox < roomSize; ox++) terrain[localIndex(originX + ox, originY + oy, width)] = " ";
+    const buildAxis = length => {
+      const first = 1;
+      const last = length - 2;
+      if (last <= first) return [first];
+      const span = last - first;
+      const gaps = Array.from({ length: Math.ceil(span / 2) }, () => 2);
+      if (span % 2 === 1) {
+        // An even-sized board cannot alternate corridor/wall perfectly between
+        // two one-cell borders. Keep the unavoidable wider pair local rather
+        // than widening every passage, and vary its position between mazes.
+        const choices = gaps.length > 2 && Math.random() < 0.7
+          ? [0, gaps.length - 1]
+          : Array.from({ length: gaps.length }, (_, index) => index);
+        gaps[randomItem(choices)] = 1;
       }
+      const positions = [first];
+      gaps.forEach(gap => positions.push(positions.at(-1) + gap));
+      return positions;
     };
-    const carveConnection = (ax, ay, bx, by) => {
-      carveRoom(ax, ay);
-      carveRoom(bx, by);
-      const aX = cellXs[ax];
-      const aY = cellYs[ay];
-      const bX = cellXs[bx];
-      const bY = cellYs[by];
-      if (ay === by) {
-        const wallX = Math.min(aX, bX) + roomSize;
-        const topY = Math.min(aY, bY);
-        for (let oy = 0; oy < roomSize; oy++) terrain[localIndex(wallX, topY + oy, width)] = " ";
-      } else {
-        const wallY = Math.min(aY, bY) + roomSize;
-        const leftX = Math.min(aX, bX);
-        for (let ox = 0; ox < roomSize; ox++) terrain[localIndex(leftX + ox, wallY, width)] = " ";
+
+    const wideFloorCells = terrain => {
+      const cellsInWideAreas = new Set();
+      for (let y = 1; y < height - 2; y++) {
+        for (let x = 1; x < width - 2; x++) {
+          const square = [
+            localIndex(x, y, width),
+            localIndex(x + 1, y, width),
+            localIndex(x, y + 1, width),
+            localIndex(x + 1, y + 1, width)
+          ];
+          if (square.every(index => terrain[index] === " ")) square.forEach(index => cellsInWideAreas.add(index));
+        }
       }
-      opened.add(edgeKey(ax, ay, bx, by));
+      return cellsInWideAreas.size;
     };
-    const neighbours = (cx, cy) => shuffled([
-      [cx + 1, cy], [cx - 1, cy], [cx, cy + 1], [cx, cy - 1]
-    ].filter(([nx, ny]) => nx >= 0 && ny >= 0 && nx < cellXs.length && ny < cellYs.length));
 
-    const startX = randomInt(0, cellXs.length - 1);
-    const startY = randomInt(0, cellYs.length - 1);
-    const stack = [[startX, startY]];
-    visited.add(coarseIndex(startX, startY));
-    carveRoom(startX, startY);
-
-    while (stack.length) {
-      const [cx, cy] = stack.at(-1);
-      const next = neighbours(cx, cy).find(([nx, ny]) => !visited.has(coarseIndex(nx, ny)));
-      if (!next) {
-        stack.pop();
-        continue;
+    const solidWallMasses = terrain => {
+      let total = 0;
+      for (let y = 1; y < height - 3; y++) {
+        for (let x = 1; x < width - 3; x++) {
+          let solid = true;
+          for (let oy = 0; oy < 3 && solid; oy++) {
+            for (let ox = 0; ox < 3; ox++) {
+              if (terrain[localIndex(x + ox, y + oy, width)] !== "#") {
+                solid = false;
+                break;
+              }
+            }
+          }
+          if (solid) total++;
+        }
       }
-      const [nx, ny] = next;
-      carveConnection(cx, cy, nx, ny);
-      visited.add(coarseIndex(nx, ny));
-      stack.push([nx, ny]);
+      return total;
+    };
+
+    const makeCandidate = () => {
+      const terrain = Array.from({ length: width * height }, () => "#");
+      const cellXs = buildAxis(width);
+      const cellYs = buildAxis(height);
+      const coarseWidth = cellXs.length;
+      const coarseHeight = cellYs.length;
+      const coarseIndex = (cx, cy) => cy * coarseWidth + cx;
+      const edgeKey = (ax, ay, bx, by) => {
+        const a = coarseIndex(ax, ay);
+        const b = coarseIndex(bx, by);
+        return a < b ? `${a}:${b}` : `${b}:${a}`;
+      };
+      const opened = new Set();
+      const carveCell = (cx, cy) => {
+        terrain[localIndex(cellXs[cx], cellYs[cy], width)] = " ";
+      };
+      const carveConnection = (ax, ay, bx, by) => {
+        carveCell(ax, ay);
+        carveCell(bx, by);
+        const axGrid = cellXs[ax];
+        const ayGrid = cellYs[ay];
+        const bxGrid = cellXs[bx];
+        const byGrid = cellYs[by];
+        if (Math.abs(axGrid - bxGrid) === 2 || Math.abs(ayGrid - byGrid) === 2) {
+          terrain[localIndex((axGrid + bxGrid) / 2, (ayGrid + byGrid) / 2, width)] = " ";
+        }
+        opened.add(edgeKey(ax, ay, bx, by));
+      };
+      const neighbours = (cx, cy) => shuffled([
+        [cx + 1, cy], [cx - 1, cy], [cx, cy + 1], [cx, cy - 1]
+      ].filter(([nx, ny]) => nx >= 0 && ny >= 0 && nx < coarseWidth && ny < coarseHeight));
+
+      const startX = randomInt(0, coarseWidth - 1);
+      const startY = randomInt(0, coarseHeight - 1);
+      const stack = [[startX, startY]];
+      const visited = new Set([coarseIndex(startX, startY)]);
+      carveCell(startX, startY);
+
+      while (stack.length) {
+        const [cx, cy] = stack.at(-1);
+        const next = neighbours(cx, cy).find(([nx, ny]) => !visited.has(coarseIndex(nx, ny)));
+        if (!next) {
+          stack.pop();
+          continue;
+        }
+        const [nx, ny] = next;
+        carveConnection(cx, cy, nx, ny);
+        visited.add(coarseIndex(nx, ny));
+        stack.push([nx, ny]);
+      }
+
+      // Adjacent coarse cells are the single unavoidable wider pair on an
+      // even dimension. They are already physically connected without a wall.
+      for (let cy = 0; cy < coarseHeight; cy++) {
+        for (let cx = 0; cx < coarseWidth; cx++) {
+          if (cx + 1 < coarseWidth && cellXs[cx + 1] - cellXs[cx] === 1) opened.add(edgeKey(cx, cy, cx + 1, cy));
+          if (cy + 1 < coarseHeight && cellYs[cy + 1] - cellYs[cy] === 1) opened.add(edgeKey(cx, cy, cx, cy + 1));
+        }
+      }
+
+      const degree = (cx, cy) => [
+        [cx + 1, cy], [cx - 1, cy], [cx, cy + 1], [cx, cy - 1]
+      ].filter(([nx, ny]) => nx >= 0 && ny >= 0 && nx < coarseWidth && ny < coarseHeight
+        && opened.has(edgeKey(cx, cy, nx, ny))).length;
+
+      // Braid roughly half of the cul-de-sacs. This keeps the maze intricate
+      // without turning it into a collection of sealed one-way box traps.
+      const deadEnds = shuffled(Array.from({ length: coarseWidth * coarseHeight }, (_, index) => [
+        index % coarseWidth,
+        Math.floor(index / coarseWidth)
+      ]).filter(([cx, cy]) => degree(cx, cy) === 1));
+      deadEnds.forEach(([cx, cy]) => {
+        if (Math.random() > 0.52 || degree(cx, cy) !== 1) return;
+        const alternatives = shuffled([
+          [cx + 1, cy], [cx - 1, cy], [cx, cy + 1], [cx, cy - 1]
+        ].filter(([nx, ny]) => nx >= 0 && ny >= 0 && nx < coarseWidth && ny < coarseHeight
+          && !opened.has(edgeKey(cx, cy, nx, ny))
+          && (Math.abs(cellXs[cx] - cellXs[nx]) === 2 || Math.abs(cellYs[cy] - cellYs[ny]) === 2)));
+        if (alternatives.length) carveConnection(cx, cy, alternatives[0][0], alternatives[0][1]);
+      });
+
+      const unopenedEdges = [];
+      for (let cy = 0; cy < coarseHeight; cy++) {
+        for (let cx = 0; cx < coarseWidth; cx++) {
+          if (cx + 1 < coarseWidth
+            && cellXs[cx + 1] - cellXs[cx] === 2
+            && !opened.has(edgeKey(cx, cy, cx + 1, cy))) unopenedEdges.push([cx, cy, cx + 1, cy]);
+          if (cy + 1 < coarseHeight
+            && cellYs[cy + 1] - cellYs[cy] === 2
+            && !opened.has(edgeKey(cx, cy, cx, cy + 1))) unopenedEdges.push([cx, cy, cx, cy + 1]);
+        }
+      }
+      const extraLoops = Math.floor(unopenedEdges.length * (0.02 + Math.random() * 0.035));
+      shuffled(unopenedEdges).slice(0, extraLoops).forEach(edge => carveConnection(...edge));
+
+      // A few small turning bays make the maze useful for Sokoban boxes while
+      // leaving the overwhelming majority of its routes one cell wide.
+      const bayTarget = Math.min(3, Math.max(1, Math.ceil(boxCount / 2), Math.floor(interiorArea / 130) + 1));
+      let baysMade = 0;
+      for (let attempt = 0; attempt < 400 && baysMade < bayTarget; attempt++) {
+        const index = randomInt(width + 1, width * height - width - 2);
+        if (terrain[index] !== " " || openNeighbourCount(terrain, width, height, index) !== 2) continue;
+        const [x, y] = localCoords(index, width);
+        const openDirections = DIRECTIONS.filter(([dx, dy]) => {
+          const next = localNeighbour(index, dx, dy, width, height);
+          return next >= 0 && terrain[next] === " ";
+        });
+        if (openDirections.length !== 2) continue;
+        const [first, second] = openDirections;
+        if (first[0] === -second[0] && first[1] === -second[1]) continue;
+        const diagonalX = x + first[0] + second[0];
+        const diagonalY = y + first[1] + second[1];
+        if (diagonalX <= 0 || diagonalY <= 0 || diagonalX >= width - 1 || diagonalY >= height - 1) continue;
+        const diagonal = localIndex(diagonalX, diagonalY, width);
+        if (terrain[diagonal] !== "#") continue;
+        terrain[diagonal] = " ";
+        baysMade++;
+      }
+
+      return terrain;
+    };
+
+    let bestTerrain = null;
+    let bestScore = -Infinity;
+    for (let attempt = 0; attempt < 36; attempt++) {
+      const terrain = makeCandidate();
+      if (!floorIsConnected(terrain, width, height)) continue;
+      const floorCount = terrainFloorCount(terrain);
+      if (floorCount < Math.max(boxCount * 3 + 3, Math.floor(interiorArea * 0.42))) continue;
+      const pushLanes = countPushLaneCells(terrain, width, height);
+      if (pushLanes < Math.max(5, boxCount * 2)) continue;
+
+      const wideCount = wideFloorCells(terrain);
+      const corridorShare = floorCount ? 1 - wideCount / floorCount : 0;
+      const thickMasses = solidWallMasses(terrain);
+      const score = corridorShare * 140
+        + pushLanes * 0.22
+        - countLargeOpenAreas(terrain, width, height) * 16
+        - thickMasses * 24
+        + Math.random() * 3;
+      if (score > bestScore) {
+        bestScore = score;
+        bestTerrain = terrain.slice();
+      }
+
+      const corridorTarget = (width % 2 === 0 || height % 2 === 0) ? 0.56 : 0.78;
+      if (corridorShare >= corridorTarget
+        && thickMasses === 0
+        && countLargeOpenAreas(terrain, width, height) <= Math.max(1, Math.floor(interiorArea / 90))) return terrain;
     }
 
-    const possibleLoops = [];
-    for (let cy = 0; cy < cellYs.length; cy++) {
-      for (let cx = 0; cx < cellXs.length; cx++) {
-        if (cx + 1 < cellXs.length && !opened.has(edgeKey(cx, cy, cx + 1, cy))) possibleLoops.push([cx, cy, cx + 1, cy]);
-        if (cy + 1 < cellYs.length && !opened.has(edgeKey(cx, cy, cx, cy + 1))) possibleLoops.push([cx, cy, cx, cy + 1]);
-      }
-    }
-    const loopTarget = Math.max(1, Math.floor(possibleLoops.length * (0.16 + Math.random() * 0.12)));
-    shuffled(possibleLoops).slice(0, loopTarget).forEach(([ax, ay, bx, by]) => carveConnection(ax, ay, bx, by));
-
-    const roomExpansions = Math.max(1, Math.floor(cellCount / 7));
-    for (const [cx, cy] of shuffled(Array.from({ length: cellCount }, (_, index) => [index % cellXs.length, Math.floor(index / cellXs.length)])).slice(0, roomExpansions)) {
-      const originX = cellXs[cx];
-      const originY = cellYs[cy];
-      const candidates = shuffled([
-        [originX - 1, originY], [originX + roomSize, originY],
-        [originX, originY - 1], [originX, originY + roomSize]
-      ]);
-      for (const [x, y] of candidates) {
-        if (x <= 0 || y <= 0 || x >= width - 1 || y >= height - 1) continue;
-        terrain[localIndex(x, y, width)] = " ";
-        break;
-      }
-    }
-
-    return floorIsConnected(terrain, width, height) && terrainRemainsUseful(terrain, width, height, boxCount)
-      ? terrain
-      : buildTerrain(width, height, true, boxCount);
+    return bestTerrain || buildTerrain(width, height, true, boxCount);
   }
 
   function buildTerrain(width, height, square, boxCount) {

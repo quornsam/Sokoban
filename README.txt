@@ -1,7 +1,7 @@
-BOXXY — Pushbox Puzzle v128
+BOXXY — Pushbox Puzzle v129
 ================================
 
-Upload the contents of this BOXXY_v128 folder to the root of the GitHub
+Upload the contents of this BOXXY_v129 folder to the root of the GitHub
 repository used by GitHub Pages.
 
 LEVEL MAKER SAVES
@@ -18,9 +18,14 @@ The newest 100 saves are retained.
 
 MAZE GENERATOR
 --------------
-The MAZE option creates a connected maze with broad passages intended to leave
-room for Sokoban boxes. It can be combined with TESTED. TESTED maze generation
-takes longer because BOXXY constructs and verifies a reverse solution path.
+The MAZE option now builds a thin-corridor maze: most passages are one cell
+wide, internal wall lines are one cell thick, and only a few small turning bays
+are opened so boxes can change direction. Even-sized grids may contain one
+localised two-cell-wide run because an even interior cannot alternate one-cell
+passages and walls perfectly between two one-cell borders.
+
+MAZE can be combined with TESTED. TESTED maze generation takes longer because
+BOXXY constructs and verifies a reverse solution path.
 
 TESTING AND GUIDED SOLVES
 -------------------------
@@ -71,9 +76,9 @@ solver-route-verifier.js
 assets/
 level-packs/
 CREDITS-AND-LICENCES.txt
-RELEASE-v128-TEST-REPORT.txt
+RELEASE-v129-TEST-REPORT.txt
 
 VERSION
 -------
-All active script cache tags and solver-worker references are v128.
-The ZIP unpacks into the BOXXY_v128 folder.
+All active script cache tags and solver-worker references are v129.
+The ZIP unpacks into the BOXXY_v129 folder.
