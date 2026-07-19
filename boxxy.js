@@ -2799,9 +2799,14 @@
     }
 
     setAttachedSolution(verification.route, levelText, currentPuzzleRef);
+    const savedAutomatically = persistAttachedSolutionToLoadedSave();
     if (solverOutput) solverOutput.value = verification.route;
-    setSolverStatus("The verified solution has been attached. Test the puzzle, click the character five times, then press S for the guided solve.", "success");
-    setStatus(`Solver attached a verified ${verification.moves}-move guided solve to the current puzzle.`, "success");
+    setSolverStatus(savedAutomatically
+      ? "The verified solution has been attached, saved and synchronised with linked pack drafts."
+      : "The verified solution has been attached. Test the puzzle, click the character five times, then press S for the guided solve.", "success");
+    setStatus(savedAutomatically
+      ? `Solver saved a verified ${verification.moves}-move guided solve and updated linked pack drafts.`
+      : `Solver attached a verified ${verification.moves}-move guided solve to the current puzzle. Save the level to keep it.`, "success");
   }
 
   async function startSolverSearch() {
@@ -2920,8 +2925,13 @@
     const route = verifiedImportSolution;
     const levelText = verifiedImportLevelText;
     setAttachedSolution(route, levelText, currentPuzzleRef);
-    setSolverStatus("Imported solution attached. Test the puzzle, click the character five times, then press S.", "success");
-    setStatus(`A verified ${route.length}-move imported solve is attached to the current puzzle.`, "success");
+    const savedAutomatically = persistAttachedSolutionToLoadedSave();
+    setSolverStatus(savedAutomatically
+      ? "Imported solution attached and saved to the loaded level. Its pack entries have been updated."
+      : "Imported solution attached. Test the puzzle, click the character five times, then press S.", "success");
+    setStatus(savedAutomatically
+      ? `A verified ${route.length}-move imported solve was saved and synchronised with linked pack drafts.`
+      : `A verified ${route.length}-move imported solve is attached to the current puzzle. Save the level to keep it.`, "success");
   }
 
   function blankGrid(width, height, value = VOID) {
@@ -4285,12 +4295,49 @@
     }
   }
 
-  function writeSavedLevels(records) {
+  function writeSavedLevels(records, changeDetail = {}) {
     const newestFirst = records
       .slice()
       .sort((a, b) => Number(b.updatedAt || 0) - Number(a.updatedAt || 0))
       .slice(0, 100);
     localStorage.setItem(SAVE_KEY, JSON.stringify(newestFirst));
+    window.dispatchEvent(new CustomEvent("boxxy-saved-levels-changed", {
+      detail: { ...changeDetail, records: newestFirst }
+    }));
+  }
+
+  function savedRecordMatchesCurrentBoard(record) {
+    return Boolean(
+      record
+      && Number(record.cols) === cols
+      && Number(record.rows) === rows
+      && Array.isArray(record.cells)
+      && record.cells.length === cells.length
+      && record.cells.every((value, index) => value === cells[index])
+    );
+  }
+
+  function persistAttachedSolutionToLoadedSave() {
+    if (!activeSaveId || !solutionMatchesCurrentBoard()) return false;
+    const records = readSavedLevels();
+    const index = records.findIndex(record => record.id === activeSaveId);
+    if (index < 0 || !savedRecordMatchesCurrentBoard(records[index])) return false;
+
+    const record = records[index];
+    const route = String(currentSolution || "").replace(/[^udlrUDLR]/g, "");
+    if (!route) return false;
+    const levelText = currentLevelText();
+    if (record.solution === route && record.solutionLevelText === levelText) return true;
+
+    records[index] = {
+      ...record,
+      solution: route,
+      solutionLevelText: levelText,
+      updatedAt: Date.now()
+    };
+    writeSavedLevels(records, { type: "solution", id: activeSaveId });
+    renderSavedLevels(activeSaveId);
+    return true;
   }
 
   function normaliseSaveName(name) {
@@ -4379,7 +4426,7 @@
     }
 
     try {
-      writeSavedLevels(records);
+      writeSavedLevels(records, { type: isOverwrite ? "overwrite" : "save", id: record.id });
       activeSaveId = record.id;
       saveNameInput.value = name;
       resetSaveConfirmation();
@@ -4444,7 +4491,7 @@
     const records = readSavedLevels();
     const removed = records.find(record => record.id === id);
     try {
-      writeSavedLevels(records.filter(record => record.id !== id));
+      writeSavedLevels(records.filter(record => record.id !== id), { type: "delete", id });
       if (activeSaveId === id) clearActiveSave();
       resetDeleteButton();
       renderSavedLevels();
@@ -4723,10 +4770,13 @@
       return;
     }
     setAttachedSolution(verification.route, levelText, currentPuzzleRef);
+    const savedAutomatically = persistAttachedSolutionToLoadedSave();
     const automatic = Boolean(event?.detail?.automatic);
-    setStatus(automatic
-      ? `Your ${verification.moves}-move test route has been added as the guided solve. Save the level to keep it.`
-      : `Applied your ${verification.moves}-move test route as the puzzle's guided solve. Save the level to keep it.`, "success");
+    setStatus(savedAutomatically
+      ? `${automatic ? "Your test route" : "The applied route"} has been saved as a ${verification.moves}-move guided solve and synchronised with linked pack drafts.`
+      : automatic
+        ? `Your ${verification.moves}-move test route has been added as the guided solve. Save the level to keep it.`
+        : `Applied your ${verification.moves}-move test route as the puzzle's guided solve. Save the level to keep it.`, "success");
   });
 
   window.addEventListener("boxxy-maker-return", openMaker);

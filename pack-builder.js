@@ -3,7 +3,7 @@
  * Copyright © 2026 Sam Cornwell. All rights reserved.
  * Personal non-commercial use only. See LICENSE.md.
  */
-/* BOXXY v135 — private level-pack and Daily Puzzle builder. */
+/* BOXXY v136 — private level-pack and Daily Puzzle builder with linked-solution synchronisation. */
 (() => {
   "use strict";
 
@@ -163,6 +163,65 @@
     };
   }
 
+  function synchroniseEntryFromSavedLevel(entry, record) {
+    if (!entry?.sourceSaveId || entry.sourceSaveId !== record?.id) return false;
+    const latest = snapshotSavedLevel(record);
+    const nextLayout = latest.layout.slice();
+    const changed = entry.name !== latest.name
+      || entry.solution !== latest.solution
+      || entry.cols !== latest.cols
+      || entry.rows !== latest.rows
+      || entry.boxes !== latest.boxes
+      || entry.layout.length !== nextLayout.length
+      || entry.layout.some((row, index) => row !== nextLayout[index]);
+    if (!changed) return false;
+    entry.name = latest.name;
+    entry.layout = nextLayout;
+    entry.solution = latest.solution;
+    entry.cols = latest.cols;
+    entry.rows = latest.rows;
+    entry.boxes = latest.boxes;
+    return true;
+  }
+
+  function synchroniseLinkedEntries() {
+    const byId = new Map(savedLevels.map(record => [record.id, record]));
+    let draftChanged = false;
+    let dailyChanged = false;
+    let updatedCount = 0;
+
+    drafts.forEach(draft => {
+      draft.entries.forEach(entry => {
+        const record = byId.get(entry.sourceSaveId);
+        if (record && synchroniseEntryFromSavedLevel(entry, record)) {
+          draftChanged = true;
+          updatedCount += 1;
+        }
+      });
+    });
+
+    dailyDraft?.entries?.forEach(entry => {
+      const record = byId.get(entry.sourceSaveId);
+      if (record && synchroniseEntryFromSavedLevel(entry, record)) {
+        dailyChanged = true;
+        updatedCount += 1;
+      }
+    });
+
+    return { draftChanged, dailyChanged, updatedCount };
+  }
+
+  function persistLinkedSynchronisation(result) {
+    try {
+      if (result.draftChanged) localStorage.setItem(PACK_DRAFTS_KEY, JSON.stringify(drafts));
+      if (result.dailyChanged) localStorage.setItem(DAILY_DRAFT_KEY, JSON.stringify(dailyDraft));
+      return true;
+    } catch (_) {
+      setStatus("The browser could not synchronise updated saved levels with pack drafts.", "error");
+      return false;
+    }
+  }
+
   function defaultDraft() {
     const now = Date.now();
     return {
@@ -297,6 +356,8 @@
       activeDraft = drafts.find(draft => draft.id === preferredId) || drafts[0];
     }
     dailyDraft = normaliseDailyDraft(safeParse(DAILY_DRAFT_KEY, defaultDailyDraft()));
+    const synchronised = synchroniseLinkedEntries();
+    persistLinkedSynchronisation(synchronised);
     loadDraftIntoFields();
     dailyStartDate.value = dailyDraft.startDate;
     dailyTimezoneLabel.textContent = localTimezone;
@@ -1160,6 +1221,17 @@
       persistDrafts(false);
       renderDraftSelect();
     });
+  });
+
+  window.addEventListener("boxxy-saved-levels-changed", event => {
+    if (!activeDraft || !dailyDraft) return;
+    savedLevels = readSavedLevels();
+    const synchronised = synchroniseLinkedEntries();
+    persistLinkedSynchronisation(synchronised);
+    if (!modal.hidden) renderAll();
+    if (synchronised.updatedCount && event?.detail?.type === "solution") {
+      setStatus(`${synchronised.updatedCount} linked ${synchronised.updatedCount === 1 ? "entry was" : "entries were"} updated with the saved solution.`, "success");
+    }
   });
 
   librarySearch.addEventListener("input", renderLibrary);
