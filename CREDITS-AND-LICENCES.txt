@@ -48,10 +48,10 @@ Repository: https://github.com/dangarfield/sokoban-solver
 Author/maintainer: Dan Garfield and repository contributors
 Description: Browser Rust/WebAssembly push-state A* Sokoban solver inspired by Festival.
 
-BOXXY v131 loads the engine at runtime from a pinned CDN path for upstream
+BOXXY v132 loads the engine at runtime from a pinned CDN path for upstream
 commit d355ece7272ec89071056ef64ce257c797f9c2b1, with the maintainer-hosted
 GitHub Pages deployment as a fallback. It does not include a copy of the Rust
 source, JavaScript binding or WebAssembly binary. The upstream repository did
-not display an explicit redistribution licence when v131 was prepared, so no
+not display an explicit redistribution licence when v132 was prepared, so no
 third-party solver code is redistributed in this archive.
 

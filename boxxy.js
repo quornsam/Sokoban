@@ -28,7 +28,87 @@
   });
 })();
 
-/* BOXXY v131 — character renderer, game engine, level maker and Rust/WASM solver adapter. */
+/* BOXXY v132 — compact, URL-safe custom puzzle links. */
+(() => {
+  "use strict";
+
+  const MAX_SIZE = 36;
+  const ALLOWED = /^[ #@$.+*]*$/;
+
+  function bytesToBase64Url(bytes) {
+    let binary = "";
+    const chunkSize = 0x8000;
+    for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+      const chunk = bytes.subarray(offset, offset + chunkSize);
+      binary += String.fromCharCode(...chunk);
+    }
+    return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+  }
+
+  function base64UrlToBytes(code) {
+    const normal = String(code || "").replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normal + "=".repeat((4 - normal.length % 4) % 4);
+    const binary = atob(padded);
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index);
+    return bytes;
+  }
+
+  function validatePayload(value) {
+    if (!value || Number(value.v) !== 1 || !Array.isArray(value.l)) throw new Error("Unsupported puzzle link.");
+    const layout = value.l.map(row => String(row).replace(/\r/g, ""));
+    if (!layout.length || layout.length > MAX_SIZE) throw new Error("Puzzle height is outside BOXXY's supported range.");
+    if (layout.some(row => row.length > MAX_SIZE || !ALLOWED.test(row))) throw new Error("Puzzle link contains invalid level data.");
+    const joined = layout.join("");
+    const players = (joined.match(/[@+]/g) || []).length;
+    const boxes = (joined.match(/[$*]/g) || []).length;
+    const goals = (joined.match(/[.*+]/g) || []).length;
+    if (players !== 1 || boxes < 1 || boxes !== goals) throw new Error("Puzzle link does not contain a valid Sokoban starting position.");
+    const name = String(value.n || "Shared Puzzle").trim().slice(0, 64) || "Shared Puzzle";
+    return { version: 1, name, layout };
+  }
+
+  function encode(payload) {
+    const checked = validatePayload({ v: 1, n: payload?.name, l: payload?.layout });
+    const json = JSON.stringify({ v: 1, n: checked.name, l: checked.layout });
+    return bytesToBase64Url(new TextEncoder().encode(json));
+  }
+
+  function decode(code) {
+    const json = new TextDecoder("utf-8", { fatal: true }).decode(base64UrlToBytes(code));
+    return validatePayload(JSON.parse(json));
+  }
+
+  function codeFromLocation() {
+    const queryCode = new URLSearchParams(location.search).get("p");
+    if (queryCode) return queryCode;
+    const hash = String(location.hash || "").replace(/^#/, "");
+    if (!hash) return "";
+    if (hash.startsWith("p=")) return hash.slice(2);
+    return new URLSearchParams(hash).get("p") || "";
+  }
+
+  function readLocation() {
+    const code = codeFromLocation();
+    if (!code) return null;
+    try {
+      return { ok: true, ...decode(code) };
+    } catch (error) {
+      return { ok: false, error: error?.message || "The shared puzzle link is invalid." };
+    }
+  }
+
+  function buildUrl(payload) {
+    const url = new URL(location.href);
+    url.search = "";
+    url.hash = `p=${encode(payload)}`;
+    return url.toString();
+  }
+
+  window.BoxxyShareCodec = Object.freeze({ encode, decode, readLocation, buildUrl });
+})();
+
+/* BOXXY v132 — character renderer, game engine, level maker and Rust/WASM solver adapter. */
 (() => {
   "use strict";
 
@@ -444,6 +524,7 @@
         levels: window.SOKOBAN_LEVELS || []
       }];
   const PACK_BY_ID = new Map(PACKS.map(pack => [pack.id, pack]));
+  const SHARED_PUZZLE_PAYLOAD = window.BoxxyShareCodec?.readLocation?.() || null;
   const PRIMARY_PACK_ID = PACKS[0]?.id || "microban";
   const ADDITIONAL_PACKS_UNLOCK_KEY = "boxxy-additional-packs-unlocked-v1";
   const packStorageKeyFor = (packId, suffix) => `boxxy-pack-${packId}-${suffix}-v1`;
@@ -596,6 +677,8 @@
   let facing = "front";
   let completed = false;
   let makerTesting = false;
+  let sharedPuzzleMode = false;
+  let sharedPuzzleName = "";
   let makerLayout = null;
   let makerSolution = "";
   let playedRoute = "";
@@ -1495,9 +1578,9 @@
 
     movesEl.textContent = moves;
     pushesEl.textContent = pushes;
-    minimumEl.textContent = makerTesting ? "—" : (levelData.minimum ?? "—");
-    levelCount.textContent = makerTesting ? "MAKER" : `${levelIndex + 1} / ${LEVELS.length}`;
-    const best = makerTesting ? null : readBest(levelData);
+    minimumEl.textContent = (makerTesting || sharedPuzzleMode) ? "—" : (levelData.minimum ?? "—");
+    levelCount.textContent = sharedPuzzleMode ? "SHARED" : makerTesting ? "MAKER" : `${levelIndex + 1} / ${LEVELS.length}`;
+    const best = (makerTesting || sharedPuzzleMode) ? null : readBest(levelData);
     bestEl.textContent = best || "—";
     undoBtn.disabled = !history.length || completed;
     refreshLevelButtons();
@@ -1527,6 +1610,12 @@
 
   function loadLevel(index, preserveAutoplay = false, preserveBackground = false) {
     makerTesting = false;
+    sharedPuzzleMode = false;
+    sharedPuzzleName = "";
+    window.BOXXY_SHARED_MODE = false;
+    document.body.classList.remove("shared-puzzle");
+    if (collectionBtn) collectionBtn.disabled = false;
+    document.title = "BOXXY — Pushbox Puzzle";
     makerLayout = null;
     makerSolution = "";
     playedRoute = "";
@@ -1594,8 +1683,10 @@
     refreshLevelButtons();
   }
 
-  function loadMakerTest(layoutRows, attachedSolution = "") {
+  function loadMakerTest(layoutRows, attachedSolution = "", options = {}) {
     try {
+      const shared = Boolean(options.shared);
+      const customName = String(options.name || "Shared Puzzle").trim().slice(0, 64) || "Shared Puzzle";
       if (!Array.isArray(layoutRows) || !layoutRows.length) throw new Error("The level is empty.");
       const cleanRows = layoutRows.map(row => String(row));
       const parsed = parseLayout(cleanRows);
@@ -1604,19 +1695,26 @@
       resetEasterEgg();
       blockedPushHeld = false;
       clearTimeout(animTimer);
-      makerTesting = true;
+      makerTesting = !shared;
+      sharedPuzzleMode = shared;
+      sharedPuzzleName = shared ? customName : "";
+      window.BOXXY_SHARED_MODE = shared;
       makerLayout = cleanRows.slice();
       makerSolution = String(attachedSolution || "").replace(/[^udlrUDLR]/g, "");
       playedRoute = "";
       makerCompletedRoute = "";
       if (makerApplySolveBtn) makerApplySolveBtn.hidden = true;
       completeMode = "normal";
-      document.body.classList.add("maker-testing");
-      if (makerReturnBtn) makerReturnBtn.hidden = false;
+      document.body.classList.toggle("maker-testing", !shared);
+      document.body.classList.toggle("shared-puzzle", shared);
+      if (makerReturnBtn) makerReturnBtn.hidden = shared;
+      if (collectionBtn) collectionBtn.disabled = shared;
+      if (shared && collectionName) collectionName.innerHTML = "PRIVATE<br>PUZZLE";
+      if (shared) document.title = `${customName} — BOXXY`;
       levelData = {
-        sourceNumber: "maker",
-        name: "CUSTOM TEST",
-        tier: "LEVEL MAKER",
+        sourceNumber: shared ? "shared" : "maker",
+        name: shared ? customName : "CUSTOM TEST",
+        tier: shared ? "SHARED PUZZLE" : "LEVEL MAKER",
         minimum: "—",
         pushMinimum: parsed.boxes.length,
         solution: makerSolution,
@@ -1645,8 +1743,8 @@
       board.style.aspectRatio = `${width} / ${height}`;
       refreshBackgroundDecor(backgroundDecorBuilt);
       scheduleBoardResize();
-      creditTitle.textContent = "LEVEL MAKER · TEST";
-      creditSub.textContent = `${width}×${height} · ${boxes.length} ${boxes.length === 1 ? "BOX" : "BOXES"}`;
+      creditTitle.textContent = shared ? customName.toUpperCase() : "LEVEL MAKER · TEST";
+      creditSub.textContent = `${shared ? "SHARED PUZZLE · " : ""}${width}×${height} · ${boxes.length} ${boxes.length === 1 ? "BOX" : "BOXES"}`;
       startedAt = Date.now();
       clearInterval(timer);
       timer = setInterval(updateTime, 250);
@@ -1657,7 +1755,9 @@
       render("idle");
       updateTime();
       scheduleIdle();
-      if (thoughtText) thoughtText.textContent = "Test the level. The workshop is one click away.";
+      if (thoughtText) thoughtText.textContent = shared
+        ? "A private custom puzzle shared with you. Good luck."
+        : "Test the level. The workshop is one click away.";
       return { ok: true };
     } catch (error) {
       return { ok: false, error: error?.message || "The level could not be loaded." };
@@ -1665,13 +1765,16 @@
   }
 
   function restartMakerTest() {
-    if (!makerTesting || !makerLayout) return;
-    loadMakerTest(makerLayout, makerSolution);
+    if ((!makerTesting && !sharedPuzzleMode) || !makerLayout) return;
+    loadMakerTest(makerLayout, makerSolution, { shared: sharedPuzzleMode, name: sharedPuzzleName });
   }
 
   function exitMakerTest() {
     if (!makerTesting) return;
     makerTesting = false;
+    sharedPuzzleMode = false;
+    sharedPuzzleName = "";
+    window.BOXXY_SHARED_MODE = false;
     makerLayout = null;
     makerSolution = "";
     document.body.classList.remove("maker-testing");
@@ -1777,7 +1880,17 @@
     clearTimeout(animTimer);
     clearInterval(timer);
 
-    if (makerTesting) {
+    if (sharedPuzzleMode) {
+      completeMode = "shared";
+      if (finalPackPicker) finalPackPicker.hidden = true;
+      if (finalPackStatus) finalPackStatus.textContent = "";
+      if (completeKicker) completeKicker.textContent = "PRIVATE PUZZLE";
+      if (completeTitle) completeTitle.innerHTML = "PUZZLE<br>CLEARED";
+      if (makerApplySolveBtn) makerApplySolveBtn.hidden = true;
+      completeText.textContent = `${sharedPuzzleName || "Shared puzzle"} solved in ${moves} ${moves === 1 ? "move" : "moves"} and ${pushes} ${pushes === 1 ? "push" : "pushes"}.`;
+      if (nextBtnLabel) nextBtnLabel.textContent = "PLAY AGAIN";
+      if (nextBtnIcon) nextBtnIcon.textContent = "↻";
+    } else if (makerTesting) {
       const solvedWithGuidedRoute = autoplayRunning;
       const capturedRoute = String(playedRoute || "").replace(/[^UDLR]/gi, "").toUpperCase();
       const previousRoute = String(makerSolution || "").replace(/[^UDLR]/gi, "").toUpperCase();
@@ -2015,7 +2128,7 @@
       undo();
     } else if (event.key === "r" || event.key === "R") {
       event.preventDefault();
-      if (makerTesting) restartMakerTest();
+      if (makerTesting || sharedPuzzleMode) restartMakerTest();
       else loadLevel(levelIndex);
     }
   });
@@ -2067,7 +2180,7 @@
 
   undoBtn.addEventListener("click", undo);
   restartBtn.addEventListener("click", () => {
-    if (makerTesting) restartMakerTest();
+    if (makerTesting || sharedPuzzleMode) restartMakerTest();
     else loadLevel(levelIndex);
   });
   soundBtn.addEventListener("click", () => {
@@ -2091,6 +2204,7 @@
   makerReturnBtn?.addEventListener("click", () => window.dispatchEvent(new CustomEvent("boxxy-maker-return")));
 
   levelBtn.addEventListener("click", () => {
+    if (sharedPuzzleMode) return;
     if (makerTesting) {
       window.dispatchEvent(new CustomEvent("boxxy-maker-return"));
       return;
@@ -2119,6 +2233,11 @@
   });
 
   nextBtn.addEventListener("click", () => {
+    if (completeMode === "shared") {
+      modal.hidden = true;
+      restartMakerTest();
+      return;
+    }
     if (completeMode === "maker") {
       modal.hidden = true;
       window.dispatchEvent(new CustomEvent("boxxy-maker-return"));
@@ -2192,7 +2311,7 @@
     if (event.key === "Escape" && !levelPicker.hidden) closeLevelPicker();
   });
   window.BoxxyGameAPI = {
-    startMakerTest(layoutRows, attachedSolution = "") { return loadMakerTest(layoutRows, attachedSolution); },
+    startMakerTest(layoutRows, attachedSolution = "", options = {}) { return loadMakerTest(layoutRows, attachedSolution, options); },
     exitMakerTest() { exitMakerTest(); },
     restartMakerTest() { restartMakerTest(); },
     isMakerTesting() { return makerTesting; }
@@ -2202,7 +2321,20 @@
   loadLevelProgress();
   buildLevelButtons();
   buildPackSelectors();
-  Promise.resolve(window.CharacterStyler?.ready).finally(() => loadLevel(levelIndex));
+  Promise.resolve(window.CharacterStyler?.ready).finally(() => {
+    if (SHARED_PUZZLE_PAYLOAD?.ok) {
+      const result = loadMakerTest(SHARED_PUZZLE_PAYLOAD.layout, "", {
+        shared: true,
+        name: SHARED_PUZZLE_PAYLOAD.name
+      });
+      if (!result?.ok) loadLevel(levelIndex);
+    } else {
+      loadLevel(levelIndex);
+      if (SHARED_PUZZLE_PAYLOAD && !SHARED_PUZZLE_PAYLOAD.ok && thoughtText) {
+        thoughtText.textContent = SHARED_PUZZLE_PAYLOAD.error || "That shared puzzle link could not be read.";
+      }
+    }
+  });
 
   if (document.readyState === "complete") {
     scheduleSplashHide();
@@ -2234,6 +2366,7 @@
   const closeBtn = document.getElementById("makerCloseBtn");
   const importBtn = document.getElementById("makerImportBtn");
   const copyBtn = document.getElementById("makerCopyBtn");
+  const shareBtn = document.getElementById("makerShareBtn");
   const testBtn = document.getElementById("makerTestBtn");
   const exitTestBtn = document.getElementById("makerExitTestBtn");
   const textEl = document.getElementById("makerText");
@@ -2455,6 +2588,7 @@
     if (!keepWorker && solverWorker) solverWorker.terminate();
     solverWorker = null;
     solverRunning = false;
+    if (solverProgress) solverProgress.value = 100;
     if (solverStartBtn) solverStartBtn.disabled = false;
     if (solverCancelBtn) solverCancelBtn.hidden = true;
     updateSolverControls();
@@ -2686,7 +2820,7 @@
     setSolverStatus("Loading the external Rust/WebAssembly solver. An internet connection is required for the solver only.");
 
     try {
-      solverWorker = new Worker("solver-worker.js?v=131", { type: "module", name: "boxxy-rust-solver-v131" });
+      solverWorker = new Worker("solver-worker.js?v=132", { type: "module", name: "boxxy-rust-solver-v132" });
       solverWorker.onmessage = event => {
         const message = event.data || {};
         if (message.id !== id || id !== solverJobId || !solverRunning) return;
@@ -4188,6 +4322,7 @@
   }
 
   function openMaker() {
+    if (window.BOXXY_SHARED_MODE || document.body.classList.contains("shared-puzzle")) return;
     modal.hidden = false;
     exitTestBtn.hidden = !window.BoxxyGameAPI?.isMakerTesting?.();
     renderSavedLevels(activeSaveId);
@@ -4280,6 +4415,43 @@
     }
   });
 
+  async function copyShareLink() {
+    const validation = validate();
+    if (!validation.ok) {
+      setStatus(validation.error, "error");
+      return;
+    }
+    if (!window.BoxxyShareCodec?.buildUrl) {
+      setStatus("Share links are unavailable in this build.", "error");
+      return;
+    }
+    const name = saveNameInput?.value?.trim() || "Shared Puzzle";
+    let shareUrl;
+    try {
+      shareUrl = window.BoxxyShareCodec.buildUrl({ name, layout: validation.rows });
+    } catch (error) {
+      setStatus(error?.message || "The share link could not be created.", "error");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setStatus("Private puzzle link copied. Anyone who has the link can play the puzzle, but the Level Maker and pack controls are hidden.", "success");
+    } catch (_) {
+      const helper = document.createElement("textarea");
+      helper.value = shareUrl;
+      helper.setAttribute("readonly", "");
+      helper.style.position = "fixed";
+      helper.style.opacity = "0";
+      document.body.appendChild(helper);
+      helper.select();
+      const copied = document.execCommand?.("copy");
+      helper.remove();
+      setStatus(copied
+        ? "Private puzzle link copied. Anyone who has the link can play it."
+        : `Copy this puzzle link manually: ${shareUrl}`, copied ? "success" : "");
+    }
+  }
+
   copyBtn.addEventListener("click", async () => {
     const validation = validate();
     updateTextFromGrid();
@@ -4294,6 +4466,7 @@
     }
   });
 
+  shareBtn?.addEventListener("click", copyShareLink);
   saveBtn.addEventListener("click", saveCurrentLevel);
   existingPackSelect?.addEventListener("change", () => populateExistingLevels());
   existingLevelSelect?.addEventListener("dblclick", openExistingPuzzle);
@@ -4365,6 +4538,7 @@
 
   hotspot?.addEventListener("click", event => {
     event.preventDefault();
+    if (window.BOXXY_SHARED_MODE || document.body.classList.contains("shared-puzzle")) return;
     unlockClicks += 1;
     clearTimeout(unlockTimer);
     if (unlockClicks >= 5) {

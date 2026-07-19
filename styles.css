@@ -830,11 +830,11 @@ body.maker-testing .level-picker{display:none!important}
   .maker-solution-output{height:105px}
 }
 
-/* v131 inherited level-maker additions */
+/* v132 inherited level-maker additions */
 @media(max-width:1120px){.maker-generator-options{grid-template-columns:1fr 1fr}.maker-generator-options .maker-check-option:last-child{grid-column:1/-1}}
 @media(max-width:560px){.complete-actions{display:grid;grid-template-columns:1fr}.complete-secondary,.complete-primary{width:100%;min-width:0}}
 
-/* BOXXY v131 — Level Pack Builder, Daily Puzzle queue and solution import. */
+/* BOXXY v132 — Level Pack Builder, Daily Puzzle queue and solution import. */
 .maker-pack-builder-launch{display:grid;grid-template-columns:minmax(0,1fr);gap:4px;margin-top:7px;padding-top:7px;border-top:1px solid #b6aa98}
 .maker-pack-builder-launch button{min-height:34px;padding:0 10px;border:2px solid var(--ink);background:var(--yellow);display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:9px;font-weight:1000;letter-spacing:.075em;box-shadow:3px 3px 0 var(--ink)}
 .maker-pack-builder-launch button:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
@@ -940,3 +940,13 @@ body.pack-builder-open{overflow:hidden}
   .pack-grid-empty{min-height:150px}
 }
 @media(max-width:400px){.pack-level-grid{grid-template-columns:1fr 1fr}.pack-level-card-body>strong{font-size:8px}.pack-card-actions{grid-template-columns:24px 24px minmax(0,1fr)}}
+
+
+/* v132 — private shared-puzzle presentation. */
+body.shared-puzzle .collection,
+body.shared-puzzle #levelBtn,
+body.shared-puzzle #makerReturnBtn{display:none!important}
+body.shared-puzzle .maker-hotspot{pointer-events:none}
+body.shared-puzzle .bottom-actions{grid-template-columns:repeat(3,minmax(0,1fr))}
+body.shared-puzzle .credit strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:760px){body.shared-puzzle .bottom-actions{grid-template-columns:repeat(2,minmax(0,1fr))}}
