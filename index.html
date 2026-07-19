@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#efe5d4">
 <title>BOXXY — Pushbox Puzzle</title>
-<link rel="stylesheet" href="styles.css?v=130">
+<link rel="stylesheet" href="styles.css?v=131">
 <link rel="preload" as="image" href="assets/board/board-atlas.png">
 <link rel="preload" as="image" href="assets/characters/boy/base.png">
 <link rel="preload" as="image" href="assets/characters/girl/base.png">
@@ -401,9 +401,21 @@
       <p>The solver runs in a separate worker. Cancel Search stops it immediately. Solving requires an internet connection because the external Rust/WebAssembly engine is loaded at runtime.</p>
     </div>
 
-    <label class="maker-solution-label" for="makerSolutionOutput">SOLUTION STRING</label>
-    <textarea id="makerSolutionOutput" class="maker-solution-output" readonly spellcheck="false" placeholder="The verified UDLR solution string will appear here."></textarea>
-    <p id="makerSolverStatus" class="maker-solver-status" aria-live="polite">Ready to solve the current editor puzzle.</p>
+    <section class="maker-solution-import" aria-labelledby="makerSolutionImportLabel">
+      <div class="maker-solution-import-head">
+        <label id="makerSolutionImportLabel" class="maker-solution-label" for="makerSolutionImport">IMPORT A SOLUTION STRING</label>
+        <span>UDLR or arrow symbols; spaces and line breaks are allowed</span>
+      </div>
+      <textarea id="makerSolutionImport" class="maker-solution-import-input" spellcheck="false" autocapitalize="off" autocomplete="off" placeholder="Paste a solution here, for example: rrUUlldR…"></textarea>
+      <div class="maker-solution-import-actions">
+        <button id="makerSolutionCheckBtn" type="button">CHECK SOLUTION</button>
+        <button id="makerSolutionClearBtn" type="button">CLEAR IMPORT</button>
+      </div>
+    </section>
+
+    <label class="maker-solution-label" for="makerSolutionOutput">VERIFIED SOLUTION</label>
+    <textarea id="makerSolutionOutput" class="maker-solution-output" readonly spellcheck="false" placeholder="A verified UDLR solution will appear here."></textarea>
+    <p id="makerSolverStatus" class="maker-solver-status" aria-live="polite">Ready to solve the current editor puzzle or check an imported solution.</p>
 
     <div class="maker-solver-actions">
       <button id="makerSolverStartBtn" class="maker-solver-start" type="button">SOLVE THIS PUZZLE</button>
@@ -417,9 +429,9 @@
 <button id="autoSolveBtn" type="button" hidden tabindex="-1" aria-hidden="true">PLAY SOLUTION</button>
 <audio id="bgMusic" src="assets/audio/cracked-ivory-drift.mp3" preload="auto" autoplay loop playsinline></audio>
 
-<script src="data.js?v=130"></script>
-<script src="solver-route-verifier.js?v=130"></script>
-<script src="boxxy.js?v=130"></script>
-<script src="pack-builder.js?v=130"></script>
+<script src="data.js?v=131"></script>
+<script src="solver-route-verifier.js?v=131"></script>
+<script src="boxxy.js?v=131"></script>
+<script src="pack-builder.js?v=131"></script>
 </body>
 </html>

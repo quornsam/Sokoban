@@ -1,8 +1,21 @@
-BOXXY — Pushbox Puzzle v130
+BOXXY — Pushbox Puzzle v131
 ================================
 
-Upload the contents of this BOXXY_v130 folder to the root of the GitHub
+Upload the contents of this BOXXY_v131 folder to the root of the GitHub
 repository used by GitHub Pages.
+
+IMPORTED SOLUTION STRINGS
+-------------------------
+Open PUZZLE SOLVER from the Level Maker and paste a UDLR movement string into
+IMPORT A SOLUTION STRING. Press CHECK SOLUTION. BOXXY independently replays the
+string against the current editor board and reports the first illegal move, or
+whether the legal route fails to finish the puzzle.
+
+Only a route that legally places every box on a goal enables APPLY IMPORT.
+Applying it attaches the route to the current puzzle so the five-click + S guided
+solve works while testing. Spaces, line breaks and arrow symbols are accepted;
+the stored solution is normalised to BOXXY's lower-case walks and upper-case
+pushes.
 
 LEVEL PACK BUILDER
 ------------------
@@ -50,7 +63,7 @@ calendar day and a publication time of 00:00 in the browser's local IANA time
 zone. The exported JSON records both the local date/time and its corresponding
 UTC instant, including daylight-saving changes.
 
-The Daily Puzzle schedule is not read by the public game in v130. Exported data
+The Daily Puzzle schedule is not read by the public game in v131. Exported data
 has frontEndEnabled set to false and a suggested future destination of:
 
 daily-puzzles/boxxy-daily-puzzles.json
@@ -107,9 +120,9 @@ solver-worker.js
 solver-route-verifier.js
 assets/
 CREDITS-AND-LICENCES.txt
-RELEASE-v130-TEST-REPORT.txt
+RELEASE-v131-TEST-REPORT.txt
 
 VERSION
 -------
-All active script cache tags and solver-worker references are v130.
-The ZIP unpacks into the BOXXY_v130 folder.
+All active script cache tags and solver-worker references are v131.
+The ZIP unpacks into the BOXXY_v131 folder.

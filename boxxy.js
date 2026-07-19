@@ -28,7 +28,7 @@
   });
 })();
 
-/* BOXXY v130 — character renderer, game engine, level maker and Rust/WASM solver adapter. */
+/* BOXXY v131 — character renderer, game engine, level maker and Rust/WASM solver adapter. */
 (() => {
   "use strict";
 
@@ -2255,6 +2255,9 @@
   const solverCancelBtn = document.getElementById("makerSolverCancelBtn");
   const solverCopyBtn = document.getElementById("makerSolverCopyBtn");
   const solverApplyBtn = document.getElementById("makerSolverApplyBtn");
+  const solverImportInput = document.getElementById("makerSolutionImport");
+  const solverCheckBtn = document.getElementById("makerSolutionCheckBtn");
+  const solverClearImportBtn = document.getElementById("makerSolutionClearBtn");
   const solverOutput = document.getElementById("makerSolutionOutput");
   const solverStatus = document.getElementById("makerSolverStatus");
   const solverProgressWrap = document.getElementById("makerSolverProgressWrap");
@@ -2311,6 +2314,8 @@
   let currentSolution = "";
   let currentSolutionLevelText = "";
   let currentPuzzleRef = null;
+  let verifiedImportSolution = "";
+  let verifiedImportLevelText = "";
   let solverWorker = null;
   let solverRunning = false;
   let solverJobId = 0;
@@ -2374,17 +2379,40 @@
     return Boolean(currentSolution && currentSolutionLevelText === currentLevelText());
   }
 
+  function importedSolutionMatchesCurrentBoard() {
+    return Boolean(verifiedImportSolution && verifiedImportLevelText === currentLevelText());
+  }
+
+  function clearVerifiedImport(clearText = false) {
+    verifiedImportSolution = "";
+    verifiedImportLevelText = "";
+    if (clearText && solverImportInput) solverImportInput.value = "";
+  }
+
+  function displayedVerifiedSolution() {
+    if (importedSolutionMatchesCurrentBoard()) return verifiedImportSolution;
+    if (solutionMatchesCurrentBoard()) return currentSolution;
+    return "";
+  }
+
   function updateSolverControls() {
-    const matched = solutionMatchesCurrentBoard();
-    if (solverOutput && !solverRunning) solverOutput.value = matched ? currentSolution : "";
-    if (solverCopyBtn) solverCopyBtn.disabled = !matched;
-    if (solverApplyBtn) solverApplyBtn.disabled = !matched;
+    const displayed = displayedVerifiedSolution();
+    const imported = importedSolutionMatchesCurrentBoard();
+    if (solverOutput && !solverRunning) solverOutput.value = displayed;
+    if (solverCopyBtn) solverCopyBtn.disabled = !displayed;
+    if (solverApplyBtn) {
+      solverApplyBtn.disabled = !imported || solverRunning;
+      solverApplyBtn.textContent = imported ? "APPLY IMPORT" : "APPLY TO PUZZLE";
+    }
+    if (solverCheckBtn) solverCheckBtn.disabled = solverRunning || !String(solverImportInput?.value || "").trim();
+    if (solverClearImportBtn) solverClearImportBtn.disabled = solverRunning || (!String(solverImportInput?.value || "").trim() && !verifiedImportSolution);
   }
 
   function setAttachedSolution(moves, levelText = currentLevelText(), puzzleRef = currentPuzzleRef) {
     currentSolution = String(moves || "").replace(/[^udlrUDLR]/g, "");
     currentSolutionLevelText = currentSolution ? String(levelText || "") : "";
     currentPuzzleRef = puzzleRef || null;
+    clearVerifiedImport(true);
     if (currentSolution && currentPuzzleRef) {
       window.BoxxySolutionStore?.set?.(currentPuzzleRef.packId, currentPuzzleRef.levelIndex, currentSolution);
       const pack = existingPacks.find(item => item.id === currentPuzzleRef.packId);
@@ -2397,12 +2425,13 @@
   function clearAttachedSolution(clearReference = true) {
     currentSolution = "";
     currentSolutionLevelText = "";
+    clearVerifiedImport(true);
     if (clearReference) currentPuzzleRef = null;
     updateSolverControls();
   }
 
   function markBoardEdited() {
-    if (solutionMatchesCurrentBoard()) return;
+    if (solutionMatchesCurrentBoard() || importedSolutionMatchesCurrentBoard()) return;
     clearAttachedSolution(true);
   }
 
@@ -2438,10 +2467,10 @@
     if (solverProgress) solverProgress.removeAttribute("value");
     if (solverProgressLabel) solverProgressLabel.textContent = "Ready.";
     if (solverStats) solverStats.textContent = "";
-    if (solverOutput) solverOutput.value = solutionMatchesCurrentBoard() ? currentSolution : "";
-    setSolverStatus("Ready to solve the current editor puzzle.");
+    if (solverOutput) solverOutput.value = displayedVerifiedSolution();
+    setSolverStatus("Ready to solve the current editor puzzle or check an imported solution.");
     updateSolverControls();
-    solverStartBtn?.focus({ preventScroll: true });
+    (solverImportInput || solverStartBtn)?.focus({ preventScroll: true });
   }
 
   function closeSolverDialog() {
@@ -2469,6 +2498,78 @@
       return { valid: false, solved: false, route: "", moves: 0, pushes: 0, error: "BOXXY's independent route verifier did not load." };
     }
     return window.BoxxyRouteVerifier.verify(levelText, route);
+  }
+
+  function normaliseImportedRoute(value) {
+    return String(value || "")
+      .replace(/↑/g, "u")
+      .replace(/↓/g, "d")
+      .replace(/←/g, "l")
+      .replace(/→/g, "r");
+  }
+
+  function clearImportedSolution() {
+    clearVerifiedImport(true);
+    if (solverProgressWrap) solverProgressWrap.hidden = true;
+    if (solverStats) solverStats.textContent = "";
+    setSolverStatus("Import cleared. Paste a UDLR string and press Check Solution, or run the solver.");
+    updateSolverControls();
+    solverImportInput?.focus({ preventScroll: true });
+  }
+
+  function checkImportedSolution() {
+    if (solverRunning) return;
+    const validation = validate();
+    if (!validation.ok) {
+      clearVerifiedImport(false);
+      updateSolverControls();
+      setSolverStatus(validation.error, "error");
+      return;
+    }
+
+    const raw = normaliseImportedRoute(solverImportInput?.value || "");
+    if (!raw.trim()) {
+      clearVerifiedImport(false);
+      updateSolverControls();
+      setSolverStatus("Paste a UDLR solution string before checking it.", "error");
+      return;
+    }
+
+    const levelText = validation.rows.join("\n");
+    const verification = verifySolverRoute(levelText, raw);
+    if (!verification.valid) {
+      clearVerifiedImport(false);
+      if (solverOutput) solverOutput.value = displayedVerifiedSolution();
+      if (solverProgressWrap) solverProgressWrap.hidden = false;
+      if (solverProgress) solverProgress.value = 0;
+      if (solverProgressLabel) solverProgressLabel.textContent = "Imported route rejected.";
+      if (solverStats) solverStats.textContent = `${verification.moves.toLocaleString()} legal moves · ${verification.pushes.toLocaleString()} pushes`;
+      setSolverStatus(`The imported string cannot be applied: ${verification.error}`, "error");
+      updateSolverControls();
+      return;
+    }
+
+    if (!verification.solved) {
+      clearVerifiedImport(false);
+      if (solverOutput) solverOutput.value = verification.route;
+      if (solverProgressWrap) solverProgressWrap.hidden = false;
+      if (solverProgress) solverProgress.value = 0;
+      if (solverProgressLabel) solverProgressLabel.textContent = "Legal route, but puzzle not solved.";
+      if (solverStats) solverStats.textContent = `${verification.moves.toLocaleString()} moves · ${verification.pushes.toLocaleString()} pushes`;
+      setSolverStatus(`The string is legal, but it does not complete this puzzle. ${verification.error}`, "error");
+      updateSolverControls();
+      return;
+    }
+
+    verifiedImportSolution = verification.route;
+    verifiedImportLevelText = levelText;
+    if (solverOutput) solverOutput.value = verification.route;
+    if (solverProgressWrap) solverProgressWrap.hidden = false;
+    if (solverProgress) solverProgress.value = 100;
+    if (solverProgressLabel) solverProgressLabel.textContent = "Imported solution independently verified.";
+    if (solverStats) solverStats.textContent = `${verification.moves.toLocaleString()} moves · ${verification.pushes.toLocaleString()} pushes`;
+    setSolverStatus("The imported solution is valid and completes this puzzle. Press Apply Import to attach it.", "success");
+    updateSolverControls();
   }
 
   function prepareSolverDing() {
@@ -2579,11 +2680,13 @@
     if (solverProgressLabel) solverProgressLabel.textContent = "Loading Rust/WebAssembly engine…";
     if (solverStats) solverStats.textContent = "";
     if (solverStartBtn) solverStartBtn.disabled = true;
+    if (solverCheckBtn) solverCheckBtn.disabled = true;
+    if (solverClearImportBtn) solverClearImportBtn.disabled = true;
     if (solverCancelBtn) solverCancelBtn.hidden = false;
     setSolverStatus("Loading the external Rust/WebAssembly solver. An internet connection is required for the solver only.");
 
     try {
-      solverWorker = new Worker("solver-worker.js?v=130", { type: "module", name: "boxxy-rust-solver-v130" });
+      solverWorker = new Worker("solver-worker.js?v=131", { type: "module", name: "boxxy-rust-solver-v131" });
       solverWorker.onmessage = event => {
         const message = event.data || {};
         if (message.id !== id || id !== solverJobId || !solverRunning) return;
@@ -2634,9 +2737,10 @@
   }
 
   async function copySolverString() {
-    if (!solutionMatchesCurrentBoard()) return;
+    const route = displayedVerifiedSolution();
+    if (!route) return;
     try {
-      await navigator.clipboard.writeText(currentSolution);
+      await navigator.clipboard.writeText(route);
       setSolverStatus("Solution string copied to the clipboard.", "success");
     } catch (_) {
       solverOutput?.focus();
@@ -2647,10 +2751,15 @@
   }
 
   function applyCurrentSolution() {
-    if (!solutionMatchesCurrentBoard()) return;
-    setAttachedSolution(currentSolution, currentSolutionLevelText, currentPuzzleRef);
-    setSolverStatus("Solution attached. Test the puzzle, click the character five times, then press S.", "success");
-    setStatus("The solver route is attached to the current puzzle.", "success");
+    if (!importedSolutionMatchesCurrentBoard()) {
+      setSolverStatus("Check an imported solution successfully before applying it.", "error");
+      return;
+    }
+    const route = verifiedImportSolution;
+    const levelText = verifiedImportLevelText;
+    setAttachedSolution(route, levelText, currentPuzzleRef);
+    setSolverStatus("Imported solution attached. Test the puzzle, click the character five times, then press S.", "success");
+    setStatus(`A verified ${route.length}-move imported solve is attached to the current puzzle.`, "success");
   }
 
   function blankGrid(width, height, value = VOID) {
@@ -4207,6 +4316,20 @@
   solverCloseBtn?.addEventListener("click", closeSolverDialog);
   solverStartBtn?.addEventListener("click", startSolverSearch);
   solverCancelBtn?.addEventListener("click", cancelSolverSearch);
+  solverCheckBtn?.addEventListener("click", checkImportedSolution);
+  solverClearImportBtn?.addEventListener("click", clearImportedSolution);
+  solverImportInput?.addEventListener("input", () => {
+    const hadVerifiedImport = Boolean(verifiedImportSolution);
+    clearVerifiedImport(false);
+    if (hadVerifiedImport) setSolverStatus("The imported string changed. Check it again before applying.");
+    updateSolverControls();
+  });
+  solverImportInput?.addEventListener("keydown", event => {
+    if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+      event.preventDefault();
+      checkImportedSolution();
+    }
+  });
   solverCopyBtn?.addEventListener("click", copySolverString);
   solverApplyBtn?.addEventListener("click", applyCurrentSolution);
   solverModal?.addEventListener("click", event => {

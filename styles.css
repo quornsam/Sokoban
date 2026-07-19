@@ -802,7 +802,16 @@ body.maker-testing .level-picker{display:none!important}
 .maker-solver-progress-line span{text-align:right;font-variant-numeric:tabular-nums;color:#5e564c;font-weight:850}
 .maker-solver-progress p{margin:7px 0 0;color:#6a6258;font-size:8px;line-height:1.35;font-weight:750}
 .maker-solution-label{display:block;margin:15px 0 6px;font-size:9px;font-weight:1000;letter-spacing:.13em}
-.maker-solution-output{display:block;width:100%;height:150px;resize:vertical;padding:12px;border:2px solid var(--ink);background:#171719;color:#f4eee3;font:700 13px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;overflow-wrap:anywhere;white-space:pre-wrap}
+.maker-solution-import{margin:14px 0 0;padding:12px;border:2px solid var(--ink);background:#f7f0e5}
+.maker-solution-import-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:6px}
+.maker-solution-import-head .maker-solution-label{margin:0}
+.maker-solution-import-head span{font-size:8px;line-height:1.3;color:#6a6258;font-weight:800;text-align:right}
+.maker-solution-import-input{display:block;width:100%;height:92px;resize:vertical;padding:10px;border:2px solid var(--ink);background:#fffaf1;color:var(--ink);font:750 13px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;overflow-wrap:anywhere;white-space:pre-wrap}
+.maker-solution-import-actions{display:grid;grid-template-columns:1.4fr 1fr;gap:8px;margin-top:8px}
+.maker-solution-import-actions button{min-height:36px;padding:7px 10px;border:2px solid var(--ink);background:#f7f0e5;color:var(--ink);font-size:9px;font-weight:1000;letter-spacing:.04em}
+.maker-solution-import-actions button:first-child{background:var(--blue);color:#fff}
+.maker-solution-import-actions button:disabled{opacity:.42;cursor:not-allowed}
+.maker-solution-output{display:block;width:100%;height:120px;resize:vertical;padding:12px;border:2px solid var(--ink);background:#171719;color:#f4eee3;font:700 13px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;overflow-wrap:anywhere;white-space:pre-wrap}
 .maker-solver-status{min-height:38px;margin:10px 0;padding:9px 11px;border-left:7px solid var(--yellow);background:#eee5d8;color:#4f483f;font-size:10px;line-height:1.4;font-weight:850}
 .maker-solver-status.success{border-left-color:#3f7d55}
 .maker-solver-status.error{border-left-color:var(--red)}
@@ -815,14 +824,17 @@ body.maker-testing .level-picker{display:none!important}
   .maker-main-actions .maker-test{grid-column:1/-1}
   .maker-solver-card{padding:15px}
   .maker-solver-actions{grid-template-columns:1fr 1fr}
-  .maker-solution-output{height:130px}
+  .maker-solution-import-head{display:block}
+  .maker-solution-import-head span{display:block;margin-top:5px;text-align:left}
+  .maker-solution-import-actions{grid-template-columns:1fr}
+  .maker-solution-output{height:105px}
 }
 
-/* v130 inherited level-maker additions */
+/* v131 inherited level-maker additions */
 @media(max-width:1120px){.maker-generator-options{grid-template-columns:1fr 1fr}.maker-generator-options .maker-check-option:last-child{grid-column:1/-1}}
 @media(max-width:560px){.complete-actions{display:grid;grid-template-columns:1fr}.complete-secondary,.complete-primary{width:100%;min-width:0}}
 
-/* BOXXY v130 — Level Pack Builder and private Daily Puzzle queue. */
+/* BOXXY v131 — Level Pack Builder, Daily Puzzle queue and solution import. */
 .maker-pack-builder-launch{display:grid;grid-template-columns:minmax(0,1fr);gap:4px;margin-top:7px;padding-top:7px;border-top:1px solid #b6aa98}
 .maker-pack-builder-launch button{min-height:34px;padding:0 10px;border:2px solid var(--ink);background:var(--yellow);display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:9px;font-weight:1000;letter-spacing:.075em;box-shadow:3px 3px 0 var(--ink)}
 .maker-pack-builder-launch button:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
