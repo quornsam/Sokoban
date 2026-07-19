@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#efe5d4">
 <title>BOXXY — Pushbox Puzzle</title>
-<link rel="stylesheet" href="styles.css?v=129">
+<link rel="stylesheet" href="styles.css?v=130">
 <link rel="preload" as="image" href="assets/board/board-atlas.png">
 <link rel="preload" as="image" href="assets/characters/boy/base.png">
 <link rel="preload" as="image" href="assets/characters/girl/base.png">
@@ -243,6 +243,10 @@
             <button id="makerLoadBtn" type="button">LOAD</button>
             <button id="makerDeleteBtn" type="button">DELETE</button>
           </div>
+          <div class="maker-pack-builder-launch">
+            <button id="makerPackBuilderBtn" type="button"><span>LEVEL PACK BUILDER</span><b aria-hidden="true">→</b></button>
+            <small>Arrange saved puzzles into packs or the private Daily Puzzle queue.</small>
+          </div>
         </section>
 
         <section class="maker-panel maker-paste-panel">
@@ -266,6 +270,113 @@
         </div>
       </aside>
     </div>
+  </section>
+</div>
+
+
+<div id="makerPackBuilderModal" class="modal maker-pack-builder-modal" hidden>
+  <section class="maker-pack-builder-card" role="dialog" aria-modal="true" aria-labelledby="makerPackBuilderTitle">
+    <header class="maker-pack-builder-head">
+      <div>
+        <span class="complete-kicker">LEVEL MAKER</span>
+        <h2 id="makerPackBuilderTitle">PACK BUILDER</h2>
+        <p>Drag saved puzzles into a level pack or into the private Daily Puzzle schedule. Every card shows the puzzle's starting position.</p>
+      </div>
+      <button id="makerPackBuilderCloseBtn" class="maker-close" type="button" aria-label="Close pack builder">×</button>
+    </header>
+
+    <div class="pack-builder-command-row">
+      <div class="pack-builder-draft-controls">
+        <label>DRAFT PACK
+          <select id="packDraftSelect" aria-label="Saved pack drafts"></select>
+        </label>
+        <button id="packNewDraftBtn" type="button">NEW PACK</button>
+        <button id="packSaveDraftBtn" type="button">SAVE DRAFT</button>
+        <button id="packDeleteDraftBtn" type="button">DELETE</button>
+      </div>
+      <div class="pack-builder-tabs" role="tablist" aria-label="Pack builder sections">
+        <button id="packBuilderPackTab" type="button" role="tab" aria-selected="true" data-pack-builder-tab="pack">LEVEL PACK</button>
+        <button id="packBuilderDailyTab" type="button" role="tab" aria-selected="false" data-pack-builder-tab="daily">DAILY PUZZLE</button>
+      </div>
+    </div>
+
+    <p id="packBuilderStatus" class="pack-builder-status" aria-live="polite">Saved levels can be dragged from the library into either grid.</p>
+
+    <section class="pack-builder-library" aria-labelledby="packBuilderLibraryTitle">
+      <header>
+        <div>
+          <h3 id="packBuilderLibraryTitle">SAVED LEVEL LIBRARY</h3>
+          <span id="packLibraryCount"></span>
+        </div>
+        <input id="packLibrarySearch" type="search" placeholder="Filter saved levels" aria-label="Filter saved levels">
+      </header>
+      <div id="packLibraryGrid" class="pack-level-grid pack-library-grid" aria-label="Saved levels available to add"></div>
+    </section>
+
+    <section id="packBuilderPackWorkspace" class="pack-builder-workspace" aria-labelledby="packBuilderPackHeading">
+      <header class="pack-workspace-heading">
+        <div>
+          <h3 id="packBuilderPackHeading">LEVEL PACK ORDER</h3>
+          <span id="packLevelCount">0 LEVELS</span>
+        </div>
+        <p>Drag cards to reorder them. The numbered order is the published order.</p>
+      </header>
+
+      <div class="pack-metadata-grid">
+        <label>PACK TITLE<input id="packTitleInput" type="text" maxlength="64" placeholder="Untitled Pack"></label>
+        <label>AUTHOR<input id="packAuthorInput" type="text" maxlength="64" placeholder="Author name"></label>
+        <label>ACCENT
+          <select id="packAccentSelect">
+            <option value="black">BLACK</option>
+            <option value="red">RED</option>
+            <option value="blue">BLUE</option>
+            <option value="yellow">YELLOW</option>
+          </select>
+        </label>
+        <label>PUBLISH / EXPORT AS
+          <select id="packDestinationSelect">
+            <option value="boxxy-public">BOXXY PACK SCRIPT · /level-packs/</option>
+            <option value="boxxy-private">PRIVATE DRAFT ARCHIVE · /draft-packs/</option>
+            <option value="xsb">STANDARD XSB COLLECTION</option>
+          </select>
+        </label>
+        <label class="pack-description-field">DESCRIPTION<textarea id="packDescriptionInput" maxlength="240" placeholder="A short description of the collection"></textarea></label>
+      </div>
+
+      <div class="pack-publish-path"><b>SUGGESTED DESTINATION</b><code id="packPublishPath">level-packs/untitled-pack.js</code><small>The builder creates the file; it does not commit to GitHub or expose the pack in the game automatically.</small></div>
+
+      <div id="packOrderGrid" class="pack-level-grid pack-order-grid pack-drop-zone" data-pack-drop-target="pack" aria-label="Ordered level pack"></div>
+
+      <div class="pack-workspace-actions">
+        <button id="packClearBtn" type="button">CLEAR PACK</button>
+        <button id="packCopyBtn" type="button">COPY PACK DATA</button>
+        <button id="packExportBtn" class="pack-primary-action" type="button">BUILD PUBLISH FILE</button>
+      </div>
+    </section>
+
+    <section id="packBuilderDailyWorkspace" class="pack-builder-workspace daily-workspace" aria-labelledby="packBuilderDailyHeading" hidden>
+      <header class="pack-workspace-heading">
+        <div>
+          <h3 id="packBuilderDailyHeading">BOXXY DAILY PUZZLE</h3>
+          <span id="dailyPuzzleCount">0 DAYS</span>
+        </div>
+        <p>This schedule remains private. Nothing is added to the front end in this release.</p>
+      </header>
+
+      <div class="daily-settings">
+        <label>FIRST PUZZLE DATE<input id="dailyStartDate" type="date"></label>
+        <div><b>PUBLISH TIME</b><strong>00:00 LOCAL TIME</strong><small id="dailyTimezoneLabel"></small></div>
+        <div class="daily-path"><b>FUTURE DESTINATION</b><code>daily-puzzles/boxxy-daily-puzzles.json</code></div>
+      </div>
+
+      <div id="dailyOrderGrid" class="pack-level-grid pack-order-grid pack-drop-zone daily-order-grid" data-pack-drop-target="daily" aria-label="Daily Puzzle schedule"></div>
+
+      <div class="pack-workspace-actions">
+        <button id="dailyClearBtn" type="button">CLEAR QUEUE</button>
+        <button id="dailyCopyBtn" type="button">COPY SCHEDULE</button>
+        <button id="dailyExportBtn" class="pack-primary-action" type="button">EXPORT DAILY SCHEDULE</button>
+      </div>
+    </section>
   </section>
 </div>
 
@@ -306,8 +417,9 @@
 <button id="autoSolveBtn" type="button" hidden tabindex="-1" aria-hidden="true">PLAY SOLUTION</button>
 <audio id="bgMusic" src="assets/audio/cracked-ivory-drift.mp3" preload="auto" autoplay loop playsinline></audio>
 
-<script src="data.js?v=129"></script>
-<script src="solver-route-verifier.js?v=129"></script>
-<script src="boxxy.js?v=129"></script>
+<script src="data.js?v=130"></script>
+<script src="solver-route-verifier.js?v=130"></script>
+<script src="boxxy.js?v=130"></script>
+<script src="pack-builder.js?v=130"></script>
 </body>
 </html>

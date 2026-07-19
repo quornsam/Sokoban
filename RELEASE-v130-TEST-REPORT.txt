@@ -1,0 +1,52 @@
+BOXXY v130 RELEASE TEST REPORT
+==============================
+
+STATIC CHECKS
+-------------
+- index.html parsed without structural errors.
+- boxxy.js passed Node JavaScript syntax checking.
+- data.js passed Node JavaScript syntax checking.
+- pack-builder.js passed Node JavaScript syntax checking.
+- solver-worker.js and solver-route-verifier.js passed syntax checking.
+- Active page cache tags and the solver-worker URL use v130.
+
+PACK BUILDER BROWSER CHECKS
+---------------------------
+The Pack Builder was exercised in Chromium with eight representative locally
+saved Sokoban levels.
+
+Verified:
+- the modal opens from the Level Maker;
+- all eight saved levels appear alphabetically with rendered starting boards;
+- a wide 1600-pixel viewport displays six level columns;
+- a saved level can be added to a pack by its button;
+- a saved level can be added by HTML drag and drop;
+- ordered cards can be rearranged by drag and drop;
+- arrow controls also rearrange cards;
+- ordered pack data is persisted in local storage;
+- pack titles update the suggested repository path;
+- the BOXXY pack export contains a BOXXY_LEVEL_PACKS registration script;
+- duplicate additions are rejected;
+- the Daily Puzzle tab remains separate from the level-pack draft;
+- daily cards receive consecutive dates and 00:00 local publication times;
+- the Daily JSON export identifies itself as boxxy-daily-puzzle-schedule;
+- the Daily export records frontEndEnabled as false;
+- Daily and pack workspaces render without horizontal overflow at desktop size.
+
+The browser harness embedded the page scripts and used a local-storage test
+double because direct local HTTP/file navigation is blocked in the packaging
+environment. Asset-loading errors caused by that isolated harness were excluded;
+the shipped asset paths are unchanged from v129.
+
+DATA SAFETY
+-----------
+- Pack cards store snapshots rather than mutable references to saved levels.
+- Removing a card never deletes the original Level Maker save.
+- CLEAR PACK, CLEAR QUEUE and draft deletion require a second confirmation.
+- Pack and Daily storage writes report local-storage quota failures.
+
+UNCHANGED AREAS
+---------------
+Gameplay, existing puzzle packs, character assets, sound assets, maze generation,
+manual test solving and the external Rust/WASM solver loader are inherited from
+v129 except for the v130 cache identifiers.
