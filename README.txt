@@ -1,7 +1,7 @@
-BOXXY — Pushbox Puzzle v132
+BOXXY — Pushbox Puzzle v133
 ================================
 
-Upload the contents of this BOXXY_v132 folder to the root of the GitHub
+Upload the contents of this BOXXY_v133 folder to the root of the GitHub
 repository used by GitHub Pages.
 
 IMPORTED SOLUTION STRINGS
@@ -63,7 +63,7 @@ calendar day and a publication time of 00:00 in the browser's local IANA time
 zone. The exported JSON records both the local date/time and its corresponding
 UTC instant, including daylight-saving changes.
 
-The Daily Puzzle schedule is not read by the public game in v132. Exported data
+The Daily Puzzle schedule is not read by the public game in v133. Exported data
 has frontEndEnabled set to false and a suggested future destination of:
 
 daily-puzzles/boxxy-daily-puzzles.json
@@ -120,18 +120,21 @@ solver-worker.js
 solver-route-verifier.js
 assets/
 CREDITS-AND-LICENCES.txt
-RELEASE-v132-TEST-REPORT.txt
+RELEASE-v133-TEST-REPORT.txt
 
 VERSION
 -------
-All active script cache tags and solver-worker references are v132.
-The ZIP unpacks into the BOXXY_v132 folder.
+All active script cache tags and solver-worker references are v133.
+The ZIP unpacks into the BOXXY_v133 folder.
 
 
-BOXXY v132
+BOXXY v133
 ----------
 - The solver progress bar now becomes determinate and complete whenever loading/searching stops, including failure and cancellation.
 - The Level Maker can create a compact private puzzle link with COPY SHARE LINK.
 - Shared links use #p=<URL-safe-code>, so they work on static GitHub Pages without server routing.
 - A shared link opens only the custom puzzle game view: level packs, level selection and Level Maker access are hidden.
 - The link contains the puzzle starting position and title. It is unlisted rather than encrypted: anyone possessing the URL can play it.
+
+
+v133: Added the Level Maker SYMMETRY generator option. It mirrors wall structure across a randomly selected vertical, horizontal or rotational axis; object and player placement may be slightly asymmetric for playable Sokoban layouts.

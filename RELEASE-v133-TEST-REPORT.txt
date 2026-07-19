@@ -1,0 +1,16 @@
+BOXXY v133 TEST REPORT
+=======================
+
+Change: Level Maker SYMMETRY generation option.
+
+Checks completed:
+- JavaScript syntax checked with Node.js.
+- New option exists in the Generate New Level panel.
+- Symmetry can be combined with TESTED, SQUARE and MAZE.
+- Board walls are generated with a randomly chosen vertical, horizontal or 180-degree rotational symmetry.
+- Unchecked generation attempts symmetrical box and goal pairs first, with a safe fallback where the requested count or board geometry makes exact pairing impractical.
+- Player position is intentionally allowed to be off-axis.
+- TESTED generation preserves symmetric terrain while allowing reverse-built boxes/goals to vary for solvability.
+- Version and browser cache identifiers updated to v133.
+
+Note: symmetry describes the generated board structure. Sokoban pieces may be slightly asymmetric, as requested.

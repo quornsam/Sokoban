@@ -28,7 +28,7 @@
   });
 })();
 
-/* BOXXY v132 — compact, URL-safe custom puzzle links. */
+/* BOXXY v133 — compact, URL-safe custom puzzle links. */
 (() => {
   "use strict";
 
@@ -108,7 +108,7 @@
   window.BoxxyShareCodec = Object.freeze({ encode, decode, readLocation, buildUrl });
 })();
 
-/* BOXXY v132 — character renderer, game engine, level maker and Rust/WASM solver adapter. */
+/* BOXXY v133 — character renderer, game engine, level maker and Rust/WASM solver adapter. */
 (() => {
   "use strict";
 
@@ -2359,6 +2359,7 @@
   const testedInput = document.getElementById("makerTested");
   const squareInput = document.getElementById("makerSquare");
   const mazeInput = document.getElementById("makerMaze");
+  const symmetryInput = document.getElementById("makerSymmetry");
   const generateBtn = document.getElementById("makerGenerateBtn");
   const resizeBtn = document.getElementById("makerResizeBtn");
   const roomBtn = document.getElementById("makerRoomBtn");
@@ -2820,7 +2821,7 @@
     setSolverStatus("Loading the external Rust/WebAssembly solver. An internet connection is required for the solver only.");
 
     try {
-      solverWorker = new Worker("solver-worker.js?v=132", { type: "module", name: "boxxy-rust-solver-v132" });
+      solverWorker = new Worker("solver-worker.js?v=133", { type: "module", name: "boxxy-rust-solver-v133" });
       solverWorker.onmessage = event => {
         const message = event.data || {};
         if (message.id !== id || id !== solverJobId || !solverRunning) return;
@@ -3834,18 +3835,117 @@
     return generated;
   }
 
-  function generateUnchecked(width, height, boxCount, square, maze = false) {
+
+  function symmetryPartner(index, width, height, mode) {
+    const [x, y] = localCoords(index, width);
+    if (mode === "vertical") return localIndex(width - 1 - x, y, width);
+    if (mode === "horizontal") return localIndex(x, height - 1 - y, width);
+    return localIndex(width - 1 - x, height - 1 - y, width);
+  }
+
+  function symmetricFeature(indices, width, height, mode) {
+    const result = new Set();
+    for (const index of indices) {
+      result.add(index);
+      result.add(symmetryPartner(index, width, height, mode));
+    }
+    return [...result];
+  }
+
+  function buildSymmetricTerrain(width, height, boxCount, maze = false) {
+    const modes = ["vertical", "horizontal", "rotational"];
+    if (width % 2 === 0) modes.push("vertical");
+    if (height % 2 === 0) modes.push("horizontal");
+    const mode = randomItem(modes);
+    const terrain = makeBaseTerrain(width, height, true);
+    const interiorArea = Math.max(1, (width - 2) * (height - 2));
+    const targetWalls = Math.floor(interiorArea * (maze ? 0.31 : 0.19));
+    const maximumAttempts = maze ? 360 : 220;
+
+    for (let attempt = 0; attempt < maximumAttempts; attempt++) {
+      const currentWalls = terrain.reduce((count, cell, index) => {
+        const [x, y] = localCoords(index, width);
+        return count + (cell === "#" && x > 0 && y > 0 && x < width - 1 && y < height - 1 ? 1 : 0);
+      }, 0);
+      if (currentWalls >= targetWalls) break;
+
+      let feature = [];
+      if (maze || Math.random() < 0.68) {
+        const vertical = Math.random() < 0.5;
+        const maxLength = vertical ? Math.min(6, height - 3) : Math.min(6, width - 3);
+        const length = randomInt(1, Math.max(1, maxLength));
+        const x = randomInt(1, width - 2);
+        const y = randomInt(1, height - 2);
+        for (let offset = 0; offset < length; offset++) {
+          const fx = vertical ? x : x + offset;
+          const fy = vertical ? y + offset : y;
+          if (fx > 0 && fy > 0 && fx < width - 1 && fy < height - 1) feature.push(localIndex(fx, fy, width));
+        }
+      } else {
+        const motif = transformMotif(randomItem(WALL_MOTIFS));
+        const motifWidth = Math.max(...motif.map(([x]) => x)) + 1;
+        const motifHeight = Math.max(...motif.map(([, y]) => y)) + 1;
+        if (motifWidth > width - 2 || motifHeight > height - 2) continue;
+        const originX = randomInt(1, width - 1 - motifWidth);
+        const originY = randomInt(1, height - 1 - motifHeight);
+        feature = motif.map(([x, y]) => localIndex(originX + x, originY + y, width));
+      }
+
+      feature = symmetricFeature(feature, width, height, mode)
+        .filter(index => {
+          const [x, y] = localCoords(index, width);
+          return x > 0 && y > 0 && x < width - 1 && y < height - 1;
+        });
+      if (feature.length) tryWallFeature(terrain, width, height, feature, boxCount);
+    }
+
+    if (maze) breakLargeOpenAreas(terrain, width, height, boxCount);
+    terrain.symmetryMode = mode;
+    return terrain;
+  }
+
+  function chooseSymmetricPositions(candidates, count, width, height, mode, excluded = new Set()) {
+    const available = new Set(candidates.filter(index => !excluded.has(index)));
+    const chosen = [];
+    if (count % 2 === 1) {
+      const centres = [...available].filter(index => symmetryPartner(index, width, height, mode) === index);
+      const centre = centres.length ? randomItem(centres) : randomItem([...available]);
+      if (centre === undefined) return null;
+      chosen.push(centre);
+      available.delete(centre);
+      available.delete(symmetryPartner(centre, width, height, mode));
+    }
+    const pairs = shuffled([...available]).filter(index => {
+      const partner = symmetryPartner(index, width, height, mode);
+      return index < partner && available.has(partner);
+    });
+    for (const index of pairs) {
+      if (chosen.length >= count) break;
+      const partner = symmetryPartner(index, width, height, mode);
+      chosen.push(index, partner);
+      available.delete(index);
+      available.delete(partner);
+    }
+    return chosen.length === count ? chosen : null;
+  }
+
+  function generateUnchecked(width, height, boxCount, square, maze = false, symmetry = false) {
     for (let attempt = 0; attempt < 80; attempt++) {
-      const terrain = maze
-        ? buildMazeTerrain(width, height, boxCount)
-        : buildTerrain(width, height, square, boxCount);
+      const terrain = symmetry
+        ? buildSymmetricTerrain(width, height, boxCount, maze)
+        : (maze ? buildMazeTerrain(width, height, boxCount) : buildTerrain(width, height, square, boxCount));
       const floors = terrain.map((value, index) => value === " " ? index : -1).filter(index => index >= 0);
       if (floors.length < boxCount * 3 + 2) continue;
-      const goals = chooseGoalPositions(floors, boxCount, terrain, width, height);
+      const symmetryMode = symmetry ? terrain.symmetryMode : null;
+      const goals = symmetryMode
+        ? (chooseSymmetricPositions(floors, boxCount, width, height, symmetryMode) || chooseGoalPositions(floors, boxCount, terrain, width, height))
+        : chooseGoalPositions(floors, boxCount, terrain, width, height);
       if (!goals) continue;
       const goalSet = new Set(goals);
       const boxCandidates = floors.filter(index => !goalSet.has(index) && !isStaticCorner(terrain, width, height, index));
-      const boxes = chooseSpaced(boxCandidates, boxCount, width, 2);
+      const boxes = symmetryMode
+        ? (chooseSymmetricPositions(boxCandidates, boxCount, width, height, symmetryMode, goalSet) || chooseSpaced(boxCandidates, boxCount, width, 2))
+        : chooseSpaced(boxCandidates, boxCount, width, 2);
       if (!boxes) continue;
       const used = new Set([...goals, ...boxes]);
       const playerCandidates = floors.filter(index => !used.has(index));
@@ -3858,7 +3958,9 @@
         cells: composeGeneratedCells(terrain, goals, boxes, player),
         tested: false,
         square,
-        maze
+        maze,
+        symmetry,
+        symmetryMode
       };
     }
     return null;
@@ -3995,16 +4097,18 @@
     };
   }
 
-  async function generateChecked(width, height, boxCount, square, maze = false) {
-    const maximumAttempts = maze ? 260 : 180;
+  async function generateChecked(width, height, boxCount, square, maze = false, symmetry = false) {
+    const maximumAttempts = (maze || symmetry) ? 300 : 180;
     for (let attempt = 1; attempt <= maximumAttempts; attempt++) {
-      const terrain = maze
-        ? buildMazeTerrain(width, height, boxCount)
-        : buildTerrain(width, height, square, boxCount);
+      const terrain = symmetry
+        ? buildSymmetricTerrain(width, height, boxCount, maze)
+        : (maze ? buildMazeTerrain(width, height, boxCount) : buildTerrain(width, height, square, boxCount));
       const generated = reverseBuildTested(terrain, width, height, boxCount);
       if (generated) {
         generated.square = square;
         generated.maze = maze;
+        generated.symmetry = symmetry;
+        generated.symmetryMode = symmetry ? terrain.symmetryMode : null;
         return generated;
       }
       if (attempt % 10 === 0) {
@@ -4034,11 +4138,12 @@
     const square = Boolean(squareInput.checked);
     const tested = Boolean(testedInput.checked);
     const maze = Boolean(mazeInput?.checked);
+    const symmetry = Boolean(symmetryInput?.checked);
     widthInput.value = String(width);
     heightInput.value = String(height);
     boxesInput.value = String(boxCount);
 
-    const approximateFloor = Math.max(1, Math.floor((width - 2) * (height - 2) * (maze ? 0.62 : 1)));
+    const approximateFloor = Math.max(1, Math.floor((width - 2) * (height - 2) * ((maze || symmetry) ? 0.62 : 1)));
     const sensibleMaximum = Math.min(MAX_GENERATOR_BOXES, Math.max(1, Math.floor((approximateFloor - 1) / 3)));
     if (boxCount > sensibleMaximum) {
       setStatus(`That size has too little working space for ${boxCount} boxes. Try ${sensibleMaximum} or fewer.`, "error");
@@ -4049,26 +4154,27 @@
     generateBtn.setAttribute("aria-busy", "true");
     const originalLabel = generateBtn.textContent;
     generateBtn.textContent = tested ? "GENERATING + CHECKING…" : "GENERATING…";
+    const generatorDescription = `${symmetry ? "symmetrical " : ""}${maze ? "maze" : "level"}`;
     setStatus(tested
-      ? `Generating a ${maze ? "complex maze" : "level"} and checking its solution path…`
-      : `Generating a new ${maze ? "complex maze" : "level"}…`);
+      ? `Generating a ${generatorDescription} and checking its solution path…`
+      : `Generating a new ${generatorDescription}…`);
     await waitForPaint();
 
     try {
       const generated = tested
-        ? await generateChecked(width, height, boxCount, square, maze)
-        : generateUnchecked(width, height, boxCount, square, maze);
+        ? await generateChecked(width, height, boxCount, square, maze, symmetry)
+        : generateUnchecked(width, height, boxCount, square, maze, symmetry);
       if (!generated) {
         setStatus(tested
-          ? `A checked ${maze ? "maze" : "level"} could not be built with those settings. Try fewer boxes or a larger grid.`
-          : `A ${maze ? "maze" : "level"} could not be built with those settings. Try fewer boxes or a larger grid.`, "error");
+          ? `A checked ${generatorDescription} could not be built with those settings. Try fewer boxes or a larger grid.`
+          : `A ${generatorDescription} could not be built with those settings. Try fewer boxes or a larger grid.`, "error");
         return;
       }
       applyGeneratedLevel(generated);
       if (tested) {
-        setStatus(`Generated and checked ${maze ? "maze" : "level"}: ${boxCount} ${boxCount === 1 ? "box" : "boxes"}, verified ${generated.solutionPushes}-push path across ${generated.solutionLines} box lines.`, "success");
+        setStatus(`Generated and checked ${generatorDescription}: ${boxCount} ${boxCount === 1 ? "box" : "boxes"}, verified ${generated.solutionPushes}-push path across ${generated.solutionLines} box lines.`, "success");
       } else {
-        setStatus(`Generated ${boxCount}-box ${maze ? "maze" : "level"} without a completion check.`, "success");
+        setStatus(`Generated ${boxCount}-box ${generatorDescription} without a completion check.`, "success");
       }
     } catch (error) {
       setStatus(error?.message || "The level generator stopped unexpectedly.", "error");
