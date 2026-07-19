@@ -1,3 +1,8 @@
+/*
+ * BOXXY — Pushbox Puzzle
+ * Copyright © 2026 Sam Cornwell. All rights reserved.
+ * Personal non-commercial use only. See LICENSE.md.
+ */
 /* Stored solver routes are kept separate from the authored pack data. */
 (() => {
   "use strict";
@@ -28,7 +33,7 @@
   });
 })();
 
-/* BOXXY v134 — compact, URL-safe custom puzzle links. */
+/* BOXXY v135 — compact, URL-safe custom puzzle links. */
 (() => {
   "use strict";
 
@@ -108,7 +113,7 @@
   window.BoxxyShareCodec = Object.freeze({ encode, decode, readLocation, buildUrl });
 })();
 
-/* BOXXY v134 — character renderer, game engine, level maker and Rust/WASM solver adapter. */
+/* BOXXY v135 — character renderer, game engine, level maker and Rust/WASM solver adapter. */
 (() => {
   "use strict";
 
@@ -650,6 +655,7 @@
   const app = document.querySelector(".app");
   const fullscreenBtn = document.getElementById("fullscreenBtn");
   const autoSolveBtn = document.getElementById("autoSolveBtn");
+  const cancelGuidedBtn = document.getElementById("cancelGuidedBtn");
   const instruction = document.querySelector(".instruction");
   const thoughtText = document.getElementById("thoughtText");
   const splashScreen = document.getElementById("splashScreen");
@@ -694,6 +700,7 @@
   let audioCtx = null;
   let autoplayRunning = false;
   let autoplayTimer = null;
+  let guidedSolveUsed = false;
   let easterClickCount = 0;
   let easterArmed = false;
   let easterResetTimer = null;
@@ -1626,6 +1633,7 @@
     const requestedIndex = (index + LEVELS.length) % LEVELS.length;
     if (!preserveAutoplay && requestedIndex > highestUnlockedLevel) return;
     if (!preserveAutoplay) stopAutoplay();
+    guidedSolveUsed = false;
     resetEasterEgg();
     blockedPushHeld = false;
     clearTimeout(animTimer);
@@ -1691,6 +1699,7 @@
       const cleanRows = layoutRows.map(row => String(row));
       const parsed = parseLayout(cleanRows);
       stopAutoplay();
+      guidedSolveUsed = false;
       closeLevelPicker();
       resetEasterEgg();
       blockedPushHeld = false;
@@ -1891,7 +1900,7 @@
       if (nextBtnLabel) nextBtnLabel.textContent = "PLAY AGAIN";
       if (nextBtnIcon) nextBtnIcon.textContent = "↻";
     } else if (makerTesting) {
-      const solvedWithGuidedRoute = autoplayRunning;
+      const solvedWithGuidedRoute = autoplayRunning || guidedSolveUsed;
       const capturedRoute = String(playedRoute || "").replace(/[^UDLR]/gi, "").toUpperCase();
       const previousRoute = String(makerSolution || "").replace(/[^UDLR]/gi, "").toUpperCase();
       const moveText = `${moves} ${moves === 1 ? "move" : "moves"}`;
@@ -1922,7 +1931,7 @@
       if (nextBtnLabel) nextBtnLabel.textContent = "BACK TO MAKER";
       if (nextBtnIcon) nextBtnIcon.textContent = "←";
     } else {
-      const solvedWithWalkthrough = autoplayRunning;
+      const solvedWithWalkthrough = autoplayRunning || guidedSolveUsed;
       const learnedRoute = !solvedWithWalkthrough && !String(levelData?.solution || "").trim()
         ? String(playedRoute || "").replace(/[^UDLR]/gi, "").toUpperCase()
         : "";
@@ -2053,6 +2062,16 @@
     autoplayTimer = null;
     autoplayRunning = false;
     document.body.classList.remove("autoplaying");
+    if (cancelGuidedBtn) cancelGuidedBtn.hidden = true;
+  }
+
+  function cancelGuidedSolve() {
+    if (!autoplayRunning) return;
+    stopAutoplay();
+    render("idle");
+    scheduleIdle();
+    if (thoughtText) thoughtText.textContent = "Guided solve stopped. Continue from here or restart the puzzle.";
+    board?.focus?.({ preventScroll: true });
   }
 
   function startAutoplay() {
@@ -2076,7 +2095,9 @@
       loadLevel(levelIndex, true, true);
     }
     autoplayRunning = true;
+    guidedSolveUsed = true;
     document.body.classList.add("autoplaying");
+    if (cancelGuidedBtn) cancelGuidedBtn.hidden = false;
     render("idle");
     let step = 0;
 
@@ -2109,6 +2130,11 @@
   document.addEventListener("keydown", event => {
     if (levelMakerModal && !levelMakerModal.hidden) return;
     if (window.CharacterStyler?.isOpen) return;
+    if (autoplayRunning && event.key === "Escape") {
+      event.preventDefault();
+      cancelGuidedSolve();
+      return;
+    }
     if (checkKonamiCode(event.key)) {
       event.preventDefault();
       return;
@@ -2172,6 +2198,7 @@
 
   window.addEventListener("characterstylechange", () => render(currentAnimation));
   autoSolveBtn.addEventListener("click", startAutoplay);
+  cancelGuidedBtn?.addEventListener("click", cancelGuidedSolve);
   fullscreenBtn?.addEventListener("click", toggleFullscreen);
   document.addEventListener("fullscreenchange", () => { updateFullscreenButton(); scheduleBoardResize(); });
   document.addEventListener("webkitfullscreenchange", () => { updateFullscreenButton(); scheduleBoardResize(); });
@@ -2821,7 +2848,7 @@
     setSolverStatus("Loading the external Rust/WebAssembly solver. An internet connection is required for the solver only.");
 
     try {
-      solverWorker = new Worker("solver-worker.js?v=134", { type: "module", name: "boxxy-rust-solver-v134" });
+      solverWorker = new Worker("solver-worker.js?v=135", { type: "module", name: "boxxy-rust-solver-v135" });
       solverWorker.onmessage = event => {
         const message = event.data || {};
         if (message.id !== id || id !== solverJobId || !solverRunning) return;

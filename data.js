@@ -1,4 +1,10 @@
-/* BOXXY v134 — level data and puzzle-pack metadata. */
+/*
+ * BOXXY — Pushbox Puzzle: pack data and metadata
+ * Copyright © 2026 Sam Cornwell for BOXXY's original compilation and metadata.
+ * Third-party puzzle layouts remain the property of their respective creators.
+ * See LICENSE.md and THIRD-PARTY-NOTICES.md.
+ */
+/* BOXXY v135 — level data and puzzle-pack metadata. */
 window.SOKOBAN_LEVELS = [
   {
     "rank": 1,

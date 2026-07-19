@@ -1,4 +1,9 @@
-/* BOXXY v134 — private level-pack and Daily Puzzle builder. */
+/*
+ * BOXXY — Pushbox Puzzle: Level Pack Builder
+ * Copyright © 2026 Sam Cornwell. All rights reserved.
+ * Personal non-commercial use only. See LICENSE.md.
+ */
+/* BOXXY v135 — private level-pack and Daily Puzzle builder. */
 (() => {
   "use strict";
 
@@ -55,6 +60,8 @@
   let dailyDraft = null;
   let activeTab = "pack";
   let dragPayload = null;
+  let dropPlaceholder = null;
+  let activeDropLocation = null;
   let autosaveTimer = 0;
   let pendingDeleteDraft = false;
   let pendingPackClear = false;
@@ -510,7 +517,9 @@
     title.textContent = record.name;
     const meta = document.createElement("span");
     const boxes = countBoxes(record.layout);
-    meta.textContent = `${Math.max(1, ...record.layout.map(row => row.length))}×${record.layout.length} · ${boxes} ${boxes === 1 ? "BOX" : "BOXES"}${cleanSolution(record.solution) ? " · SOLVE" : ""}`;
+    const hasSolution = Boolean(cleanSolution(record.solution));
+    meta.className = `pack-level-meta ${hasSolution ? "is-solved" : "is-unsolved"}`;
+    meta.textContent = `${Math.max(1, ...record.layout.map(row => row.length))}×${record.layout.length} · ${boxes} ${boxes === 1 ? "BOX" : "BOXES"} · ${hasSolution ? "SOLVED" : "UNSOLVED"}`;
     const add = document.createElement("button");
     add.type = "button";
     add.className = "pack-card-add";
@@ -558,9 +567,11 @@
     const title = document.createElement("strong");
     title.textContent = entry.name;
     const meta = document.createElement("span");
+    const hasSolution = Boolean(cleanSolution(entry.solution));
+    meta.className = `pack-level-meta ${hasSolution ? "is-solved" : "is-unsolved"}`;
     meta.textContent = target === "daily"
-      ? `00:00 · ${dailyDraft.timezone}`
-      : `${entry.cols}×${entry.rows} · ${entry.boxes} ${entry.boxes === 1 ? "BOX" : "BOXES"}${entry.solution ? " · SOLVE" : ""}`;
+      ? `00:00 · ${dailyDraft.timezone} · ${hasSolution ? "SOLVED" : "UNSOLVED"}`
+      : `${entry.cols}×${entry.rows} · ${entry.boxes} ${entry.boxes === 1 ? "BOX" : "BOXES"} · ${hasSolution ? "SOLVED" : "UNSOLVED"}`;
 
     const actions = document.createElement("div");
     actions.className = "pack-card-actions";
@@ -772,18 +783,49 @@
     return cards.length;
   }
 
+  function ensureDropPlaceholder(grid) {
+    if (!dropPlaceholder) {
+      dropPlaceholder = document.createElement("article");
+      dropPlaceholder.className = "pack-drop-placeholder";
+      dropPlaceholder.setAttribute("aria-hidden", "true");
+      const label = document.createElement("strong");
+      label.textContent = "DROP HERE";
+      dropPlaceholder.appendChild(label);
+    }
+    const sample = grid.querySelector(".pack-order-card:not(.dragging)") || grid.querySelector(".pack-order-card");
+    dropPlaceholder.style.minHeight = sample
+      ? `${Math.max(112, Math.round(sample.getBoundingClientRect().height))}px`
+      : "150px";
+    return dropPlaceholder;
+  }
+
   function clearDropMarkers() {
     document.querySelectorAll(".pack-drop-zone.drag-over,.pack-order-card.drop-before,.pack-order-card.drop-after")
       .forEach(element => element.classList.remove("drag-over", "drop-before", "drop-after"));
+    if (dropPlaceholder?.parentNode) dropPlaceholder.remove();
+    document.querySelectorAll('.pack-grid-empty[data-drop-hidden="true"]').forEach(empty => {
+      empty.hidden = false;
+      delete empty.dataset.dropHidden;
+    });
+    activeDropLocation = null;
   }
 
-  function markInsertion(grid, index) {
-    clearDropMarkers();
+  function markInsertion(grid, index, target) {
+    document.querySelectorAll(".pack-drop-zone.drag-over").forEach(element => element.classList.remove("drag-over"));
     grid.classList.add("drag-over");
+
     const cards = [...grid.querySelectorAll(".pack-order-card")];
-    if (!cards.length) return;
-    if (index >= cards.length) cards.at(-1).classList.add("drop-after");
-    else cards[index].classList.add("drop-before");
+    const boundedIndex = Math.max(0, Math.min(cards.length, Number(index) || 0));
+    const placeholder = ensureDropPlaceholder(grid);
+    const empty = grid.querySelector(".pack-grid-empty");
+    if (empty) {
+      empty.hidden = true;
+      empty.dataset.dropHidden = "true";
+    }
+
+    if (boundedIndex >= cards.length) grid.appendChild(placeholder);
+    else grid.insertBefore(placeholder, cards[boundedIndex]);
+    activeDropLocation = { grid, target, index: boundedIndex };
   }
 
   function installDropZone(grid, target) {
@@ -792,7 +834,7 @@
       if (!payload) return;
       event.preventDefault();
       event.dataTransfer.dropEffect = payload.source === "library" || payload.source !== target ? "copy" : "move";
-      markInsertion(grid, insertionIndexForEvent(grid, event));
+      markInsertion(grid, insertionIndexForEvent(grid, event), target);
     });
     grid.addEventListener("dragleave", event => {
       if (!grid.contains(event.relatedTarget)) clearDropMarkers();
@@ -801,7 +843,9 @@
       const payload = payloadFromEvent(event);
       if (!payload) return;
       event.preventDefault();
-      const insertionIndex = insertionIndexForEvent(grid, event);
+      const insertionIndex = activeDropLocation?.grid === grid
+        ? activeDropLocation.index
+        : insertionIndexForEvent(grid, event);
       clearDropMarkers();
       if (payload.source === "library") {
         addSavedLevel(payload.sourceId, target, insertionIndex);
@@ -812,7 +856,8 @@
         const [entry] = entries.splice(sourceIndex, 1);
         let targetIndex = insertionIndex;
         if (sourceIndex < targetIndex) targetIndex -= 1;
-        entries.splice(Math.max(0, Math.min(entries.length, targetIndex)), 0, entry);
+        targetIndex = Math.max(0, Math.min(entries.length, targetIndex));
+        entries.splice(targetIndex, 0, entry);
         afterTargetMutation(target, `Moved “${entry.name}” to position ${targetIndex + 1}.`);
       } else {
         cloneWorkspaceEntry(payload, target, insertionIndex);

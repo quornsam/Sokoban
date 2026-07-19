@@ -1,3 +1,8 @@
+/*
+ * BOXXY — Pushbox Puzzle
+ * Copyright © 2026 Sam Cornwell. All rights reserved.
+ * Personal non-commercial use only. See LICENSE.md.
+ */
 :root{
   --paper:#efe5d4;--paper2:#f7f0e5;--ink:#171719;--red:#db3b27;--yellow:#e5b32a;--blue:#20539a;--line:#cbbfae;
   --cols:9;--rows:9;--ratio:1;--max-cell:76px;
@@ -78,6 +83,12 @@ button{font:inherit;color:inherit;cursor:pointer}
 @media(max-width:560px){.complete-card{grid-template-columns:108px minmax(0,1fr)}.complete-art{min-height:330px}.complete-art span{width:62px;height:62px;font-size:34px}.complete-circle{width:108px;height:108px}.complete-square{width:78px;height:78px}.complete-copy{padding:28px 22px 26px}.complete-card h2{font-size:clamp(35px,12vw,50px)}.complete-primary{min-width:170px}}
 button:active{transform:translateY(1px);filter:brightness(.96)}button:disabled{opacity:.35;cursor:default}
 body.autoplaying .action,body.autoplaying .dpad button{opacity:.55;pointer-events:none}
+.cancel-guided-btn{position:absolute;z-index:12000;left:50%;bottom:clamp(14px,2.4dvh,24px);transform:translateX(-50%);display:flex;align-items:center;gap:9px;min-height:46px;padding:10px 15px;border:2px solid var(--ink);background:var(--red);color:#fff;font-weight:950;letter-spacing:.055em;box-shadow:6px 6px 0 var(--ink)}
+.cancel-guided-btn[hidden]{display:none}
+.cancel-guided-btn span{font-size:13px;line-height:1}.cancel-guided-btn b{font-size:12px;white-space:nowrap}.cancel-guided-btn small{padding:3px 5px;border:1px solid rgba(255,255,255,.65);font-size:8px;letter-spacing:.08em}
+.cancel-guided-btn:hover{filter:brightness(1.04)}
+.cancel-guided-btn:active{transform:translate(calc(-50% + 3px),3px);box-shadow:3px 3px 0 var(--ink)}
+@media(max-width:760px){.cancel-guided-btn{bottom:10px;min-height:40px;padding:8px 11px;gap:7px;box-shadow:4px 4px 0 var(--ink)}.cancel-guided-btn b{font-size:10px}.cancel-guided-btn small{display:none}}
 
 @media(max-height:720px) and (min-width:761px){
   :root{--max-cell:64px}.play-area{grid-template-rows:82px minmax(0,1fr) 46px}.masthead{padding-block:7px}.title strong{font-size:34px}.title span{font-size:18px;margin-top:4px}.collection{font-size:14px}.collection i{width:92px;height:5px;margin-block:6px 4px}.instruction{padding-block:7px}.side-panel{grid-template-rows:auto auto auto minmax(112px,1fr) auto 26px}.credit{padding-block:8px}.stats>div,.stats .time{padding-block:5px}.stats strong{font-size:18px}.top-actions{padding-block:6px}.action{min-height:48px}.dpad{width:min(19dvh,150px)}.bottom-actions{padding-block:6px}.action.small{min-height:44px}.palette{height:26px}}
@@ -875,13 +886,16 @@ body.maker-testing .level-picker{display:none!important}
 .pack-order-grid{min-height:226px;padding:8px;border:2px dashed #8f8475;background:#ded4c5;align-content:start}
 .pack-drop-zone.drag-over{border-color:var(--blue);background:#d8e1ed;box-shadow:inset 0 0 0 3px rgba(32,83,154,.16)}
 .pack-level-card{position:relative;min-width:0;overflow:hidden;border:2px solid var(--ink);background:#fff8ed;box-shadow:3px 3px 0 rgba(23,23,25,.24);cursor:grab;user-select:none}
-.pack-level-card.dragging{opacity:.35;cursor:grabbing}
-.pack-order-card.drop-before::before,.pack-order-card.drop-after::after{content:"";position:absolute;z-index:20;top:-5px;bottom:-5px;width:5px;background:var(--red);box-shadow:0 0 0 1px #fff}
-.pack-order-card.drop-before::before{left:-6px}.pack-order-card.drop-after::after{right:-6px}
+.pack-level-card.dragging{opacity:.18;cursor:grabbing;transform:scale(.975)}
 .pack-level-preview{display:block;width:100%;height:auto;aspect-ratio:300/190;border-bottom:1px solid var(--ink);background:#d7ccbc}
 .pack-level-card-body{padding:7px}
 .pack-level-card-body>strong{display:-webkit-box;min-height:2.15em;overflow:hidden;-webkit-box-orient:vertical;-webkit-line-clamp:2;font-size:9px;line-height:1.08;font-weight:1000}
 .pack-level-card-body>span{display:block;min-height:2.15em;margin-top:4px;color:#665d52;font-size:6.7px;line-height:1.2;font-weight:850;letter-spacing:.035em;overflow-wrap:anywhere}
+.pack-level-meta.is-solved{color:var(--blue)}
+.pack-level-meta.is-unsolved{color:#9e281b}
+.pack-drop-placeholder{display:grid;place-items:center;min-width:0;overflow:hidden;border:3px dashed var(--red);background:repeating-linear-gradient(135deg,rgba(219,59,39,.12) 0 10px,rgba(255,248,237,.92) 10px 20px);box-shadow:inset 0 0 0 2px rgba(255,255,255,.8),3px 3px 0 rgba(23,23,25,.16);color:var(--red);pointer-events:none;animation:pack-drop-pulse .75s ease-in-out infinite alternate}
+.pack-drop-placeholder strong{padding:10px;text-align:center;font-size:10px;font-weight:1000;letter-spacing:.12em}
+@keyframes pack-drop-pulse{from{filter:saturate(.85);transform:scale(.985)}to{filter:saturate(1.2);transform:scale(1)}}
 .pack-card-add{width:100%;min-height:27px;margin-top:6px;padding:4px;border:1px solid var(--ink);background:var(--yellow);font-size:7px;font-weight:1000;letter-spacing:.045em}
 .pack-order-badge{position:absolute;z-index:8;left:5px;top:5px;max-width:calc(100% - 10px);padding:4px 6px;border:1px solid var(--ink);background:var(--red);color:#fff;font-size:8px;line-height:1;font-weight:1000;letter-spacing:.04em;box-shadow:2px 2px 0 rgba(23,23,25,.35);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .daily-order-grid .pack-order-badge{font-size:6.5px;background:var(--blue)}
@@ -951,7 +965,7 @@ body.shared-puzzle .bottom-actions{grid-template-columns:repeat(3,minmax(0,1fr))
 body.shared-puzzle .credit strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media(max-width:760px){body.shared-puzzle .bottom-actions{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
-/* BOXXY v134 — compact generator controls and clipping repair. */
+/* BOXXY v135 — compact generator controls and clipping repair. */
 .maker-controls{
   overflow-x:hidden;
   overflow-y:auto;
@@ -999,3 +1013,7 @@ body.shared-puzzle .credit strong{overflow:hidden;text-overflow:ellipsis;white-s
   .maker-generator-options .maker-check-option{min-height:0}
 }
 .maker-generator-panel{min-height:max-content;align-self:start}
+
+.legal-link{position:fixed;z-index:250;right:8px;bottom:5px;padding:3px 6px;border:1px solid rgba(23,23,25,.35);background:rgba(247,240,229,.9);color:var(--ink);font-size:8px;font-weight:900;letter-spacing:.06em;text-decoration:none;opacity:.72;backdrop-filter:blur(4px)}
+.legal-link:hover,.legal-link:focus-visible{opacity:1;border-color:var(--ink);outline:none}
+@media(max-width:620px){.legal-link{right:4px;bottom:3px;font-size:6px;padding:2px 4px}}

@@ -1,0 +1,14 @@
+BOXXY v135 — Guided Solve Cancel patch
+
+Replace these three files in the root of your GitHub Sokoban repository:
+
+- index.html
+- styles.css
+- boxxy.js
+
+The patch adds a visible STOP GUIDED SOLVE button while guided playback is running.
+The Escape key also stops playback. The board remains at its current position so the
+player may continue manually or restart. Any completion after a partially used guided
+solve remains correctly marked as guided.
+
+No other files are changed.
