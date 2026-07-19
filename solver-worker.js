@@ -1,8 +1,8 @@
-/* BOXXY v133 Rust/WebAssembly solver worker.
+/* BOXXY v134 Rust/WebAssembly solver worker.
  *
  * External engine: dangarfield/sokoban-solver, festival-rust browser build.
  *
- * v133 avoids both forms which proved unreliable in Opera/GitHub Pages:
+ * v134 avoids both forms which proved unreliable in Opera/GitHub Pages:
  *   - importing the remote module URL directly; and
  *   - importing fetched source through a Blob module URL.
  *
@@ -77,7 +77,7 @@ function compileBinding(bindingSource) {
   // wasm-bindgen's web target contains exactly these module exports. Replacing
   // them lets the generated binding execute as ordinary worker code. The
   // import.meta fallback cannot be parsed outside a module, so replace it too;
-  // v133 always passes WASM bytes explicitly and never uses that fallback.
+  // v134 always passes WASM bytes explicitly and never uses that fallback.
   let source = bindingSource
     .replace(/export\s+class\s+FestivalSolver/, "class FestivalSolver")
     .replace(/export\s*\{\s*initSync\s*\}\s*;?/, "")

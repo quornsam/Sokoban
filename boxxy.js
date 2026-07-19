@@ -28,7 +28,7 @@
   });
 })();
 
-/* BOXXY v133 — compact, URL-safe custom puzzle links. */
+/* BOXXY v134 — compact, URL-safe custom puzzle links. */
 (() => {
   "use strict";
 
@@ -108,7 +108,7 @@
   window.BoxxyShareCodec = Object.freeze({ encode, decode, readLocation, buildUrl });
 })();
 
-/* BOXXY v133 — character renderer, game engine, level maker and Rust/WASM solver adapter. */
+/* BOXXY v134 — character renderer, game engine, level maker and Rust/WASM solver adapter. */
 (() => {
   "use strict";
 
@@ -2821,7 +2821,7 @@
     setSolverStatus("Loading the external Rust/WebAssembly solver. An internet connection is required for the solver only.");
 
     try {
-      solverWorker = new Worker("solver-worker.js?v=133", { type: "module", name: "boxxy-rust-solver-v133" });
+      solverWorker = new Worker("solver-worker.js?v=134", { type: "module", name: "boxxy-rust-solver-v134" });
       solverWorker.onmessage = event => {
         const message = event.data || {};
         if (message.id !== id || id !== solverJobId || !solverRunning) return;

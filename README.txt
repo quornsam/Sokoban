@@ -1,7 +1,7 @@
-BOXXY — Pushbox Puzzle v133
+BOXXY — Pushbox Puzzle v134
 ================================
 
-Upload the contents of this BOXXY_v133 folder to the root of the GitHub
+Upload the contents of this BOXXY_v134 folder to the root of the GitHub
 repository used by GitHub Pages.
 
 IMPORTED SOLUTION STRINGS
@@ -63,7 +63,7 @@ calendar day and a publication time of 00:00 in the browser's local IANA time
 zone. The exported JSON records both the local date/time and its corresponding
 UTC instant, including daylight-saving changes.
 
-The Daily Puzzle schedule is not read by the public game in v133. Exported data
+The Daily Puzzle schedule is not read by the public game in v134. Exported data
 has frontEndEnabled set to false and a suggested future destination of:
 
 daily-puzzles/boxxy-daily-puzzles.json
@@ -120,15 +120,15 @@ solver-worker.js
 solver-route-verifier.js
 assets/
 CREDITS-AND-LICENCES.txt
-RELEASE-v133-TEST-REPORT.txt
+RELEASE-v134-TEST-REPORT.txt
 
 VERSION
 -------
-All active script cache tags and solver-worker references are v133.
-The ZIP unpacks into the BOXXY_v133 folder.
+All active script cache tags and solver-worker references are v134.
+The ZIP unpacks into the BOXXY_v134 folder.
 
 
-BOXXY v133
+BOXXY v134
 ----------
 - The solver progress bar now becomes determinate and complete whenever loading/searching stops, including failure and cancellation.
 - The Level Maker can create a compact private puzzle link with COPY SHARE LINK.
@@ -137,4 +137,4 @@ BOXXY v133
 - The link contains the puzzle starting position and title. It is unlisted rather than encrypted: anyone possessing the URL can play it.
 
 
-v133: Added the Level Maker SYMMETRY generator option. It mirrors wall structure across a randomly selected vertical, horizontal or rotational axis; object and player placement may be slightly asymmetric for playable Sokoban layouts.
+v134: Added the Level Maker SYMMETRY generator option. It mirrors wall structure across a randomly selected vertical, horizontal or rotational axis; object and player placement may be slightly asymmetric for playable Sokoban layouts.

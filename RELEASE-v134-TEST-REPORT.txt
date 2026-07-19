@@ -1,0 +1,14 @@
+BOXXY v134 TEST REPORT
+=======================
+
+Scope: Level Maker generator panel repair.
+
+Verified:
+- TESTED, SQUARE, MAZE and SYMMETRY appear in a balanced two-by-two grid.
+- Option text remains inside each card at desktop and narrow widths.
+- GENERATE NEW LEVEL and the three secondary generator controls remain in the panel.
+- The controls column can scroll vertically rather than clipping controls.
+- Symmetry generator IDs and event bindings are unchanged.
+- Active browser cache identifiers are v134.
+- JavaScript files pass Node syntax checks.
+- ZIP unpacks into BOXXY_v134.
