@@ -12,17 +12,17 @@ Third-party puzzle collections and the externally loaded solver are not owned by
 
 The live GitHub Pages build is intended to be published from the repository root.
 
-## Current release: v135
+## Current release: v137
 
 This release adds:
 
-- live insertion-style drag-and-drop in the Level Pack Builder;
-- visible **SOLVED** and **UNSOLVED** status on every level card;
-- a proprietary source licence;
-- third-party notices;
-- terms of use and privacy information;
-- a public legal page linked from the game;
-- a GitHub settings checklist for the repository owner.
+- a discreet **SAVE** checkpoint control beside Undo and Restart;
+- **RESUME** when a saved position is available after restarting or reopening a level;
+- per-level checkpoint storage, including position, boxes, move count, push count and elapsed time;
+- automatic checkpoint removal when the level is completed;
+- the v136 solution synchronisation fix for saved levels, pack drafts and Daily Puzzle entries;
+- the v135 legal, licensing and insertion-style Pack Builder updates.
+
 
 ## Main files
 
@@ -39,7 +39,7 @@ This release adds:
 
 ## Local browser storage
 
-Campaign progress, Level Maker saves, pack drafts and Daily Puzzle drafts are stored in the browser. They are not committed to GitHub automatically. Clearing site data may delete them.
+Campaign progress, saved gameplay positions, Level Maker saves, pack drafts and Daily Puzzle drafts are stored in the browser. They are not committed to GitHub automatically. Clearing site data may delete them.
 
 ## Hidden tools
 

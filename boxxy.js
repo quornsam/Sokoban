@@ -33,7 +33,7 @@
   });
 })();
 
-/* BOXXY v135 — compact, URL-safe custom puzzle links. */
+/* BOXXY v137 — compact, URL-safe custom puzzle links. */
 (() => {
   "use strict";
 
@@ -113,7 +113,7 @@
   window.BoxxyShareCodec = Object.freeze({ encode, decode, readLocation, buildUrl });
 })();
 
-/* BOXXY v135 — character renderer, game engine, level maker and Rust/WASM solver adapter. */
+/* BOXXY v137 — character renderer, game engine, level maker and Rust/WASM solver adapter. */
 (() => {
   "use strict";
 
@@ -578,6 +578,161 @@
   const currentCompletedStorageKey = () => packStorageKey("completed");
   const currentAssistedStorageKey = () => packStorageKey("assisted");
   const currentBestStorageKey = level => packStorageKey(`best-${level.sourceNumber}`);
+  const currentCheckpointStorageKey = () => packStorageKey(`position-${levelIndex}`);
+
+  function checkpointLayoutSignature() {
+    const rows = Array.isArray(levelData?.layout) ? levelData.layout : [];
+    const text = rows.join("\n");
+    let hash = 2166136261;
+    for (let i = 0; i < text.length; i++) {
+      hash ^= text.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+    return `${rows.length}:${(hash >>> 0).toString(16)}`;
+  }
+
+  function readCurrentCheckpoint() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(currentCheckpointStorageKey()) || "null");
+      if (!parsed || parsed.version !== 1 || parsed.packId !== activePack.id || Number(parsed.levelIndex) !== levelIndex) return null;
+      if (parsed.layoutSignature !== checkpointLayoutSignature()) {
+        localStorage.removeItem(currentCheckpointStorageKey());
+        return null;
+      }
+      return parsed;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function currentPositionFingerprint() {
+    const boxText = boxes.map(box => `${box.x},${box.y}`).sort().join(";");
+    return `${player[0]},${player[1]}|${boxText}|${moves}|${pushes}|${facing}|${playedRoute}`;
+  }
+
+  function checkpointFingerprint(checkpoint) {
+    if (!checkpoint) return "";
+    const boxText = (Array.isArray(checkpoint.boxes) ? checkpoint.boxes : [])
+      .map(box => `${Number(box.x)},${Number(box.y)}`).sort().join(";");
+    const savedPlayer = Array.isArray(checkpoint.player) ? checkpoint.player : [];
+    return `${Number(savedPlayer[0])},${Number(savedPlayer[1])}|${boxText}|${Number(checkpoint.moves) || 0}|${Number(checkpoint.pushes) || 0}|${checkpoint.facing || "front"}|${String(checkpoint.route || "")}`;
+  }
+
+  function atFreshLevelStart() {
+    return moves === 0 && pushes === 0 && !history.length && !playedRoute;
+  }
+
+  function updateSavePositionButton() {
+    if (!savePositionBtn) return;
+    const unavailable = makerTesting || sharedPuzzleMode;
+    savePositionBtn.hidden = unavailable;
+    if (unavailable) return;
+
+    const label = savePositionBtn.querySelector("b");
+    const icon = savePositionBtn.querySelector("span");
+    const matches = currentCheckpoint && checkpointFingerprint(currentCheckpoint) === currentPositionFingerprint();
+    const canResume = currentCheckpoint && atFreshLevelStart();
+    savePositionBtn.classList.toggle("has-checkpoint", Boolean(currentCheckpoint));
+    savePositionBtn.classList.toggle("saved-current", Boolean(matches));
+
+    if (canResume) {
+      if (label) label.textContent = "RESUME";
+      if (icon) icon.textContent = "↥";
+      savePositionBtn.title = "Restore the saved position for this level";
+      savePositionBtn.disabled = completed || autoplayRunning;
+    } else if (matches) {
+      if (label) label.textContent = "SAVED";
+      if (icon) icon.textContent = "✓";
+      savePositionBtn.title = "This position is saved";
+      savePositionBtn.disabled = true;
+    } else {
+      if (label) label.textContent = "SAVE";
+      if (icon) icon.textContent = "▣";
+      savePositionBtn.title = currentCheckpoint ? "Replace the saved position with the current one" : "Save the current position";
+      savePositionBtn.disabled = completed || autoplayRunning || moves === 0;
+    }
+  }
+
+  function checkpointIsValid(checkpoint) {
+    if (!checkpoint || !Array.isArray(checkpoint.player) || !Array.isArray(checkpoint.boxes)) return false;
+    const px = Number(checkpoint.player[0]);
+    const py = Number(checkpoint.player[1]);
+    if (!Number.isInteger(px) || !Number.isInteger(py) || !floor.has(key(px, py))) return false;
+    if (checkpoint.boxes.length !== boxes.length) return false;
+    const seen = new Set();
+    for (const box of checkpoint.boxes) {
+      const x = Number(box.x);
+      const y = Number(box.y);
+      const boxKey = key(x, y);
+      if (!Number.isInteger(x) || !Number.isInteger(y) || !floor.has(boxKey) || seen.has(boxKey) || (x === px && y === py)) return false;
+      seen.add(boxKey);
+    }
+    return true;
+  }
+
+  function restoreCheckpoint() {
+    if (!checkpointIsValid(currentCheckpoint)) {
+      localStorage.removeItem(currentCheckpointStorageKey());
+      currentCheckpoint = null;
+      updateSavePositionButton();
+      if (thoughtText) thoughtText.textContent = "That saved position could not be restored.";
+      return;
+    }
+    stopAutoplay();
+    blockedPushHeld = false;
+    clearTimeout(animTimer);
+    player = [Number(currentCheckpoint.player[0]), Number(currentCheckpoint.player[1])];
+    boxes = currentCheckpoint.boxes.map(box => ({ x: Number(box.x), y: Number(box.y), moving: false }));
+    moves = Math.max(0, Number(currentCheckpoint.moves) || 0);
+    pushes = Math.max(0, Number(currentCheckpoint.pushes) || 0);
+    facing = ["front", "back", "left", "right"].includes(currentCheckpoint.facing) ? currentCheckpoint.facing : "front";
+    playedRoute = String(currentCheckpoint.route || "").replace(/[^UDLR]/gi, "").toUpperCase();
+    history = [];
+    completed = false;
+    modal.hidden = true;
+    startedAt = Date.now() - Math.max(0, Number(currentCheckpoint.elapsedMs) || 0);
+    render("idle");
+    updateTime();
+    scheduleIdle();
+    if (thoughtText) thoughtText.textContent = "Saved position restored.";
+  }
+
+  function saveOrRestorePosition() {
+    if (makerTesting || sharedPuzzleMode || completed || autoplayRunning) return;
+    if (currentCheckpoint && atFreshLevelStart()) {
+      restoreCheckpoint();
+      return;
+    }
+    if (moves === 0) return;
+    const checkpoint = {
+      version: 1,
+      packId: activePack.id,
+      levelIndex,
+      layoutSignature: checkpointLayoutSignature(),
+      player: [...player],
+      boxes: boxes.map(box => ({ x: box.x, y: box.y })),
+      moves,
+      pushes,
+      facing,
+      route: playedRoute,
+      elapsedMs: Math.max(0, Date.now() - startedAt),
+      savedAt: new Date().toISOString()
+    };
+    try {
+      localStorage.setItem(currentCheckpointStorageKey(), JSON.stringify(checkpoint));
+      currentCheckpoint = checkpoint;
+      updateSavePositionButton();
+      if (thoughtText) thoughtText.textContent = "Position saved. Restart or reopen the level, then press Resume to return here.";
+    } catch (_) {
+      if (thoughtText) thoughtText.textContent = "The browser could not save this position.";
+    }
+  }
+
+  function clearCurrentCheckpoint() {
+    try { localStorage.removeItem(currentCheckpointStorageKey()); } catch (_) {}
+    currentCheckpoint = null;
+    updateSavePositionButton();
+  }
 
   function storedLevelIndexForPack(pack = activePack) {
     const key = `boxxy-pack-${pack.id}-level-v1`;
@@ -622,6 +777,7 @@
   const creditSub = document.getElementById("creditSub");
   const undoBtn = document.getElementById("undoBtn");
   const restartBtn = document.getElementById("restartBtn");
+  const savePositionBtn = document.getElementById("savePositionBtn");
   const soundBtn = document.getElementById("soundBtn");
   const musicBtn = document.getElementById("musicBtn");
   const bgMusic = document.getElementById("bgMusic");
@@ -708,6 +864,7 @@
   let thoughtTimer = null;
   let lastThought = "";
   let recentThoughts = [];
+  let currentCheckpoint = null;
   let recentThoughtParts = Object.create(null);
   let thoughtReady = false;
   let audioUnlocked = false;
@@ -921,6 +1078,7 @@
     saveLevelProgress();
     LEVELS.forEach((level) => {
       localStorage.removeItem(currentBestStorageKey(level));
+      localStorage.removeItem(packStorageKey(`position-${LEVELS.indexOf(level)}`));
       if (activePack.id === "microban") localStorage.removeItem(`push-bauhaus-v22-best-${level.sourceNumber}`);
     });
     levelIndex = 0;
@@ -1590,6 +1748,7 @@
     const best = (makerTesting || sharedPuzzleMode) ? null : readBest(levelData);
     bestEl.textContent = best || "—";
     undoBtn.disabled = !history.length || completed;
+    updateSavePositionButton();
     refreshLevelButtons();
   }
 
@@ -1656,6 +1815,7 @@
     history = [];
     facing = "front";
     completed = false;
+    currentCheckpoint = readCurrentCheckpoint();
     completeMode = "normal";
     modal.hidden = true;
     completeCard?.classList.remove("final-complete");
@@ -1742,6 +1902,7 @@
       history = [];
       facing = "front";
       completed = false;
+      currentCheckpoint = null;
       modal.hidden = true;
       completeCard?.classList.remove("final-complete");
       if (finalPackPicker) finalPackPicker.hidden = true;
@@ -1888,6 +2049,7 @@
     completed = true;
     clearTimeout(animTimer);
     clearInterval(timer);
+    if (!makerTesting && !sharedPuzzleMode) clearCurrentCheckpoint();
 
     if (sharedPuzzleMode) {
       completeMode = "shared";
@@ -2206,6 +2368,7 @@
   window.addEventListener("orientationchange", scheduleBoardResize);
 
   undoBtn.addEventListener("click", undo);
+  savePositionBtn?.addEventListener("click", saveOrRestorePosition);
   restartBtn.addEventListener("click", () => {
     if (makerTesting || sharedPuzzleMode) restartMakerTest();
     else loadLevel(levelIndex);
@@ -2853,7 +3016,7 @@
     setSolverStatus("Loading the external Rust/WebAssembly solver. An internet connection is required for the solver only.");
 
     try {
-      solverWorker = new Worker("solver-worker.js?v=135", { type: "module", name: "boxxy-rust-solver-v135" });
+      solverWorker = new Worker("solver-worker.js?v=135", { type: "module", name: "boxxy-rust-solver-v137" });
       solverWorker.onmessage = event => {
         const message = event.data || {};
         if (message.id !== id || id !== solverJobId || !solverRunning) return;

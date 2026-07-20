@@ -6,7 +6,7 @@ BOXXY is a static browser game hosted through GitHub Pages.
 
 ## Information stored in your browser
 
-BOXXY stores campaign progress, settings, Level Maker saves, custom solutions, Level Pack drafts and Daily Puzzle drafts using browser local storage. This information is not intentionally sent to Sam Cornwell and is not committed to GitHub automatically.
+BOXXY stores campaign progress, manually saved gameplay positions, settings, Level Maker saves, custom solutions, Level Pack drafts and Daily Puzzle drafts using browser local storage. This information is not intentionally sent to Sam Cornwell and is not committed to GitHub automatically.
 
 Clearing browser site data may erase these records.
 
@@ -26,7 +26,7 @@ GitHub may process ordinary hosting and security information when you visit a Gi
 
 ## Analytics and advertising
 
-BOXXY v135 does not include first-party analytics, advertising trackers or user accounts.
+BOXXY v137 does not include first-party analytics, advertising trackers or user accounts.
 
 ## Contact
 
