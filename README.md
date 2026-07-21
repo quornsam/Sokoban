@@ -12,16 +12,19 @@ Third-party puzzle collections and the externally loaded solver are not owned by
 
 The live GitHub Pages build is intended to be published from the repository root.
 
-## Current release: v137
+## Current release: v138
 
 This release adds:
 
-- a discreet **SAVE** checkpoint control beside Undo and Restart;
-- **RESUME** when a saved position is available after restarting or reopening a level;
-- per-level checkpoint storage, including position, boxes, move count, push count and elapsed time;
-- automatic checkpoint removal when the level is completed;
-- the v136 solution synchronisation fix for saved levels, pack drafts and Daily Puzzle entries;
-- the v135 legal, licensing and insertion-style Pack Builder updates.
+- a discreet **BOXXY version 138** label on the Legal page;
+- per-puzzle display names inside Pack Builder drafts, independent of the linked Level Maker save name;
+- a pack-wide default author with optional individual puzzle-author overrides;
+- selectable Pack Builder card layouts from **1 to 8 columns**;
+- direct **EDIT** and **PLAY** controls on saved-library and ordered-pack cards;
+- verified solution move counts on every solved card;
+- exported per-level author and solution-move metadata;
+- preservation of custom pack names and authors when linked layouts or solutions synchronise from the Level Maker;
+- all v137 saved-position functionality unchanged.
 
 
 ## Main files

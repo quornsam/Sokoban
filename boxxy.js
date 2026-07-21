@@ -33,7 +33,7 @@
   });
 })();
 
-/* BOXXY v137 — compact, URL-safe custom puzzle links. */
+/* BOXXY v138 — compact, URL-safe custom puzzle links. */
 (() => {
   "use strict";
 
@@ -113,7 +113,7 @@
   window.BoxxyShareCodec = Object.freeze({ encode, decode, readLocation, buildUrl });
 })();
 
-/* BOXXY v137 — character renderer, game engine, level maker and Rust/WASM solver adapter. */
+/* BOXXY v138 — character renderer, game engine, level maker and Rust/WASM solver adapter. */
 (() => {
   "use strict";
 
@@ -1854,7 +1854,8 @@
   function loadMakerTest(layoutRows, attachedSolution = "", options = {}) {
     try {
       const shared = Boolean(options.shared);
-      const customName = String(options.name || "Shared Puzzle").trim().slice(0, 64) || "Shared Puzzle";
+      const fallbackName = shared ? "Shared Puzzle" : "Custom Test";
+      const customName = String(options.name || fallbackName).trim().slice(0, 64) || fallbackName;
       if (!Array.isArray(layoutRows) || !layoutRows.length) throw new Error("The level is empty.");
       const cleanRows = layoutRows.map(row => String(row));
       const parsed = parseLayout(cleanRows);
@@ -1882,7 +1883,7 @@
       if (shared) document.title = `${customName} — BOXXY`;
       levelData = {
         sourceNumber: shared ? "shared" : "maker",
-        name: shared ? customName : "CUSTOM TEST",
+        name: customName,
         tier: shared ? "SHARED PUZZLE" : "LEVEL MAKER",
         minimum: "—",
         pushMinimum: parsed.boxes.length,
@@ -1913,7 +1914,7 @@
       board.style.aspectRatio = `${width} / ${height}`;
       refreshBackgroundDecor(backgroundDecorBuilt);
       scheduleBoardResize();
-      creditTitle.textContent = shared ? customName.toUpperCase() : "LEVEL MAKER · TEST";
+      creditTitle.textContent = shared ? customName.toUpperCase() : `LEVEL MAKER · ${customName.toUpperCase()}`;
       creditSub.textContent = `${shared ? "SHARED PUZZLE · " : ""}${width}×${height} · ${boxes.length} ${boxes.length === 1 ? "BOX" : "BOXES"}`;
       startedAt = Date.now();
       clearInterval(timer);
@@ -3016,7 +3017,7 @@
     setSolverStatus("Loading the external Rust/WebAssembly solver. An internet connection is required for the solver only.");
 
     try {
-      solverWorker = new Worker("solver-worker.js?v=135", { type: "module", name: "boxxy-rust-solver-v137" });
+      solverWorker = new Worker("solver-worker.js?v=135", { type: "module", name: "boxxy-rust-solver-v138" });
       solverWorker.onmessage = event => {
         const message = event.data || {};
         if (message.id !== id || id !== solverJobId || !solverRunning) return;
@@ -4940,6 +4941,67 @@
       : automatic
         ? `Your ${verification.moves}-move test route has been added as the guided solve. Save the level to keep it.`
         : `Applied your ${verification.moves}-move test route as the puzzle's guided solve. Save the level to keep it.`, "success");
+  });
+
+  function loadPackBuilderRequest(detail) {
+    const sourceSaveId = String(detail?.sourceSaveId || "");
+    const record = sourceSaveId ? readSavedLevels().find(item => item.id === sourceSaveId) : null;
+    if (record) {
+      renderSavedLevels(record.id);
+      savedSelect.value = record.id;
+      loadSavedLevel();
+      return true;
+    }
+
+    const layout = Array.isArray(detail?.layout) ? detail.layout.map(row => String(row)) : [];
+    if (!layout.length || !layout.some(row => row.trim())) return false;
+    try {
+      importRows(layout, { quiet: true });
+      clearActiveSave();
+      currentPuzzleRef = null;
+      const name = String(detail?.name || "Pack puzzle").trim().slice(0, 48) || "Pack puzzle";
+      if (saveNameInput) saveNameInput.value = name;
+      setAttachedSolution(String(detail?.solution || ""), currentLevelText(), null);
+      setStatus(`Opened “${name}” as an unsaved pack puzzle.`, "success");
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  window.addEventListener("boxxy-pack-builder-edit-level", event => {
+    openMaker();
+    if (!loadPackBuilderRequest(event?.detail)) {
+      setStatus("That pack puzzle could not be opened in the Level Maker.", "error");
+      return;
+    }
+    setStatus(`Editing “${String(event?.detail?.name || saveNameInput?.value || "pack puzzle")}”. Pack-only name and author changes remain in the Pack Builder.`, "success");
+  });
+
+  window.addEventListener("boxxy-pack-builder-play-level", event => {
+    openMaker();
+    if (!loadPackBuilderRequest(event?.detail)) {
+      setStatus("That pack puzzle could not be prepared for play.", "error");
+      return;
+    }
+    const validation = validate();
+    if (!validation.ok) {
+      setStatus(validation.error, "error");
+      return;
+    }
+    const displayName = String(event?.detail?.name || saveNameInput?.value || "Pack Puzzle").trim() || "Pack Puzzle";
+    const result = window.BoxxyGameAPI?.startMakerTest?.(
+      validation.rows,
+      solutionMatchesCurrentBoard() ? currentSolution : String(event?.detail?.solution || ""),
+      { name: displayName }
+    );
+    if (!result?.ok) {
+      setStatus(result?.error || "The game could not load this pack puzzle.", "error");
+      return;
+    }
+    setStatus(`Playing “${displayName}”.`, "success");
+    exitTestBtn.hidden = false;
+    closeMaker();
   });
 
   window.addEventListener("boxxy-maker-return", openMaker);

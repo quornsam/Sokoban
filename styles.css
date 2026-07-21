@@ -884,13 +884,13 @@ body.maker-testing .level-picker{display:none!important}
 .pack-level-preview{display:block;width:100%;height:auto;aspect-ratio:300/190;border-bottom:1px solid var(--ink);background:#d7ccbc}
 .pack-level-card-body{padding:7px}
 .pack-level-card-body>strong{display:-webkit-box;min-height:2.15em;overflow:hidden;-webkit-box-orient:vertical;-webkit-line-clamp:2;font-size:9px;line-height:1.08;font-weight:1000}
-.pack-level-card-body>span{display:block;min-height:2.15em;margin-top:4px;color:#665d52;font-size:6.7px;line-height:1.2;font-weight:850;letter-spacing:.035em;overflow-wrap:anywhere}
+.pack-level-card-body>span{display:block;min-height:2.15em;margin-top:4px;color:#665d52;font-size:6.7px;line-height:1.2;font-weight:850;letter-spacing:.035em;overflow-wrap:anywhere}.pack-level-card-body>.pack-level-author{min-height:0;color:#3f3932;font-size:6.4px;letter-spacing:.055em}
 .pack-level-meta.is-solved{color:var(--blue)}
 .pack-level-meta.is-unsolved{color:#9e281b}
 .pack-drop-placeholder{display:grid;place-items:center;min-width:0;overflow:hidden;border:3px dashed var(--red);background:repeating-linear-gradient(135deg,rgba(219,59,39,.12) 0 10px,rgba(255,248,237,.92) 10px 20px);box-shadow:inset 0 0 0 2px rgba(255,255,255,.8),3px 3px 0 rgba(23,23,25,.16);color:var(--red);pointer-events:none;animation:pack-drop-pulse .75s ease-in-out infinite alternate}
 .pack-drop-placeholder strong{padding:10px;text-align:center;font-size:10px;font-weight:1000;letter-spacing:.12em}
 @keyframes pack-drop-pulse{from{filter:saturate(.85);transform:scale(.985)}to{filter:saturate(1.2);transform:scale(1)}}
-.pack-card-add{width:100%;min-height:27px;margin-top:6px;padding:4px;border:1px solid var(--ink);background:var(--yellow);font-size:7px;font-weight:1000;letter-spacing:.045em}
+.pack-card-add{width:100%;min-height:27px;margin-top:6px;padding:4px;border:1px solid var(--ink);background:var(--yellow);font-size:7px;font-weight:1000;letter-spacing:.045em}.pack-card-direct-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;margin-top:6px}.pack-card-direct-actions.with-details{grid-template-columns:repeat(3,minmax(0,1fr))}.pack-card-direct-actions button{min-height:25px;padding:3px 2px;border:1px solid var(--ink);background:#dfe7f1;color:var(--ink);font-size:6.6px;font-weight:1000;letter-spacing:.035em}.pack-card-direct-actions button:first-child{background:#f4dd83}.pack-card-direct-actions button:disabled{opacity:.35}.pack-entry-details{margin-top:6px;padding:6px;border:1px solid #9e9282;background:#eee5d8}.pack-entry-details[hidden]{display:none}.pack-entry-details label{display:block;color:#4f473e;font-size:6px;font-weight:1000;letter-spacing:.065em}.pack-entry-details label+label{margin-top:5px}.pack-entry-details input{display:block;width:100%;height:27px;margin-top:3px;padding:0 6px;border:1px solid var(--ink);background:#fff9ef;color:var(--ink);font-family:inherit;font-size:7.5px;font-weight:850}
 .pack-order-badge{position:absolute;z-index:8;left:5px;top:5px;max-width:calc(100% - 10px);padding:4px 6px;border:1px solid var(--ink);background:var(--red);color:#fff;font-size:8px;line-height:1;font-weight:1000;letter-spacing:.04em;box-shadow:2px 2px 0 rgba(23,23,25,.35);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .daily-order-grid .pack-order-badge{font-size:6.5px;background:var(--blue)}
 .pack-card-actions{display:grid;grid-template-columns:26px 26px minmax(0,1fr);gap:4px;margin-top:6px}
@@ -899,7 +899,7 @@ body.maker-testing .level-picker{display:none!important}
 .pack-card-actions button:disabled{opacity:.35}
 .pack-grid-empty{grid-column:1/-1;min-height:190px;display:grid;place-items:center;padding:20px;border:2px dashed #9f9384;background:rgba(255,248,237,.52);color:#6d6357;text-align:center;font-size:10px;line-height:1.35;font-weight:1000;letter-spacing:.09em}
 
-.pack-metadata-grid{display:grid;grid-template-columns:1.35fr 1fr .65fr 1.25fr;gap:7px;margin-bottom:8px}
+.pack-metadata-grid{display:grid;grid-template-columns:1.3fr 1fr .62fr .58fr 1.25fr;gap:7px;margin-bottom:8px}
 .pack-metadata-grid input,.pack-metadata-grid select{display:block}
 .pack-description-field{grid-column:1/-1}
 .pack-metadata-grid textarea{display:block;height:52px;padding:7px 8px;resize:vertical;font-family:inherit;line-height:1.25}

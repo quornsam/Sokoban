@@ -26,7 +26,7 @@ GitHub may process ordinary hosting and security information when you visit a Gi
 
 ## Analytics and advertising
 
-BOXXY v137 does not include first-party analytics, advertising trackers or user accounts.
+BOXXY v138 does not include first-party analytics, advertising trackers or user accounts.
 
 ## Contact
 

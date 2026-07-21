@@ -3,7 +3,7 @@
  * Copyright © 2026 Sam Cornwell. All rights reserved.
  * Personal non-commercial use only. See LICENSE.md.
  */
-/* BOXXY v137 — private level-pack and Daily Puzzle builder with linked-solution synchronisation. */
+/* BOXXY v138 — private level-pack and Daily Puzzle builder with linked-solution synchronisation. */
 (() => {
   "use strict";
 
@@ -31,6 +31,7 @@
 
   const packTitleInput = document.getElementById("packTitleInput");
   const packAuthorInput = document.getElementById("packAuthorInput");
+  const packColumnsSelect = document.getElementById("packColumnsSelect");
   const packAccentSelect = document.getElementById("packAccentSelect");
   const packDescriptionInput = document.getElementById("packDescriptionInput");
   const packDestinationSelect = document.getElementById("packDestinationSelect");
@@ -121,6 +122,24 @@
     return String(solution || "").replace(/[^udlrUDLR]/g, "");
   }
 
+  function solutionMoveCount(solution) {
+    return cleanSolution(solution).length;
+  }
+
+  function clampPackColumns(value) {
+    return Math.max(1, Math.min(8, Math.round(Number(value) || 6)));
+  }
+
+  function effectiveEntryAuthor(entry) {
+    const individual = entry?.authorOverridden ? String(entry.author || "").trim() : "";
+    return individual || String(activeDraft?.author || "").trim();
+  }
+
+  function solvedLabel(solution) {
+    const moveCount = solutionMoveCount(solution);
+    return moveCount ? `SOLVED · ${moveCount.toLocaleString()} ${moveCount === 1 ? "MOVE" : "MOVES"}` : "UNSOLVED";
+  }
+
   function readSavedLevels() {
     const parsed = safeParse(SAVED_LEVELS_KEY, []);
     if (!Array.isArray(parsed)) return [];
@@ -138,6 +157,9 @@
       id: newId("pack-level"),
       sourceSaveId: record.id,
       name: String(record.name || "Untitled level").trim() || "Untitled level",
+      nameOverridden: false,
+      author: "",
+      authorOverridden: false,
       layout,
       solution: cleanSolution(record.solution),
       cols: width,
@@ -154,6 +176,9 @@
       id: typeof entry?.id === "string" ? entry.id : newId("pack-level"),
       sourceSaveId: typeof entry?.sourceSaveId === "string" ? entry.sourceSaveId : "",
       name: String(entry?.name || "Untitled level").trim() || "Untitled level",
+      nameOverridden: Boolean(entry?.nameOverridden),
+      author: String(entry?.author || "").trim(),
+      authorOverridden: Boolean(entry?.authorOverridden && String(entry?.author || "").trim()),
       layout,
       solution: cleanSolution(entry?.solution),
       cols: Math.max(1, ...layout.map(row => row.length)),
@@ -167,7 +192,8 @@
     if (!entry?.sourceSaveId || entry.sourceSaveId !== record?.id) return false;
     const latest = snapshotSavedLevel(record);
     const nextLayout = latest.layout.slice();
-    const changed = entry.name !== latest.name
+    const sourceNameChanged = !entry.nameOverridden && entry.name !== latest.name;
+    const changed = sourceNameChanged
       || entry.solution !== latest.solution
       || entry.cols !== latest.cols
       || entry.rows !== latest.rows
@@ -175,7 +201,7 @@
       || entry.layout.length !== nextLayout.length
       || entry.layout.some((row, index) => row !== nextLayout[index]);
     if (!changed) return false;
-    entry.name = latest.name;
+    if (!entry.nameOverridden) entry.name = latest.name;
     entry.layout = nextLayout;
     entry.solution = latest.solution;
     entry.cols = latest.cols;
@@ -228,6 +254,7 @@
       id: newId("pack-draft"),
       name: "Untitled Pack",
       author: "",
+      columns: 6,
       accent: "black",
       description: "",
       destination: "boxxy-public",
@@ -243,6 +270,7 @@
       id: typeof draft?.id === "string" ? draft.id : newId("pack-draft"),
       name: String(draft?.name || "Untitled Pack").trim() || "Untitled Pack",
       author: String(draft?.author || ""),
+      columns: clampPackColumns(draft?.columns),
       accent: ["black", "red", "blue", "yellow"].includes(draft?.accent) ? draft.accent : "black",
       description: String(draft?.description || ""),
       destination: ["boxxy-public", "boxxy-private", "xsb"].includes(draft?.destination) ? draft.destination : "boxxy-public",
@@ -327,6 +355,7 @@
     if (!activeDraft) return;
     activeDraft.name = packTitleInput.value.trim() || "Untitled Pack";
     activeDraft.author = packAuthorInput.value.trim();
+    activeDraft.columns = clampPackColumns(packColumnsSelect?.value);
     activeDraft.accent = packAccentSelect.value;
     activeDraft.description = packDescriptionInput.value.trim();
     activeDraft.destination = packDestinationSelect.value;
@@ -338,6 +367,7 @@
     if (!activeDraft) return;
     packTitleInput.value = activeDraft.name;
     packAuthorInput.value = activeDraft.author;
+    if (packColumnsSelect) packColumnsSelect.value = String(activeDraft.columns);
     packAccentSelect.value = activeDraft.accent;
     packDescriptionInput.value = activeDraft.description;
     packDestinationSelect.value = activeDraft.destination;
@@ -560,6 +590,36 @@
     }
   }
 
+  function stopInteractiveDrag(element) {
+    element.addEventListener("pointerdown", event => event.stopPropagation());
+    element.addEventListener("dragstart", event => {
+      event.preventDefault();
+      event.stopPropagation();
+    });
+    return element;
+  }
+
+  function requestMakerAction(action, item) {
+    const layout = normaliseLayout(item?.layout);
+    if (!layout.some(row => row.trim())) {
+      setStatus("That puzzle no longer has a usable layout.", "error");
+      return;
+    }
+    const detail = {
+      sourceSaveId: String(item?.sourceSaveId || item?.id || ""),
+      name: String(item?.name || "Untitled level"),
+      layout: layout.slice(),
+      solution: cleanSolution(item?.solution)
+    };
+    closeBuilder();
+    window.dispatchEvent(new CustomEvent(`boxxy-pack-builder-${action}-level`, { detail }));
+  }
+
+  function persistTarget(target) {
+    if (target === "daily") persistDaily(false);
+    else persistDrafts(false);
+  }
+
   function createLibraryCard(record) {
     const card = document.createElement("article");
     card.className = "pack-level-card pack-library-card";
@@ -580,8 +640,29 @@
     const boxes = countBoxes(record.layout);
     const hasSolution = Boolean(cleanSolution(record.solution));
     meta.className = `pack-level-meta ${hasSolution ? "is-solved" : "is-unsolved"}`;
-    meta.textContent = `${Math.max(1, ...record.layout.map(row => row.length))}×${record.layout.length} · ${boxes} ${boxes === 1 ? "BOX" : "BOXES"} · ${hasSolution ? "SOLVED" : "UNSOLVED"}`;
-    const add = document.createElement("button");
+    meta.textContent = `${Math.max(1, ...record.layout.map(row => row.length))}×${record.layout.length} · ${boxes} ${boxes === 1 ? "BOX" : "BOXES"} · ${solvedLabel(record.solution)}`;
+
+    const directActions = document.createElement("div");
+    directActions.className = "pack-card-direct-actions";
+    const edit = stopInteractiveDrag(document.createElement("button"));
+    edit.type = "button";
+    edit.textContent = "EDIT";
+    edit.title = "Open this saved puzzle in the Level Maker";
+    edit.addEventListener("click", event => {
+      event.stopPropagation();
+      requestMakerAction("edit", record);
+    });
+    const play = stopInteractiveDrag(document.createElement("button"));
+    play.type = "button";
+    play.textContent = "PLAY";
+    play.title = "Play this puzzle immediately";
+    play.addEventListener("click", event => {
+      event.stopPropagation();
+      requestMakerAction("play", record);
+    });
+    directActions.append(edit, play);
+
+    const add = stopInteractiveDrag(document.createElement("button"));
     add.type = "button";
     add.className = "pack-card-add";
     add.textContent = activeTab === "daily" ? "ADD TO DAILY" : "ADD TO PACK";
@@ -589,7 +670,7 @@
       event.stopPropagation();
       addSavedLevel(record.id, activeTab);
     });
-    body.append(title, meta, add);
+    body.append(title, meta, directActions, add);
     card.append(canvas, body);
 
     card.addEventListener("dragstart", event => beginDrag(event, { source: "library", sourceId: record.id }));
@@ -627,34 +708,126 @@
     body.className = "pack-level-card-body";
     const title = document.createElement("strong");
     title.textContent = entry.name;
+
+    const authorLine = document.createElement("span");
+    authorLine.className = "pack-level-author";
+    const refreshAuthorLine = () => {
+      const author = effectiveEntryAuthor(entry);
+      authorLine.textContent = `AUTHOR · ${author || "NOT SPECIFIED"}`;
+    };
+    refreshAuthorLine();
+
     const meta = document.createElement("span");
     const hasSolution = Boolean(cleanSolution(entry.solution));
     meta.className = `pack-level-meta ${hasSolution ? "is-solved" : "is-unsolved"}`;
     meta.textContent = target === "daily"
-      ? `00:00 · ${dailyDraft.timezone} · ${hasSolution ? "SOLVED" : "UNSOLVED"}`
-      : `${entry.cols}×${entry.rows} · ${entry.boxes} ${entry.boxes === 1 ? "BOX" : "BOXES"} · ${hasSolution ? "SOLVED" : "UNSOLVED"}`;
+      ? `00:00 · ${dailyDraft.timezone} · ${solvedLabel(entry.solution)}`
+      : `${entry.cols}×${entry.rows} · ${entry.boxes} ${entry.boxes === 1 ? "BOX" : "BOXES"} · ${solvedLabel(entry.solution)}`;
+
+    const directActions = document.createElement("div");
+    directActions.className = `pack-card-direct-actions ${target === "pack" ? "with-details" : ""}`;
+    let details = null;
+
+    if (target === "pack") {
+      const detailsToggle = stopInteractiveDrag(document.createElement("button"));
+      detailsToggle.type = "button";
+      detailsToggle.textContent = "DETAILS";
+      detailsToggle.title = "Rename this pack entry or set an individual author";
+      directActions.appendChild(detailsToggle);
+
+      details = document.createElement("div");
+      details.className = "pack-entry-details";
+      details.hidden = true;
+
+      const nameLabel = document.createElement("label");
+      nameLabel.textContent = "PUZZLE NAME";
+      const nameInput = stopInteractiveDrag(document.createElement("input"));
+      nameInput.type = "text";
+      nameInput.maxLength = 64;
+      nameInput.value = entry.name;
+      nameInput.autocomplete = "off";
+      nameInput.addEventListener("input", () => {
+        const source = savedLevels.find(record => record.id === entry.sourceSaveId);
+        entry.name = nameInput.value.trim() || "Untitled level";
+        entry.nameOverridden = !source || entry.name !== String(source.name || "").trim();
+        title.textContent = entry.name;
+        persistTarget(target);
+      });
+      nameLabel.appendChild(nameInput);
+
+      const authorLabel = document.createElement("label");
+      authorLabel.textContent = "PUZZLE AUTHOR · BLANK USES PACK AUTHOR";
+      const authorInput = stopInteractiveDrag(document.createElement("input"));
+      authorInput.type = "text";
+      authorInput.maxLength = 64;
+      authorInput.value = entry.authorOverridden ? entry.author : "";
+      authorInput.placeholder = activeDraft.author || "Pack author not specified";
+      authorInput.autocomplete = "off";
+      authorInput.addEventListener("input", () => {
+        const value = authorInput.value.trim();
+        entry.author = value;
+        entry.authorOverridden = Boolean(value && value !== activeDraft.author.trim());
+        refreshAuthorLine();
+        persistTarget(target);
+      });
+      authorLabel.appendChild(authorInput);
+
+      details.append(nameLabel, authorLabel);
+
+      detailsToggle.addEventListener("click", event => {
+        event.stopPropagation();
+        details.hidden = !details.hidden;
+        card.draggable = details.hidden;
+        detailsToggle.textContent = details.hidden ? "DETAILS" : "DONE";
+        if (!details.hidden) nameInput.focus({ preventScroll: true });
+      });
+    }
+
+    const edit = stopInteractiveDrag(document.createElement("button"));
+    edit.type = "button";
+    edit.textContent = "EDIT";
+    edit.title = "Open this puzzle in the Level Maker";
+    edit.addEventListener("click", event => {
+      event.stopPropagation();
+      requestMakerAction("edit", entry);
+    });
+
+    const play = stopInteractiveDrag(document.createElement("button"));
+    play.type = "button";
+    play.textContent = "PLAY";
+    play.title = "Play this puzzle immediately";
+    play.addEventListener("click", event => {
+      event.stopPropagation();
+      requestMakerAction("play", entry);
+    });
+    directActions.append(edit, play);
 
     const actions = document.createElement("div");
     actions.className = "pack-card-actions";
-    const back = document.createElement("button");
+    const back = stopInteractiveDrag(document.createElement("button"));
     back.type = "button";
     back.textContent = "←";
     back.title = "Move earlier";
     back.disabled = index === 0;
     back.addEventListener("click", () => moveEntry(target, index, -1));
-    const forward = document.createElement("button");
+    const forward = stopInteractiveDrag(document.createElement("button"));
     forward.type = "button";
     forward.textContent = "→";
     forward.title = "Move later";
     const entries = target === "daily" ? dailyDraft.entries : activeDraft.entries;
     forward.disabled = index >= entries.length - 1;
     forward.addEventListener("click", () => moveEntry(target, index, 1));
-    const remove = document.createElement("button");
+    const remove = stopInteractiveDrag(document.createElement("button"));
     remove.type = "button";
     remove.textContent = "REMOVE";
     remove.addEventListener("click", () => removeEntry(target, index));
     actions.append(back, forward, remove);
-    body.append(title, meta, actions);
+
+    body.append(title);
+    if (target === "pack") body.append(authorLine);
+    body.append(meta, directActions);
+    if (details) body.append(details);
+    body.append(actions);
     card.append(badge, canvas, body);
 
     card.addEventListener("dragstart", event => beginDrag(event, { source: target, entryId: entry.id, index }));
@@ -687,6 +860,7 @@
 
   function renderPackGrid() {
     packGrid.innerHTML = "";
+    packGrid.style.gridTemplateColumns = `repeat(${clampPackColumns(activeDraft.columns)}, minmax(0, 1fr))`;
     activeDraft.entries.forEach((entry, index) => packGrid.appendChild(createOrderCard(entry, index, "pack")));
     if (!activeDraft.entries.length) packGrid.appendChild(emptyGridMessage("DRAG SAVED LEVELS HERE TO BUILD THE PACK"));
     packLevelCount.textContent = `${activeDraft.entries.length} ${activeDraft.entries.length === 1 ? "LEVEL" : "LEVELS"}`;
@@ -967,9 +1141,11 @@
       rank: index + 1,
       sourceNumber: `${packId}-${index + 1}`,
       name: entry.name,
+      author: effectiveEntryAuthor(entry),
       tier: title.toUpperCase(),
       minimum: null,
       pushMinimum: null,
+      solutionMoves: solutionMoveCount(entry.solution) || null,
       solution: entry.solution,
       layout: entry.layout.slice()
     };
@@ -1007,8 +1183,12 @@
     ];
     pack.levels.forEach((level, index) => {
       lines.push(`; ${index + 1}. ${level.name}`);
+      if (level.author) lines.push(`; Puzzle author: ${level.author}`);
       lines.push(...level.layout);
-      if (level.solution) lines.push(`; Solution: ${level.solution}`);
+      if (level.solution) {
+        lines.push(`; Solution moves: ${level.solutionMoves || solutionMoveCount(level.solution)}`);
+        lines.push(`; Solution: ${level.solution}`);
+      }
       lines.push("");
     });
     return lines.join("\n");
@@ -1215,11 +1395,17 @@
       scheduleDraftSave();
     });
   });
-  [packAccentSelect, packDestinationSelect].forEach(input => {
+  packAuthorInput.addEventListener("change", () => {
+    syncDraftFromFields();
+    persistDrafts(false);
+    renderPackGrid();
+  });
+  [packColumnsSelect, packAccentSelect, packDestinationSelect].filter(Boolean).forEach(input => {
     input.addEventListener("change", () => {
       syncDraftFromFields();
       persistDrafts(false);
       renderDraftSelect();
+      if (input === packColumnsSelect) renderPackGrid();
     });
   });
 

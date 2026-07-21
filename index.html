@@ -12,7 +12,7 @@
 <meta name="theme-color" content="#efe5d4">
 <meta name="copyright" content="Copyright © 2026 Sam Cornwell. All rights reserved.">
 <title>BOXXY — Pushbox Puzzle</title>
-<link rel="stylesheet" href="styles.css?v=137">
+<link rel="stylesheet" href="styles.css?v=138">
 <link rel="preload" as="image" href="assets/board/board-atlas.png">
 <link rel="preload" as="image" href="assets/characters/boy/base.png">
 <link rel="preload" as="image" href="assets/characters/girl/base.png">
@@ -337,7 +337,19 @@
 
       <div class="pack-metadata-grid">
         <label>PACK TITLE<input id="packTitleInput" type="text" maxlength="64" placeholder="Untitled Pack"></label>
-        <label>AUTHOR<input id="packAuthorInput" type="text" maxlength="64" placeholder="Author name"></label>
+        <label>PACK AUTHOR<input id="packAuthorInput" type="text" maxlength="64" placeholder="Default author for every puzzle"></label>
+        <label>GRID COLUMNS
+          <select id="packColumnsSelect" aria-label="Number of columns in the pack grid">
+            <option value="1">1 COLUMN</option>
+            <option value="2">2 COLUMNS</option>
+            <option value="3">3 COLUMNS</option>
+            <option value="4">4 COLUMNS</option>
+            <option value="5">5 COLUMNS</option>
+            <option value="6" selected>6 COLUMNS</option>
+            <option value="7">7 COLUMNS</option>
+            <option value="8">8 COLUMNS</option>
+          </select>
+        </label>
         <label>ACCENT
           <select id="packAccentSelect">
             <option value="black">BLACK</option>
@@ -443,9 +455,9 @@
 <a class="legal-link" href="legal.html" target="_blank" rel="noopener">© 2026 SAM CORNWELL · LEGAL</a>
 <audio id="bgMusic" src="assets/audio/cracked-ivory-drift.mp3" preload="auto" autoplay loop playsinline></audio>
 
-<script src="data.js?v=137"></script>
-<script src="solver-route-verifier.js?v=137"></script>
-<script src="boxxy.js?v=137"></script>
-<script src="pack-builder.js?v=137"></script>
+<script src="data.js?v=138"></script>
+<script src="solver-route-verifier.js?v=138"></script>
+<script src="boxxy.js?v=138"></script>
+<script src="pack-builder.js?v=138"></script>
 </body>
 </html>
