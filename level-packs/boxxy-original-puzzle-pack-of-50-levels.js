@@ -8,7 +8,7 @@
   "title": "BOXXY ORIGINAL PUZZLE PACK OF 50 LEVELS",
   "displayName": "BOXXY Original Puzzle Pack of 50 Levels",
   "author": "Sam Cornwell",
-  "accent": "black",
+  "accent": "red",
   "license": "User-authored BOXXY collection",
   "description": "Boxxy's introductory level pack. All completely new puzzles with steadying difficulty. Enjoy the journey!",
   "generatedAt": "2026-07-21T21:50:05.927Z",

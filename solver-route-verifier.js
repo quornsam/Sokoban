@@ -3,7 +3,7 @@
  * Copyright © 2026 Sam Cornwell. All rights reserved.
  * Personal non-commercial use only. See LICENSE.md.
  */
-/* BOXXY v139 route verifier.
+/* BOXXY v140 route verifier.
  * Replays a solver result against the original XSB board before it may be saved.
  */
 (function (root, factory) {

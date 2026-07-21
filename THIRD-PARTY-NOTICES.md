@@ -41,7 +41,7 @@ Project: `dangarfield/sokoban-solver`, `festival-rust` browser build.
 Repository: `https://github.com/dangarfield/sokoban-solver`  
 Author/maintainer: Dan Garfield and repository contributors.
 
-BOXXY v139 loads the solver at runtime from external pinned or maintainer-hosted locations. The Rust source, generated JavaScript binding and WebAssembly binary are **not included** in this BOXXY archive. At the time v139 was prepared, the upstream repository did not visibly provide an explicit redistribution licence. Commercial deployment should not rely on this backend until written permission or a clear compatible licence is obtained, or the backend is replaced.
+BOXXY v140 loads the solver at runtime from external pinned or maintainer-hosted locations. The Rust source, generated JavaScript binding and WebAssembly binary are **not included** in this BOXXY archive. At the time v140 was prepared, the upstream repository did not visibly provide an explicit redistribution licence. Commercial deployment should not rely on this backend until written permission or a clear compatible licence is obtained, or the backend is replaced.
 
 ## BOXXY material
 

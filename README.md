@@ -12,7 +12,13 @@ Third-party puzzle collections and the externally loaded solver are not owned by
 
 The live GitHub Pages build is intended to be published from the repository root.
 
-## Current release: v139
+## Current release: v140
+
+### v140 pack display correction
+
+- BOXXY Original now uses the red pack colour.
+- Chrysalis Variations now uses green.
+- Non-Microban level credits calculate the real number of boxes from the board instead of displaying the optional push-minimum field.
 
 ### v139 front-page pack update
 

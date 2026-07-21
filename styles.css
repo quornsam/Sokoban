@@ -4,7 +4,7 @@
  * Personal non-commercial use only. See LICENSE.md.
  */
 :root{
-  --paper:#efe5d4;--paper2:#f7f0e5;--ink:#171719;--red:#db3b27;--yellow:#e5b32a;--blue:#20539a;--line:#cbbfae;
+  --paper:#efe5d4;--paper2:#f7f0e5;--ink:#171719;--red:#db3b27;--yellow:#e5b32a;--blue:#20539a;--green:#2f8f5b;--line:#cbbfae;
   --cols:9;--rows:9;--ratio:1;--max-cell:76px;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -568,7 +568,8 @@ body.maker-testing .level-picker{display:none!important}
 .final-pack-art{position:relative;display:block;height:62px;overflow:hidden;border-bottom:2px solid var(--ink);background:#ddd}
 .final-pack-art i{position:absolute;width:54px;height:54px;left:-15px;top:-14px;border:2px solid var(--ink);border-radius:50%;background:rgba(255,255,255,.48)}
 .final-pack-art b{position:absolute;right:8px;bottom:4px;font-size:28px;line-height:1;font-weight:950;letter-spacing:-.07em}
-.pack-red .final-pack-art{background:var(--red)}
+.pack-red .final-pack-art{background:var(--red);color:#fff}
+.pack-green .final-pack-art{background:var(--green);color:#fff}
 .pack-blue .final-pack-art{background:var(--blue);color:#fff}
 .pack-yellow .final-pack-art{background:var(--yellow)}
 .final-pack-name{display:block;padding:9px 8px 8px;font-size:10px;line-height:1.08;font-weight:950;letter-spacing:.04em}

@@ -33,7 +33,7 @@
   });
 })();
 
-/* BOXXY v139 — compact, URL-safe custom puzzle links. */
+/* BOXXY v140 — compact, URL-safe custom puzzle links. */
 (() => {
   "use strict";
 
@@ -113,7 +113,7 @@
   window.BoxxyShareCodec = Object.freeze({ encode, decode, readLocation, buildUrl });
 })();
 
-/* BOXXY v139 — character renderer, game engine, level maker and Rust/WASM solver adapter. */
+/* BOXXY v140 — character renderer, game engine, level maker and Rust/WASM solver adapter. */
 (() => {
   "use strict";
 
@@ -1843,7 +1843,7 @@
     const creditedAuthor = levelData.author || activePack.author || "";
     const measureWord = activePack.id === "microban"
       ? `${levelData.pushMinimum} ${levelData.pushMinimum === 1 ? "PUSH" : "PUSHES"}`
-      : `${levelData.pushMinimum} ${levelData.pushMinimum === 1 ? "BOX" : "BOXES"}`;
+      : `${boxes.length} ${boxes.length === 1 ? "BOX" : "BOXES"}`;
     creditSub.textContent = `${String(creditedAuthor).toUpperCase()} · ${width}×${height} · ${measureWord}`;
     startedAt = Date.now();
     clearInterval(timer);
@@ -3026,7 +3026,7 @@
     setSolverStatus("Loading the external Rust/WebAssembly solver. An internet connection is required for the solver only.");
 
     try {
-      solverWorker = new Worker("solver-worker.js?v=135", { type: "module", name: "boxxy-rust-solver-v139" });
+      solverWorker = new Worker("solver-worker.js?v=135", { type: "module", name: "boxxy-rust-solver-v140" });
       solverWorker.onmessage = event => {
         const message = event.data || {};
         if (message.id !== id || id !== solverJobId || !solverRunning) return;
