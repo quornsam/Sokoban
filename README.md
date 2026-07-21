@@ -12,11 +12,18 @@ Third-party puzzle collections and the externally loaded solver are not owned by
 
 The live GitHub Pages build is intended to be published from the repository root.
 
-## Current release: v138
+## Current release: v139
+
+### v139 front-page pack update
+
+- Adds **BOXXY Original Puzzle Pack of 50 Levels** by Sam Cornwell as the first and default puzzle pack.
+- Keeps **Microban Series** unlocked from the start.
+- Completing either BOXXY Original or Microban unlocks every additional collection.
+- Existing per-pack progress remains stored separately.
 
 This release adds:
 
-- a discreet **BOXXY version 138** label on the Legal page;
+- a discreet **BOXXY version 139** label on the Legal page;
 - per-puzzle display names inside Pack Builder drafts, independent of the linked Level Maker save name;
 - a pack-wide default author with optional individual puzzle-author overrides;
 - selectable Pack Builder card layouts from **1 to 8 columns**;
@@ -31,6 +38,7 @@ This release adds:
 
 - `index.html`, `styles.css`, `boxxy.js` — game and Level Maker
 - `data.js` — built-in puzzle-pack data and metadata
+- `level-packs/boxxy-original-puzzle-pack-of-50-levels.js` — Sam Cornwell’s 50-level BOXXY Original collection
 - `pack-builder.js` — private Level Pack and Daily Puzzle workspaces
 - `solver-worker.js` — loader and adapter for the external Rust/WebAssembly solver
 - `solver-route-verifier.js` — independent verification of returned routes

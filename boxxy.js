@@ -33,7 +33,7 @@
   });
 })();
 
-/* BOXXY v138 — compact, URL-safe custom puzzle links. */
+/* BOXXY v139 — compact, URL-safe custom puzzle links. */
 (() => {
   "use strict";
 
@@ -113,7 +113,7 @@
   window.BoxxyShareCodec = Object.freeze({ encode, decode, readLocation, buildUrl });
 })();
 
-/* BOXXY v138 — character renderer, game engine, level maker and Rust/WASM solver adapter. */
+/* BOXXY v139 — character renderer, game engine, level maker and Rust/WASM solver adapter. */
 (() => {
   "use strict";
 
@@ -531,44 +531,52 @@
   const PACK_BY_ID = new Map(PACKS.map(pack => [pack.id, pack]));
   const SHARED_PUZZLE_PAYLOAD = window.BoxxyShareCodec?.readLocation?.() || null;
   const PRIMARY_PACK_ID = PACKS[0]?.id || "microban";
+  const MICROBAN_PACK_ID = "microban";
+  const ALWAYS_UNLOCKED_PACK_IDS = new Set([PRIMARY_PACK_ID, MICROBAN_PACK_ID]);
+  const UNLOCK_SOURCE_PACK_IDS = new Set([PRIMARY_PACK_ID, MICROBAN_PACK_ID]);
   const ADDITIONAL_PACKS_UNLOCK_KEY = "boxxy-additional-packs-unlocked-v1";
+  const ACTIVE_PACK_STORAGE_KEY = "boxxy-active-pack-v2";
   const packStorageKeyFor = (packId, suffix) => `boxxy-pack-${packId}-${suffix}-v1`;
 
-  function primaryPackIsComplete() {
-    if (localStorage.getItem(ADDITIONAL_PACKS_UNLOCK_KEY) === "true") return true;
-    const primaryPack = PACK_BY_ID.get(PRIMARY_PACK_ID);
-    if (!primaryPack?.levels?.length) return true;
+  function packIsComplete(packId) {
+    const pack = PACK_BY_ID.get(packId);
+    if (!pack?.levels?.length) return false;
 
-    const finalIndex = primaryPack.levels.length - 1;
+    const finalIndex = pack.levels.length - 1;
     let completed = [];
     try {
-      const currentRaw = localStorage.getItem(packStorageKeyFor(primaryPack.id, "completed"));
-      const legacyRaw = primaryPack.id === "microban" ? localStorage.getItem("boxxy-completed-levels-v1") : null;
+      const currentRaw = localStorage.getItem(packStorageKeyFor(pack.id, "completed"));
+      const legacyRaw = pack.id === MICROBAN_PACK_ID ? localStorage.getItem("boxxy-completed-levels-v1") : null;
       completed = JSON.parse(currentRaw ?? legacyRaw ?? "[]");
     } catch (_) {}
 
-    const finalLevel = primaryPack.levels[finalIndex];
+    const finalLevel = pack.levels[finalIndex];
     const currentBest = finalLevel
-      ? localStorage.getItem(packStorageKeyFor(primaryPack.id, `best-${finalLevel.sourceNumber}`))
+      ? localStorage.getItem(packStorageKeyFor(pack.id, `best-${finalLevel.sourceNumber}`))
       : null;
-    const legacyBest = primaryPack.id === "microban" && finalLevel
+    const legacyBest = pack.id === MICROBAN_PACK_ID && finalLevel
       ? localStorage.getItem(`push-bauhaus-v22-best-${finalLevel.sourceNumber}`)
       : null;
 
-    const complete = (Array.isArray(completed) && completed.map(Number).includes(finalIndex)) || Boolean(currentBest || legacyBest);
+    return (Array.isArray(completed) && completed.map(Number).includes(finalIndex)) || Boolean(currentBest || legacyBest);
+  }
+
+  function additionalPacksUnlocked() {
+    if (localStorage.getItem(ADDITIONAL_PACKS_UNLOCK_KEY) === "true") return true;
+    const complete = [...UNLOCK_SOURCE_PACK_IDS].some(packIsComplete);
     if (complete) localStorage.setItem(ADDITIONAL_PACKS_UNLOCK_KEY, "true");
     return complete;
   }
 
-  function additionalPacksUnlocked() {
-    return primaryPackIsComplete();
+  function packIsLocked(pack) {
+    return !ALWAYS_UNLOCKED_PACK_IDS.has(pack?.id) && !additionalPacksUnlocked();
   }
 
-  const savedPackId = localStorage.getItem("boxxy-active-pack-v1");
+  const savedPackId = localStorage.getItem(ACTIVE_PACK_STORAGE_KEY);
   let activePack = PACK_BY_ID.get(savedPackId) || PACKS[0];
-  if (activePack.id !== PRIMARY_PACK_ID && !additionalPacksUnlocked()) {
+  if (packIsLocked(activePack)) {
     activePack = PACK_BY_ID.get(PRIMARY_PACK_ID) || PACKS[0];
-    localStorage.setItem("boxxy-active-pack-v1", activePack.id);
+    localStorage.setItem(ACTIVE_PACK_STORAGE_KEY, activePack.id);
   }
   let LEVELS = Array.isArray(activePack.levels) ? activePack.levels : [];
 
@@ -979,7 +987,7 @@
 
   function createPackButton(pack, index, compact = false) {
     const button = document.createElement("button");
-    const isLocked = pack.id !== PRIMARY_PACK_ID && !additionalPacksUnlocked();
+    const isLocked = packIsLocked(pack);
     button.type = "button";
     button.className = `${compact ? "final-pack-option" : "pack-option"} pack-${pack.accent || "black"}`;
     button.dataset.packId = pack.id;
@@ -1007,12 +1015,12 @@
     if (isLocked) {
       const lockText = document.createElement("em");
       lockText.className = "pack-lock-label";
-      lockText.textContent = `COMPLETE ${PACKS[0].title} TO UNLOCK`;
+      lockText.textContent = "COMPLETE BOXXY ORIGINAL OR MICROBAN";
       name.appendChild(lockText);
     }
     button.append(art, name);
     button.title = isLocked
-      ? `Complete ${PACKS[0].displayName} to unlock this pack.`
+      ? "Complete BOXXY Original Puzzle Pack or Microban Series to unlock this pack."
       : (pack.description || pack.displayName || pack.title);
     button.addEventListener("click", () => switchPack(pack.id));
     return button;
@@ -1034,8 +1042,8 @@
   function switchPack(packId) {
     const nextPack = PACK_BY_ID.get(packId);
     if (!nextPack || !Array.isArray(nextPack.levels) || !nextPack.levels.length) return;
-    if (nextPack.id !== PRIMARY_PACK_ID && !additionalPacksUnlocked()) {
-      if (finalPackStatus) finalPackStatus.textContent = `Complete ${PACKS[0].displayName} to unlock the additional level packs.`;
+    if (packIsLocked(nextPack)) {
+      if (finalPackStatus) finalPackStatus.textContent = "Complete BOXXY Original Puzzle Pack or Microban Series to unlock the additional level packs.";
       return;
     }
     if (nextPack.id === activePack.id) {
@@ -1047,7 +1055,7 @@
     localStorage.setItem(currentLevelStorageKey(), String(levelIndex));
     activePack = nextPack;
     LEVELS = nextPack.levels;
-    localStorage.setItem("boxxy-active-pack-v1", activePack.id);
+    localStorage.setItem(ACTIVE_PACK_STORAGE_KEY, activePack.id);
     levelIndex = storedLevelIndexForPack(activePack);
     completedLevels = new Set();
     highestUnlockedLevel = 0;
@@ -2115,13 +2123,14 @@
       refreshLevelButtons();
 
       if (levelIndex === LEVELS.length - 1) {
-        const unlockedAdditionalPacksNow = activePack.id === PRIMARY_PACK_ID && !packsWereUnlocked;
-        if (activePack.id === PRIMARY_PACK_ID) localStorage.setItem(ADDITIONAL_PACKS_UNLOCK_KEY, "true");
+        const canUnlockAdditionalPacks = UNLOCK_SOURCE_PACK_IDS.has(activePack.id);
+        const unlockedAdditionalPacksNow = canUnlockAdditionalPacks && !packsWereUnlocked;
+        if (canUnlockAdditionalPacks) localStorage.setItem(ADDITIONAL_PACKS_UNLOCK_KEY, "true");
         completeMode = "final";
         completeCard?.classList.add("final-complete");
         if (completeKicker) completeKicker.textContent = "CONGRATULATIONS";
         if (completeTitle) completeTitle.innerHTML = "WELL<br>DONE";
-        completeText.textContent = `You have completed ${activePack.displayName}. Level ${LEVELS.length} was solved in ${moves} moves and ${pushes} pushes.${solvedWithWalkthrough ? " This completion used the guided solve." : ""}${learnedRoute ? " Your route has been saved as this level's guided solve." : ""}${unlockedAdditionalPacksNow ? " The additional Bauhaus level packs are now unlocked." : ""}`;
+        completeText.textContent = `You have completed ${activePack.displayName}. Level ${LEVELS.length} was solved in ${moves} moves and ${pushes} pushes.${solvedWithWalkthrough ? " This completion used the guided solve." : ""}${learnedRoute ? " Your route has been saved as this level's guided solve." : ""}${unlockedAdditionalPacksNow ? " The additional puzzle packs are now unlocked." : ""}`;
         buildPackSelectors();
         if (finalPackPicker) finalPackPicker.hidden = false;
         if (finalPackStatus) finalPackStatus.textContent = solvedWithWalkthrough ? "Guided-solve completions are shown in yellow in the level list." : "";
@@ -3017,7 +3026,7 @@
     setSolverStatus("Loading the external Rust/WebAssembly solver. An internet connection is required for the solver only.");
 
     try {
-      solverWorker = new Worker("solver-worker.js?v=135", { type: "module", name: "boxxy-rust-solver-v138" });
+      solverWorker = new Worker("solver-worker.js?v=135", { type: "module", name: "boxxy-rust-solver-v139" });
       solverWorker.onmessage = event => {
         const message = event.data || {};
         if (message.id !== id || id !== solverJobId || !solverRunning) return;

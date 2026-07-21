@@ -1,0 +1,29 @@
+BOXXY v139 TEST REPORT
+=======================
+
+Release focus
+-------------
+BOXXY Original Puzzle Pack of 50 Levels is integrated as the first and default front-end puzzle pack.
+Microban remains unlocked. Every other collection remains locked until either BOXXY Original or Microban is completed.
+
+Validation performed
+--------------------
+PASS  JavaScript syntax checks: boxxy.js, data.js, pack-builder.js, solver-route-verifier.js, solver-worker.js and the new pack script.
+PASS  Pack registration order: BOXXY Original first, Microban second, followed by Chrysalis, Haikemono and Small Chessboards.
+PASS  Fresh v139 active-pack selection defaults to BOXXY Original.
+PASS  BOXXY Original and Microban are unlocked on a fresh profile.
+PASS  Chrysalis, Haikemono and Small Chessboards are locked on a fresh profile.
+PASS  Completing BOXXY Original unlocks all additional packs.
+PASS  Completing Microban, including legacy Microban completion storage, unlocks all additional packs.
+PASS  Existing per-pack level progress keys remain unchanged.
+PASS  BOXXY Original contains exactly 50 levels.
+PASS  Every BOXXY Original level has exactly one player and equal box/goal counts.
+PASS  All 48 supplied solution strings replay legally, solve their level and match the stored move count.
+PASS  Levels 2 and 3 contain no supplied solution, as authored.
+PASS  Legal page displays BOXXY VERSION 139.
+PASS  All local files referenced by index.html exist in the release folder.
+PASS  ZIP integrity check completed successfully.
+
+Environment note
+----------------
+The full Chromium UI could not be launched in this build environment because local and loopback pages are blocked by administrator policy. Pack order, default selection, locking, completion migration, level validity and route replay were tested directly against the release JavaScript.

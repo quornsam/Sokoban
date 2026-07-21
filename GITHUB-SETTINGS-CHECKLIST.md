@@ -30,9 +30,9 @@ A ruleset can protect `main` from force pushes or deletion. Requiring pull reque
 
 ## Recommended release record
 
-After uploading v138:
+After uploading v139:
 
-1. Commit with a clear message such as `BOXXY v138 pack-builder metadata release`.
-2. Create a tag such as `v138`.
+1. Commit with a clear message such as `BOXXY v139 original-pack front-page release`.
+2. Create a tag such as `v139`.
 3. Create a GitHub Release and attach the exact ZIP.
 4. Keep an offline copy of the ZIP and original creative files.
