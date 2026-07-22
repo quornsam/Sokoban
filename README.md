@@ -10,73 +10,92 @@ Third-party puzzle collections and the externally loaded solver are not owned by
 
 ## Play
 
-The live GitHub Pages build is intended to be published from the repository root.
+The live GitHub Pages build is published from the repository root.
 
-## Current release: v142
+## Current release: v143
 
+### v143 repository and asset cleanup
+
+- Replaces the split `data.js` and separate BOXXY pack script with one readable `levels.js` file.
+- Keeps the existing pack IDs, pack order, all 288 level records and saved-progress keys unchanged.
+- Stores all five bundled collections together:
+  - BOXXY Original Puzzle Pack — 50 levels
+  - Microban Series — 50 levels
+  - Chrysalis Variations — 113 levels
+  - Haikemono — 35 levels
+  - Small Chessboards — 40 levels
+- Merges the small route verifier into `boxxy.js` and removes its standalone script.
+- Removes legacy Ink-theme artwork, obsolete per-frame character layers, duplicate board images, duplicate music and old root-level sprites that the game did not load.
+- Uses the efficient 300 × 260 character wardrobe sheets on every device and removes the duplicate 600 × 520 set.
+- Retains the 24 simple fallback character images because they are the independent safety net for the older-iPad disappearance bug reported by AngeM.
+- Removes the unnecessary character-sheet preloads from `index.html`.
+- Consolidates third-party credits into `THIRD-PARTY-NOTICES.md`.
 
 ### v142 compact movement controls and attire placement
 
-- Changes the direction pad to a compact two-row layout: Up above, with Left, Down and Right beneath.
-- Removes the attire button from the centre of the arrows.
-- Places the attire control beside the direction pad on desktop and tablet screens.
-- Places attire inside the Choose Level panel on phone layouts, including short mobile landscape.
-- Narrows the left and right mobile action columns so the movement buttons can be substantially larger.
-- Keeps action labels contained inside their buttons on compact screens.
+- Uses a compact two-row direction pad: Up above Left, Down and Right.
+- Places attire separately on desktop and tablet, and inside Choose Level on phone layouts.
+- Gives movement controls more room on compact screens without overlapping action labels.
 
-### v141 older-iPad character stability and movement controls
+### v141 older-iPad character stability
 
-- Fixes a character-disappearance issue reported by **AngeM** on an older iPad mini.
-- Uses compact character sprite sheets on touch devices and loads only the active character body, substantially reducing Safari memory pressure.
-- Displays gameplay characters as cached images rather than a canvas that WebKit may discard.
-- Includes an immediate per-frame fallback image, so the character remains visible even if Safari cannot rebuild a customised frame.
+- Uses cached character images with an immediate independent fallback frame.
 - Repaints the character after page restoration and visibility changes.
-- Moves the idle bob animation away from the zero-height player container to avoid an older-WebKit compositing failure.
-- Makes the directional pad and arrow buttons substantially larger across desktop, tablet, phone and short landscape layouts.
+- Reduces Safari memory pressure and avoids the old zero-height-container animation issue.
 
-### v140 pack display correction
+## Repository structure
 
-- BOXXY Original now uses the red pack colour.
-- Chrysalis Variations now uses green.
-- Non-Microban level credits calculate the real number of boxes from the board instead of displaying the optional push-minimum field.
+```text
+assets/
+  audio/cracked-ivory-drift.mp3
+  board/board-atlas.png
+  characters/
+    boy/   (six wardrobe-layer sprite sheets)
+    girl/  (six wardrobe-layer sprite sheets)
+  characters-fallback/
+    boy/   (12 independent emergency frames)
+    girl/  (12 independent emergency frames)
+  ui/boxxy-splash.png
 
-### v139 front-page pack update
+index.html
+styles.css
+boxxy.js
+levels.js
+pack-builder.js
+solver-worker.js
+legal.html
+README.md
+LICENSE.md
+TERMS-OF-USE.md
+PRIVACY.md
+THIRD-PARTY-NOTICES.md
+```
 
-- Adds **BOXXY Original Puzzle Pack of 50 Levels** by Sam Cornwell as the first and default puzzle pack.
-- Keeps **Microban Series** unlocked from the start.
-- Completing either BOXXY Original or Microban unlocks every additional collection.
-- Existing per-pack progress remains stored separately.
+## Why the character graphics are not one file
 
-This release adds:
+The wardrobe changes hair, skin, shirt, trousers and shoes independently, so those colour-mask layers must remain separately addressable. Each of the six files is already a sprite sheet containing all 12 poses; they are not 12 individual animation files.
 
-- a discreet **BOXXY version 139** label on the Legal page;
-- per-puzzle display names inside Pack Builder drafts, independent of the linked Level Maker save name;
-- a pack-wide default author with optional individual puzzle-author overrides;
-- selectable Pack Builder card layouts from **1 to 8 columns**;
-- direct **EDIT** and **PLAY** controls on saved-library and ordered-pack cards;
-- verified solution move counts on every solved card;
-- exported per-level author and solution-move metadata;
-- preservation of custom pack names and authors when linked layouts or solutions synchronise from the Level Maker;
-- all v137 saved-position functionality unchanged.
+Combining every layer into one very large atlas would not reduce decoded image memory and could exceed older iPad texture or canvas limits. The current arrangement is the smaller safe structure: six compact sheets per character, plus independent fallback frames that remain visible if Safari cannot compose a customised sprite.
 
+## Main code files
 
-## Main files
-
-- `index.html`, `styles.css`, `boxxy.js` — game and Level Maker
-- `data.js` — built-in puzzle-pack data and metadata
-- `level-packs/boxxy-original-puzzle-pack-of-50-levels.js` — Sam Cornwell’s 50-level BOXXY Original collection
+- `index.html` — page structure and script loading
+- `styles.css` — responsive interface and game styling
+- `boxxy.js` — game, character renderer, Level Maker and route verification
+- `levels.js` — the single source of truth for all five bundled level packs
 - `pack-builder.js` — private Level Pack and Daily Puzzle workspaces
 - `solver-worker.js` — loader and adapter for the external Rust/WebAssembly solver
-- `solver-route-verifier.js` — independent verification of returned routes
 - `legal.html` — public-facing legal information
-- `LICENSE.md` — BOXXY proprietary source licence
-- `THIRD-PARTY-NOTICES.md` — material not owned by Sam Cornwell
-- `TERMS-OF-USE.md` — website and game terms
-- `PRIVACY.md` — local storage and external network requests
 
 ## Local browser storage
 
 Campaign progress, saved gameplay positions, Level Maker saves, pack drafts and Daily Puzzle drafts are stored in the browser. They are not committed to GitHub automatically. Clearing site data may delete them.
+
+The v143 file cleanup does not change pack IDs, level source numbers or storage-key formats, so existing progress remains compatible.
+
+## Privacy
+
+BOXXY does not include analytics or advertising trackers. See [PRIVACY.md](PRIVACY.md) for local-storage and external solver-request details.
 
 ## Hidden tools
 

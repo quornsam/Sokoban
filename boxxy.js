@@ -33,6 +33,155 @@
   });
 })();
 
+/* BOXXY v143 — solver route verifier (merged from the former standalone file). */
+(function (root, factory) {
+  const api = factory();
+  if (typeof module === "object" && module.exports) module.exports = api;
+  if (root) root.BoxxyRouteVerifier = api;
+})(typeof globalThis !== "undefined" ? globalThis : this, function () {
+  "use strict";
+
+  const DELTAS = {
+    u: [0, -1],
+    d: [0, 1],
+    l: [-1, 0],
+    r: [1, 0]
+  };
+
+  function cleanRoute(route) {
+    return String(route ?? "").replace(/\s/g, "");
+  }
+
+  function parseLevel(levelText) {
+    const lines = String(levelText ?? "")
+      .replace(/\r/g, "")
+      .split("\n")
+      .map(line => line.replace(/\s+$/g, ""))
+      .filter(line => line.length > 0);
+
+    if (!lines.length) return { ok: false, error: "The level is empty." };
+    const width = Math.max(...lines.map(line => line.length));
+    const height = lines.length;
+    const walls = new Set();
+    const goals = new Set();
+    const boxes = new Set();
+    const voids = new Set();
+    let player = null;
+    let playerCount = 0;
+
+    const key = (x, y) => `${x},${y}`;
+    const chars = lines.map(line => line.padEnd(width, " ").split(""));
+
+    // XSB uses spaces both for floor and for padding outside an irregular map.
+    // Match BOXXY's own importer by flood-filling boundary spaces as void.
+    const outsideQueue = [];
+    const addOutside = (x, y) => {
+      if (x < 0 || y < 0 || x >= width || y >= height || chars[y][x] !== " ") return;
+      const id = key(x, y);
+      if (voids.has(id)) return;
+      voids.add(id);
+      outsideQueue.push([x, y]);
+    };
+    for (let x = 0; x < width; x++) {
+      addOutside(x, 0);
+      addOutside(x, height - 1);
+    }
+    for (let y = 0; y < height; y++) {
+      addOutside(0, y);
+      addOutside(width - 1, y);
+    }
+    for (let i = 0; i < outsideQueue.length; i++) {
+      const [x, y] = outsideQueue[i];
+      addOutside(x - 1, y);
+      addOutside(x + 1, y);
+      addOutside(x, y - 1);
+      addOutside(x, y + 1);
+    }
+
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const ch = chars[y][x];
+        const id = key(x, y);
+        if (ch === "#") walls.add(id);
+        if (ch === "." || ch === "*" || ch === "+") goals.add(id);
+        if (ch === "$" || ch === "*") boxes.add(id);
+        if (ch === "@" || ch === "+") {
+          player = [x, y];
+          playerCount++;
+        }
+      }
+    }
+
+    if (playerCount !== 1 || !player) return { ok: false, error: `The level has ${playerCount} players; exactly one is required.` };
+    if (!boxes.size) return { ok: false, error: "The level has no boxes." };
+    if (boxes.size !== goals.size) return { ok: false, error: `The level has ${boxes.size} boxes and ${goals.size} goals.` };
+
+    return { ok: true, width, height, walls, voids, goals, boxes, player, key };
+  }
+
+  function verify(levelText, route) {
+    const parsed = parseLevel(levelText);
+    if (!parsed.ok) return { valid: false, solved: false, route: "", moves: 0, pushes: 0, error: parsed.error };
+
+    const clean = cleanRoute(route);
+    const invalid = clean.match(/[^udlrUDLR]/);
+    if (invalid) {
+      return { valid: false, solved: false, route: "", moves: 0, pushes: 0, error: `The route contains an invalid character: ${JSON.stringify(invalid[0])}.` };
+    }
+
+    const boxes = new Set(parsed.boxes);
+    let [px, py] = parsed.player;
+    let pushes = 0;
+    let canonical = "";
+
+    const blocked = (x, y) => x < 0 || y < 0 || x >= parsed.width || y >= parsed.height || parsed.walls.has(parsed.key(x, y)) || parsed.voids.has(parsed.key(x, y));
+
+    for (let i = 0; i < clean.length; i++) {
+      const lower = clean[i].toLowerCase();
+      const delta = DELTAS[lower];
+      if (!delta) continue;
+      const [dx, dy] = delta;
+      const nx = px + dx;
+      const ny = py + dy;
+      const nextKey = parsed.key(nx, ny);
+
+      if (blocked(nx, ny)) {
+        return { valid: false, solved: false, route: canonical, moves: i, pushes, error: `Move ${i + 1} walks into a wall or outside the board.` };
+      }
+
+      let pushed = false;
+      if (boxes.has(nextKey)) {
+        const bx = nx + dx;
+        const by = ny + dy;
+        const beyondKey = parsed.key(bx, by);
+        if (blocked(bx, by) || boxes.has(beyondKey)) {
+          return { valid: false, solved: false, route: canonical, moves: i, pushes, error: `Move ${i + 1} attempts an illegal push.` };
+        }
+        boxes.delete(nextKey);
+        boxes.add(beyondKey);
+        pushes++;
+        pushed = true;
+      }
+
+      px = nx;
+      py = ny;
+      canonical += pushed ? lower.toUpperCase() : lower;
+    }
+
+    const solved = [...boxes].every(box => parsed.goals.has(box));
+    return {
+      valid: true,
+      solved,
+      route: canonical,
+      moves: canonical.length,
+      pushes,
+      error: solved ? "" : "The route is legal but does not finish with every box on a goal."
+    };
+  }
+
+  return { cleanRoute, parseLevel, verify };
+});
+
 /* BOXXY v141 — compact, URL-safe custom puzzle links. */
 (() => {
   "use strict";
@@ -113,7 +262,7 @@
   window.BoxxyShareCodec = Object.freeze({ encode, decode, readLocation, buildUrl });
 })();
 
-/* BOXXY v141 — character renderer, game engine, level maker and Rust/WASM solver adapter. */
+/* BOXXY v143 — character renderer, game engine, level maker and Rust/WASM solver adapter. */
 (() => {
   "use strict";
 
@@ -126,17 +275,13 @@
   const BODY_TYPES = ["boy", "girl"];
   const THEMES = ["bauhaus"];
   const SHEET_COLS = 4;
-  const APPLE_TOUCH_DEVICE = /iPad|iPhone|iPod/.test(navigator.userAgent || "") ||
-    ((navigator.platform || "") === "MacIntel" && Number(navigator.maxTouchPoints || 0) > 1);
-  const COARSE_POINTER_DEVICE = Boolean(window.matchMedia?.("(pointer: coarse)")?.matches);
-  // AngeM's older-iPad report exposed WebKit canvas eviction under memory pressure.
-  // Touch devices use half-resolution wardrobe sheets: still more than 2× the normal
-  // on-screen character size, but approximately one quarter of the decoded pixels.
-  const USE_COMPACT_CHARACTER_SHEETS = APPLE_TOUCH_DEVICE || COARSE_POINTER_DEVICE;
-  const FRAME_WIDTH = USE_COMPACT_CHARACTER_SHEETS ? 300 : 600;
-  const FRAME_HEIGHT = USE_COMPACT_CHARACTER_SHEETS ? 260 : 520;
-  const CHARACTER_ASSET_ROOT = USE_COMPACT_CHARACTER_SHEETS ? "assets/characters-compact" : "assets/characters";
-  const ASSET_REVISION = "141";
+  // One efficient 300 × 260 frame set is used everywhere. It remains larger than
+  // the maximum on-screen character while avoiding the old 600 × 520 duplicate
+  // wardrobe set and the memory pressure that exposed AngeM's older-iPad bug.
+  const FRAME_WIDTH = 300;
+  const FRAME_HEIGHT = 260;
+  const CHARACTER_ASSET_ROOT = "assets/characters";
+  const ASSET_REVISION = "143";
   const LABELS = {
     bodyType: "CHARACTER",
     tshirt: "T-SHIRT",
@@ -574,7 +719,7 @@
     set,
     reset,
     get style() { return { ...style }; },
-    get compactAssets() { return USE_COMPACT_CHARACTER_SHEETS; },
+    get compactAssets() { return true; },
     get isOpen() { return Boolean(styleModal && !styleModal.hidden); }
   };
 })();
@@ -1206,7 +1351,6 @@
   const BACKGROUND_SOLIDS = ["#e5392f", "#f2c121", "#2457a6", "#151515", "#f47a20", "#00a6b2", "#2f9e44", "#8e44ad", "#ff7f50", "#16a085"];
   const backgroundSessionSeed = Math.floor(Math.random() * 0x7fffffff);
   let currentTheme = "bauhaus";
-  const themeAsset = (kind) => `assets/board/${kind}`;
   const THOUGHT_GRUNTS = [
     "Hmm.", "Hmph.", "Hurrumph.", "Ugh.", "Oof.", "Right.", "Aha.", "Nope.",
     "Steady.", "Well then.", "Oh, come on.", "Sigh.", "Mmm.", "Honestly.", "Typical.", "Here we go."
@@ -1779,9 +1923,9 @@
     return goals.some(goal => goal.x === x && goal.y === y);
   }
 
-  function sprite(mode = "idle", direction = "front") {
+  function characterFrameName(mode = "idle", direction = "front") {
     const prefix = mode === "walk" ? "walk" : mode === "push" ? "push" : "player";
-    return `assets/${prefix}-${direction}.png`;
+    return `${prefix}-${direction}`;
   }
 
   function render(anim = "idle") {
@@ -1807,8 +1951,10 @@
     playerImage.draggable = false;
     playerImage.decoding = "sync";
     playerImage.setAttribute("aria-hidden", "true");
-    const framePath = sprite(anim === "walking" ? "walk" : anim === "pushing" ? "push" : "idle", facing);
-    const frameName = framePath.replace(/^assets\//, "").replace(/\.png$/, "");
+    const frameName = characterFrameName(
+      anim === "walking" ? "walk" : anim === "pushing" ? "push" : "idle",
+      facing
+    );
     playerImage.dataset.characterFrame = frameName;
     playerPiece.appendChild(playerImage);
     window.CharacterStyler?.drawImage?.(playerImage, frameName);
@@ -3103,7 +3249,7 @@
     setSolverStatus("Loading the external Rust/WebAssembly solver. An internet connection is required for the solver only.");
 
     try {
-      solverWorker = new Worker("solver-worker.js?v=135", { type: "module", name: "boxxy-rust-solver-v141" });
+      solverWorker = new Worker("solver-worker.js?v=143", { type: "module", name: "boxxy-rust-solver-v143" });
       solverWorker.onmessage = event => {
         const message = event.data || {};
         if (message.id !== id || id !== solverJobId || !solverRunning) return;
