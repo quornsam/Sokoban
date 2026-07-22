@@ -1,0 +1,133 @@
+/* BOXXY v147 — tablet attire placement tidy-up.
+   Phones keep attire inside the Levels modal.
+   Tablets/desktops keep a separate small attire tile beside the arrows.
+   This avoids the oversized wardrobe button seen on iPad portrait. */
+
+:root{
+  --boxxy-attire-tile-width: 62px;
+  --boxxy-attire-tile-height: 68px;
+}
+
+/* Default / tablet touch behaviour: keep the small separate attire tile. */
+html.touch-ui .move-zone{
+  grid-template-columns:minmax(0,1fr) var(--boxxy-attire-tile-width) !important;
+  align-items:center;
+  justify-items:stretch;
+}
+html.touch-ui .dpad{
+  width:min(100%,260px);
+  justify-self:center;
+}
+html.touch-ui .attire-action{
+  display:flex !important;
+  width:var(--boxxy-attire-tile-width);
+  min-height:var(--boxxy-attire-tile-height);
+  align-self:center;
+  padding:4px 3px;
+  gap:2px;
+}
+html.touch-ui .attire-action .style-outfit-icon{
+  width:34px;
+  height:34px;
+}
+html.touch-ui .attire-action b{
+  font-size:7px;
+  line-height:1;
+  letter-spacing:.04em;
+}
+html.touch-ui .level-attire{
+  display:none !important;
+}
+
+/* Real mobile widths: put attire back inside the Levels modal, but as a compact pill. */
+@media (max-width: 680px){
+  html.touch-ui .move-zone{
+    grid-template-columns:minmax(0,1fr) !important;
+    justify-items:center;
+  }
+  html.touch-ui .attire-action{
+    display:none !important;
+  }
+  html.touch-ui .level-picker-head{
+    align-items:center;
+  }
+  html.touch-ui .level-picker-tools{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    flex-wrap:nowrap;
+  }
+  html.touch-ui .level-attire{
+    display:inline-flex !important;
+    align-items:center;
+    justify-content:center;
+    flex:0 0 auto;
+    width:auto;
+    min-width:0;
+    max-width:none;
+    height:28px;
+    padding:2px 8px 2px 6px;
+    border:1px solid var(--ink);
+    background:var(--yellow);
+    gap:4px;
+    font-size:8px;
+    font-weight:950;
+    letter-spacing:.04em;
+    line-height:1;
+    box-sizing:border-box;
+  }
+  html.touch-ui .level-attire .style-outfit-icon{
+    width:17px;
+    height:17px;
+    flex:none;
+  }
+}
+
+/* Short mobile landscape keeps the modal version too. */
+@media (max-height: 520px) and (orientation: landscape){
+  html.touch-ui .move-zone{
+    grid-template-columns:minmax(0,1fr) !important;
+    justify-items:center;
+  }
+  html.touch-ui .attire-action{
+    display:none !important;
+  }
+  html.touch-ui .level-attire{
+    display:inline-flex !important;
+    align-items:center;
+    justify-content:center;
+    flex:0 0 auto;
+    width:auto;
+    min-width:0;
+    max-width:none;
+    height:28px;
+    padding:2px 8px 2px 6px;
+    gap:4px;
+    font-size:8px;
+    line-height:1;
+  }
+  html.touch-ui .level-attire .style-outfit-icon{
+    width:17px;
+    height:17px;
+  }
+}
+
+/* A touch tablet in portrait should never get the giant modal wardrobe button. */
+@media (min-width: 681px) and (orientation: portrait){
+  html.touch-ui .level-attire{
+    display:none !important;
+  }
+}
+
+/* Keep the SVG arrows comfortably centred. */
+.dpad button{
+  display:grid;
+  place-items:center;
+  line-height:0;
+}
+.dpad button svg{
+  width:42%;
+  height:42%;
+  display:block;
+  margin:0;
+}
