@@ -30,9 +30,9 @@ A ruleset can protect `main` from force pushes or deletion. Requiring pull reque
 
 ## Recommended release record
 
-After uploading v140:
+After uploading v141:
 
-1. Commit with a clear message such as `BOXXY v140 original-pack front-page release`.
-2. Create a tag such as `v140`.
+1. Commit with a clear message such as `BOXXY v141 original-pack front-page release`.
+2. Create a tag such as `v141`.
 3. Create a GitHub Release and attach the exact ZIP.
 4. Keep an offline copy of the ZIP and original creative files.

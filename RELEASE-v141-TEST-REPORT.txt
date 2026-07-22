@@ -1,0 +1,36 @@
+BOXXY v141 TEST REPORT
+
+Scope
+-----
+Older-iPad character visibility repair and larger directional controls.
+
+Reported by
+-----------
+AngeM reported that the player character could disappear during play on an older iPad mini while the puzzle remained playable.
+
+Changes
+-------
+PASS  Touch devices use half-resolution wardrobe sheets (1200 x 780 rather than 2400 x 1560).
+PASS  Only the active character body is preloaded.
+PASS  The gameplay character is displayed as a cached PNG image instead of a persistent canvas.
+PASS  Twenty-four fallback character frames keep the player visible if dynamic recolouring fails.
+PASS  The player is refreshed on pageshow and when returning to a visible tab.
+PASS  Idle animation applies to the visible sprite rather than the zero-height player container.
+PASS  Directional controls are substantially larger in standard, mobile, short-screen and landscape layouts.
+PASS  Directional controls retain a 3 x 3 ordered grid and do not overlap adjacent controls.
+PASS  Legal page displays BOXXY VERSION 141.
+PASS  Browser cache-busters use v141.
+PASS  JavaScript syntax validation completed.
+
+Browser layout simulation
+-------------------------
+PASS  768 x 1024 iPad portrait: directional buttons measured 80 x 80 px; no document overflow.
+PASS  1024 x 768 iPad landscape: directional buttons measured about 70 x 70 px; no document overflow.
+PASS  390 x 844 phone portrait: directional buttons measured 59 x 59 px; no document overflow.
+PASS  320 x 568 compact phone: directional buttons measured about 47 x 47 px; no document overflow.
+PASS  844 x 390 short landscape: directional buttons measured about 46 x 46 px; no document overflow.
+PASS  Compact character composition produced a valid 300 x 260 PNG image in Chromium.
+
+Limitations
+-----------
+The actual reported iPad mini and its Safari version were not available for direct hardware testing.

@@ -1012,3 +1012,45 @@ body.shared-puzzle .credit strong{overflow:hidden;text-overflow:ellipsis;white-s
 .legal-link{position:fixed;z-index:250;right:8px;bottom:5px;padding:3px 6px;border:1px solid rgba(23,23,25,.35);background:rgba(247,240,229,.9);color:var(--ink);font-size:8px;font-weight:900;letter-spacing:.06em;text-decoration:none;opacity:.72;backdrop-filter:blur(4px)}
 .legal-link:hover,.legal-link:focus-visible{opacity:1;border-color:var(--ink);outline:none}
 @media(max-width:620px){.legal-link{right:4px;bottom:3px;font-size:6px;padding:2px 4px}}
+
+/* BOXXY v141 — AngeM older-iPad character recovery and larger movement controls. */
+.piece.player img.character-loading{opacity:1}
+.piece.player.idle-bob img,.piece.player.idle-bob canvas{animation:playerIdleBob .7s ease-in-out}
+@keyframes playerIdleBob{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-2%)}}
+
+/* Larger, easier movement targets on desktop and tablet screens. */
+.dpad{
+  width:min(30dvh,260px);
+  gap:8px;
+  padding:2px;
+}
+.dpad button{
+  min-width:56px;
+  min-height:56px;
+  border-width:2px;
+  border-radius:10px;
+  font-size:clamp(30px,4.5dvh,42px);
+  line-height:1;
+  touch-action:none;
+  user-select:none;
+  -webkit-user-select:none;
+}
+
+@media(max-height:720px) and (min-width:761px){
+  .dpad{width:min(30dvh,210px);gap:7px}
+  .dpad button{min-width:52px;min-height:52px;font-size:30px}
+}
+
+@media(max-width:760px){
+  .app{grid-template-rows:minmax(0,1fr) clamp(235px,34dvh,310px)}
+  .side-panel{grid-template-columns:minmax(62px,1fr) minmax(174px,200px) minmax(62px,1fr)}
+  .dpad{width:min(50vw,200px);gap:7px;max-height:100%}
+  .dpad button{min-width:44px;min-height:44px;font-size:clamp(26px,8vw,34px)}
+}
+
+@media(max-height:520px) and (orientation:landscape){
+  .app{grid-template-columns:minmax(0,1fr) 290px;grid-template-rows:1fr}
+  .side-panel{grid-template-columns:1fr;grid-template-rows:22px 33px 48px minmax(128px,1fr) 46px 10px}
+  .dpad{grid-column:1;grid-row:4;width:min(42dvh,155px);gap:6px}
+  .dpad button{min-width:42px;min-height:42px;font-size:25px}
+}

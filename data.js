@@ -4,7 +4,7 @@
  * Third-party puzzle layouts remain the property of their respective creators.
  * See LICENSE.md and THIRD-PARTY-NOTICES.md.
  */
-/* BOXXY v140 — level data and puzzle-pack metadata. */
+/* BOXXY v141 — level data and puzzle-pack metadata. */
 window.SOKOBAN_LEVELS = [
   {
     "rank": 1,

@@ -33,7 +33,7 @@
   });
 })();
 
-/* BOXXY v140 — compact, URL-safe custom puzzle links. */
+/* BOXXY v141 — compact, URL-safe custom puzzle links. */
 (() => {
   "use strict";
 
@@ -113,7 +113,7 @@
   window.BoxxyShareCodec = Object.freeze({ encode, decode, readLocation, buildUrl });
 })();
 
-/* BOXXY v140 — character renderer, game engine, level maker and Rust/WASM solver adapter. */
+/* BOXXY v141 — character renderer, game engine, level maker and Rust/WASM solver adapter. */
 (() => {
   "use strict";
 
@@ -126,9 +126,17 @@
   const BODY_TYPES = ["boy", "girl"];
   const THEMES = ["bauhaus"];
   const SHEET_COLS = 4;
-  const FRAME_WIDTH = 600;
-  const FRAME_HEIGHT = 520;
-  const ASSET_REVISION = "93";
+  const APPLE_TOUCH_DEVICE = /iPad|iPhone|iPod/.test(navigator.userAgent || "") ||
+    ((navigator.platform || "") === "MacIntel" && Number(navigator.maxTouchPoints || 0) > 1);
+  const COARSE_POINTER_DEVICE = Boolean(window.matchMedia?.("(pointer: coarse)")?.matches);
+  // AngeM's older-iPad report exposed WebKit canvas eviction under memory pressure.
+  // Touch devices use half-resolution wardrobe sheets: still more than 2× the normal
+  // on-screen character size, but approximately one quarter of the decoded pixels.
+  const USE_COMPACT_CHARACTER_SHEETS = APPLE_TOUCH_DEVICE || COARSE_POINTER_DEVICE;
+  const FRAME_WIDTH = USE_COMPACT_CHARACTER_SHEETS ? 300 : 600;
+  const FRAME_HEIGHT = USE_COMPACT_CHARACTER_SHEETS ? 260 : 520;
+  const CHARACTER_ASSET_ROOT = USE_COMPACT_CHARACTER_SHEETS ? "assets/characters-compact" : "assets/characters";
+  const ASSET_REVISION = "141";
   const LABELS = {
     bodyType: "CHARACTER",
     tshirt: "T-SHIRT",
@@ -197,6 +205,7 @@
   const frameAssets = new Map();
   const resolvedAssets = new Map();
   const canvases = new Set();
+  const renderedFrameUrls = new Map();
   const scratch = document.createElement("canvas");
 
   function validStyle(candidate) {
@@ -246,7 +255,7 @@
     const themeKey = "bauhaus";
     const bundleKey = `${themeKey}:${bodyType}`;
     if (sheetBundles.has(bundleKey)) return sheetBundles.get(bundleKey);
-    const root = `assets/characters/${bodyType}`;
+    const root = `${CHARACTER_ASSET_ROOT}/${bodyType}`;
     const promise = Promise.all([
       loadImage(`${root}/base.png?v=${ASSET_REVISION}`),
       ...CATEGORIES.map(category => loadImage(`${root}/${category}.png?v=${ASSET_REVISION}`))
@@ -286,15 +295,14 @@
     return promise;
   }
 
-  const ready = Promise.all(THEMES.flatMap(theme => [
-    ...FRAMES.map(frame => loadFrame(frame, "boy", theme)),
-    ...FRAMES.map(frame => loadFrame(frame, "girl", theme))
-  ])).then(() => {
-    document.querySelectorAll("canvas[data-character-preview]").forEach(canvas => {
-      canvases.add(canvas);
-      draw(canvas, canvas.dataset.characterPreview || "player-front");
-    });
-  }).catch(error => console.error("Character style assets could not be prepared.", error));
+  const ready = Promise.all(FRAMES.map(frame => loadFrame(frame, style.bodyType, activeTheme())))
+    .then(() => Promise.all(FRAMES.map(frame => renderFrameUrl(frame))))
+    .then(() => {
+      document.querySelectorAll("canvas[data-character-preview]").forEach(canvas => {
+        canvases.add(canvas);
+        draw(canvas, canvas.dataset.characterPreview || "player-front");
+      });
+    }).catch(error => console.error("Character style assets could not be prepared.", error));
 
   function sizeScratch(canvas, width, height) {
     if (canvas.width !== width) canvas.width = width;
@@ -323,9 +331,9 @@
     context.drawImage(scratch, 0, 0, width, height);
   }
 
-  function drawNow(canvas, frame, assets) {
+  function drawNow(canvas, frame, assets, allowDetached = false) {
     if (!canvas || !assets) return;
-    if (!canvas.isConnected && !canvas.closest?.(".piece")) return;
+    if (!allowDetached && !canvas.isConnected && !canvas.closest?.(".piece")) return;
     const width = assets.base.sw;
     const height = assets.base.sh;
     if (canvas.width !== width) canvas.width = width;
@@ -358,6 +366,54 @@
     return loadFrame(frame, style.bodyType, theme).then(loaded => drawNow(canvas, frame, loaded));
   }
 
+  function renderedFrameKey(frame) {
+    return [activeTheme(), style.bodyType, frame, ...CATEGORIES.map(category => style[category])].join("|");
+  }
+
+  function fallbackFrameUrl(frame) {
+    return `assets/characters-fallback/${style.bodyType}/${frame}.png?v=${ASSET_REVISION}`;
+  }
+
+  function clearRenderedFrames() {
+    renderedFrameUrls.clear();
+  }
+
+  function renderFrameUrl(frame = "player-front") {
+    const key = renderedFrameKey(frame);
+    const cached = renderedFrameUrls.get(key);
+    if (cached) return Promise.resolve(cached);
+    return loadFrame(frame, style.bodyType, activeTheme()).then(assets => {
+      const output = document.createElement("canvas");
+      drawNow(output, frame, assets, true);
+      const url = output.toDataURL("image/png");
+      renderedFrameUrls.set(key, url);
+      return url;
+    });
+  }
+
+  function drawImage(image, frame = "player-front") {
+    if (!image) return Promise.resolve();
+    image.dataset.characterFrame = frame;
+    const requestKey = renderedFrameKey(frame);
+    image.dataset.characterRequest = requestKey;
+    const cached = renderedFrameUrls.get(requestKey);
+    if (cached) {
+      image.src = cached;
+      image.classList.remove("character-loading");
+      return Promise.resolve();
+    }
+    image.src = fallbackFrameUrl(frame);
+    image.classList.add("character-loading");
+    return renderFrameUrl(frame).then(url => {
+      if (image.dataset.characterRequest !== requestKey) return;
+      image.src = url;
+      image.classList.remove("character-loading");
+    }).catch(error => {
+      image.classList.remove("character-loading");
+      console.error("Character image could not be rendered.", error);
+    });
+  }
+
   function updateStyleIcon() {
     const shirt = document.querySelector("#styleOutfitIcon .style-shirt-body");
     const trousers = document.querySelector("#styleOutfitIcon .style-trousers-body");
@@ -367,6 +423,7 @@
 
   function redrawAll() {
     updateStyleIcon();
+    clearRenderedFrames();
     for (const canvas of [...canvases]) {
       if (!canvas.isConnected) {
         canvases.delete(canvas);
@@ -374,6 +431,9 @@
       }
       draw(canvas, canvas.dataset.characterFrame || canvas.dataset.characterPreview || "player-front");
     }
+    document.querySelectorAll("img[data-character-frame]").forEach(image => {
+      drawImage(image, image.dataset.characterFrame || "player-front");
+    });
     window.dispatchEvent(new CustomEvent("characterstylechange", { detail: { ...style } }));
   }
 
@@ -507,10 +567,12 @@
   window.CharacterStyler = {
     ready,
     draw,
+    drawImage,
     redrawAll,
     set,
     reset,
     get style() { return { ...style }; },
+    get compactAssets() { return USE_COMPACT_CHARACTER_SHEETS; },
     get isOpen() { return Boolean(styleModal && !styleModal.hidden); }
   };
 })();
@@ -1738,15 +1800,16 @@
     const playerPiece = document.createElement("div");
     playerPiece.className = `piece player facing-${facing}${anim && anim !== "idle" ? " " + anim : ""}`;
     playerPiece.style.cssText = posStyle(player[0], player[1], depth(player[1], "player"));
-    const playerCanvas = document.createElement("canvas");
-    playerCanvas.width = 600;
-    playerCanvas.height = 520;
-    playerCanvas.setAttribute("aria-hidden", "true");
+    const playerImage = document.createElement("img");
+    playerImage.alt = "";
+    playerImage.draggable = false;
+    playerImage.decoding = "sync";
+    playerImage.setAttribute("aria-hidden", "true");
     const framePath = sprite(anim === "walking" ? "walk" : anim === "pushing" ? "push" : "idle", facing);
     const frameName = framePath.replace(/^assets\//, "").replace(/\.png$/, "");
-    playerCanvas.dataset.characterFrame = frameName;
-    playerPiece.appendChild(playerCanvas);
-    window.CharacterStyler?.draw(playerCanvas, frameName);
+    playerImage.dataset.characterFrame = frameName;
+    playerPiece.appendChild(playerImage);
+    window.CharacterStyler?.drawImage?.(playerImage, frameName);
     pieceLayer.appendChild(playerPiece);
 
     movesEl.textContent = moves;
@@ -1772,11 +1835,12 @@
         sfx.idle();
         const playerNode = pieceLayer.querySelector(".player");
         if (playerNode) {
-          playerNode.animate([
-            { transform: "translateX(-50%)" },
-            { transform: "translateX(-50%) translateY(-2%)" },
-            { transform: "translateX(-50%)" }
-          ], { duration: 700, easing: "ease-in-out" });
+          // Do not animate the zero-height player container itself: older WebKit can
+          // leave its composited child invisible after that animation completes.
+          playerNode.classList.remove("idle-bob");
+          void playerNode.offsetWidth;
+          playerNode.classList.add("idle-bob");
+          window.setTimeout(() => playerNode.classList.remove("idle-bob"), 760);
         }
       }
     }, 5500);
@@ -2353,9 +2417,9 @@
 
   function pointerIsOnCharacter(event) {
     if (!desktopEasterEggAvailable()) return false;
-    const canvas = pieceLayer.querySelector(".player canvas");
-    if (!canvas) return false;
-    const rect = canvas.getBoundingClientRect();
+    const visual = pieceLayer.querySelector(".player img, .player canvas");
+    if (!visual) return false;
+    const rect = visual.getBoundingClientRect();
     return event.clientX >= rect.left && event.clientX <= rect.right &&
       event.clientY >= rect.top && event.clientY <= rect.bottom;
   }
@@ -2368,7 +2432,18 @@
     if (easterClickCount >= 5) easterArmed = true;
   }
 
+  function refreshPlayerVisual() {
+    const image = pieceLayer.querySelector(".player img");
+    if (!image) return;
+    const frame = image.dataset.characterFrame || "player-front";
+    window.CharacterStyler?.drawImage?.(image, frame);
+  }
+
   window.addEventListener("characterstylechange", () => render(currentAnimation));
+  window.addEventListener("pageshow", () => requestAnimationFrame(refreshPlayerVisual));
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) requestAnimationFrame(refreshPlayerVisual);
+  });
   autoSolveBtn.addEventListener("click", startAutoplay);
   cancelGuidedBtn?.addEventListener("click", cancelGuidedSolve);
   fullscreenBtn?.addEventListener("click", toggleFullscreen);
@@ -3026,7 +3101,7 @@
     setSolverStatus("Loading the external Rust/WebAssembly solver. An internet connection is required for the solver only.");
 
     try {
-      solverWorker = new Worker("solver-worker.js?v=135", { type: "module", name: "boxxy-rust-solver-v140" });
+      solverWorker = new Worker("solver-worker.js?v=135", { type: "module", name: "boxxy-rust-solver-v141" });
       solverWorker.onmessage = event => {
         const message = event.data || {};
         if (message.id !== id || id !== solverJobId || !solverRunning) return;

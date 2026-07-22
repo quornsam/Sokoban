@@ -12,7 +12,18 @@ Third-party puzzle collections and the externally loaded solver are not owned by
 
 The live GitHub Pages build is intended to be published from the repository root.
 
-## Current release: v140
+## Current release: v141
+
+
+### v141 older-iPad character stability and movement controls
+
+- Fixes a character-disappearance issue reported by **AngeM** on an older iPad mini.
+- Uses compact character sprite sheets on touch devices and loads only the active character body, substantially reducing Safari memory pressure.
+- Displays gameplay characters as cached images rather than a canvas that WebKit may discard.
+- Includes an immediate per-frame fallback image, so the character remains visible even if Safari cannot rebuild a customised frame.
+- Repaints the character after page restoration and visibility changes.
+- Moves the idle bob animation away from the zero-height player container to avoid an older-WebKit compositing failure.
+- Makes the directional pad and arrow buttons substantially larger across desktop, tablet, phone and short landscape layouts.
 
 ### v140 pack display correction
 
