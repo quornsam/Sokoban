@@ -1180,3 +1180,55 @@ body.shared-puzzle .credit strong{overflow:hidden;text-overflow:ellipsis;white-s
   .dpad{width:min(100%,238px)}
   .legal-link{display:none}
 }
+
+
+/* BOXXY v145 — exact arrow centring and touch-safe attire placement. */
+.dpad button{
+  position:relative;
+  display:grid;
+  place-items:center;
+  padding:0!important;
+  overflow:hidden;
+  line-height:0!important;
+  color:var(--ink);
+}
+.dpad button svg{
+  display:block;
+  width:42%;
+  height:42%;
+  overflow:visible;
+  pointer-events:none;
+}
+.dpad button svg path{fill:currentColor}
+
+/*
+ * A real touch device—including iPads whose CSS width is 768 or 1024 pixels—
+ * uses the attire control inside the Levels modal. This prevents the separate
+ * attire tile from competing with or overlapping the direction pad.
+ */
+html.touch-ui .move-zone{
+  grid-template-columns:minmax(0,1fr)!important;
+  justify-items:center;
+}
+html.touch-ui .attire-action{display:none!important}
+html.touch-ui .level-attire{display:flex!important}
+html.touch-ui .dpad{
+  width:min(100%,270px);
+  max-width:100%;
+  justify-self:center;
+}
+
+/* Width fallback for older iPad Safari if touch capability detection is incomplete. */
+@media(max-width:820px){
+  .move-zone{
+    grid-template-columns:minmax(0,1fr)!important;
+    justify-items:center;
+  }
+  .attire-action{display:none!important}
+  .level-attire{display:flex!important}
+  .dpad{
+    width:min(100%,270px);
+    max-width:100%;
+    justify-self:center;
+  }
+}

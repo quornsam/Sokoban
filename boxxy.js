@@ -262,7 +262,7 @@
   window.BoxxyShareCodec = Object.freeze({ encode, decode, readLocation, buildUrl });
 })();
 
-/* BOXXY v143 — character renderer, game engine, level maker and Rust/WASM solver adapter. */
+/* BOXXY v145 — character renderer, game engine, level maker and Rust/WASM solver adapter. */
 (() => {
   "use strict";
 
@@ -281,7 +281,6 @@
   const FRAME_WIDTH = 300;
   const FRAME_HEIGHT = 260;
   const CHARACTER_ASSET_ROOT = "assets/characters";
-  const ASSET_REVISION = "143";
   const LABELS = {
     bodyType: "CHARACTER",
     tshirt: "T-SHIRT",
@@ -402,8 +401,8 @@
     if (sheetBundles.has(bundleKey)) return sheetBundles.get(bundleKey);
     const root = `${CHARACTER_ASSET_ROOT}/${bodyType}`;
     const promise = Promise.all([
-      loadImage(`${root}/base.png?v=${ASSET_REVISION}`),
-      ...CATEGORIES.map(category => loadImage(`${root}/${category}.png?v=${ASSET_REVISION}`))
+      loadImage(`${root}/base.png`),
+      ...CATEGORIES.map(category => loadImage(`${root}/${category}.png`))
     ]).then(([base, ...layers]) => ({
       base,
       layers: Object.fromEntries(CATEGORIES.map((category, index) => [category, layers[index]]))
@@ -476,7 +475,11 @@
     context.drawImage(scratch, 0, 0, width, height);
   }
 
-  function drawNow(canvas, frame, assets, allowDetached = false) {
+  function snapshotStyle() {
+    return { ...style };
+  }
+
+  function drawNow(canvas, frame, assets, allowDetached = false, requestedStyle = style) {
     if (!canvas || !assets) return;
     if (!allowDetached && !canvas.isConnected && !canvas.closest?.(".piece")) return;
     const width = assets.base.sw;
@@ -491,7 +494,7 @@
     context.imageSmoothingQuality = "high";
     drawSource(context, assets.base, 0, 0, width, height);
     for (const category of CATEGORIES) {
-      drawTintedLayer(context, assets.layers[category], style[category], width, height);
+      drawTintedLayer(context, assets.layers[category], requestedStyle[category], width, height);
     }
     context.globalCompositeOperation = "source-over";
     context.globalAlpha = 1;
@@ -501,35 +504,37 @@
     if (!canvas) return Promise.resolve();
     canvases.add(canvas);
     canvas.dataset.characterFrame = frame;
+    const requestedStyle = snapshotStyle();
     const theme = activeTheme();
-    const cacheKey = `${theme}:${style.bodyType}:${frame}`;
+    const cacheKey = `${theme}:${requestedStyle.bodyType}:${frame}`;
     const assets = resolvedAssets.get(cacheKey);
     if (assets) {
-      drawNow(canvas, frame, assets);
+      drawNow(canvas, frame, assets, false, requestedStyle);
       return Promise.resolve();
     }
-    return loadFrame(frame, style.bodyType, theme).then(loaded => drawNow(canvas, frame, loaded));
+    return loadFrame(frame, requestedStyle.bodyType, theme)
+      .then(loaded => drawNow(canvas, frame, loaded, false, requestedStyle));
   }
 
-  function renderedFrameKey(frame) {
-    return [activeTheme(), style.bodyType, frame, ...CATEGORIES.map(category => style[category])].join("|");
+  function renderedFrameKey(frame, requestedStyle = style) {
+    return [activeTheme(), requestedStyle.bodyType, frame, ...CATEGORIES.map(category => requestedStyle[category])].join("|");
   }
 
-  function fallbackFrameUrl(frame) {
-    return `assets/characters-fallback/${style.bodyType}/${frame}.png?v=${ASSET_REVISION}`;
+  function fallbackFrameUrl(frame, bodyType = style.bodyType) {
+    return `assets/characters-fallback/${bodyType}/${frame}.png`;
   }
 
   function clearRenderedFrames() {
     renderedFrameUrls.clear();
   }
 
-  function renderFrameUrl(frame = "player-front") {
-    const key = renderedFrameKey(frame);
+  function renderFrameUrl(frame = "player-front", requestedStyle = snapshotStyle()) {
+    const key = renderedFrameKey(frame, requestedStyle);
     const cached = renderedFrameUrls.get(key);
     if (cached) return Promise.resolve(cached);
-    return loadFrame(frame, style.bodyType, activeTheme()).then(assets => {
+    return loadFrame(frame, requestedStyle.bodyType, activeTheme()).then(assets => {
       const output = document.createElement("canvas");
-      drawNow(output, frame, assets, true);
+      drawNow(output, frame, assets, true, requestedStyle);
       const url = output.toDataURL("image/png");
       renderedFrameUrls.set(key, url);
       return url;
@@ -538,20 +543,28 @@
 
   function drawImage(image, frame = "player-front") {
     if (!image) return Promise.resolve();
+    const requestedStyle = snapshotStyle();
     image.dataset.characterFrame = frame;
-    const requestKey = renderedFrameKey(frame);
+    const requestKey = renderedFrameKey(frame, requestedStyle);
     image.dataset.characterRequest = requestKey;
     const cached = renderedFrameUrls.get(requestKey);
     if (cached) {
       image.src = cached;
+      image.dataset.characterReady = "true";
       image.classList.remove("character-loading");
       return Promise.resolve();
     }
-    image.src = fallbackFrameUrl(frame);
+
+    // Keep an already-rendered customised sprite visible while the replacement is
+    // composed. Only use the plain red/black fallback for a brand-new image.
+    if (!image.src || image.dataset.characterReady !== "true") {
+      image.src = fallbackFrameUrl(frame, requestedStyle.bodyType);
+    }
     image.classList.add("character-loading");
-    return renderFrameUrl(frame).then(url => {
+    return renderFrameUrl(frame, requestedStyle).then(url => {
       if (image.dataset.characterRequest !== requestKey) return;
       image.src = url;
+      image.dataset.characterReady = "true";
       image.classList.remove("character-loading");
     }).catch(error => {
       image.classList.remove("character-loading");
@@ -591,6 +604,9 @@
       localStorage.setItem(STORAGE_KEY, JSON.stringify(style));
       updateSelectedSwatches();
       redrawAll();
+      loadSheetBundle(style.bodyType, activeTheme())
+        .then(() => redrawAll())
+        .catch(error => console.error("Selected character assets could not be loaded.", error));
       return;
     }
     if (!CATEGORIES.includes(category)) return;
@@ -2587,7 +2603,10 @@
     window.CharacterStyler?.drawImage?.(image, frame);
   }
 
-  window.addEventListener("characterstylechange", () => render(currentAnimation));
+  // redrawAll() updates the existing gameplay image directly. Rebuilding the entire
+  // piece layer here created a race in which Olive could be left on the default
+  // fallback sprite after an attire change.
+  window.addEventListener("characterstylechange", () => requestAnimationFrame(refreshPlayerVisual));
   window.addEventListener("pageshow", () => requestAnimationFrame(refreshPlayerVisual));
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) requestAnimationFrame(refreshPlayerVisual);

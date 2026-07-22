@@ -12,7 +12,12 @@
 <meta name="theme-color" content="#efe5d4">
 <meta name="copyright" content="Copyright © 2026 Sam Cornwell. All rights reserved.">
 <title>BOXXY — Pushbox Puzzle</title>
-<link rel="stylesheet" href="styles.css?v=143">
+<script>
+  if ((navigator.maxTouchPoints || 0) > 0 || "ontouchstart" in window) {
+    document.documentElement.classList.add("touch-ui");
+  }
+</script>
+<link rel="stylesheet" href="styles.css?v=145">
 <link rel="preload" as="image" href="assets/board/board-atlas.png">
 <link rel="preload" as="image" href="assets/ui/boxxy-splash.png">
 </head>
@@ -70,10 +75,10 @@
 
     <section class="move-zone" aria-label="Movement and attire controls">
       <section class="dpad" aria-label="Move controls">
-        <button data-dir="up" aria-label="Move up">▲</button>
-        <button data-dir="left" aria-label="Move left">◀</button>
-        <button data-dir="down" aria-label="Move down">▼</button>
-        <button data-dir="right" aria-label="Move right">▶</button>
+        <button data-dir="up" aria-label="Move up"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3 22 17H2Z"/></svg></button>
+        <button data-dir="left" aria-label="Move left"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 12 17 2v20Z"/></svg></button>
+        <button data-dir="down" aria-label="Move down"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2 7h20L12 21Z"/></svg></button>
+        <button data-dir="right" aria-label="Move right"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m21 12-14 10V2Z"/></svg></button>
       </section>
       <button id="styleBtn" class="attire-action" data-style-trigger type="button" aria-label="Change character attire" title="Change character attire">
         <svg class="style-outfit-icon" viewBox="0 0 100 100" aria-hidden="true" focusable="false" shape-rendering="geometricPrecision">
@@ -466,7 +471,7 @@
 <audio id="bgMusic" src="assets/audio/cracked-ivory-drift.mp3" preload="auto" autoplay loop playsinline></audio>
 
 <script src="levels.js?v=143"></script>
-<script src="boxxy.js?v=143"></script>
+<script src="boxxy.js?v=145"></script>
 <script src="pack-builder.js?v=143"></script>
 </body>
 </html>
