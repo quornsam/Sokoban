@@ -415,10 +415,12 @@
   }
 
   function updateStyleIcon() {
-    const shirt = document.querySelector("#styleOutfitIcon .style-shirt-body");
-    const trousers = document.querySelector("#styleOutfitIcon .style-trousers-body");
-    if (shirt) shirt.style.fill = style.tshirt;
-    if (trousers) trousers.style.fill = style.trousers;
+    document.querySelectorAll("[data-style-trigger] .style-shirt-body").forEach(shirt => {
+      shirt.style.fill = style.tshirt;
+    });
+    document.querySelectorAll("[data-style-trigger] .style-trousers-body").forEach(trousers => {
+      trousers.style.fill = style.trousers;
+    });
   }
 
   function redrawAll() {
@@ -464,7 +466,7 @@
   }
 
   const styleModal = document.getElementById("styleModal");
-  const styleBtn = document.getElementById("styleBtn");
+  const styleTriggers = [...document.querySelectorAll("[data-style-trigger]")];
   const styleCloseBtn = document.getElementById("styleCloseBtn");
   const styleDoneBtn = document.getElementById("styleDoneBtn");
   const styleResetBtn = document.getElementById("styleResetBtn");
@@ -547,7 +549,7 @@
     previousFocus?.focus?.();
   }
 
-  styleBtn?.addEventListener("click", openModal);
+  styleTriggers.forEach(button => button.addEventListener("click", openModal));
   styleCloseBtn?.addEventListener("click", closeModal);
   styleDoneBtn?.addEventListener("click", closeModal);
   styleResetBtn?.addEventListener("click", reset);

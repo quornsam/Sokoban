@@ -12,8 +12,17 @@ Third-party puzzle collections and the externally loaded solver are not owned by
 
 The live GitHub Pages build is intended to be published from the repository root.
 
-## Current release: v141
+## Current release: v142
 
+
+### v142 compact movement controls and attire placement
+
+- Changes the direction pad to a compact two-row layout: Up above, with Left, Down and Right beneath.
+- Removes the attire button from the centre of the arrows.
+- Places the attire control beside the direction pad on desktop and tablet screens.
+- Places attire inside the Choose Level panel on phone layouts, including short mobile landscape.
+- Narrows the left and right mobile action columns so the movement buttons can be substantially larger.
+- Keeps action labels contained inside their buttons on compact screens.
 
 ### v141 older-iPad character stability and movement controls
 
