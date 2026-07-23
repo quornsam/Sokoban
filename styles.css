@@ -1232,3 +1232,73 @@ html.touch-ui .dpad{
     justify-self:center;
   }
 }
+
+
+/* BOXXY v150 — mobile header access and touch-control hardening. */
+.collection{
+  position:relative;
+  z-index:40;
+  flex:0 0 auto;
+  min-width:max-content;
+  touch-action:manipulation;
+  pointer-events:auto;
+}
+.collection::after{
+  content:"";
+  position:absolute;
+  inset:-8px -6px;
+}
+.dpad button{
+  touch-action:none;
+  user-select:none;
+  -webkit-user-select:none;
+}
+
+@media(max-width:760px){
+  .masthead{
+    position:relative;
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto;
+    align-items:center;
+    column-gap:8px;
+    overflow:visible;
+  }
+  .title{
+    max-width:none;
+    min-width:0;
+    overflow:hidden;
+  }
+  .title strong{font-size:clamp(27px,8.4vw,34px)}
+  .title span{font-size:clamp(13px,4.7vw,18px)}
+  .collection{
+    align-self:stretch;
+    min-width:104px;
+    max-width:118px;
+    padding:4px 2px 3px 8px;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+  }
+  .collection b{
+    font-size:10px;
+    line-height:.95;
+  }
+  .collection i{
+    width:100%;
+    max-width:100px;
+    margin:4px 0 3px auto;
+  }
+  .collection span{
+    font-size:17px;
+    line-height:1;
+  }
+}
+
+@media(max-width:390px){
+  .masthead{padding-inline:10px;column-gap:5px}
+  .title strong{font-size:27px}
+  .title span{font-size:14px}
+  .collection{min-width:94px;max-width:100px;padding-left:5px}
+  .collection b{font-size:9px}
+  .collection span{font-size:15px}
+}

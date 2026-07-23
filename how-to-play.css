@@ -1,0 +1,846 @@
+/*
+ * BOXXY v149b — playable How to Play tutorial.
+ * Uses BOXXY's board atlas and current CharacterStyler, but keeps tutorial
+ * state completely separate from the live game and saved progress.
+ */
+
+/* Help button: quotation mark on the left, help on the right. */
+.instruction{
+  --quote-control-size:clamp(32px,4.2dvh,42px);
+  display:grid;
+  grid-template-columns:var(--quote-control-size) minmax(0,1fr) var(--quote-control-size);
+  align-items:center;
+  gap:clamp(8px,1.2vw,14px);
+  padding-inline:clamp(10px,2.3vw,24px);
+}
+.instruction .thought-text{width:100%;min-width:0}
+.instruction .info{
+  grid-column:1;
+  width:var(--quote-control-size);
+  height:var(--quote-control-size);
+  border-radius:9px 9px 9px 2px;
+}
+.how-to-play-trigger{
+  grid-column:3;
+  width:var(--quote-control-size);
+  height:var(--quote-control-size);
+  margin:0;
+  padding:0;
+  display:grid;
+  place-items:center;
+  border:0;
+  border-radius:9px 9px 2px 9px;
+  background:var(--yellow);
+  color:var(--ink);
+  box-shadow:4px 4px 0 rgba(23,23,25,.16);
+  font:950 clamp(17px,2.5dvh,24px)/1 Inter,ui-sans-serif,sans-serif;
+  cursor:pointer;
+}
+.how-to-play-trigger:hover{transform:translate(-1px,-1px);box-shadow:5px 5px 0 rgba(23,23,25,.16)}
+.how-to-play-trigger:active{transform:translate(2px,2px);box-shadow:1px 1px 0 rgba(23,23,25,.16)}
+.how-to-play-trigger:focus-visible{outline:3px solid var(--blue);outline-offset:3px}
+
+/* Modal shell */
+.how-to-play-modal{
+  position:fixed;
+  inset:0;
+  z-index:12000;
+  display:grid;
+  place-items:center;
+  padding:clamp(8px,1.8vw,22px);
+  background:rgba(18,18,20,.66);
+  backdrop-filter:blur(5px);
+  -webkit-backdrop-filter:blur(5px);
+}
+.how-to-play-modal[hidden]{display:none}
+.how-to-play-card{
+  width:min(980px,96vw);
+  max-height:96dvh;
+  min-height:min(690px,94dvh);
+  display:grid;
+  grid-template-rows:auto minmax(0,1fr) auto;
+  overflow:hidden;
+  border:3px solid var(--ink);
+  background:var(--paper2);
+  box-shadow:13px 13px 0 rgba(23,23,25,.28),0 28px 80px rgba(0,0,0,.34);
+  animation:tutorialCardIn .18s ease-out both;
+}
+@keyframes tutorialCardIn{
+  from{opacity:0;transform:translateY(9px) scale(.992)}
+  to{opacity:1;transform:translateY(0) scale(1)}
+}
+.how-to-play-head{
+  position:relative;
+  min-height:76px;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto 42px;
+  align-items:center;
+  gap:18px;
+  padding:12px 14px 11px 22px;
+  border-bottom:2px solid var(--ink);
+  background:
+    linear-gradient(90deg,var(--red) 0 10px,transparent 10px),
+    linear-gradient(180deg,#fbf6ed,#eee3d2);
+}
+.how-to-play-title span{
+  display:block;
+  margin-bottom:3px;
+  color:var(--red);
+  font-size:9px;
+  font-weight:950;
+  letter-spacing:.17em;
+}
+.how-to-play-title h2{
+  margin:0;
+  font-size:clamp(25px,3.6vw,39px);
+  line-height:.9;
+  letter-spacing:-.045em;
+}
+.how-to-play-progress{display:flex;align-items:center;gap:7px}
+.how-to-play-progress i{
+  width:11px;
+  height:11px;
+  display:block;
+  border:1px solid var(--ink);
+  border-radius:50%;
+  background:#fffaf1;
+}
+.how-to-play-progress i.complete{background:var(--ink)}
+.how-to-play-progress i.active{background:var(--red)}
+.how-to-play-close{
+  width:38px;
+  height:38px;
+  padding:0;
+  display:grid;
+  place-items:center;
+  border:2px solid var(--ink);
+  background:var(--yellow);
+  color:var(--ink);
+  font:800 25px/1 sans-serif;
+  box-shadow:3px 3px 0 rgba(23,23,25,.18);
+}
+.how-to-play-close:active{transform:translate(2px,2px);box-shadow:1px 1px 0 rgba(23,23,25,.18)}
+.how-to-play-close:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+
+/* Playable lesson */
+.how-to-play-stage{
+  min-height:0;
+  overflow:auto;
+  overscroll-behavior:contain;
+  padding:clamp(14px,2.4vw,27px);
+  background:
+    radial-gradient(circle at 18% 10%,rgba(255,255,255,.43),transparent 34%),
+    linear-gradient(135deg,#f2e8d9,#e5d5bd);
+}
+.tutorial-lesson{
+  min-height:100%;
+  display:grid;
+  grid-template-columns:minmax(390px,1.15fr) minmax(250px,.85fr);
+  align-items:center;
+  gap:clamp(22px,4vw,48px);
+}
+.tutorial-game-column{min-width:0;display:grid;gap:11px;justify-items:center}
+.tutorial-board-shell{
+  width:100%;
+  min-width:0;
+  display:grid;
+  place-items:center;
+  padding:8px;
+}
+.tutorial-board{
+  --tutorial-cols:7;
+  --tutorial-rows:7;
+  position:relative;
+  width:min(100%,470px);
+  max-height:48dvh;
+  aspect-ratio:var(--tutorial-cols)/var(--tutorial-rows);
+  overflow:hidden;
+  isolation:isolate;
+  outline:0;
+  touch-action:none;
+  background-color:#f4ecdf;
+  background-image:
+    linear-gradient(rgba(80,65,45,.09) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(80,65,45,.09) 1px,transparent 1px),
+    linear-gradient(135deg,rgba(255,255,255,.26),rgba(110,85,50,.05));
+  background-size:
+    calc(100% / var(--tutorial-cols)) calc(100% / var(--tutorial-rows)),
+    calc(100% / var(--tutorial-cols)) calc(100% / var(--tutorial-rows)),
+    100% 100%;
+  box-shadow:0 25px 44px rgba(37,26,15,.33),0 8px 18px rgba(37,26,15,.22);
+}
+.tutorial-board:focus-visible{outline:4px solid var(--blue);outline-offset:4px}
+.tutorial-board.bump{animation:tutorialBump .15s linear}
+@keyframes tutorialBump{50%{transform:translateX(4px)}}
+.tutorial-board.celebrate{animation:tutorialClear .44s ease-out}
+@keyframes tutorialClear{50%{filter:brightness(1.13);transform:scale(1.012)}}
+.tutorial-cell{
+  position:absolute;
+  left:calc(var(--x) * 100% / var(--tutorial-cols));
+  top:calc(var(--y) * 100% / var(--tutorial-rows));
+  width:calc(100% / var(--tutorial-cols));
+  height:calc(100% / var(--tutorial-rows));
+  z-index:var(--z);
+}
+.tutorial-void{
+  background:linear-gradient(135deg,#eee2cf,#e8dac5);
+  box-shadow:inset 0 0 0 1px rgba(80,65,45,.02);
+}
+.tutorial-wall::before{
+  content:"";
+  position:absolute;
+  inset:5% 5% 18%;
+  background:linear-gradient(145deg,#393a3d,#202124 62%,#161719);
+  box-shadow:0 3px 6px rgba(31,23,15,.10);
+  border:1px solid rgba(255,255,255,.045);
+}
+.tutorial-wall::after{
+  content:"";
+  position:absolute;
+  left:5%;
+  right:5%;
+  bottom:5%;
+  height:16%;
+  background:linear-gradient(#111214,#050506);
+}
+.tutorial-board-art{
+  display:block;
+  background-image:url("assets/board/board-atlas.png");
+  background-repeat:no-repeat;
+  background-size:300% 100%;
+}
+.tutorial-goal{overflow:visible}
+.tutorial-board-art-goal{
+  position:absolute;
+  left:-3.5%;
+  bottom:-1%;
+  width:107%;
+  height:107%;
+  background-position:0 0;
+  transform:scaleY(.86);
+  transform-origin:50% 100%;
+  filter:drop-shadow(0 2px 1px rgba(48,34,18,.14));
+  opacity:.96;
+}
+.tutorial-piece{
+  position:absolute;
+  left:calc((var(--x) + .5) * 100% / var(--tutorial-cols));
+  top:calc((var(--y) + 1) * 100% / var(--tutorial-rows));
+  z-index:var(--z);
+  pointer-events:none;
+  overflow:visible;
+}
+.tutorial-box{
+  width:calc(104% / var(--tutorial-cols));
+  height:calc(142% / var(--tutorial-rows));
+  transform:translate(-50%,-100%);
+  display:grid;
+  place-items:end center;
+}
+.tutorial-box::before{
+  content:"";
+  position:absolute;
+  left:50%;
+  bottom:2%;
+  width:64%;
+  height:13%;
+  transform:translateX(-42%);
+  border-radius:50%;
+  background:rgba(48,34,18,.32);
+  filter:blur(4px);
+  box-shadow:7px 5px 7px rgba(48,34,18,.16);
+}
+.tutorial-board-art-box{
+  position:absolute;
+  left:0;
+  bottom:0;
+  z-index:1;
+  width:100%;
+  height:73.25%;
+}
+.tutorial-box-yellow{background-position:50% 0}
+.tutorial-box-red{background-position:100% 0}
+.tutorial-box.on-goal{filter:drop-shadow(0 0 8px rgba(229,179,42,.48))}
+.tutorial-box.is-moving{animation:tutorialBoxPush .19s ease}
+@keyframes tutorialBoxPush{50%{transform:translate(-50%,-102%)}}
+.tutorial-player{
+  width:calc(207% / var(--tutorial-cols));
+  height:0;
+  transform:translateX(-50%);
+  display:block;
+  z-index:9999!important;
+}
+.tutorial-player::before{
+  content:"";
+  position:absolute;
+  left:50%;
+  bottom:3px;
+  width:30%;
+  height:8px;
+  transform:translateX(-38%);
+  border-radius:50%;
+  background:rgba(48,34,18,.34);
+  filter:blur(3px);
+  box-shadow:6px 4px 6px rgba(48,34,18,.14);
+}
+.tutorial-player img{
+  position:absolute;
+  left:50%;
+  bottom:0;
+  z-index:1;
+  display:block;
+  width:100%;
+  height:auto;
+  max-width:none;
+  max-height:none;
+  object-fit:contain;
+  transform:translateX(-50%);
+  transform-origin:50% 100%;
+}
+.tutorial-player.walk img{animation:tutorialPlayerWalk .17s linear}
+.tutorial-player.push img{animation:tutorialPlayerPush .19s ease}
+@keyframes tutorialPlayerWalk{50%{transform:translateX(-50%) translateY(-2%)}}
+@keyframes tutorialPlayerPush{50%{transform:translateX(-50%) translateY(-1%)}}
+
+.tutorial-metrics{
+  width:min(100%,470px);
+  display:grid;
+  grid-template-columns:auto auto minmax(0,1fr);
+  align-items:center;
+  gap:1px;
+  border:1px solid var(--line);
+  background:var(--line);
+  box-shadow:0 4px 10px rgba(55,38,20,.08);
+}
+.tutorial-metrics>span,
+.tutorial-status{
+  min-height:38px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  padding:5px 10px;
+  background:#f8f1e6;
+  font-size:8px;
+  font-weight:900;
+  letter-spacing:.055em;
+  text-align:center;
+}
+.tutorial-metrics b{font-size:16px}
+.tutorial-status{color:#5d5449}
+.tutorial-status.complete{background:var(--green);color:#fff}
+.tutorial-control-row{
+  width:min(100%,470px);
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 82px;
+  align-items:center;
+  gap:10px;
+}
+.tutorial-dpad{
+  width:min(100%,250px);
+  aspect-ratio:3/2;
+  justify-self:center;
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  grid-template-rows:repeat(2,minmax(0,1fr));
+  grid-template-areas:". up ." "left down right";
+  gap:6px;
+}
+.tutorial-dpad button{
+  min-width:0;
+  min-height:46px;
+  padding:0;
+  display:grid;
+  place-items:center;
+  border:1px solid var(--line);
+  background:#f8f1e6;
+  box-shadow:0 4px 10px rgba(55,38,20,.10);
+}
+.tutorial-dpad button:active{transform:translateY(2px);box-shadow:0 2px 5px rgba(55,38,20,.10)}
+.tutorial-dpad button[data-tutorial-direction="up"]{grid-area:up}
+.tutorial-dpad button[data-tutorial-direction="left"]{grid-area:left}
+.tutorial-dpad button[data-tutorial-direction="down"]{grid-area:down}
+.tutorial-dpad button[data-tutorial-direction="right"]{grid-area:right}
+.tutorial-dpad svg{width:34%;height:34%;display:block;fill:currentColor}
+.tutorial-action-buttons{display:grid;gap:7px}
+.tutorial-action-buttons button{
+  min-height:46px;
+  padding:5px;
+  border:2px solid var(--ink);
+  font-size:9px;
+  font-weight:950;
+  letter-spacing:.05em;
+  box-shadow:3px 3px 0 rgba(23,23,25,.16);
+}
+.tutorial-undo{background:var(--red);color:#fff}
+.tutorial-retry{background:var(--yellow);color:var(--ink)}
+.tutorial-action-buttons button:active{transform:translate(2px,2px);box-shadow:1px 1px 0 rgba(23,23,25,.16)}
+.tutorial-action-buttons button:disabled{opacity:.34;cursor:default;transform:none}
+
+.tutorial-copy-panel{
+  align-self:center;
+  min-width:0;
+  padding:clamp(19px,3vw,31px);
+  border:2px solid var(--ink);
+  background:
+    linear-gradient(135deg,rgba(255,255,255,.48),transparent 58%),
+    #f7f0e5;
+  box-shadow:8px 8px 0 var(--yellow);
+}
+.tutorial-copy-panel::before{
+  content:"";
+  display:block;
+  width:62px;
+  height:8px;
+  margin:0 0 20px;
+  background:var(--red);
+}
+.tutorial-step-label{
+  display:block;
+  color:var(--red);
+  font-size:10px;
+  font-weight:950;
+  letter-spacing:.18em;
+}
+.tutorial-copy-panel h3,
+.tutorial-final-copy h3{
+  margin:8px 0 15px;
+  font-size:clamp(27px,4vw,46px);
+  line-height:.88;
+  letter-spacing:-.05em;
+}
+.tutorial-copy-panel p,
+.tutorial-final-copy p{
+  margin:0;
+  font-size:clamp(17px,2.1vw,22px);
+  line-height:1.42;
+  font-weight:740;
+}
+.tutorial-copy-panel .tutorial-input-hint{
+  margin-top:22px;
+  padding-top:13px;
+  border-top:1px solid var(--line);
+  color:#6b6156;
+  font-size:11px;
+  line-height:1.35;
+  font-weight:780;
+}
+
+/* Final page */
+.tutorial-final-slide{
+  min-height:100%;
+  display:grid;
+  grid-template-columns:minmax(240px,.8fr) minmax(300px,1.2fr);
+  align-items:center;
+  gap:clamp(25px,5vw,62px);
+  padding:clamp(10px,3vw,35px);
+}
+.tutorial-final-crate{
+  position:relative;
+  width:min(100%,320px);
+  aspect-ratio:1;
+  justify-self:end;
+  filter:drop-shadow(0 25px 20px rgba(48,34,18,.25));
+}
+.tutorial-final-crate .tutorial-board-art-box{
+  width:100%;
+  height:73.25%;
+  left:0;
+  bottom:10%;
+}
+.tutorial-final-copy{
+  max-width:520px;
+  padding:clamp(22px,4vw,42px);
+  border:2px solid var(--ink);
+  background:#f7f0e5;
+  box-shadow:10px 10px 0 var(--red);
+}
+
+/* Footer navigation */
+.how-to-play-foot{
+  display:grid;
+  grid-template-columns:auto 1fr auto;
+  align-items:center;
+  gap:12px;
+  padding:11px 14px;
+  border-top:2px solid var(--ink);
+  background:#efe5d4;
+}
+.how-to-play-foot button{
+  min-height:44px;
+  padding:8px 16px;
+  border:2px solid var(--ink);
+  font-size:10px;
+  font-weight:950;
+  letter-spacing:.065em;
+}
+.how-to-play-back{background:#f7f0e5}
+.how-to-play-back:disabled{visibility:hidden}
+.how-to-play-skip{
+  justify-self:center;
+  min-height:34px!important;
+  border:0!important;
+  background:transparent;
+  color:#6b6156;
+  text-decoration:underline;
+  text-underline-offset:3px;
+}
+.how-to-play-next{
+  min-width:165px;
+  background:var(--ink);
+  color:#fff;
+  box-shadow:5px 5px 0 var(--red);
+}
+.how-to-play-next:disabled{background:#8d857b;color:#eee7dc;box-shadow:none;cursor:default}
+.how-to-play-next:not(:disabled):active{transform:translate(3px,3px);box-shadow:2px 2px 0 var(--red)}
+body.how-to-play-open{overflow:hidden}
+
+@media(max-width:820px){
+  .how-to-play-card{width:96vw;min-height:0;max-height:96dvh}
+  .tutorial-lesson{grid-template-columns:1fr;gap:22px}
+  .tutorial-board{width:min(100%,430px);max-height:44dvh}
+  .tutorial-copy-panel{width:min(100%,600px);justify-self:center;text-align:center;padding:19px 22px}
+  .tutorial-copy-panel::before{margin-inline:auto}
+  .tutorial-copy-panel h3{font-size:30px}
+  .tutorial-copy-panel p{font-size:17px}
+  .tutorial-input-hint{display:none}
+  .tutorial-final-slide{grid-template-columns:1fr;text-align:center;gap:10px}
+  .tutorial-final-crate{width:min(230px,48vw);justify-self:center}
+  .tutorial-final-copy{justify-self:center}
+}
+
+@media(max-width:600px){
+  .instruction{--quote-control-size:25px;gap:8px;padding-inline:10px}
+  .how-to-play-trigger{font-size:15px;border-radius:7px 7px 2px 7px}
+  .instruction .info{border-radius:7px 7px 7px 2px}
+  .how-to-play-modal{padding:4px}
+  .how-to-play-card{width:calc(100vw - 8px);max-height:calc(100dvh - 8px);border-width:2px;box-shadow:5px 5px 0 rgba(23,23,25,.28)}
+  .how-to-play-head{min-height:61px;grid-template-columns:minmax(0,1fr) 36px;padding:9px 9px 8px 16px;gap:8px}
+  .how-to-play-title h2{font-size:24px}
+  .how-to-play-title span{font-size:7px}
+  .how-to-play-progress{display:none}
+  .how-to-play-close{width:34px;height:34px;font-size:22px}
+  .how-to-play-stage{padding:11px}
+  .tutorial-lesson{gap:15px;align-content:start}
+  .tutorial-board-shell{padding:3px}
+  .tutorial-board{width:min(100%,390px);max-height:43dvh}
+  .tutorial-metrics{width:min(100%,390px)}
+  .tutorial-metrics>span,.tutorial-status{min-height:32px;padding:3px 6px;font-size:6.5px}
+  .tutorial-metrics b{font-size:13px}
+  .tutorial-control-row{width:min(100%,390px);grid-template-columns:minmax(0,1fr) 68px;gap:7px}
+  .tutorial-dpad{width:min(100%,220px);gap:5px}
+  .tutorial-dpad button{min-height:38px}
+  .tutorial-action-buttons button{min-height:38px;font-size:7px}
+  .tutorial-copy-panel{padding:14px 16px;box-shadow:5px 5px 0 var(--yellow)}
+  .tutorial-copy-panel::before{height:5px;margin-bottom:10px}
+  .tutorial-copy-panel h3{margin:5px 0 9px;font-size:23px}
+  .tutorial-copy-panel p{font-size:14px;line-height:1.32}
+  .tutorial-step-label{font-size:8px}
+  .how-to-play-foot{grid-template-columns:1fr 1fr;gap:7px;padding:8px}
+  .how-to-play-foot button{min-height:39px;padding:6px 8px;font-size:8px}
+  .how-to-play-next{min-width:0}
+  .how-to-play-skip{grid-column:1/-1;grid-row:2;min-height:25px!important;padding:2px!important}
+  .tutorial-final-slide{padding:4px;gap:4px}
+  .tutorial-final-crate{width:min(180px,42vw)}
+  .tutorial-final-copy{padding:17px;box-shadow:5px 5px 0 var(--red)}
+  .tutorial-final-copy h3{font-size:28px}
+  .tutorial-final-copy p{font-size:16px}
+}
+
+@media(max-height:560px) and (orientation:landscape){
+  .instruction{--quote-control-size:20px;gap:6px;padding-inline:10px}
+  .how-to-play-trigger{font-size:12px}
+  .how-to-play-card{width:97vw;max-height:96dvh;min-height:0}
+  .how-to-play-head{min-height:52px;padding-block:7px}
+  .how-to-play-title h2{font-size:22px}
+  .how-to-play-stage{padding:8px 13px}
+  .tutorial-lesson{grid-template-columns:minmax(310px,1.1fr) minmax(250px,.9fr);gap:19px}
+  .tutorial-board{width:min(100%,380px);max-height:50dvh}
+  .tutorial-metrics{width:min(100%,380px)}
+  .tutorial-control-row{width:min(100%,380px)}
+  .tutorial-dpad{width:min(100%,205px)}
+  .tutorial-dpad button{min-height:33px}
+  .tutorial-action-buttons button{min-height:33px}
+  .tutorial-copy-panel{padding:15px 18px;text-align:left}
+  .tutorial-copy-panel::before{margin-inline:0}
+  .tutorial-copy-panel h3{font-size:25px}
+  .tutorial-copy-panel p{font-size:14px}
+  .how-to-play-foot{padding:6px 10px}
+  .how-to-play-foot button{min-height:34px;padding:4px 10px}
+  .tutorial-final-slide{grid-template-columns:220px 1fr;padding:5px 20px}
+  .tutorial-final-crate{width:190px;justify-self:end}
+  .tutorial-final-copy{text-align:left;padding:18px 24px}
+}
+
+
+/* BOXXY v149b — compact, non-scrolling tutorial layout.
+   Boards keep their true grid proportions; nothing is vertically squashed. */
+.how-to-play-modal{
+  padding:12px;
+}
+.how-to-play-card{
+  width:min(820px,calc(100vw - 24px));
+  height:min(680px,calc(100dvh - 24px));
+  min-height:0;
+  max-height:none;
+  grid-template-rows:60px minmax(0,1fr) 52px;
+}
+.how-to-play-head{
+  min-height:0;
+  padding:8px 12px 8px 18px;
+  gap:12px;
+}
+.how-to-play-title span{font-size:8px;margin-bottom:2px}
+.how-to-play-title h2{font-size:clamp(23px,3vw,32px);line-height:.92}
+.how-to-play-close{width:34px;height:34px;font-size:22px}
+.how-to-play-progress{gap:6px}
+.how-to-play-progress i{width:9px;height:9px}
+
+.how-to-play-stage{
+  overflow:hidden;
+  padding:12px 14px;
+}
+.tutorial-lesson{
+  min-height:0;
+  height:100%;
+  grid-template-columns:minmax(0,1.08fr) minmax(220px,.92fr);
+  align-items:center;
+  gap:22px;
+}
+.tutorial-game-column{
+  min-height:0;
+  gap:7px;
+  align-content:center;
+}
+.tutorial-board-shell{padding:2px}
+.tutorial-board{
+  width:min(100%,360px);
+  height:auto;
+  max-height:none;
+  flex:none;
+}
+.tutorial-metrics{
+  width:min(100%,360px);
+}
+.tutorial-metrics>span,
+.tutorial-status{
+  min-height:31px;
+  padding:3px 7px;
+  font-size:7px;
+}
+.tutorial-metrics b{font-size:13px}
+.tutorial-control-row{
+  width:min(100%,360px);
+  grid-template-columns:minmax(0,1fr) 70px;
+  gap:8px;
+}
+.tutorial-dpad{width:min(100%,205px);gap:5px}
+.tutorial-dpad button{min-height:34px}
+.tutorial-action-buttons{gap:5px}
+.tutorial-action-buttons button{min-height:34px;font-size:8px;padding:3px}
+
+.tutorial-copy-panel{
+  padding:18px 20px;
+  box-shadow:6px 6px 0 var(--yellow);
+}
+.tutorial-copy-panel::before{width:50px;height:6px;margin-bottom:13px}
+.tutorial-step-label{font-size:8px}
+.tutorial-copy-panel h3,
+.tutorial-final-copy h3{
+  margin:6px 0 10px;
+  font-size:clamp(25px,3.3vw,36px);
+}
+.tutorial-copy-panel p,
+.tutorial-final-copy p{
+  font-size:clamp(14px,1.7vw,17px);
+  line-height:1.34;
+}
+.tutorial-copy-panel .tutorial-input-hint{
+  margin-top:13px;
+  padding-top:9px;
+  font-size:9px;
+}
+
+.tutorial-final-slide{
+  min-height:0;
+  height:100%;
+  grid-template-columns:220px minmax(0,1fr);
+  gap:30px;
+  padding:18px 28px;
+}
+.tutorial-final-crate{
+  width:210px;
+  max-width:100%;
+  aspect-ratio:1;
+}
+.tutorial-final-copy{
+  max-width:440px;
+  padding:24px 27px;
+  box-shadow:7px 7px 0 var(--red);
+}
+
+.how-to-play-foot{
+  min-height:0;
+  padding:7px 10px;
+  gap:10px;
+}
+.how-to-play-foot button{
+  min-height:36px;
+  padding:5px 13px;
+  font-size:9px;
+}
+.how-to-play-skip{min-height:28px!important}
+.how-to-play-next{
+  min-width:132px;
+  background:var(--red);
+  color:#fff;
+  box-shadow:4px 4px 0 var(--ink);
+}
+.how-to-play-next:disabled{
+  background:var(--red);
+  color:#fff;
+  opacity:.48;
+  box-shadow:2px 2px 0 var(--ink);
+  cursor:default;
+}
+.how-to-play-next:not(:disabled):active{
+  transform:translate(2px,2px);
+  box-shadow:2px 2px 0 var(--ink);
+}
+
+/* iPad portrait and narrower tablets: still two columns, but slightly smaller. */
+@media(max-width:820px) and (min-width:641px){
+  .how-to-play-card{width:calc(100vw - 20px);height:min(660px,calc(100dvh - 20px))}
+  .how-to-play-stage{padding:11px 12px}
+  .tutorial-lesson{grid-template-columns:minmax(0,1.05fr) minmax(205px,.95fr);gap:16px}
+  .tutorial-board,.tutorial-metrics,.tutorial-control-row{width:min(100%,330px)}
+  .tutorial-copy-panel{width:auto;text-align:left;padding:16px 17px}
+  .tutorial-copy-panel::before{margin-inline:0}
+  .tutorial-copy-panel h3{font-size:27px}
+  .tutorial-copy-panel p{font-size:14px}
+  .tutorial-input-hint{display:block!important}
+  .tutorial-final-slide{grid-template-columns:190px minmax(0,1fr);gap:22px;padding:16px 22px;text-align:left}
+  .tutorial-final-crate{width:185px;justify-self:end}
+  .tutorial-final-copy{padding:21px 23px}
+}
+
+/* Phones: stack naturally, but keep every element compact enough to avoid scrolling. */
+@media(max-width:640px){
+  .how-to-play-modal{padding:4px}
+  .how-to-play-card{
+    width:calc(100vw - 8px);
+    height:calc(100dvh - 8px);
+    grid-template-rows:54px minmax(0,1fr) 48px;
+  }
+  .how-to-play-head{padding:7px 8px 7px 14px}
+  .how-to-play-title h2{font-size:22px}
+  .how-to-play-progress{display:none}
+  .how-to-play-stage{padding:7px 8px}
+  .tutorial-lesson{
+    height:100%;
+    grid-template-columns:1fr;
+    grid-template-rows:minmax(0,1fr) auto;
+    align-content:center;
+    gap:9px;
+  }
+  .tutorial-game-column{gap:5px;align-content:center}
+  .tutorial-board{width:min(100%,278px)}
+  .tutorial-metrics,.tutorial-control-row{width:min(100%,278px)}
+  .tutorial-metrics>span,.tutorial-status{min-height:27px;padding:2px 4px;font-size:6px}
+  .tutorial-metrics b{font-size:11px}
+  .tutorial-control-row{grid-template-columns:minmax(0,1fr) 58px;gap:6px}
+  .tutorial-dpad{width:min(100%,176px);gap:4px}
+  .tutorial-dpad button{min-height:29px}
+  .tutorial-action-buttons{gap:4px}
+  .tutorial-action-buttons button{min-height:29px;font-size:6.5px;border-width:1px;box-shadow:2px 2px 0 rgba(23,23,25,.16)}
+  .tutorial-copy-panel{width:min(100%,340px);padding:10px 13px;text-align:center;box-shadow:4px 4px 0 var(--yellow)}
+  .tutorial-copy-panel::before{width:38px;height:4px;margin:0 auto 7px}
+  .tutorial-copy-panel h3{margin:3px 0 6px;font-size:20px}
+  .tutorial-copy-panel p{font-size:12.5px;line-height:1.25}
+  .tutorial-copy-panel .tutorial-input-hint{display:none}
+  .how-to-play-foot{padding:6px 7px;gap:6px}
+  .how-to-play-foot button{min-height:34px;padding:4px 7px;font-size:7.5px}
+  .how-to-play-next{min-width:94px}
+  .how-to-play-skip{min-height:25px!important}
+  .tutorial-final-slide{
+    height:100%;
+    grid-template-columns:1fr;
+    grid-template-rows:auto auto;
+    align-content:center;
+    gap:8px;
+    padding:8px 12px;
+    text-align:center;
+  }
+  .tutorial-final-crate{width:128px;justify-self:center}
+  .tutorial-final-copy{width:min(100%,330px);justify-self:center;padding:16px 18px;box-shadow:4px 4px 0 var(--red)}
+  .tutorial-final-copy h3{font-size:25px}
+  .tutorial-final-copy p{font-size:14px}
+}
+
+/* Short phones need a slightly smaller square lesson, never a distorted one. */
+@media(max-width:640px) and (max-height:720px){
+  .how-to-play-card{grid-template-rows:48px minmax(0,1fr) 44px}
+  .how-to-play-head{padding-block:5px}
+  .how-to-play-title h2{font-size:20px}
+  .how-to-play-close{width:31px;height:31px}
+  .how-to-play-stage{padding:5px 7px}
+  .tutorial-lesson{gap:6px}
+  .tutorial-board{width:min(100%,225px)}
+  .tutorial-metrics,.tutorial-control-row{width:min(100%,225px)}
+  .tutorial-metrics>span,.tutorial-status{min-height:23px}
+  .tutorial-control-row{grid-template-columns:minmax(0,1fr) 52px}
+  .tutorial-dpad{width:min(100%,146px)}
+  .tutorial-dpad button,.tutorial-action-buttons button{min-height:24px}
+  .tutorial-copy-panel{padding:7px 10px}
+  .tutorial-copy-panel::before{margin-bottom:4px}
+  .tutorial-copy-panel h3{font-size:17px;margin:2px 0 4px}
+  .tutorial-copy-panel p{font-size:11px}
+  .tutorial-final-crate{width:100px}
+  .tutorial-final-copy{padding:12px 14px}
+  .tutorial-final-copy h3{font-size:22px}
+  .tutorial-final-copy p{font-size:12.5px}
+  .how-to-play-foot{padding:4px 6px}
+  .how-to-play-foot button{min-height:31px}
+}
+
+/* Short landscape: board and copy sit side-by-side and remain proportional. */
+@media(max-height:560px) and (orientation:landscape){
+  .how-to-play-modal{padding:4px}
+  .how-to-play-card{
+    width:calc(100vw - 8px);
+    height:calc(100dvh - 8px);
+    grid-template-rows:44px minmax(0,1fr) 42px;
+  }
+  .how-to-play-head{padding:4px 8px 4px 14px}
+  .how-to-play-title h2{font-size:19px}
+  .how-to-play-title span{font-size:6px}
+  .how-to-play-close{width:29px;height:29px;font-size:19px}
+  .how-to-play-stage{padding:5px 10px}
+  .tutorial-lesson{grid-template-columns:minmax(285px,1fr) minmax(210px,.82fr);grid-template-rows:1fr;gap:15px}
+  .tutorial-game-column{gap:3px}
+  .tutorial-board{width:min(100%,175px)}
+  .tutorial-metrics,.tutorial-control-row{width:min(100%,270px)}
+  .tutorial-metrics>span,.tutorial-status{min-height:20px;font-size:5.5px}
+  .tutorial-metrics b{font-size:9px}
+  .tutorial-control-row{grid-template-columns:minmax(0,1fr) 52px;gap:5px}
+  .tutorial-dpad{width:min(100%,138px);gap:3px}
+  .tutorial-dpad button,.tutorial-action-buttons button{min-height:22px}
+  .tutorial-copy-panel{width:auto;padding:10px 13px;text-align:left;box-shadow:4px 4px 0 var(--yellow)}
+  .tutorial-copy-panel::before{margin:0 0 7px;width:38px;height:4px}
+  .tutorial-copy-panel h3{font-size:20px;margin:3px 0 6px}
+  .tutorial-copy-panel p{font-size:12px}
+  .tutorial-final-slide{grid-template-columns:150px minmax(0,1fr);grid-template-rows:1fr;gap:20px;padding:8px 22px;text-align:left}
+  .tutorial-final-crate{width:135px;justify-self:end}
+  .tutorial-final-copy{padding:14px 18px}
+  .tutorial-final-copy h3{font-size:24px}
+  .tutorial-final-copy p{font-size:13px}
+  .how-to-play-foot{padding:4px 7px}
+  .how-to-play-foot button{min-height:30px}
+}
+
+
+/* BOXXY v149c — tutorial stability and final-crate proportions. */
+.tutorial-board.bump{animation:none!important;transform:none!important}
+.tutorial-box.is-moving{animation:none!important}
+.tutorial-final-crate{aspect-ratio:1/1!important;overflow:visible}
+.tutorial-final-crate .tutorial-board-art-box{position:absolute;inset:0!important;width:100%!important;height:100%!important;aspect-ratio:1/1;background-size:300% 100%}

@@ -17,19 +17,20 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="BOXXY">
-<link rel="icon" href="assets/ui/icons/boxxy-crate-v2.ico" sizes="any">
-<link rel="icon" type="image/svg+xml" href="assets/ui/icons/boxxy-crate-v2.svg">
-<link rel="icon" type="image/png" sizes="32x32" href="assets/ui/icons/boxxy-crate-v2-32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="assets/ui/icons/boxxy-crate-v2-16.png">
-<link rel="apple-touch-icon" sizes="180x180" href="assets/ui/icons/boxxy-crate-touch-v2.png">
-<link rel="manifest" href="boxxy-v2.webmanifest">
+<link rel="icon" href="assets/ui/icons/boxxy-yellow-crate-v150.ico" sizes="any">
+<link rel="icon" type="image/svg+xml" href="assets/ui/icons/boxxy-yellow-crate-v150.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/ui/icons/boxxy-yellow-crate-v150-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="assets/ui/icons/boxxy-yellow-crate-v150-16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/ui/icons/boxxy-yellow-crate-touch-v150.png">
+<link rel="manifest" href="boxxy-v150.webmanifest">
 <script>
   if ((navigator.maxTouchPoints || 0) > 0 || "ontouchstart" in window) {
     document.documentElement.classList.add("touch-ui");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=145">
-<link rel="stylesheet" href="styles-v147-fixes.css?v=147">
+<link rel="stylesheet" href="styles.css?v=150">
+<link rel="stylesheet" href="styles-v147-fixes.css?v=150">
+<link rel="stylesheet" href="how-to-play.css?v=150">
 <link rel="preload" as="image" href="assets/board/board-atlas.png">
 <link rel="preload" as="image" href="assets/ui/boxxy-splash.png">
 </head>
@@ -65,7 +66,11 @@
       </button>
     </section>
 
-    <footer class="instruction" aria-live="polite"><span class="info" aria-hidden="true">“</span><span id="thoughtText" class="thought-text">Hmm. Which box first? Ice cream when this is done.</span></footer>
+    <footer class="instruction">
+      <span class="info" aria-hidden="true">“</span>
+      <span id="thoughtText" class="thought-text" aria-live="polite">Hmm. Which box first? Ice cream when this is done.</span>
+      <button id="howToPlayBtn" class="how-to-play-trigger" type="button" aria-haspopup="dialog" aria-controls="howToPlayModal" aria-label="How to play BOXXY" title="How to play BOXXY">?</button>
+    </footer>
   </section>
 
   <aside class="side-panel">
@@ -483,7 +488,8 @@
 <audio id="bgMusic" src="assets/audio/cracked-ivory-drift.mp3" preload="auto" autoplay loop playsinline></audio>
 
 <script src="levels.js?v=143"></script>
-<script src="boxxy.js?v=145"></script>
+<script src="boxxy.js?v=150"></script>
 <script src="pack-builder.js?v=143"></script>
+<script src="how-to-play.js?v=150"></script>
 </body>
 </html>

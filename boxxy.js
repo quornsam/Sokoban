@@ -2566,15 +2566,35 @@
 
   const buttonDirections = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
   document.querySelectorAll("[data-dir]").forEach(button => {
+    let activePointerId = null;
+
     button.addEventListener("pointerdown", event => {
       event.preventDefault();
+
+      // Touch and pen controls make exactly one move per distinct press.
+      // Ignore duplicate pointerdown events until that pointer is released.
+      if (activePointerId !== null) return;
+      activePointerId = event.pointerId;
+
       ensureAudio();
       button.setPointerCapture?.(event.pointerId);
       move(...buttonDirections[button.dataset.dir], true);
     });
-    button.addEventListener("pointerup", releaseBlockedPush);
-    button.addEventListener("pointercancel", releaseBlockedPush);
-    button.addEventListener("lostpointercapture", releaseBlockedPush);
+
+    const releaseDirectionButton = event => {
+      if (activePointerId !== null &&
+          event?.pointerId !== undefined &&
+          event.pointerId !== activePointerId) return;
+      activePointerId = null;
+      releaseBlockedPush();
+    };
+
+    button.addEventListener("pointerup", releaseDirectionButton);
+    button.addEventListener("pointercancel", releaseDirectionButton);
+    button.addEventListener("lostpointercapture", releaseDirectionButton);
+
+    // Suppress the synthetic click produced after a touch press.
+    button.addEventListener("click", event => event.preventDefault());
   });
 
 
