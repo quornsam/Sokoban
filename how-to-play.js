@@ -395,15 +395,6 @@
     });
     board.addEventListener("pointercancel", () => { swipeStart = null; });
 
-    const metrics = el("div", "tutorial-metrics");
-    const movesMetric = el("span");
-    movesMetric.innerHTML = `MOVES <b data-tutorial-moves>0</b>`;
-    const pushesMetric = el("span");
-    pushesMetric.innerHTML = `PUSHES <b data-tutorial-pushes>0</b>`;
-    const status = el("strong", "tutorial-status", "PUSH EVERY BOX ONTO A TARGET");
-    status.dataset.tutorialStatus = "";
-    metrics.append(movesMetric, pushesMetric, status);
-
     const controlRow = el("div", "tutorial-control-row tutorial-six-controls");
     const undoButton = el("button", "tutorial-undo", "UNDO");
     undoButton.type = "button";
@@ -434,7 +425,7 @@
       directionButtons.right
     );
 
-    gameColumn.append(boardShell, metrics, controlRow);
+    gameColumn.append(boardShell, controlRow);
 
     const copy = el("div", "tutorial-copy-panel");
     copy.appendChild(el("span", "tutorial-step-label", `${currentSlide + 1} / ${slides.length}`));

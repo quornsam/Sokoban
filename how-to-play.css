@@ -1156,3 +1156,33 @@ body.how-to-play-open{overflow:hidden}
     font-size:11px;
   }
 }
+
+
+/* BOXXY v153 — remove redundant tutorial metrics strip and add safe top breathing room. */
+.tutorial-metrics{
+  display:none !important;
+}
+
+@media (max-width:640px) and (orientation:portrait){
+  .how-to-play-stage{
+    padding-top:12px;
+  }
+  .tutorial-copy-panel{
+    margin-top:4px;
+  }
+  .tutorial-game-column{
+    gap:7px;
+  }
+}
+
+@media (max-width:640px) and (orientation:portrait) and (max-height:700px){
+  .how-to-play-stage{
+    padding-top:8px;
+  }
+  .tutorial-copy-panel{
+    margin-top:2px;
+  }
+  .tutorial-game-column{
+    gap:5px;
+  }
+}
