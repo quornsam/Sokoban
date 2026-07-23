@@ -1492,3 +1492,241 @@ html.ios-standalone .app{
   .prize-copy p{font-size:13px;line-height:1.4}
   .claim-prize-btn{min-height:64px;font-size:14px}
 }
+
+
+/* BOXXY v157 — corrected completed-pack and prize modal layouts. */
+
+/* Completed-pack modal always has a visible close control. */
+.complete-close{
+  position:absolute;
+  z-index:8;
+  top:10px;
+  right:10px;
+  width:38px;
+  height:38px;
+  display:grid;
+  place-items:center;
+  padding:0;
+  border:2px solid var(--ink);
+  background:#f7f0e5;
+  color:var(--ink);
+  box-shadow:3px 3px 0 var(--ink);
+  font:950 25px/1 var(--font);
+  cursor:pointer;
+}
+.complete-close:hover,
+.complete-close:focus-visible{
+  background:var(--yellow);
+  outline:3px solid var(--blue);
+  outline-offset:2px;
+}
+
+/* No NEXT LEVEL / CHOOSE A LEVEL control in final collection congratulations. */
+.complete-card.final-complete #nextBtn{
+  display:none !important;
+}
+
+/* Keep the overall cards off-white, but restore each pack's colour panel. */
+.complete-card.final-complete .pack-red .final-pack-art{
+  background:var(--red);
+  color:#fff;
+}
+.complete-card.final-complete .pack-green .final-pack-art{
+  background:var(--green);
+  color:#fff;
+}
+.complete-card.final-complete .pack-blue .final-pack-art{
+  background:var(--blue);
+  color:#fff;
+}
+.complete-card.final-complete .pack-yellow .final-pack-art{
+  background:var(--yellow);
+  color:var(--ink);
+}
+.complete-card.final-complete .pack-black .final-pack-art{
+  background:var(--ink);
+  color:#fff;
+}
+.complete-card.final-complete .final-pack-art i{
+  background:rgba(255,255,255,.48);
+  border-color:var(--ink);
+}
+.complete-card.final-complete .final-pack-art b{
+  color:inherit;
+}
+
+/* Completed-pack modal fits within laptop and tablet viewports. */
+.complete-modal{
+  padding:20px;
+  overflow:auto;
+}
+.complete-card.final-complete{
+  width:min(720px,calc(100vw - 40px));
+  max-height:calc(100dvh - 40px);
+  grid-template-columns:118px minmax(0,1fr);
+  overflow:hidden;
+}
+.complete-card.final-complete .complete-art{
+  min-height:0;
+  height:auto;
+}
+.complete-card.final-complete .complete-copy{
+  min-height:0;
+  overflow:auto;
+  padding:26px 52px 26px 28px;
+}
+.complete-card.final-complete .final-pack-picker{
+  margin-top:10px;
+}
+.complete-card.final-complete .final-pack-grid{
+  gap:9px;
+}
+.complete-card.final-complete .final-pack-option{
+  min-height:74px;
+}
+.complete-card.final-complete .final-pack-art{
+  height:58px;
+}
+.complete-card.final-complete .complete-actions{
+  margin-top:14px;
+}
+
+/* Prize screen: stable three-part desktop layout. */
+.prize-modal{
+  align-items:flex-start;
+  padding:24px;
+  overflow-y:auto;
+}
+.prize-card{
+  width:min(760px,calc(100vw - 48px));
+  max-height:none;
+  margin:auto;
+  display:grid;
+  grid-template-columns:minmax(220px,34%) minmax(0,1fr);
+  grid-template-areas:
+    "poster heading"
+    "poster copy";
+  grid-template-rows:auto auto;
+  align-items:start;
+  overflow:visible;
+}
+.prize-heading{
+  grid-area:heading;
+  padding:38px 52px 10px 34px;
+}
+.prize-heading h2{
+  margin:8px 0 0;
+  font-size:clamp(44px,6vw,70px);
+  line-height:.84;
+  letter-spacing:-.055em;
+  font-weight:1000;
+}
+.prize-poster{
+  grid-area:poster;
+  align-self:stretch;
+  min-height:100%;
+  border-right:3px solid var(--ink);
+  border-bottom:0;
+}
+.prize-poster img{
+  width:100%;
+  height:auto;
+  max-height:none;
+  object-fit:contain;
+}
+.prize-copy{
+  grid-area:copy;
+  overflow:visible;
+  padding:6px 34px 34px;
+}
+.prize-copy p{
+  max-width:none;
+}
+
+/* iPhone and narrow screens: WELL DONE, poster, then text; page scrolls naturally. */
+@media(max-width:700px){
+  .complete-modal{
+    padding:10px;
+  }
+  .complete-card.final-complete{
+    width:calc(100vw - 20px);
+    max-height:calc(100dvh - 20px);
+    grid-template-columns:68px minmax(0,1fr);
+  }
+  .complete-card.final-complete .complete-copy{
+    padding:22px 42px 22px 14px;
+  }
+  .complete-card.final-complete .complete-art{
+    min-height:0;
+  }
+
+  .prize-modal{
+    display:block;
+    padding:10px;
+    overflow-y:auto;
+  }
+  .prize-card{
+    width:100%;
+    max-width:520px;
+    margin:0 auto 16px;
+    display:flex;
+    flex-direction:column;
+    overflow:visible;
+  }
+  .prize-heading{
+    order:1;
+    width:100%;
+    padding:24px 52px 16px 18px;
+  }
+  .prize-heading h2{
+    margin-top:7px;
+    font-size:clamp(44px,16vw,66px);
+  }
+  .prize-poster{
+    order:2;
+    width:100%;
+    min-height:0;
+    padding:10px;
+    border-right:0;
+    border-top:3px solid var(--ink);
+    border-bottom:3px solid var(--ink);
+  }
+  .prize-poster img{
+    width:100%;
+    height:auto;
+    max-height:none;
+    object-fit:contain;
+  }
+  .prize-copy{
+    order:3;
+    width:100%;
+    overflow:visible;
+    padding:22px 18px 26px;
+  }
+  .prize-copy p{
+    font-size:14px;
+    line-height:1.46;
+  }
+  .prize-email{
+    margin-bottom:4px;
+  }
+}
+
+@media(max-height:700px) and (min-width:701px){
+  .complete-card.final-complete{
+    max-height:calc(100dvh - 24px);
+  }
+  .complete-card.final-complete .complete-copy{
+    padding-top:20px;
+    padding-bottom:20px;
+  }
+  .complete-card.final-complete h2{
+    font-size:36px;
+  }
+  .complete-card.final-complete .final-pack-option{
+    min-height:66px;
+  }
+  .complete-card.final-complete .final-pack-art{
+    height:50px;
+  }
+}

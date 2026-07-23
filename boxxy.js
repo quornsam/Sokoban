@@ -1029,6 +1029,7 @@
   const completeKicker = modal?.querySelector(".complete-kicker");
   const completeCard = modal?.querySelector(".complete-card");
   const nextBtn = document.getElementById("nextBtn");
+  const completeCloseBtn = document.getElementById("completeCloseBtn");
   const nextBtnLabel = nextBtn?.querySelector("span");
   const nextBtnIcon = nextBtn?.querySelector("b");
   const claimPrizeBtn = document.getElementById("claimPrizeBtn");
@@ -1221,6 +1222,12 @@
 
   function closePrizeModal() {
     if (prizeModal) prizeModal.hidden = true;
+  }
+
+  function closeCompleteModal() {
+    if (modal) modal.hidden = true;
+    restoreStandardCompletionActions();
+    completeCard?.classList.remove("final-complete");
   }
 
   function updateCollectionCompleteStar() {
@@ -2786,10 +2793,14 @@
     window.dispatchEvent(new CustomEvent("boxxy-maker-return"));
   });
 
+  completeCloseBtn?.addEventListener("click", closeCompleteModal);
   claimPrizeBtn?.addEventListener("click", openPrizeModal);
   prizeCloseBtn?.addEventListener("click", closePrizeModal);
   prizeModal?.addEventListener("click", event => {
     if (event.target === prizeModal) closePrizeModal();
+  });
+  modal?.addEventListener("click", event => {
+    if (event.target === modal && completeMode === "final") closeCompleteModal();
   });
 
   nextBtn.addEventListener("click", () => {
@@ -2812,7 +2823,12 @@
   });
 
   document.addEventListener("keydown", event => {
-    if (event.key === "Escape" && prizeModal && !prizeModal.hidden) closePrizeModal();
+    if (event.key !== "Escape") return;
+    if (prizeModal && !prizeModal.hidden) {
+      closePrizeModal();
+      return;
+    }
+    if (modal && !modal.hidden && completeMode === "final") closeCompleteModal();
   });
 
   let swipe = null;
