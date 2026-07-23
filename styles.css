@@ -1950,3 +1950,33 @@ html.ios-standalone .app{
     min-height:36px;
   }
 }
+
+
+/* BOXXY v159 — simplified prize and final-completion headings. */
+
+/* Remove the irrelevant collection label from completed-pack congratulations. */
+.complete-card.final-complete > .complete-copy > .complete-kicker{
+  display:none !important;
+}
+
+/* Prize message now begins with a smaller THANK YOU heading only. */
+.prize-heading{
+  padding-top:30px;
+  padding-bottom:12px;
+}
+.prize-heading h2{
+  margin:0;
+  font-size:clamp(32px,4.5vw,52px);
+  line-height:.95;
+  letter-spacing:-.035em;
+}
+
+@media(max-width:700px){
+  .prize-heading{
+    padding:20px 52px 12px 18px;
+  }
+  .prize-heading h2{
+    font-size:clamp(30px,10vw,42px);
+    line-height:1;
+  }
+}
