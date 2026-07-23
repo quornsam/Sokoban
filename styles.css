@@ -248,7 +248,7 @@ linear-gradient(135deg,transparent 0 58%,var(--shape-color) 58% 66%,transparent 
 
 /* Collection switcher */
 .collection{border:0;background:transparent;padding:0;color:inherit;cursor:pointer}
-.collection:hover b,.collection:focus-visible b{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:4px}
+.collection:hover b,.collection:focus-visible b{text-decoration:none}.collection:hover i,.collection:focus-visible i{background:var(--red)}
 .theme-card{position:relative;width:min(720px,92vw);padding:28px;background:var(--paper2);border:2px solid var(--ink);box-shadow:0 28px 70px rgba(35,25,15,.32)}
 .theme-close{position:absolute;right:14px;top:10px;border:0;background:transparent;font-size:28px;font-weight:900}
 .theme-kicker{font-size:11px;font-weight:950;letter-spacing:.16em;color:var(--red)}
@@ -1301,4 +1301,37 @@ html.touch-ui .dpad{
   .collection{min-width:94px;max-width:100px;padding-left:5px}
   .collection b{font-size:9px}
   .collection span{font-size:15px}
+}
+
+
+/* BOXXY v151 — installed iPhone safe area and collection hover correction. */
+.collection:hover b,
+.collection:focus-visible b{
+  text-decoration:none !important;
+}
+.collection:hover i,
+.collection:focus-visible i{
+  background:var(--red);
+}
+
+/* Installed iPhone web apps may draw beneath the status bar. */
+@media (display-mode: standalone){
+  html.touch-ui body{
+    padding-top:env(safe-area-inset-top);
+    box-sizing:border-box;
+  }
+  html.touch-ui .app{
+    height:calc(100dvh - env(safe-area-inset-top));
+    min-height:calc(100dvh - env(safe-area-inset-top));
+  }
+}
+
+/* Older iOS standalone detection fallback. */
+html.ios-standalone body{
+  padding-top:env(safe-area-inset-top);
+  box-sizing:border-box;
+}
+html.ios-standalone .app{
+  height:calc(100dvh - env(safe-area-inset-top));
+  min-height:calc(100dvh - env(safe-area-inset-top));
 }

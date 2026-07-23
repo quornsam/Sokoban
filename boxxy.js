@@ -2567,24 +2567,40 @@
   const buttonDirections = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
   document.querySelectorAll("[data-dir]").forEach(button => {
     let activePointerId = null;
+    let repeatDelay = 0;
+    let repeatTimer = 0;
+
+    const stopRepeat = () => {
+      window.clearTimeout(repeatDelay);
+      window.clearInterval(repeatTimer);
+      repeatDelay = 0;
+      repeatTimer = 0;
+    };
+
+    const performDirectionMove = () => {
+      move(...buttonDirections[button.dataset.dir], true);
+    };
 
     button.addEventListener("pointerdown", event => {
       event.preventDefault();
-
-      // Touch and pen controls make exactly one move per distinct press.
-      // Ignore duplicate pointerdown events until that pointer is released.
       if (activePointerId !== null) return;
       activePointerId = event.pointerId;
 
       ensureAudio();
       button.setPointerCapture?.(event.pointerId);
-      move(...buttonDirections[button.dataset.dir], true);
+      performDirectionMove();
+
+      // Match keyboard behaviour: pause briefly, then repeat while held.
+      repeatDelay = window.setTimeout(() => {
+        repeatTimer = window.setInterval(performDirectionMove, 105);
+      }, 330);
     });
 
     const releaseDirectionButton = event => {
       if (activePointerId !== null &&
           event?.pointerId !== undefined &&
           event.pointerId !== activePointerId) return;
+      stopRepeat();
       activePointerId = null;
       releaseBlockedPush();
     };
@@ -2592,6 +2608,9 @@
     button.addEventListener("pointerup", releaseDirectionButton);
     button.addEventListener("pointercancel", releaseDirectionButton);
     button.addEventListener("lostpointercapture", releaseDirectionButton);
+    button.addEventListener("pointerleave", event => {
+      if (event.pointerType === "mouse") releaseDirectionButton(event);
+    });
 
     // Suppress the synthetic click produced after a touch press.
     button.addEventListener("click", event => event.preventDefault());

@@ -404,17 +404,35 @@
     status.dataset.tutorialStatus = "";
     metrics.append(movesMetric, pushesMetric, status);
 
-    const controlRow = el("div", "tutorial-control-row");
-    const actions = el("div", "tutorial-action-buttons");
+    const controlRow = el("div", "tutorial-control-row tutorial-six-controls");
     const undoButton = el("button", "tutorial-undo", "UNDO");
     undoButton.type = "button";
     undoButton.dataset.tutorialUndo = "";
     undoButton.addEventListener("click", undo);
+
     const retryButton = el("button", "tutorial-retry", "RETRY");
     retryButton.type = "button";
     retryButton.addEventListener("click", retry);
-    actions.append(undoButton, retryButton);
-    controlRow.append(buildDpad(), actions);
+
+    const directionButtons = {};
+    for (const direction of ["up", "left", "down", "right"]) {
+      const button = el("button", `tutorial-direction tutorial-direction-${direction}`);
+      button.type = "button";
+      button.dataset.tutorialDirection = direction;
+      button.setAttribute("aria-label", `Move ${direction}`);
+      button.innerHTML = arrowSvg(direction);
+      button.addEventListener("click", () => move(direction));
+      directionButtons[direction] = button;
+    }
+
+    controlRow.append(
+      undoButton,
+      directionButtons.up,
+      retryButton,
+      directionButtons.left,
+      directionButtons.down,
+      directionButtons.right
+    );
 
     gameColumn.append(boardShell, metrics, controlRow);
 
@@ -639,7 +657,6 @@
 
   function initialise() {
     bindHelpButton();
-    waitForSplashThenOpen();
   }
 
   document.addEventListener("keydown", handleKeydown, { capture: true });

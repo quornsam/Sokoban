@@ -844,3 +844,138 @@ body.how-to-play-open{overflow:hidden}
 .tutorial-box.is-moving{animation:none!important}
 .tutorial-final-crate{aspect-ratio:1/1!important;overflow:visible}
 .tutorial-final-crate .tutorial-board-art-box{position:absolute;inset:0!important;width:100%!important;height:100%!important;aspect-ratio:1/1;background-size:300% 100%}
+
+
+/* BOXXY v151 — tutorial opens only from ?, centred NEXT, compact six-button pad. */
+
+/* Exact arrangement:
+   UNDO   UP   RETRY
+   LEFT  DOWN  RIGHT */
+.tutorial-control-row.tutorial-six-controls{
+  width:min(100%,246px);
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  grid-template-rows:repeat(2,minmax(38px,1fr));
+  grid-template-areas:
+    "undo up retry"
+    "left down right";
+  gap:6px;
+}
+.tutorial-six-controls button{
+  min-width:0;
+  min-height:38px;
+  padding:4px;
+  display:grid;
+  place-items:center;
+  border:1px solid var(--line);
+  background:#f8f1e6;
+  color:var(--ink);
+  box-shadow:0 3px 7px rgba(55,38,20,.10);
+}
+.tutorial-six-controls button:active{
+  transform:translateY(2px);
+  box-shadow:0 1px 3px rgba(55,38,20,.10);
+}
+.tutorial-six-controls svg{
+  width:34%;
+  height:34%;
+  display:block;
+  fill:currentColor;
+}
+.tutorial-six-controls .tutorial-undo{
+  grid-area:undo;
+  background:var(--blue);
+  color:#fff;
+  font-size:8px;
+  font-weight:950;
+  letter-spacing:.04em;
+}
+.tutorial-six-controls .tutorial-retry{
+  grid-area:retry;
+  background:#f7f0e5;
+  color:var(--ink);
+  font-size:8px;
+  font-weight:950;
+  letter-spacing:.04em;
+}
+.tutorial-direction-up{grid-area:up}
+.tutorial-direction-left{grid-area:left}
+.tutorial-direction-down{grid-area:down}
+.tutorial-direction-right{grid-area:right}
+.tutorial-six-controls button:disabled{
+  opacity:.35;
+  cursor:default;
+  transform:none;
+}
+
+/* Remove the older separate pad/action layout when the v151 pad is present. */
+.tutorial-six-controls .tutorial-dpad,
+.tutorial-six-controls .tutorial-action-buttons{
+  display:contents;
+}
+
+/* Make NEXT the visual centre of the footer. */
+.how-to-play-foot{
+  grid-template-columns:minmax(90px,1fr) minmax(150px,220px) minmax(90px,1fr);
+  align-items:center;
+}
+.how-to-play-back{
+  grid-column:1;
+  justify-self:start;
+}
+.how-to-play-next{
+  grid-column:2;
+  grid-row:1;
+  justify-self:stretch;
+  min-width:0;
+  min-height:44px;
+  font-size:11px;
+  background:var(--red);
+  color:#fff;
+  border-color:var(--ink);
+  box-shadow:5px 5px 0 var(--ink);
+}
+.how-to-play-skip{
+  grid-column:3;
+  grid-row:1;
+  justify-self:end;
+}
+.how-to-play-next:disabled{
+  background:var(--red);
+  color:#fff;
+  opacity:.46;
+  box-shadow:2px 2px 0 var(--ink);
+}
+
+@media(max-width:640px){
+  .tutorial-control-row.tutorial-six-controls{
+    width:min(100%,216px);
+    grid-template-rows:repeat(2,minmax(31px,1fr));
+    gap:5px;
+  }
+  .tutorial-six-controls button{min-height:31px}
+  .how-to-play-foot{
+    grid-template-columns:64px minmax(120px,1fr) 64px;
+    gap:6px;
+  }
+  .how-to-play-next{
+    min-height:38px;
+    font-size:9px;
+  }
+  .how-to-play-back{justify-self:stretch}
+  .how-to-play-skip{
+    justify-self:end;
+    font-size:6.5px;
+    text-align:right;
+  }
+}
+
+@media(max-height:560px) and (orientation:landscape){
+  .tutorial-control-row.tutorial-six-controls{
+    width:min(100%,205px);
+    grid-template-rows:repeat(2,minmax(24px,1fr));
+    gap:4px;
+  }
+  .tutorial-six-controls button{min-height:24px}
+  .how-to-play-next{min-height:32px}
+}

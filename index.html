@@ -15,22 +15,25 @@
 <meta name="application-name" content="BOXXY">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="BOXXY">
 <link rel="icon" href="assets/ui/icons/boxxy-yellow-crate-v150.ico" sizes="any">
 <link rel="icon" type="image/svg+xml" href="assets/ui/icons/boxxy-yellow-crate-v150.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="assets/ui/icons/boxxy-yellow-crate-v150-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="assets/ui/icons/boxxy-yellow-crate-v150-16.png">
 <link rel="apple-touch-icon" sizes="180x180" href="assets/ui/icons/boxxy-yellow-crate-touch-v150.png">
-<link rel="manifest" href="boxxy-v150.webmanifest">
+<link rel="manifest" href="boxxy-v151.webmanifest">
 <script>
   if ((navigator.maxTouchPoints || 0) > 0 || "ontouchstart" in window) {
     document.documentElement.classList.add("touch-ui");
   }
+  if (window.navigator.standalone === true) {
+    document.documentElement.classList.add("ios-standalone");
+  }
 </script>
-<link rel="stylesheet" href="styles.css?v=150">
-<link rel="stylesheet" href="styles-v147-fixes.css?v=150">
-<link rel="stylesheet" href="how-to-play.css?v=150">
+<link rel="stylesheet" href="styles.css?v=151">
+<link rel="stylesheet" href="styles-v147-fixes.css?v=151">
+<link rel="stylesheet" href="how-to-play.css?v=151">
 <link rel="preload" as="image" href="assets/board/board-atlas.png">
 <link rel="preload" as="image" href="assets/ui/boxxy-splash.png">
 </head>
@@ -488,8 +491,8 @@
 <audio id="bgMusic" src="assets/audio/cracked-ivory-drift.mp3" preload="auto" autoplay loop playsinline></audio>
 
 <script src="levels.js?v=143"></script>
-<script src="boxxy.js?v=150"></script>
+<script src="boxxy.js?v=151"></script>
 <script src="pack-builder.js?v=143"></script>
-<script src="how-to-play.js?v=150"></script>
+<script src="how-to-play.js?v=151"></script>
 </body>
 </html>
