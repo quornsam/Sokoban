@@ -1019,6 +1019,7 @@
   const levelButtons = document.getElementById("levelButtons");
   const levelCloseBtn = document.getElementById("levelCloseBtn");
   const levelResetBtn = document.getElementById("levelResetBtn");
+  const collectionCompleteStar = document.getElementById("collectionCompleteStar");
   const resetConfirmModal = document.getElementById("resetConfirmModal");
   const resetConfirmBtn = document.getElementById("resetConfirmBtn");
   const resetCancelBtn = document.getElementById("resetCancelBtn");
@@ -1190,7 +1191,45 @@
   function openThemeModal(){ if (themeModal) themeModal.hidden = false; }
   function closeThemeModal(){ if (themeModal) themeModal.hidden = true; }
 
+  function collectionIsComplete() {
+    return Boolean(LEVELS.length) && completedLevels.has(LEVELS.length - 1);
+  }
+
+  function updateCollectionCompleteStar() {
+    if (!collectionCompleteStar) return;
+    const earned = collectionIsComplete() && !makerTesting && !sharedPuzzleMode;
+    collectionCompleteStar.hidden = !earned;
+    collectionCompleteStar.setAttribute("aria-hidden", String(!earned));
+    collectionCompleteStar.title = earned
+      ? `View the congratulations screen for ${activePack.displayName}`
+      : "";
+  }
+
+  function showCollectionCongratulations() {
+    if (!collectionIsComplete() || !modal) return;
+
+    completeMode = "final";
+    completeCard?.classList.add("final-complete");
+    if (completeKicker) completeKicker.textContent = "CONGRATULATIONS";
+    if (completeTitle) completeTitle.innerHTML = "WELL<br>DONE";
+    if (completeText) {
+      completeText.textContent = `You have completed ${activePack.displayName}. Every level in this collection has been cleared.`;
+    }
+
+    buildPackSelectors();
+    if (finalPackPicker) finalPackPicker.hidden = false;
+    if (finalPackStatus) finalPackStatus.textContent = "";
+    if (nextBtnLabel) nextBtnLabel.textContent = "CHOOSE A LEVEL";
+    if (nextBtnIcon) nextBtnIcon.textContent = "✓";
+
+    closeLevelPicker();
+    modal.hidden = false;
+    burst();
+    sfx.finish();
+  }
+
   function openLevelPicker() {
+    updateCollectionCompleteStar();
     levelPicker.hidden = false;
   }
 
@@ -1336,6 +1375,7 @@
         ? `Complete level ${index} to unlock level ${index + 1}`
         : `${activePack.displayName}: ${index + 1}. ${LEVELS[index].name}`;
     });
+    updateCollectionCompleteStar();
   }
 
   let splashStartedAt = performance.now();
@@ -2695,6 +2735,7 @@
   });
   levelCloseBtn?.addEventListener("click", closeLevelPicker);
   levelResetBtn?.addEventListener("click", openResetConfirm);
+  collectionCompleteStar?.addEventListener("click", showCollectionCongratulations);
   resetCancelBtn?.addEventListener("click", closeResetConfirm);
   resetConfirmBtn?.addEventListener("click", () => {
     closeResetConfirm();

@@ -31,7 +31,7 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=151">
+<link rel="stylesheet" href="styles.css?v=155">
 <link rel="stylesheet" href="styles-v147-fixes.css?v=151">
 <link rel="stylesheet" href="how-to-play.css?v=154">
 <link rel="preload" as="image" href="assets/board/board-atlas.png">
@@ -121,6 +121,11 @@
     <section id="levelPicker" class="level-picker" hidden role="dialog" aria-modal="true" aria-labelledby="levelPickerTitle">
       <div class="level-picker-head">
         <strong id="levelPickerTitle">CHOOSE LEVEL</strong>
+        <button id="collectionCompleteStar" class="collection-complete-star" type="button" hidden aria-label="View collection congratulations" title="View collection congratulations">
+          <svg viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+            <path d="M50 6 62.7 34.2 93.5 37.5 70.5 58.3 77 88.5 50 73 23 88.5 29.5 58.3 6.5 37.5 37.3 34.2Z"/>
+          </svg>
+        </button>
         <div class="level-picker-tools">
           <button id="styleBtnMobile" class="level-attire" data-style-trigger type="button" aria-label="Change character attire">
             <svg class="style-outfit-icon" viewBox="0 0 100 100" aria-hidden="true" focusable="false" shape-rendering="geometricPrecision">
@@ -491,7 +496,7 @@
 <audio id="bgMusic" src="assets/audio/cracked-ivory-drift.mp3" preload="auto" autoplay loop playsinline></audio>
 
 <script src="levels.js?v=143"></script>
-<script src="boxxy.js?v=151"></script>
+<script src="boxxy.js?v=155"></script>
 <script src="pack-builder.js?v=143"></script>
 <script src="how-to-play.js?v=153"></script>
 </body>
