@@ -2290,3 +2290,171 @@ html.ios-standalone .app{
     margin-top:0;
   }
 }
+
+
+/* BOXXY v161 — ordinary mobile Puzzle Cleared modal. */
+@media (max-width:700px){
+
+  /* Standard centred X for every completion modal, not only final packs. */
+  .complete-close{
+    top:7px;
+    right:7px;
+    width:30px;
+    height:30px;
+    margin:0;
+    padding:0;
+    display:block;
+    border:2px solid var(--ink);
+    background:var(--red);
+    box-shadow:3px 3px 0 var(--ink);
+    color:transparent;
+    font-size:0;
+    line-height:0;
+  }
+
+  .complete-close::before,
+  .complete-close::after{
+    content:"";
+    position:absolute;
+    left:50%;
+    top:50%;
+    width:16px;
+    height:3px;
+    background:#fff;
+    border-radius:1px;
+    transform-origin:center;
+  }
+
+  .complete-close::before{
+    transform:translate(-50%,-50%) rotate(45deg);
+  }
+
+  .complete-close::after{
+    transform:translate(-50%,-50%) rotate(-45deg);
+  }
+
+  /* The normal Puzzle Cleared screen is independent of final-pack styling. */
+  .complete-card:not(.final-complete){
+    width:min(430px,calc(100vw - 18px));
+    max-height:calc(100dvh - 18px);
+    grid-template-columns:72px minmax(0,1fr);
+    overflow:hidden;
+  }
+
+  .complete-card:not(.final-complete) .complete-art{
+    min-height:270px;
+    border-right-width:2px;
+  }
+
+  .complete-card:not(.final-complete) .complete-art span{
+    width:48px;
+    height:48px;
+    border-width:2px;
+    box-shadow:4px 4px 0 rgba(21,21,21,.18);
+    font-size:27px;
+  }
+
+  .complete-card:not(.final-complete) .complete-circle{
+    width:76px;
+    height:76px;
+  }
+
+  .complete-card:not(.final-complete) .complete-square{
+    width:54px;
+    height:54px;
+  }
+
+  /*
+   * Forty-two pixels are permanently reserved at the right for the close
+   * control, so the heading and body can never run beneath it.
+   */
+  .complete-card:not(.final-complete) .complete-copy{
+    min-width:0;
+    min-height:0;
+    justify-content:center;
+    padding:20px 43px 19px 14px;
+    overflow:hidden;
+  }
+
+  .complete-card:not(.final-complete) .complete-copy::before{
+    width:64px;
+    height:9px;
+  }
+
+  .complete-card:not(.final-complete) .complete-kicker{
+    font-size:8px;
+    letter-spacing:.13em;
+  }
+
+  .complete-card:not(.final-complete) h2{
+    max-width:100%;
+    margin:7px 0 9px;
+    font-size:clamp(29px,10vw,40px);
+    line-height:.86;
+    letter-spacing:-.045em;
+    overflow-wrap:normal;
+  }
+
+  .complete-card:not(.final-complete) p{
+    max-width:none;
+    margin:0 0 15px;
+    font-size:11.5px;
+    line-height:1.28;
+  }
+
+  .complete-card:not(.final-complete) .complete-actions{
+    width:100%;
+    gap:8px;
+  }
+
+  .complete-card:not(.final-complete) .complete-primary,
+  .complete-card:not(.final-complete) .complete-secondary{
+    width:100%;
+    min-width:0;
+    min-height:44px;
+    padding:9px 10px 9px 12px;
+    gap:9px;
+    font-size:9px;
+    box-shadow:4px 4px 0 var(--red);
+  }
+
+  .complete-card:not(.final-complete) .complete-primary b{
+    width:25px;
+    height:25px;
+    flex:0 0 25px;
+    font-size:17px;
+  }
+}
+
+/* Short landscape phones: preserve the same safe corner but use less height. */
+@media (max-width:700px) and (max-height:500px){
+  .complete-card:not(.final-complete){
+    width:min(500px,calc(100vw - 16px));
+    grid-template-columns:62px minmax(0,1fr);
+  }
+
+  .complete-card:not(.final-complete) .complete-art{
+    min-height:220px;
+  }
+
+  .complete-card:not(.final-complete) .complete-copy{
+    padding-top:13px;
+    padding-bottom:13px;
+  }
+
+  .complete-card:not(.final-complete) h2{
+    margin-block:4px 6px;
+    font-size:27px;
+  }
+
+  .complete-card:not(.final-complete) p{
+    margin-bottom:9px;
+    font-size:9.5px;
+    line-height:1.18;
+  }
+
+  .complete-card:not(.final-complete) .complete-primary,
+  .complete-card:not(.final-complete) .complete-secondary{
+    min-height:36px;
+  }
+}
