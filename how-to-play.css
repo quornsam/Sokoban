@@ -979,3 +979,180 @@ body.how-to-play-open{overflow:hidden}
   .tutorial-six-controls button{min-height:24px}
   .how-to-play-next{min-height:32px}
 }
+
+
+/* BOXXY v152 — larger, better ordered mobile tutorial layout. */
+@media (max-width:640px) and (orientation:portrait){
+
+  /* Slightly taller footer gives the central NEXT button proper weight. */
+  .how-to-play-card{
+    grid-template-rows:52px minmax(0,1fr) 66px;
+  }
+
+  .how-to-play-stage{
+    padding:6px 8px;
+    overflow:hidden;
+  }
+
+  /*
+   * Put the instructional copy above the playable board.
+   * The board and controls then occupy the remaining space below.
+   */
+  .tutorial-lesson{
+    grid-template-columns:1fr;
+    grid-template-rows:auto minmax(0,1fr);
+    align-content:stretch;
+    gap:7px;
+  }
+  .tutorial-copy-panel{
+    order:1;
+    width:min(100%,390px);
+    justify-self:center;
+    padding:8px 12px;
+    text-align:center;
+    box-shadow:4px 4px 0 var(--yellow);
+  }
+  .tutorial-copy-panel::before{
+    width:38px;
+    height:4px;
+    margin:0 auto 5px;
+  }
+  .tutorial-step-label{
+    font-size:8px;
+  }
+  .tutorial-copy-panel h3{
+    margin:2px 0 4px;
+    font-size:19px;
+    line-height:.98;
+  }
+  .tutorial-copy-panel p{
+    margin:0;
+    font-size:12px;
+    line-height:1.2;
+  }
+  .tutorial-copy-panel .tutorial-input-hint{
+    display:none;
+  }
+
+  .tutorial-game-column{
+    order:2;
+    min-height:0;
+    align-content:center;
+    gap:5px;
+  }
+
+  /*
+   * Use nearly all available phone width while preserving the board's
+   * exact grid aspect ratio. Height availability also limits the width,
+   * preventing a scrollbar on shorter phones.
+   */
+  .tutorial-board{
+    width:min(
+      calc(100vw - 30px),
+      calc(100dvh - 350px),
+      370px
+    );
+    max-width:100%;
+    height:auto;
+    aspect-ratio:var(--tutorial-cols) / var(--tutorial-rows);
+  }
+
+  .tutorial-metrics,
+  .tutorial-control-row.tutorial-six-controls{
+    width:min(
+      calc(100vw - 30px),
+      370px
+    );
+    max-width:100%;
+  }
+
+  .tutorial-metrics>span,
+  .tutorial-status{
+    min-height:25px;
+    padding:2px 5px;
+    font-size:6.5px;
+  }
+  .tutorial-metrics b{
+    font-size:11px;
+  }
+
+  /* Larger six-button tutorial pad, still locked to two tidy rows. */
+  .tutorial-control-row.tutorial-six-controls{
+    grid-template-rows:repeat(2,44px);
+    gap:6px;
+  }
+  .tutorial-six-controls button{
+    min-height:44px;
+    padding:5px;
+  }
+  .tutorial-six-controls svg{
+    width:38%;
+    height:38%;
+  }
+  .tutorial-six-controls .tutorial-undo,
+  .tutorial-six-controls .tutorial-retry{
+    font-size:8.5px;
+  }
+
+  /* NEXT is now the dominant control in the footer. */
+  .how-to-play-foot{
+    grid-template-columns:58px minmax(150px,1fr) 58px;
+    padding:6px 8px 9px;
+    gap:7px;
+  }
+  .how-to-play-next{
+    min-height:52px;
+    font-size:12px;
+    letter-spacing:.06em;
+    border-width:2px;
+    box-shadow:5px 5px 0 var(--ink);
+  }
+  .how-to-play-back{
+    min-height:36px;
+    align-self:center;
+  }
+  .how-to-play-skip{
+    min-height:30px!important;
+    align-self:center;
+  }
+}
+
+/* Shorter portrait phones retain the same order and proportions, with
+   measured reductions rather than squashing any board. */
+@media (max-width:640px) and (orientation:portrait) and (max-height:700px){
+  .how-to-play-card{
+    grid-template-rows:48px minmax(0,1fr) 60px;
+  }
+  .tutorial-copy-panel{
+    padding:6px 10px;
+  }
+  .tutorial-copy-panel::before{
+    margin-bottom:3px;
+  }
+  .tutorial-copy-panel h3{
+    font-size:17px;
+    margin:1px 0 3px;
+  }
+  .tutorial-copy-panel p{
+    font-size:11px;
+    line-height:1.15;
+  }
+  .tutorial-board{
+    width:min(
+      calc(100vw - 30px),
+      calc(100dvh - 330px),
+      335px
+    );
+  }
+  .tutorial-control-row.tutorial-six-controls{
+    grid-template-rows:repeat(2,38px);
+    gap:5px;
+  }
+  .tutorial-six-controls button{
+    min-height:38px;
+  }
+  .how-to-play-next{
+    min-height:46px;
+    font-size:11px;
+  }
+}
