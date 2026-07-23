@@ -1448,3 +1448,47 @@ html.ios-standalone .app{
     font-size:8px;
   }
 }
+
+
+/* BOXXY v156 — completed-pack map cards and creator prize. */
+.complete-card.final-complete .final-pack-option{background:#f7f0e5;color:var(--ink);border:2px solid var(--ink);box-shadow:5px 5px 0 rgba(31,31,31,.24)}
+.complete-card.final-complete .final-pack-option:hover{transform:translate(-2px,-2px);box-shadow:7px 7px 0 rgba(31,31,31,.28)}
+.complete-card.final-complete .final-pack-option:active{transform:translate(2px,2px);box-shadow:2px 2px 0 rgba(31,31,31,.22)}
+.complete-card.final-complete .final-pack-art,
+.complete-card.final-complete .pack-red .final-pack-art,
+.complete-card.final-complete .pack-green .final-pack-art,
+.complete-card.final-complete .pack-blue .final-pack-art,
+.complete-card.final-complete .pack-yellow .final-pack-art,
+.complete-card.final-complete .pack-black .final-pack-art{background:#f7f0e5;color:var(--ink)}
+.complete-card.final-complete .final-pack-art i{background:var(--yellow);border-color:var(--blue)}
+.complete-card.final-complete .final-pack-art b{color:var(--blue)}
+
+.claim-prize-btn{width:100%;min-height:60px;display:flex;align-items:center;justify-content:center;gap:12px;padding:12px 18px;border:3px solid var(--blue);background:var(--yellow);color:var(--ink);box-shadow:6px 6px 0 var(--blue);font:950 15px/1 var(--font);letter-spacing:.055em;cursor:pointer;transition:transform .12s ease,box-shadow .12s ease}
+.claim-prize-btn[hidden]{display:none!important}
+.claim-prize-btn b{font-size:25px;color:var(--blue)}
+.claim-prize-btn:hover,.claim-prize-btn:focus-visible{transform:translate(-2px,-2px);box-shadow:8px 8px 0 var(--blue);outline:3px solid var(--ink);outline-offset:3px}
+.claim-prize-btn:active{transform:translate(3px,3px);box-shadow:2px 2px 0 var(--blue)}
+
+.prize-modal{z-index:140;padding:18px;overflow:auto}
+.prize-card{position:relative;width:min(900px,94vw);max-height:min(90dvh,820px);display:grid;grid-template-columns:minmax(230px,38%) minmax(0,1fr);overflow:hidden;background:#f7f0e5;border:3px solid var(--ink);box-shadow:14px 14px 0 var(--yellow),-10px -10px 0 var(--blue),0 30px 80px rgba(0,0,0,.4)}
+.prize-close{position:absolute;z-index:3;right:10px;top:10px;width:38px;height:38px;display:grid;place-items:center;padding:0;border:2px solid var(--ink);background:#f7f0e5;color:var(--ink);box-shadow:3px 3px 0 var(--ink);font:950 25px/1 var(--font);cursor:pointer}
+.prize-poster{min-height:0;margin:0;padding:14px;display:grid;place-items:center;background:var(--blue);border-right:3px solid var(--ink)}
+.prize-poster img{display:block;width:100%;height:100%;max-height:calc(90dvh - 34px);object-fit:contain;background:#f7f0e5;border:2px solid var(--ink);box-shadow:7px 7px 0 rgba(18,18,18,.35)}
+.prize-copy{min-width:0;overflow:auto;padding:42px 38px 34px}
+.prize-copy h2{margin:9px 0 18px;font-size:clamp(46px,7vw,78px);line-height:.82;letter-spacing:-.06em;font-weight:1000}
+.prize-copy p{max-width:50ch;margin:0 0 14px;font-size:15px;line-height:1.48;font-weight:720}
+.prize-limit{margin-top:20px!important;padding:12px 14px;border:2px solid var(--ink);background:var(--yellow);box-shadow:4px 4px 0 var(--blue)}
+.prize-email{margin-top:22px;min-height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 18px;border:3px solid var(--ink);background:var(--red);color:#fff;box-shadow:6px 6px 0 var(--ink);text-decoration:none;font:950 15px/1 var(--font);letter-spacing:.06em}
+.prize-email small{margin-top:6px;font-size:10px;letter-spacing:.02em;text-transform:none}
+.prize-email:hover,.prize-email:focus-visible{transform:translate(-2px,-2px);box-shadow:8px 8px 0 var(--ink);outline:3px solid var(--blue);outline-offset:3px}
+
+@media(max-width:700px){
+  .prize-modal{padding:10px}
+  .prize-card{width:min(96vw,540px);max-height:94dvh;grid-template-columns:1fr;grid-template-rows:minmax(180px,34vh) minmax(0,1fr)}
+  .prize-poster{padding:10px;border-right:0;border-bottom:3px solid var(--ink)}
+  .prize-poster img{max-height:100%}
+  .prize-copy{padding:28px 20px 24px}
+  .prize-copy h2{font-size:clamp(42px,14vw,62px)}
+  .prize-copy p{font-size:13px;line-height:1.4}
+  .claim-prize-btn{min-height:64px;font-size:14px}
+}

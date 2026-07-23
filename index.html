@@ -31,7 +31,7 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=155">
+<link rel="stylesheet" href="styles.css?v=156">
 <link rel="stylesheet" href="styles-v147-fixes.css?v=151">
 <link rel="stylesheet" href="how-to-play.css?v=154">
 <link rel="preload" as="image" href="assets/board/board-atlas.png">
@@ -219,10 +219,31 @@
       </section>
       <div class="complete-actions">
         <button id="makerApplySolveBtn" class="complete-secondary" type="button" hidden>APPLY SOLVE</button>
+        <button id="claimPrizeBtn" class="claim-prize-btn" type="button" hidden><span>CLAIM YOUR PRIZE!</span><b aria-hidden="true">★</b></button>
         <button id="nextBtn" class="complete-primary"><span>NEXT LEVEL</span><b aria-hidden="true">→</b></button>
       </div>
     </div>
   </div>
+</div>
+
+<div id="prizeModal" class="modal prize-modal" hidden>
+  <section class="prize-card" role="dialog" aria-modal="true" aria-labelledby="prizeTitle">
+    <button id="prizeCloseBtn" class="prize-close" type="button" aria-label="Close prize message">×</button>
+    <figure class="prize-poster">
+      <img src="assets/ui/boxxy-prize-poster-lowres.jpg" alt="BOXXY poster featuring the original 50 puzzle levels">
+    </figure>
+    <div class="prize-copy">
+      <span class="complete-kicker">A MESSAGE FROM THE CREATOR</span>
+      <h2 id="prizeTitle">THANK<br>YOU!</h2>
+      <p>Thank you for completing all 50 levels and for spending so much time with BOXXY. I built this game out of love and curiosity, and I hope you found as much joy in solving it as I did in creating it.</p>
+      <p>As a small thank-you, I’d love to send you a signed BOXXY poster featuring the original 50 levels. Email me a screenshot of your completed levels page, along with your name and postal address, and I’ll send one anywhere in the world.</p>
+      <p class="prize-limit"><strong>This offer is for the first 50 people to complete the collection, so please be quick!</strong></p>
+      <a class="prize-email" href="mailto:archedroof+boxxy@gmail.com?subject=I%20completed%20all%2050%20BOXXY%20levels&body=Hello%20Sam%2C%0A%0AI%20completed%20all%2050%20BOXXY%20levels.%20I%20have%20attached%20a%20screenshot%20of%20my%20completed%20levels%20page.%0A%0AMy%20name%20and%20postal%20address%20are%3A%0A%0A">
+        EMAIL SAM
+        <small>archedroof+boxxy@gmail.com</small>
+      </a>
+    </div>
+  </section>
 </div>
 
 <div id="levelMakerModal" class="modal maker-modal" hidden>
@@ -496,7 +517,7 @@
 <audio id="bgMusic" src="assets/audio/cracked-ivory-drift.mp3" preload="auto" autoplay loop playsinline></audio>
 
 <script src="levels.js?v=143"></script>
-<script src="boxxy.js?v=155"></script>
+<script src="boxxy.js?v=156"></script>
 <script src="pack-builder.js?v=143"></script>
 <script src="how-to-play.js?v=153"></script>
 </body>

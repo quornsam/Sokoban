@@ -1031,6 +1031,9 @@
   const nextBtn = document.getElementById("nextBtn");
   const nextBtnLabel = nextBtn?.querySelector("span");
   const nextBtnIcon = nextBtn?.querySelector("b");
+  const claimPrizeBtn = document.getElementById("claimPrizeBtn");
+  const prizeModal = document.getElementById("prizeModal");
+  const prizeCloseBtn = document.getElementById("prizeCloseBtn");
   const makerApplySolveBtn = document.getElementById("makerApplySolveBtn");
   const finalPackPicker = document.getElementById("finalPackPicker");
   const finalPackStatus = document.getElementById("finalPackStatus");
@@ -1195,6 +1198,31 @@
     return Boolean(LEVELS.length) && completedLevels.has(LEVELS.length - 1);
   }
 
+  function activePackEarnsPrize() {
+    return activePack.id === PRIMARY_PACK_ID && LEVELS.length === 50 && collectionIsComplete();
+  }
+
+  function configureFinalCompletionActions() {
+    if (nextBtn) nextBtn.hidden = true;
+    if (claimPrizeBtn) claimPrizeBtn.hidden = !activePackEarnsPrize();
+  }
+
+  function restoreStandardCompletionActions() {
+    if (nextBtn) nextBtn.hidden = false;
+    if (claimPrizeBtn) claimPrizeBtn.hidden = true;
+  }
+
+  function openPrizeModal() {
+    if (!prizeModal || !activePackEarnsPrize()) return;
+    if (modal) modal.hidden = true;
+    prizeModal.hidden = false;
+    prizeCloseBtn?.focus({ preventScroll: true });
+  }
+
+  function closePrizeModal() {
+    if (prizeModal) prizeModal.hidden = true;
+  }
+
   function updateCollectionCompleteStar() {
     if (!collectionCompleteStar) return;
     const earned = collectionIsComplete() && !makerTesting && !sharedPuzzleMode;
@@ -1219,8 +1247,7 @@
     buildPackSelectors();
     if (finalPackPicker) finalPackPicker.hidden = false;
     if (finalPackStatus) finalPackStatus.textContent = "";
-    if (nextBtnLabel) nextBtnLabel.textContent = "CHOOSE A LEVEL";
-    if (nextBtnIcon) nextBtnIcon.textContent = "✓";
+    configureFinalCompletionActions();
 
     closeLevelPicker();
     modal.hidden = false;
@@ -1328,6 +1355,7 @@
     closePackModal();
     closeLevelPicker();
     if (modal) modal.hidden = true;
+    restoreStandardCompletionActions();
     buildPackSelectors();
     loadLevel(levelIndex);
   }
@@ -2094,6 +2122,7 @@
     currentCheckpoint = readCurrentCheckpoint();
     completeMode = "normal";
     modal.hidden = true;
+    restoreStandardCompletionActions();
     completeCard?.classList.remove("final-complete");
     if (finalPackPicker) finalPackPicker.hidden = true;
     if (finalPackStatus) finalPackStatus.textContent = "";
@@ -2151,6 +2180,7 @@
       makerCompletedRoute = "";
       if (makerApplySolveBtn) makerApplySolveBtn.hidden = true;
       completeMode = "normal";
+      restoreStandardCompletionActions();
       document.body.classList.toggle("maker-testing", !shared);
       document.body.classList.toggle("shared-puzzle", shared);
       if (makerReturnBtn) makerReturnBtn.hidden = shared;
@@ -2330,6 +2360,7 @@
 
     if (sharedPuzzleMode) {
       completeMode = "shared";
+      restoreStandardCompletionActions();
       if (finalPackPicker) finalPackPicker.hidden = true;
       if (finalPackStatus) finalPackStatus.textContent = "";
       if (completeKicker) completeKicker.textContent = "PRIVATE PUZZLE";
@@ -2346,6 +2377,7 @@
       const pushText = `${pushes} ${pushes === 1 ? "push" : "pushes"}`;
       makerCompletedRoute = !solvedWithGuidedRoute ? capturedRoute : "";
       completeMode = "maker";
+      restoreStandardCompletionActions();
       if (finalPackPicker) finalPackPicker.hidden = true;
       if (finalPackStatus) finalPackStatus.textContent = "";
       if (completeKicker) completeKicker.textContent = "LEVEL MAKER";
@@ -2402,10 +2434,10 @@
         buildPackSelectors();
         if (finalPackPicker) finalPackPicker.hidden = false;
         if (finalPackStatus) finalPackStatus.textContent = solvedWithWalkthrough ? "Guided-solve completions are shown in yellow in the level list." : "";
-        if (nextBtnLabel) nextBtnLabel.textContent = "CHOOSE A LEVEL";
-        if (nextBtnIcon) nextBtnIcon.textContent = "✓";
+        configureFinalCompletionActions();
       } else {
         completeMode = "normal";
+        restoreStandardCompletionActions();
         completeCard?.classList.remove("final-complete");
         if (finalPackPicker) finalPackPicker.hidden = true;
         if (finalPackStatus) finalPackStatus.textContent = solvedWithWalkthrough ? "Guided-solve completions are marked yellow in the level list." : "";
@@ -2754,6 +2786,12 @@
     window.dispatchEvent(new CustomEvent("boxxy-maker-return"));
   });
 
+  claimPrizeBtn?.addEventListener("click", openPrizeModal);
+  prizeCloseBtn?.addEventListener("click", closePrizeModal);
+  prizeModal?.addEventListener("click", event => {
+    if (event.target === prizeModal) closePrizeModal();
+  });
+
   nextBtn.addEventListener("click", () => {
     if (completeMode === "shared") {
       modal.hidden = true;
@@ -2771,6 +2809,10 @@
       return;
     }
     loadLevel(levelIndex + 1);
+  });
+
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape" && prizeModal && !prizeModal.hidden) closePrizeModal();
   });
 
   let swipe = null;
