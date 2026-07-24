@@ -33,7 +33,7 @@
   });
 })();
 
-/* BOXXY v166 — optional Rainbow Mode with standard Sokoban compatibility. */
+/* BOXXY v168 — Rainbow Mode with pack-preview and walkthrough colour preservation. */
 (() => {
   "use strict";
   const DEFAULT = "red";
@@ -2697,7 +2697,11 @@
     stopAutoplay();
     if (testingMaker) {
       const rows = makerLayout?.slice();
-      const restarted = rows ? loadMakerTest(rows, solution) : { ok: false };
+      const restarted = rows ? loadMakerTest(rows, solution, {
+        shared: sharedPuzzleMode,
+        name: sharedPuzzleName,
+        goalColours: makerGoalColours
+      }) : { ok: false };
       if (!restarted?.ok) return;
     } else {
       loadLevel(levelIndex, true, true);

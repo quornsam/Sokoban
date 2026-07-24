@@ -3,7 +3,7 @@
  * Copyright © 2026 Sam Cornwell. All rights reserved.
  * Personal non-commercial use only. See LICENSE.md.
  */
-/* BOXXY v162 — private level-pack and Daily Puzzle builder with coloured-target synchronisation. */
+/* BOXXY v168 — pack previews, exports and editor hand-off preserve Rainbow Mode and coloured targets. */
 (() => {
   "use strict";
 
@@ -155,6 +155,15 @@
     return JSON.stringify(a || {}) === JSON.stringify(b || {});
   }
 
+  function goalColourDataPresent(value) {
+    if (Array.isArray(value)) return value.some(colour => typeof colour === "string" && colour.trim());
+    return Boolean(value && typeof value === "object" && Object.keys(value).length);
+  }
+
+  function entryUsesRainbow(entry, goalColours = entry?.goalColours) {
+    return entry?.rainbowMode === true || goalColourDataPresent(goalColours);
+  }
+
   function countBoxes(layout) {
     return normaliseLayout(layout).join("").split("").filter(char => char === "$" || char === "*").length;
   }
@@ -194,6 +203,7 @@
   function snapshotSavedLevel(record) {
     const layout = normaliseLayout(record.layout || cellsToLayout(record));
     const width = Math.max(1, ...layout.map(row => row.length));
+    const goalColours = recordGoalColourMap(record);
     return {
       id: newId("pack-level"),
       sourceSaveId: record.id,
@@ -202,7 +212,8 @@
       author: "",
       authorOverridden: false,
       layout,
-      goalColours: recordGoalColourMap(record),
+      goalColours,
+      rainbowMode: record?.rainbowMode === true || goalColourDataPresent(goalColours),
       solution: cleanSolution(record.solution),
       cols: width,
       rows: layout.length,
@@ -214,6 +225,7 @@
   function normaliseEntry(entry) {
     const layout = normaliseLayout(entry?.layout);
     if (!layout.some(row => row.trim())) return null;
+    const goalColours = normaliseGoalColourMap(entry?.goalColours, layout);
     return {
       id: typeof entry?.id === "string" ? entry.id : newId("pack-level"),
       sourceSaveId: typeof entry?.sourceSaveId === "string" ? entry.sourceSaveId : "",
@@ -222,7 +234,8 @@
       author: String(entry?.author || "").trim(),
       authorOverridden: Boolean(entry?.authorOverridden && String(entry?.author || "").trim()),
       layout,
-      goalColours: normaliseGoalColourMap(entry?.goalColours, layout),
+      goalColours,
+      rainbowMode: entryUsesRainbow(entry, goalColours),
       solution: cleanSolution(entry?.solution),
       cols: Math.max(1, ...layout.map(row => row.length)),
       rows: layout.length,
@@ -241,6 +254,7 @@
       || entry.cols !== latest.cols
       || entry.rows !== latest.rows
       || entry.boxes !== latest.boxes
+      || Boolean(entry.rainbowMode) !== Boolean(latest.rainbowMode)
       || !sameGoalColourMap(entry.goalColours, latest.goalColours)
       || entry.layout.length !== nextLayout.length
       || entry.layout.some((row, index) => row !== nextLayout[index]);
@@ -248,6 +262,7 @@
     if (!entry.nameOverridden) entry.name = latest.name;
     entry.layout = nextLayout;
     entry.goalColours = { ...latest.goalColours };
+    entry.rainbowMode = Boolean(latest.rainbowMode);
     entry.solution = latest.solution;
     entry.cols = latest.cols;
     entry.rows = latest.rows;
@@ -573,8 +588,9 @@
     return { width, height, chars, outside };
   }
 
-  function drawThumbnail(canvas, rawLayout) {
+  function drawThumbnail(canvas, rawLayout, rawGoalColours = {}) {
     const layout = normaliseLayout(rawLayout);
+    const goalColours = normaliseGoalColourMap(rawGoalColours, layout);
     const { width, height, chars, outside } = classifyOutside(layout);
     const logicalWidth = 300;
     const logicalHeight = 190;
@@ -610,16 +626,22 @@
           context.fillRect(px + tile * .08, py + tile * .76, tile * .84, tile * .16);
           continue;
         }
+        const goalColourName = (char === "." || char === "*" || char === "+")
+          ? (GOAL_COLOURS?.normalise?.(goalColours[`${x},${y}`]) || DEFAULT_GOAL_COLOUR)
+          : DEFAULT_GOAL_COLOUR;
+        const goalColour = GOAL_COLOURS?.PALETTE?.[goalColourName]?.hex || "#db3b27";
         if (char === "." || char === "*" || char === "+") {
-          context.strokeStyle = "#db3b27";
+          context.strokeStyle = goalColour;
           context.lineWidth = Math.max(1.2, tile * .12);
           context.beginPath();
           context.arc(px + tile / 2, py + tile / 2, tile * .27, 0, Math.PI * 2);
           context.stroke();
         }
         if (char === "$" || char === "*") {
-          context.fillStyle = char === "*" ? "#db3b27" : "#e5b32a";
-          context.strokeStyle = "#6f5312";
+          context.fillStyle = char === "*" ? goalColour : "#e5b32a";
+          context.strokeStyle = char === "*"
+            ? (goalColourName === "black" ? "#777b80" : "rgba(23,23,25,.72)")
+            : "#6f5312";
           context.lineWidth = Math.max(.8, tile * .07);
           context.fillRect(px + tile * .18, py + tile * .18, tile * .64, tile * .64);
           context.strokeRect(px + tile * .18, py + tile * .18, tile * .64, tile * .64);
@@ -655,6 +677,7 @@
       name: String(item?.name || "Untitled level"),
       layout: layout.slice(),
       goalColours: normaliseGoalColourMap(item?.goalColours, layout),
+      rainbowMode: entryUsesRainbow(item),
       solution: cleanSolution(item?.solution)
     };
     closeBuilder();
@@ -676,7 +699,7 @@
     const canvas = document.createElement("canvas");
     canvas.className = "pack-level-preview";
     canvas.setAttribute("aria-label", `Starting position for ${record.name}`);
-    drawThumbnail(canvas, record.layout);
+    drawThumbnail(canvas, record.layout, recordGoalColourMap(record));
 
     const body = document.createElement("div");
     body.className = "pack-level-card-body";
@@ -748,7 +771,7 @@
     const canvas = document.createElement("canvas");
     canvas.className = "pack-level-preview";
     canvas.setAttribute("aria-label", `Starting position for ${entry.name}`);
-    drawThumbnail(canvas, entry.layout);
+    drawThumbnail(canvas, entry.layout, entry.goalColours);
 
     const body = document.createElement("div");
     body.className = "pack-level-card-body";
@@ -1194,6 +1217,7 @@
       solutionMoves: solutionMoveCount(entry.solution) || null,
       solution: entry.solution,
       layout: entry.layout.slice(),
+      ...(entry.rainbowMode ? { rainbowMode: true } : {}),
       ...(Object.keys(entry.goalColours || {}).length ? { goalColours: { ...entry.goalColours } } : {})
     };
   }
@@ -1280,6 +1304,7 @@
           name: entry.name,
           solution: entry.solution,
           layout: entry.layout.slice(),
+          ...(entry.rainbowMode ? { rainbowMode: true } : {}),
           ...(Object.keys(entry.goalColours || {}).length ? { goalColours: { ...entry.goalColours } } : {})
         };
       })
