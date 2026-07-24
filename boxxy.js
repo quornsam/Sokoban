@@ -33,7 +33,7 @@
   });
 })();
 
-/* BOXXY v162 — fixed target-colour palette shared by gameplay, Level Maker, links and packs. */
+/* BOXXY v163 — fixed target-colour palette backed by dedicated sprite files. */
 (() => {
   "use strict";
   const DEFAULT = "red";
@@ -42,17 +42,17 @@
     "grey", "burgundy", "brown", "orange", "yellow"
   ]);
   const PALETTE = Object.freeze({
-    red: Object.freeze({ label: "Red", hex: "#db3b27", light: "#f16a56", dark: "#7d241b" }),
-    blue: Object.freeze({ label: "Blue", hex: "#20539a", light: "#5f8fd2", dark: "#102f61" }),
-    green: Object.freeze({ label: "Green", hex: "#2f8f5b", light: "#69bd8c", dark: "#155536" }),
-    purple: Object.freeze({ label: "Purple", hex: "#7443a8", light: "#a77bd1", dark: "#45225f" }),
-    "light-blue": Object.freeze({ label: "Light blue", hex: "#63bfe7", light: "#a8e2f7", dark: "#287aa2" }),
-    black: Object.freeze({ label: "Black", hex: "#171719", light: "#45454a", dark: "#050506" }),
-    grey: Object.freeze({ label: "Grey", hex: "#777b80", light: "#b4b7ba", dark: "#45484b" }),
-    burgundy: Object.freeze({ label: "Burgundy", hex: "#7b203d", light: "#b45270", dark: "#430d20" }),
-    brown: Object.freeze({ label: "Brown", hex: "#7b4b2a", light: "#b47b50", dark: "#442713" }),
-    orange: Object.freeze({ label: "Orange", hex: "#ef7d18", light: "#ffb052", dark: "#923d00" }),
-    yellow: Object.freeze({ label: "Yellow", hex: "#ffe04a", light: "#fff3a0", dark: "#a97300" })
+    red: Object.freeze({ label: "Red", hex: "#db3b27", goalSprite: "assets/board/goals/goal-red.png", boxSprite: "assets/board/boxes/box-red.png" }),
+    blue: Object.freeze({ label: "Blue", hex: "#20539a", goalSprite: "assets/board/goals/goal-blue.png", boxSprite: "assets/board/boxes/box-blue.png" }),
+    green: Object.freeze({ label: "Green", hex: "#2f8f5b", goalSprite: "assets/board/goals/goal-green.png", boxSprite: "assets/board/boxes/box-green.png" }),
+    purple: Object.freeze({ label: "Purple", hex: "#7443a8", goalSprite: "assets/board/goals/goal-purple.png", boxSprite: "assets/board/boxes/box-purple.png" }),
+    "light-blue": Object.freeze({ label: "Light blue", hex: "#63bfe7", goalSprite: "assets/board/goals/goal-light-blue.png", boxSprite: "assets/board/boxes/box-light-blue.png" }),
+    black: Object.freeze({ label: "Black", hex: "#171719", goalSprite: "assets/board/goals/goal-black.png", boxSprite: "assets/board/boxes/box-black.png" }),
+    grey: Object.freeze({ label: "Grey", hex: "#777b80", goalSprite: "assets/board/goals/goal-grey.png", boxSprite: "assets/board/boxes/box-grey.png" }),
+    burgundy: Object.freeze({ label: "Burgundy", hex: "#7b203d", goalSprite: "assets/board/goals/goal-burgundy.png", boxSprite: "assets/board/boxes/box-burgundy.png" }),
+    brown: Object.freeze({ label: "Brown", hex: "#7b4b2a", goalSprite: "assets/board/goals/goal-brown.png", boxSprite: "assets/board/boxes/box-brown.png" }),
+    orange: Object.freeze({ label: "Orange", hex: "#ef7d18", goalSprite: "assets/board/goals/goal-orange.png", boxSprite: "assets/board/boxes/box-orange.png" }),
+    yellow: Object.freeze({ label: "Yellow", hex: "#ffe04a", goalSprite: "assets/board/goals/goal-yellow.png", boxSprite: "assets/board/boxes/box-yellow.png" })
   });
   const GOAL_CHARS = new Set([".", "*", "+"]);
 
@@ -68,8 +68,8 @@
     rows.forEach((row, y) => {
       [...row].forEach((char, x) => {
         if (!GOAL_CHARS.has(char)) return;
-        const colour = normalise(source[`${x},${y}`]);
-        if (colour !== DEFAULT) result[`${x},${y}`] = colour;
+        const colour = normalise(source[x + "," + y]);
+        if (colour !== DEFAULT) result[x + "," + y] = colour;
       });
     });
     return result;
@@ -79,11 +79,10 @@
     if (!element) return DEFAULT;
     const colour = normalise(value);
     const swatch = PALETTE[colour];
-    element.classList.add(`goal-colour-${colour}`);
     element.dataset.goalColour = colour;
     element.style.setProperty("--goal-colour", swatch.hex);
-    element.style.setProperty("--goal-colour-light", swatch.light);
-    element.style.setProperty("--goal-colour-dark", swatch.dark);
+    element.style.setProperty("--goal-sprite", 'url("' + swatch.goalSprite + '")');
+    element.style.setProperty("--box-sprite", 'url("' + swatch.boxSprite + '")');
     return colour;
   }
 
@@ -323,7 +322,7 @@
   window.BoxxyShareCodec = Object.freeze({ encode, decode, readLocation, buildUrl });
 })();
 
-/* BOXXY v162 — character renderer, game engine, coloured targets, Level Maker and Rust/WASM solver adapter. */
+/* BOXXY v163 — character renderer, game engine, sprite-based coloured targets, Level Maker and Rust/WASM solver adapter. */
 (() => {
   "use strict";
 
@@ -2100,7 +2099,7 @@
       piece.style.cssText = posStyle(box.x, box.y, depth(box.y, "box"));
       if (goal) GOAL_COLOURS?.style?.(piece, goal.colour);
       const art = document.createElement("span");
-      art.className = `board-art board-art-box ${onGoal ? "board-art-box-red" : "board-art-box-yellow"}`;
+      art.className = "board-art board-art-box";
       art.setAttribute("aria-hidden", "true");
       piece.appendChild(art);
       pieceLayer.appendChild(piece);
@@ -3604,8 +3603,8 @@
     else {
       delete button.dataset.goalColour;
       button.style.removeProperty("--goal-colour");
-      button.style.removeProperty("--goal-colour-light");
-      button.style.removeProperty("--goal-colour-dark");
+      button.style.removeProperty("--goal-sprite");
+      button.style.removeProperty("--box-sprite");
     }
     const [x, y] = coordsOf(index);
     const colourLabel = cellHasGoal(value)
