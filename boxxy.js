@@ -33,7 +33,7 @@
   });
 })();
 
-/* BOXXY v165 — bright sprite-matched target colours and reversed text codes. */
+/* BOXXY v166 — optional Rainbow Mode with standard Sokoban compatibility. */
 (() => {
   "use strict";
   const DEFAULT = "red";
@@ -376,7 +376,7 @@
   window.BoxxyShareCodec = Object.freeze({ encode, decode, readLocation, buildUrl });
 })();
 
-/* BOXXY v165 — character renderer, game engine, bright sprite-matched targets, Level Maker and Rust/WASM solver adapter. */
+/* BOXXY v166 — character renderer, game engine, optional Rainbow Mode, Level Maker and Rust/WASM solver adapter. */
 (() => {
   "use strict";
 
@@ -3094,6 +3094,12 @@
   const toolButtons = [...document.querySelectorAll("[data-maker-tool]")];
   const goalPalette = document.getElementById("makerGoalPalette");
   const goalColourButtons = [...document.querySelectorAll("[data-maker-goal-colour]")];
+  const rainbowModeInput = document.getElementById("makerRainbowMode");
+  const rainbowModeState = document.getElementById("makerRainbowState");
+  const rainbowModeDescription = document.getElementById("makerRainbowDescription");
+  const standardLegend = document.getElementById("makerStandardLegend");
+  const rainbowLegend = document.getElementById("makerRainbowLegend");
+  const colourCodes = document.getElementById("makerColourCodes");
   const solveBtn = document.getElementById("makerSolveBtn");
   const solverModal = document.getElementById("makerSolverModal");
   const solverCloseBtn = document.getElementById("makerSolverCloseBtn");
@@ -3122,6 +3128,7 @@
   const DEFAULT_GOAL_COLOUR = GOAL_COLOURS?.DEFAULT || "red";
   const GOAL_TOOLS = new Set(["goal", "boxgoal", "playergoal"]);
   const SAVE_KEY = "boxxy-level-maker-saves-v1";
+  const RAINBOW_PREF_KEY = "boxxy-level-maker-rainbow-mode-v1";
   const VALID = new Set([VOID, " ", "#", "@", "$", ".", "*", "+"]);
   const DIRECTIONS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
   const CLASS_BY_VALUE = {
@@ -3149,6 +3156,7 @@
   let rows = 10;
   let cells = [];
   let goalColours = [];
+  let rainbowMode = false;
   let activeGoalColour = DEFAULT_GOAL_COLOUR;
   let activeTool = "wall";
   let painting = false;
@@ -3220,6 +3228,55 @@
     statusEl.textContent = message;
     statusEl.classList.toggle("error", type === "error");
     statusEl.classList.toggle("success", type === "success");
+  }
+
+  function readRainbowPreference() {
+    try { return localStorage.getItem(RAINBOW_PREF_KEY) === "1"; }
+    catch (_) { return false; }
+  }
+
+  function goalColourDataPresent(value) {
+    if (Array.isArray(value)) return value.some(item => typeof item === "string" && item.trim());
+    return Boolean(value && typeof value === "object" && Object.keys(value).length);
+  }
+
+  function recordUsesRainbow(record) {
+    if (record?.rainbowMode === true) return true;
+    if (record?.rainbowMode === false) return false;
+    return goalColourDataPresent(record?.goalColours);
+  }
+
+  function setRainbowMode(enabled, options = {}) {
+    rainbowMode = Boolean(enabled);
+    if (rainbowModeInput) {
+      rainbowModeInput.checked = rainbowMode;
+      rainbowModeInput.setAttribute("aria-checked", String(rainbowMode));
+    }
+    if (rainbowModeState) rainbowModeState.textContent = rainbowMode ? "ON" : "OFF";
+    if (rainbowModeDescription) rainbowModeDescription.textContent = rainbowMode
+      ? "ON — coloured targets and colour-letter export codes."
+      : "OFF — standard Sokoban targets and symbols.";
+    if (goalPalette) {
+      goalPalette.hidden = !rainbowMode;
+      goalPalette.setAttribute("aria-hidden", String(!rainbowMode));
+      goalPalette.classList.toggle("active", rainbowMode && GOAL_TOOLS.has(activeTool));
+    }
+    if (standardLegend) standardLegend.hidden = rainbowMode;
+    if (rainbowLegend) rainbowLegend.hidden = !rainbowMode;
+    if (colourCodes) {
+      colourCodes.hidden = !rainbowMode;
+      if (!rainbowMode) colourCodes.open = false;
+    }
+    if (options.persist !== false) {
+      try { localStorage.setItem(RAINBOW_PREF_KEY, rainbowMode ? "1" : "0"); } catch (_) {}
+    }
+    if (cells.length) {
+      renderGrid();
+      updateTextFromGrid();
+    }
+    if (options.announce) setStatus(rainbowMode
+      ? "Rainbow Mode on. Coloured targets and colour-letter export codes are enabled."
+      : "Rainbow Mode off. The editor and text box now use standard Sokoban symbols.", "success");
   }
 
   function currentLevelText() {
@@ -3653,7 +3710,7 @@
     button.className = `maker-cell type-${CLASS_BY_VALUE[value] || "void"}`;
     button.dataset.index = String(index);
     button.dataset.value = value;
-    if (cellHasGoal(value)) applyGoalStyle(button, goalColours[index]);
+    if (cellHasGoal(value)) applyGoalStyle(button, rainbowMode ? goalColours[index] : DEFAULT_GOAL_COLOUR);
     else {
       delete button.dataset.goalColour;
       button.style.removeProperty("--goal-colour");
@@ -3696,6 +3753,7 @@
   }
 
   function exportGoalColourMap() {
+    if (!rainbowMode) return {};
     const windowed = exportedRowWindow();
     const map = {};
     for (let sourceY = windowed.start; sourceY < windowed.end; sourceY++) {
@@ -3798,7 +3856,8 @@
     const next = valueForTool(activeTool, current, index);
     cells[index] = next;
     if (cellHasGoal(next)) {
-      if (GOAL_TOOLS.has(activeTool)) goalColours[index] = activeGoalColour;
+      if (!rainbowMode) goalColours[index] = DEFAULT_GOAL_COLOUR;
+      else if (GOAL_TOOLS.has(activeTool)) goalColours[index] = activeGoalColour;
       else if (!cellHasGoal(current)) goalColours[index] = DEFAULT_GOAL_COLOUR;
       else goalColours[index] = GOAL_COLOURS?.normalise?.(goalColours[index]) || DEFAULT_GOAL_COLOUR;
     } else {
@@ -3867,7 +3926,7 @@
       for (let x = 0; x < cols; x++) {
         const index = indexOf(x, sourceY);
         const value = cells[index];
-        const encoded = cellHasGoal(value)
+        const encoded = rainbowMode && cellHasGoal(value)
           ? (GOAL_COLOURS?.encodeTextCell?.(value, goalColours[index]) || value)
           : value;
         line += encoded === VOID ? " " : encoded;
@@ -3944,36 +4003,49 @@
   }
 
   function importRows(lines, options = {}) {
+    if (Object.prototype.hasOwnProperty.call(options, "rainbowMode")) {
+      setRainbowMode(Boolean(options.rainbowMode), { persist: options.persistRainbow !== false });
+    }
     if (!Array.isArray(lines) || !lines.length) throw new Error("No level text was found.");
     if (lines.length > MAX_SIZE) throw new Error(`The level is ${lines.length} rows high. The editor supports up to ${MAX_SIZE}.`);
     const maxWidth = Math.max(...lines.map(line => line.length));
     if (maxWidth > MAX_SIZE) throw new Error(`The level is ${maxWidth} columns wide. The editor supports up to ${MAX_SIZE}.`);
 
     const cleaned = lines.map(line => String(line).replace(/\t/g, "    ").replace(/_/g, " "));
+    const containsColourCodes = cleaned.some(line => [...line].some(ch => GOAL_COLOURS?.isTextCode?.(ch)));
+    if (!rainbowMode && containsColourCodes) {
+      throw new Error("This level uses Rainbow Mode colour letters. Turn Rainbow Mode on before importing it.");
+    }
     const invalid = [...new Set(cleaned.join("").split("").filter(ch =>
-      !" #@$.+*".includes(ch) && !GOAL_COLOURS?.isTextCode?.(ch)
+      !" #@$.+*".includes(ch) && !(rainbowMode && GOAL_COLOURS?.isTextCode?.(ch))
     ))];
     if (invalid.length) throw new Error(`Unsupported character${invalid.length === 1 ? "" : "s"}: ${invalid.join(" ")}`);
 
-    const decodedRows = cleaned.map(line => [...line].map(ch => GOAL_COLOURS?.decodeTextChar?.(ch)?.cell || ch).join(""));
+    const decodedRows = cleaned.map(line => [...line].map(ch => rainbowMode
+      ? (GOAL_COLOURS?.decodeTextChar?.(ch)?.cell || ch)
+      : ch).join(""));
     const classified = classifySpaces(decodedRows);
     cols = clampSize(classified.width);
     rows = clampSize(classified.height);
     cells = blankGrid(cols, rows, VOID);
     goalColours = blankGoalColours(cols, rows);
-    const importedColourMap = GOAL_COLOURS?.normaliseMap?.(options.goalColours, decodedRows) || {};
+    const importedColourMap = rainbowMode
+      ? (GOAL_COLOURS?.normaliseMap?.(options.goalColours, decodedRows) || {})
+      : {};
     for (let y = 0; y < rows; y++) {
       for (let x = 0; x < cols; x++) {
         const sourceChar = cleaned[y]?.[x] ?? " ";
-        const decoded = GOAL_COLOURS?.decodeTextChar?.(sourceChar);
+        const decoded = rainbowMode ? GOAL_COLOURS?.decodeTextChar?.(sourceChar) : null;
         const ch = decoded?.cell || classified.chars[y]?.[x] || " ";
         const value = ch === " " && classified.outside.has(`${x},${y}`) ? VOID : ch;
         const index = indexOf(x, y);
         cells[index] = VALID.has(value) ? value : VOID;
         if (cellHasGoal(cells[index])) {
-          goalColours[index] = decoded?.colour
-            || GOAL_COLOURS?.normalise?.(importedColourMap[`${x},${y}`])
-            || DEFAULT_GOAL_COLOUR;
+          goalColours[index] = rainbowMode
+            ? (decoded?.colour
+              || GOAL_COLOURS?.normalise?.(importedColourMap[`${x},${y}`])
+              || DEFAULT_GOAL_COLOUR)
+            : DEFAULT_GOAL_COLOUR;
         }
       }
     }
@@ -5070,7 +5142,8 @@
       return;
     }
     try {
-      importRows(level.layout, { quiet: true, goalColours: level.goalColours });
+      const levelRainbowMode = Boolean(level.rainbowMode) || goalColourDataPresent(level.goalColours);
+      importRows(level.layout, { quiet: true, goalColours: level.goalColours, rainbowMode: levelRainbowMode });
       clearActiveSave();
       currentPuzzleRef = { packId: pack.id || existingPackSelect.value, levelIndex };
       const knownRoute = window.BoxxySolutionStore?.get?.(currentPuzzleRef.packId, levelIndex) || level.solution || "";
@@ -5113,7 +5186,9 @@
       && Array.isArray(record.cells)
       && record.cells.length === cells.length
       && record.cells.every((value, index) => value === cells[index])
-      && normaliseGoalColourArray(record.goalColours, record.cells).every((value, index) => value === goalColours[index])
+      && recordUsesRainbow(record) === rainbowMode
+      && (recordUsesRainbow(record) ? normaliseGoalColourArray(record.goalColours, record.cells) : blankGoalColours(record.cols, record.rows))
+        .every((value, index) => value === (rainbowMode ? goalColours[index] : null))
     );
   }
 
@@ -5211,7 +5286,8 @@
       cols,
       rows,
       cells: cells.slice(),
-      goalColours: normaliseGoalColourArray(goalColours, cells),
+      rainbowMode,
+      goalColours: rainbowMode ? normaliseGoalColourArray(goalColours, cells) : blankGoalColours(cols, rows),
       boxes: countBoxes(),
       solution: solutionMatchesCurrentBoard() ? currentSolution : "",
       solutionLevelText: solutionMatchesCurrentBoard() ? currentSolutionLevelText : "",
@@ -5256,6 +5332,7 @@
     rows = savedRows;
     cells = record.cells.slice();
     goalColours = normaliseGoalColourArray(record.goalColours, cells);
+    setRainbowMode(recordUsesRainbow(record), { persist: true });
     activeSaveId = record.id;
     resetSaveConfirmation();
     saveNameInput.value = record.name;
@@ -5322,11 +5399,14 @@
   function selectTool(tool) {
     activeTool = tool;
     toolButtons.forEach(button => button.classList.toggle("selected", button.dataset.makerTool === tool));
-    goalPalette?.classList.toggle("active", GOAL_TOOLS.has(tool));
+    goalPalette?.classList.toggle("active", rainbowMode && GOAL_TOOLS.has(tool));
   }
 
   toolButtons.forEach(button => {
     button.addEventListener("click", () => selectTool(button.dataset.makerTool));
+  });
+  rainbowModeInput?.addEventListener("change", () => {
+    setRainbowMode(rainbowModeInput.checked, { announce: true, persist: true });
   });
   goalColourButtons.forEach(button => {
     const colour = GOAL_COLOURS?.normalise?.(button.dataset.makerGoalColour) || DEFAULT_GOAL_COLOUR;
@@ -5604,7 +5684,8 @@
     const layout = Array.isArray(detail?.layout) ? detail.layout.map(row => String(row)) : [];
     if (!layout.length || !layout.some(row => row.trim())) return false;
     try {
-      importRows(layout, { quiet: true, goalColours: detail?.goalColours });
+      const detailRainbowMode = Boolean(detail?.rainbowMode) || goalColourDataPresent(detail?.goalColours);
+      importRows(layout, { quiet: true, goalColours: detail?.goalColours, rainbowMode: detailRainbowMode });
       clearActiveSave();
       currentPuzzleRef = null;
       const name = String(detail?.name || "Pack puzzle").trim().slice(0, 48) || "Pack puzzle";
@@ -5663,6 +5744,7 @@
   setActiveGoalColour(DEFAULT_GOAL_COLOUR);
   selectTool("wall");
   makeRoom(10, 10, false);
+  setRainbowMode(readRainbowPreference(), { persist: false });
   boxesInput.value = "3";
   renderSavedLevels();
   populateExistingPacks();

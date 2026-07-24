@@ -31,7 +31,7 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=164">
+<link rel="stylesheet" href="styles.css?v=166">
 <link rel="stylesheet" href="how-to-play.css?v=154">
 <link rel="preload" as="image" href="assets/board/board-atlas.png">
 <link rel="preload" as="image" href="assets/board/boxes/box-default-yellow.png">
@@ -304,7 +304,18 @@
           <button type="button" data-maker-tool="playergoal"><i class="maker-tool-icon playergoal"></i><span>PLAYER + GOAL</span></button>
           <button type="button" data-maker-tool="void"><i class="maker-tool-icon void"></i><span>VOID</span></button>
         </div>
-        <div id="makerGoalPalette" class="maker-goal-palette" aria-label="Target colour palette">
+        <div class="maker-rainbow-control">
+          <div>
+            <strong>RAINBOW MODE</strong>
+            <small id="makerRainbowDescription">OFF — standard Sokoban targets and symbols.</small>
+          </div>
+          <label class="maker-rainbow-switch">
+            <input id="makerRainbowMode" type="checkbox" role="switch" aria-describedby="makerRainbowDescription">
+            <span aria-hidden="true"></span>
+            <b id="makerRainbowState">OFF</b>
+          </label>
+        </div>
+        <div id="makerGoalPalette" class="maker-goal-palette" aria-label="Target colour palette" hidden>
           <strong>TARGET COLOUR</strong>
           <div class="maker-goal-swatches">
             <button type="button" data-maker-goal-colour="red" aria-label="Red target" title="Red"><span></span></button>
@@ -389,8 +400,9 @@
             <button id="makerCopyBtn" type="button">COPY LEVEL</button>
             <button id="makerShareBtn" type="button">COPY SHARE LINK</button>
           </div>
-          <p class="maker-legend"><code>#</code> wall · <code>@</code> player · <code>$</code> yellow box · lowercase colour letter = target · uppercase colour letter = box on that target</p>
-          <details class="maker-colour-codes">
+          <p id="makerStandardLegend" class="maker-legend"><code>#</code> wall · <code>@</code> player · <code>$</code> box · <code>.</code> target · <code>*</code> box on target · <code>+</code> player on target</p>
+          <p id="makerRainbowLegend" class="maker-legend" hidden><code>#</code> wall · <code>@</code> player · <code>$</code> yellow box · lowercase colour letter = target · uppercase colour letter = box on that target</p>
+          <details id="makerColourCodes" class="maker-colour-codes" hidden>
             <summary>COLOUR LETTERS</summary>
             <p><code>R/r</code> red · <code>B/b</code> blue · <code>G/g</code> green · <code>P/p</code> purple · <code>C/c</code> light blue · <code>T/t</code> teal · <code>K/k</code> black · <code>A/a</code> grey · <code>M/m</code> burgundy · <code>W/w</code> brown · <code>O/o</code> orange · <code>Y/y</code> yellow · <code>L/l</code> lime · <code>F/f</code> pink · <code>I/i</code> cream</p>
             <p><code>1–0 ! ? % &amp; =</code> preserve a player standing on the corresponding coloured target.</p>
@@ -578,8 +590,8 @@
 <audio id="bgMusic" src="assets/audio/cracked-ivory-drift.mp3" preload="auto" autoplay loop playsinline></audio>
 
 <script src="levels.js?v=143"></script>
-<script src="boxxy.js?v=164"></script>
-<script src="pack-builder.js?v=164"></script>
+<script src="boxxy.js?v=166"></script>
+<script src="pack-builder.js?v=166"></script>
 <script src="how-to-play.js?v=153"></script>
 </body>
 </html>
