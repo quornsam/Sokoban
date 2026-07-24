@@ -31,7 +31,7 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=161">
+<link rel="stylesheet" href="styles.css?v=162">
 <link rel="stylesheet" href="styles-v147-fixes.css?v=151">
 <link rel="stylesheet" href="how-to-play.css?v=154">
 <link rel="preload" as="image" href="assets/board/board-atlas.png">
@@ -273,6 +273,23 @@
           <button type="button" data-maker-tool="boxgoal"><i class="maker-tool-icon boxgoal"></i><span>BOX + GOAL</span></button>
           <button type="button" data-maker-tool="playergoal"><i class="maker-tool-icon playergoal"></i><span>PLAYER + GOAL</span></button>
           <button type="button" data-maker-tool="void"><i class="maker-tool-icon void"></i><span>VOID</span></button>
+        </div>
+        <div id="makerGoalPalette" class="maker-goal-palette" aria-label="Target colour palette">
+          <strong>TARGET COLOUR</strong>
+          <div class="maker-goal-swatches">
+            <button type="button" data-maker-goal-colour="red" aria-label="Red target" title="Red"><span></span></button>
+            <button type="button" data-maker-goal-colour="blue" aria-label="Blue target" title="Blue"><span></span></button>
+            <button type="button" data-maker-goal-colour="green" aria-label="Green target" title="Green"><span></span></button>
+            <button type="button" data-maker-goal-colour="purple" aria-label="Purple target" title="Purple"><span></span></button>
+            <button type="button" data-maker-goal-colour="light-blue" aria-label="Light blue target" title="Light blue"><span></span></button>
+            <button type="button" data-maker-goal-colour="black" aria-label="Black target" title="Black"><span></span></button>
+            <button type="button" data-maker-goal-colour="grey" aria-label="Grey target" title="Grey"><span></span></button>
+            <button type="button" data-maker-goal-colour="burgundy" aria-label="Burgundy target" title="Burgundy"><span></span></button>
+            <button type="button" data-maker-goal-colour="brown" aria-label="Brown target" title="Brown"><span></span></button>
+            <button type="button" data-maker-goal-colour="orange" aria-label="Orange target" title="Orange"><span></span></button>
+            <button type="button" data-maker-goal-colour="yellow" aria-label="Yellow target" title="Yellow"><span></span></button>
+          </div>
+          <small>Choose a colour, then draw or repaint a goal.</small>
         </div>
         <section class="maker-existing-strip" aria-labelledby="makerExistingTitle">
           <h3 id="makerExistingTitle">OPEN EXISTING PUZZLE</h3>
@@ -522,8 +539,8 @@
 <audio id="bgMusic" src="assets/audio/cracked-ivory-drift.mp3" preload="auto" autoplay loop playsinline></audio>
 
 <script src="levels.js?v=143"></script>
-<script src="boxxy.js?v=157"></script>
-<script src="pack-builder.js?v=143"></script>
+<script src="boxxy.js?v=162"></script>
+<script src="pack-builder.js?v=162"></script>
 <script src="how-to-play.js?v=153"></script>
 </body>
 </html>

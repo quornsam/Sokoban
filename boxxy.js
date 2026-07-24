@@ -33,6 +33,63 @@
   });
 })();
 
+/* BOXXY v162 — fixed target-colour palette shared by gameplay, Level Maker, links and packs. */
+(() => {
+  "use strict";
+  const DEFAULT = "red";
+  const ORDER = Object.freeze([
+    "red", "blue", "green", "purple", "light-blue", "black",
+    "grey", "burgundy", "brown", "orange", "yellow"
+  ]);
+  const PALETTE = Object.freeze({
+    red: Object.freeze({ label: "Red", hex: "#db3b27", light: "#f16a56", dark: "#7d241b" }),
+    blue: Object.freeze({ label: "Blue", hex: "#20539a", light: "#5f8fd2", dark: "#102f61" }),
+    green: Object.freeze({ label: "Green", hex: "#2f8f5b", light: "#69bd8c", dark: "#155536" }),
+    purple: Object.freeze({ label: "Purple", hex: "#7443a8", light: "#a77bd1", dark: "#45225f" }),
+    "light-blue": Object.freeze({ label: "Light blue", hex: "#63bfe7", light: "#a8e2f7", dark: "#287aa2" }),
+    black: Object.freeze({ label: "Black", hex: "#171719", light: "#45454a", dark: "#050506" }),
+    grey: Object.freeze({ label: "Grey", hex: "#777b80", light: "#b4b7ba", dark: "#45484b" }),
+    burgundy: Object.freeze({ label: "Burgundy", hex: "#7b203d", light: "#b45270", dark: "#430d20" }),
+    brown: Object.freeze({ label: "Brown", hex: "#7b4b2a", light: "#b47b50", dark: "#442713" }),
+    orange: Object.freeze({ label: "Orange", hex: "#ef7d18", light: "#ffb052", dark: "#923d00" }),
+    yellow: Object.freeze({ label: "Yellow", hex: "#ffe04a", light: "#fff3a0", dark: "#a97300" })
+  });
+  const GOAL_CHARS = new Set([".", "*", "+"]);
+
+  function normalise(value) {
+    const token = String(value || "").trim().toLowerCase().replace(/_/g, "-");
+    return Object.prototype.hasOwnProperty.call(PALETTE, token) ? token : DEFAULT;
+  }
+
+  function normaliseMap(value, layout) {
+    const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+    const rows = Array.isArray(layout) ? layout.map(row => String(row)) : [];
+    const result = {};
+    rows.forEach((row, y) => {
+      [...row].forEach((char, x) => {
+        if (!GOAL_CHARS.has(char)) return;
+        const colour = normalise(source[`${x},${y}`]);
+        if (colour !== DEFAULT) result[`${x},${y}`] = colour;
+      });
+    });
+    return result;
+  }
+
+  function style(element, value) {
+    if (!element) return DEFAULT;
+    const colour = normalise(value);
+    const swatch = PALETTE[colour];
+    element.classList.add(`goal-colour-${colour}`);
+    element.dataset.goalColour = colour;
+    element.style.setProperty("--goal-colour", swatch.hex);
+    element.style.setProperty("--goal-colour-light", swatch.light);
+    element.style.setProperty("--goal-colour-dark", swatch.dark);
+    return colour;
+  }
+
+  window.BoxxyGoalColours = Object.freeze({ DEFAULT, ORDER, PALETTE, normalise, normaliseMap, style });
+})();
+
 /* BOXXY v143 — solver route verifier (merged from the former standalone file). */
 (function (root, factory) {
   const api = factory();
@@ -209,7 +266,8 @@
   }
 
   function validatePayload(value) {
-    if (!value || Number(value.v) !== 1 || !Array.isArray(value.l)) throw new Error("Unsupported puzzle link.");
+    const version = Number(value?.v);
+    if (!value || ![1, 2].includes(version) || !Array.isArray(value.l)) throw new Error("Unsupported puzzle link.");
     const layout = value.l.map(row => String(row).replace(/\r/g, ""));
     if (!layout.length || layout.length > MAX_SIZE) throw new Error("Puzzle height is outside BOXXY's supported range.");
     if (layout.some(row => row.length > MAX_SIZE || !ALLOWED.test(row))) throw new Error("Puzzle link contains invalid level data.");
@@ -219,12 +277,15 @@
     const goals = (joined.match(/[.*+]/g) || []).length;
     if (players !== 1 || boxes < 1 || boxes !== goals) throw new Error("Puzzle link does not contain a valid Sokoban starting position.");
     const name = String(value.n || "Shared Puzzle").trim().slice(0, 64) || "Shared Puzzle";
-    return { version: 1, name, layout };
+    const goalColours = window.BoxxyGoalColours?.normaliseMap?.(value.c || value.goalColours, layout) || {};
+    return { version: 2, name, layout, goalColours };
   }
 
   function encode(payload) {
-    const checked = validatePayload({ v: 1, n: payload?.name, l: payload?.layout });
-    const json = JSON.stringify({ v: 1, n: checked.name, l: checked.layout });
+    const checked = validatePayload({ v: 2, n: payload?.name, l: payload?.layout, c: payload?.goalColours });
+    const compact = { v: 2, n: checked.name, l: checked.layout };
+    if (Object.keys(checked.goalColours).length) compact.c = checked.goalColours;
+    const json = JSON.stringify(compact);
     return bytesToBase64Url(new TextEncoder().encode(json));
   }
 
@@ -262,10 +323,11 @@
   window.BoxxyShareCodec = Object.freeze({ encode, decode, readLocation, buildUrl });
 })();
 
-/* BOXXY v145 — character renderer, game engine, level maker and Rust/WASM solver adapter. */
+/* BOXXY v162 — character renderer, game engine, coloured targets, Level Maker and Rust/WASM solver adapter. */
 (() => {
   "use strict";
 
+  const GOAL_COLOURS = window.BoxxyGoalColours;
   const FRAMES = [
     "player-front", "player-back", "player-left", "player-right",
     "walk-front", "walk-back", "walk-left", "walk-right",
@@ -743,6 +805,7 @@
 (() => {
   "use strict";
 
+  const GOAL_COLOURS = window.BoxxyGoalColours;
   const PACKS = Array.isArray(window.BOXXY_LEVEL_PACKS) && window.BOXXY_LEVEL_PACKS.length
     ? window.BOXXY_LEVEL_PACKS
     : [{
@@ -1080,6 +1143,7 @@
   let sharedPuzzleMode = false;
   let sharedPuzzleName = "";
   let makerLayout = null;
+  let makerGoalColours = {};
   let makerSolution = "";
   let playedRoute = "";
   let makerCompletedRoute = "";
@@ -1782,7 +1846,7 @@
     requestAnimationFrame(() => requestAnimationFrame(resizeBoard));
   }
 
-  function parseLayout(rows) {
+  function parseLayout(rows, goalColours = {}) {
     const h = rows.length;
     const w = Math.max(...rows.map(row => row.length));
     const grid = rows.map(row => row.padEnd(w, "").split(""));
@@ -1790,6 +1854,7 @@
     const explicitFloor = new Set();
     const parsedGoals = [];
     const parsedBoxes = [];
+    const colourMap = GOAL_COLOURS?.normaliseMap?.(goalColours, rows) || {};
     let parsedPlayer = null;
 
     for (let y = 0; y < h; y++) {
@@ -1801,7 +1866,7 @@
         }
         if (".@$*+".includes(ch)) {
           explicitFloor.add(key(x, y));
-          if (".*+".includes(ch)) parsedGoals.push([x, y]);
+          if (".*+".includes(ch)) parsedGoals.push({ x, y, colour: GOAL_COLOURS?.normalise?.(colourMap[`${x},${y}`]) || "red" });
           if ("$*".includes(ch)) parsedBoxes.push([x, y]);
           if ("@+".includes(ch)) parsedPlayer = [x, y];
         }
@@ -1998,10 +2063,11 @@
 
   function buildGoals() {
     goalLayer.innerHTML = "";
-    goals.forEach((goal, index) => {
+    goals.forEach(goal => {
       const cell = document.createElement("div");
       cell.className = "cell goal";
       cell.style.cssText = posStyle(goal.x, goal.y, depth(goal.y, "goal"));
+      GOAL_COLOURS?.style?.(cell, goal.colour);
       const art = document.createElement("span");
       art.className = "board-art board-art-goal";
       art.setAttribute("aria-hidden", "true");
@@ -2010,8 +2076,12 @@
     });
   }
 
+  function goalAt(x, y) {
+    return goals.find(goal => goal.x === x && goal.y === y) || null;
+  }
+
   function isGoal(x, y) {
-    return goals.some(goal => goal.x === x && goal.y === y);
+    return Boolean(goalAt(x, y));
   }
 
   function characterFrameName(mode = "idle", direction = "front") {
@@ -2023,10 +2093,12 @@
     currentAnimation = anim;
     pieceLayer.innerHTML = "";
     boxes.forEach(box => {
-      const onGoal = isGoal(box.x, box.y);
+      const goal = goalAt(box.x, box.y);
+      const onGoal = Boolean(goal);
       const piece = document.createElement("div");
       piece.className = `piece box${onGoal ? " on-goal" : ""}${anim === "push" && box.moving ? " pushing" : ""}`;
       piece.style.cssText = posStyle(box.x, box.y, depth(box.y, "box"));
+      if (goal) GOAL_COLOURS?.style?.(piece, goal.colour);
       const art = document.createElement("span");
       art.className = `board-art board-art-box ${onGoal ? "board-art-box-red" : "board-art-box-yellow"}`;
       art.setAttribute("aria-hidden", "true");
@@ -2094,6 +2166,7 @@
     if (collectionBtn) collectionBtn.disabled = false;
     document.title = "BOXXY — Pushbox Puzzle";
     makerLayout = null;
+    makerGoalColours = {};
     makerSolution = "";
     playedRoute = "";
     makerCompletedRoute = "";
@@ -2112,7 +2185,7 @@
     if (activePack.id === "microban") localStorage.setItem("push-bauhaus-v33-level", levelIndex);
     const storedSolverRoute = window.BoxxySolutionStore?.get?.(activePack.id, levelIndex) || "";
     levelData = storedSolverRoute ? { ...LEVELS[levelIndex], solution: storedSolverRoute } : LEVELS[levelIndex];
-    const parsed = parseLayout(levelData.layout);
+    const parsed = parseLayout(levelData.layout, levelData.goalColours);
     width = parsed.width;
     height = parsed.height;
     walls = parsed.walls;
@@ -2120,7 +2193,7 @@
     outside = parsed.outside;
     player = [...parsed.player];
     boxes = parsed.boxes.map(([x, y]) => ({ x, y, moving: false }));
-    goals = parsed.goals.map(([x, y]) => ({ x, y }));
+    goals = parsed.goals.map(goal => ({ ...goal }));
     moves = 0;
     pushes = 0;
     history = [];
@@ -2170,7 +2243,7 @@
       const customName = String(options.name || fallbackName).trim().slice(0, 64) || fallbackName;
       if (!Array.isArray(layoutRows) || !layoutRows.length) throw new Error("The level is empty.");
       const cleanRows = layoutRows.map(row => String(row));
-      const parsed = parseLayout(cleanRows);
+      const parsed = parseLayout(cleanRows, options.goalColours);
       stopAutoplay();
       guidedSolveUsed = false;
       closeLevelPicker();
@@ -2182,6 +2255,7 @@
       sharedPuzzleName = shared ? customName : "";
       window.BOXXY_SHARED_MODE = shared;
       makerLayout = cleanRows.slice();
+      makerGoalColours = GOAL_COLOURS?.normaliseMap?.(options.goalColours, cleanRows) || {};
       makerSolution = String(attachedSolution || "").replace(/[^udlrUDLR]/g, "");
       playedRoute = "";
       makerCompletedRoute = "";
@@ -2201,7 +2275,8 @@
         minimum: "—",
         pushMinimum: parsed.boxes.length,
         solution: makerSolution,
-        layout: cleanRows
+        layout: cleanRows,
+        goalColours: makerGoalColours
       };
       width = parsed.width;
       height = parsed.height;
@@ -2210,7 +2285,7 @@
       outside = parsed.outside;
       player = [...parsed.player];
       boxes = parsed.boxes.map(([x, y]) => ({ x, y, moving: false }));
-      goals = parsed.goals.map(([x, y]) => ({ x, y }));
+      goals = parsed.goals.map(goal => ({ ...goal }));
       moves = 0;
       pushes = 0;
       history = [];
@@ -2250,7 +2325,7 @@
 
   function restartMakerTest() {
     if ((!makerTesting && !sharedPuzzleMode) || !makerLayout) return;
-    loadMakerTest(makerLayout, makerSolution, { shared: sharedPuzzleMode, name: sharedPuzzleName });
+    loadMakerTest(makerLayout, makerSolution, { shared: sharedPuzzleMode, name: sharedPuzzleName, goalColours: makerGoalColours });
   }
 
   function exitMakerTest() {
@@ -2260,6 +2335,7 @@
     sharedPuzzleName = "";
     window.BOXXY_SHARED_MODE = false;
     makerLayout = null;
+    makerGoalColours = {};
     makerSolution = "";
     document.body.classList.remove("maker-testing");
     if (makerReturnBtn) makerReturnBtn.hidden = true;
@@ -2905,7 +2981,8 @@
     if (SHARED_PUZZLE_PAYLOAD?.ok) {
       const result = loadMakerTest(SHARED_PUZZLE_PAYLOAD.layout, "", {
         shared: true,
-        name: SHARED_PUZZLE_PAYLOAD.name
+        name: SHARED_PUZZLE_PAYLOAD.name,
+        goalColours: SHARED_PUZZLE_PAYLOAD.goalColours
       });
       if (!result?.ok) loadLevel(levelIndex);
     } else {
@@ -2962,6 +3039,8 @@
   const existingLevelSelect = document.getElementById("makerLevelSelect");
   const openExistingLevelBtn = document.getElementById("makerOpenLevelBtn");
   const toolButtons = [...document.querySelectorAll("[data-maker-tool]")];
+  const goalPalette = document.getElementById("makerGoalPalette");
+  const goalColourButtons = [...document.querySelectorAll("[data-maker-goal-colour]")];
   const solveBtn = document.getElementById("makerSolveBtn");
   const solverModal = document.getElementById("makerSolverModal");
   const solverCloseBtn = document.getElementById("makerSolverCloseBtn");
@@ -2986,6 +3065,9 @@
   const MAX_SIZE = 36;
   const MAX_GENERATOR_BOXES = 12;
   const VOID = "~";
+  const GOAL_COLOURS = window.BoxxyGoalColours;
+  const DEFAULT_GOAL_COLOUR = GOAL_COLOURS?.DEFAULT || "red";
+  const GOAL_TOOLS = new Set(["goal", "boxgoal", "playergoal"]);
   const SAVE_KEY = "boxxy-level-maker-saves-v1";
   const VALID = new Set([VOID, " ", "#", "@", "$", ".", "*", "+"]);
   const DIRECTIONS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
@@ -3013,6 +3095,8 @@
   let cols = 10;
   let rows = 10;
   let cells = [];
+  let goalColours = [];
+  let activeGoalColour = DEFAULT_GOAL_COLOUR;
   let activeTool = "wall";
   let painting = false;
   let lastPaintIndex = -1;
@@ -3491,6 +3575,87 @@
     return Array.from({ length: width * height }, () => value);
   }
 
+  function cellHasGoal(value) {
+    return value === "." || value === "*" || value === "+";
+  }
+
+  function blankGoalColours(width = cols, height = rows) {
+    return Array.from({ length: width * height }, () => null);
+  }
+
+  function normaliseGoalColourArray(values, board = cells) {
+    const source = Array.isArray(values) ? values : [];
+    return board.map((value, index) => cellHasGoal(value)
+      ? (GOAL_COLOURS?.normalise?.(source[index]) || DEFAULT_GOAL_COLOUR)
+      : null);
+  }
+
+  function applyGoalStyle(element, colour) {
+    GOAL_COLOURS?.style?.(element, colour || DEFAULT_GOAL_COLOUR);
+  }
+
+  function styleMakerCell(button, index) {
+    if (!button) return;
+    const value = cells[index];
+    button.className = `maker-cell type-${CLASS_BY_VALUE[value] || "void"}`;
+    button.dataset.index = String(index);
+    button.dataset.value = value;
+    if (cellHasGoal(value)) applyGoalStyle(button, goalColours[index]);
+    else {
+      delete button.dataset.goalColour;
+      button.style.removeProperty("--goal-colour");
+      button.style.removeProperty("--goal-colour-light");
+      button.style.removeProperty("--goal-colour-dark");
+    }
+    const [x, y] = coordsOf(index);
+    const colourLabel = cellHasGoal(value)
+      ? `, ${GOAL_COLOURS?.PALETTE?.[GOAL_COLOURS.normalise(goalColours[index])]?.label || "Red"} target`
+      : "";
+    button.setAttribute("aria-label", `Column ${x + 1}, row ${y + 1}: ${LABEL_BY_VALUE[value] || "void"}${colourLabel}`);
+  }
+
+  function setActiveGoalColour(value, announce = false) {
+    activeGoalColour = GOAL_COLOURS?.normalise?.(value) || DEFAULT_GOAL_COLOUR;
+    goalColourButtons.forEach(button => {
+      const selected = button.dataset.makerGoalColour === activeGoalColour;
+      button.classList.toggle("selected", selected);
+      button.setAttribute("aria-pressed", String(selected));
+    });
+    goalPalette?.style.setProperty("--selected-goal-colour", GOAL_COLOURS?.PALETTE?.[activeGoalColour]?.hex || "#db3b27");
+    if (announce) setStatus(`${GOAL_COLOURS?.PALETTE?.[activeGoalColour]?.label || "Red"} selected for new and repainted targets.`);
+  }
+
+  function exportedRowWindow() {
+    const raw = [];
+    for (let y = 0; y < rows; y++) {
+      let line = "";
+      for (let x = 0; x < cols; x++) {
+        const value = cells[indexOf(x, y)];
+        line += value === VOID ? " " : value;
+      }
+      raw.push(line.replace(/\s+$/g, ""));
+    }
+    let start = 0;
+    let end = raw.length;
+    while (start < end && raw[start] === "") start++;
+    while (end > start && raw[end - 1] === "") end--;
+    return { rows: raw.slice(start, end).length ? raw.slice(start, end) : [""], start, end };
+  }
+
+  function exportGoalColourMap() {
+    const windowed = exportedRowWindow();
+    const map = {};
+    for (let sourceY = windowed.start; sourceY < windowed.end; sourceY++) {
+      for (let x = 0; x < cols; x++) {
+        const index = indexOf(x, sourceY);
+        if (!cellHasGoal(cells[index])) continue;
+        const colour = GOAL_COLOURS?.normalise?.(goalColours[index]) || DEFAULT_GOAL_COLOUR;
+        if (colour !== DEFAULT_GOAL_COLOUR) map[`${x},${sourceY - windowed.start}`] = colour;
+      }
+    }
+    return map;
+  }
+
   function clearActiveSave() {
     activeSaveId = "";
     resetSaveConfirmation();
@@ -3506,6 +3671,7 @@
     cols = clampSize(width);
     rows = clampSize(height);
     cells = blankGrid(cols, rows, VOID);
+    goalColours = blankGoalColours(cols, rows);
     clearAttachedSolution(true);
     for (let y = 0; y < rows; y++) {
       for (let x = 0; x < cols; x++) {
@@ -3516,7 +3682,9 @@
     if (cols >= 6 && rows >= 5) {
       cells[indexOf(2, 2)] = "@";
       cells[indexOf(Math.min(cols - 3, 4), Math.min(rows - 3, 3))] = "$";
-      cells[indexOf(Math.min(cols - 2, 6), Math.min(rows - 3, 3))] = ".";
+      const starterGoal = indexOf(Math.min(cols - 2, 6), Math.min(rows - 3, 3));
+      cells[starterGoal] = ".";
+      goalColours[starterGoal] = DEFAULT_GOAL_COLOUR;
     }
     syncSizeInputs();
     if (boxesInput) boxesInput.value = String(Math.max(1, countBoxes()));
@@ -3566,21 +3734,23 @@
   }
 
   function updateCellElement(index) {
-    const button = gridEl.children[index];
-    if (!button) return;
-    const value = cells[index];
-    button.className = `maker-cell type-${CLASS_BY_VALUE[value] || "void"}`;
-    button.dataset.index = String(index);
-    button.dataset.value = value;
-    const [x, y] = coordsOf(index);
-    button.setAttribute("aria-label", `Column ${x + 1}, row ${y + 1}: ${LABEL_BY_VALUE[value] || "void"}`);
+    styleMakerCell(gridEl.children[index], index);
   }
 
   function paintIndex(index) {
     if (!Number.isInteger(index) || index < 0 || index >= cells.length || index === lastPaintIndex) return;
     const before = cells.slice();
-    const next = valueForTool(activeTool, cells[index], index);
+    const beforeColours = goalColours.slice();
+    const current = cells[index];
+    const next = valueForTool(activeTool, current, index);
     cells[index] = next;
+    if (cellHasGoal(next)) {
+      if (GOAL_TOOLS.has(activeTool)) goalColours[index] = activeGoalColour;
+      else if (!cellHasGoal(current)) goalColours[index] = DEFAULT_GOAL_COLOUR;
+      else goalColours[index] = GOAL_COLOURS?.normalise?.(goalColours[index]) || DEFAULT_GOAL_COLOUR;
+    } else {
+      goalColours[index] = null;
+    }
     if (activeTool === "player" || activeTool === "playergoal") {
       before.forEach((value, i) => {
         if (i !== index && cells[i] !== value) updateCellElement(i);
@@ -3590,6 +3760,7 @@
     lastPaintIndex = index;
     updateTextFromGrid(false);
     if (before.some((value, i) => value !== cells[i])) clearAttachedSolution(true);
+    else if (beforeColours.some((value, i) => value !== goalColours[i])) setStatus(`${GOAL_COLOURS?.PALETTE?.[activeGoalColour]?.label || "Target"} colour applied.`);
   }
 
   function renderGrid() {
@@ -3599,12 +3770,8 @@
     cells.forEach((value, index) => {
       const button = document.createElement("button");
       button.type = "button";
-      button.className = `maker-cell type-${CLASS_BY_VALUE[value] || "void"}`;
-      button.dataset.index = String(index);
-      button.dataset.value = value;
       button.setAttribute("role", "gridcell");
-      const [x, y] = coordsOf(index);
-      button.setAttribute("aria-label", `Column ${x + 1}, row ${y + 1}: ${LABEL_BY_VALUE[value] || "void"}`);
+      styleMakerCell(button, index);
       fragment.appendChild(button);
     });
     gridEl.appendChild(fragment);
@@ -3615,14 +3782,19 @@
     nextCols = clampSize(nextCols);
     nextRows = clampSize(nextRows);
     const next = blankGrid(nextCols, nextRows, VOID);
+    const nextGoalColours = blankGoalColours(nextCols, nextRows);
     const copyW = Math.min(cols, nextCols);
     const copyH = Math.min(rows, nextRows);
     for (let y = 0; y < copyH; y++) {
-      for (let x = 0; x < copyW; x++) next[y * nextCols + x] = cells[indexOf(x, y)];
+      for (let x = 0; x < copyW; x++) {
+        next[y * nextCols + x] = cells[indexOf(x, y)];
+        nextGoalColours[y * nextCols + x] = goalColours[indexOf(x, y)] || null;
+      }
     }
     cols = nextCols;
     rows = nextRows;
     cells = next;
+    goalColours = normaliseGoalColourArray(nextGoalColours, cells);
     clearAttachedSolution(true);
     syncSizeInputs();
     renderGrid();
@@ -3631,18 +3803,7 @@
   }
 
   function exportRows() {
-    const output = [];
-    for (let y = 0; y < rows; y++) {
-      let line = "";
-      for (let x = 0; x < cols; x++) {
-        const value = cells[indexOf(x, y)];
-        line += value === VOID ? " " : value;
-      }
-      output.push(line.replace(/\s+$/g, ""));
-    }
-    while (output.length && output[0] === "") output.shift();
-    while (output.length && output.at(-1) === "") output.pop();
-    return output.length ? output : [""];
+    return exportedRowWindow().rows;
   }
 
   function updateTextFromGrid(force = true) {
@@ -3725,11 +3886,15 @@
     cols = clampSize(classified.width);
     rows = clampSize(classified.height);
     cells = blankGrid(cols, rows, VOID);
+    goalColours = blankGoalColours(cols, rows);
+    const importedColourMap = GOAL_COLOURS?.normaliseMap?.(options.goalColours, cleaned) || {};
     for (let y = 0; y < rows; y++) {
       for (let x = 0; x < cols; x++) {
         const ch = classified.chars[y]?.[x] ?? " ";
         const value = ch === " " && classified.outside.has(`${x},${y}`) ? VOID : ch;
-        cells[indexOf(x, y)] = VALID.has(value) ? value : VOID;
+        const index = indexOf(x, y);
+        cells[index] = VALID.has(value) ? value : VOID;
+        if (cellHasGoal(cells[index])) goalColours[index] = GOAL_COLOURS?.normalise?.(importedColourMap[`${x},${y}`]) || DEFAULT_GOAL_COLOUR;
       }
     }
     syncSizeInputs();
@@ -4713,6 +4878,7 @@
     cols = generated.width;
     rows = generated.height;
     cells = generated.cells.slice();
+    goalColours = normaliseGoalColourArray([], cells);
     clearAttachedSolution(true);
     syncSizeInputs();
     boxesInput.value = String(generated.boxes);
@@ -4824,7 +4990,7 @@
       return;
     }
     try {
-      importRows(level.layout, { quiet: true });
+      importRows(level.layout, { quiet: true, goalColours: level.goalColours });
       clearActiveSave();
       currentPuzzleRef = { packId: pack.id || existingPackSelect.value, levelIndex };
       const knownRoute = window.BoxxySolutionStore?.get?.(currentPuzzleRef.packId, levelIndex) || level.solution || "";
@@ -4867,6 +5033,7 @@
       && Array.isArray(record.cells)
       && record.cells.length === cells.length
       && record.cells.every((value, index) => value === cells[index])
+      && normaliseGoalColourArray(record.goalColours, record.cells).every((value, index) => value === goalColours[index])
     );
   }
 
@@ -4964,6 +5131,7 @@
       cols,
       rows,
       cells: cells.slice(),
+      goalColours: normaliseGoalColourArray(goalColours, cells),
       boxes: countBoxes(),
       solution: solutionMatchesCurrentBoard() ? currentSolution : "",
       solutionLevelText: solutionMatchesCurrentBoard() ? currentSolutionLevelText : "",
@@ -5007,6 +5175,7 @@
     cols = savedCols;
     rows = savedRows;
     cells = record.cells.slice();
+    goalColours = normaliseGoalColourArray(record.goalColours, cells);
     activeSaveId = record.id;
     resetSaveConfirmation();
     saveNameInput.value = record.name;
@@ -5073,10 +5242,16 @@
   function selectTool(tool) {
     activeTool = tool;
     toolButtons.forEach(button => button.classList.toggle("selected", button.dataset.makerTool === tool));
+    goalPalette?.classList.toggle("active", GOAL_TOOLS.has(tool));
   }
 
   toolButtons.forEach(button => {
     button.addEventListener("click", () => selectTool(button.dataset.makerTool));
+  });
+  goalColourButtons.forEach(button => {
+    const colour = GOAL_COLOURS?.normalise?.(button.dataset.makerGoalColour) || DEFAULT_GOAL_COLOUR;
+    applyGoalStyle(button, colour);
+    button.addEventListener("click", () => setActiveGoalColour(colour, true));
   });
 
   gridEl.addEventListener("pointerdown", event => {
@@ -5131,6 +5306,7 @@
     cols = clampSize(widthInput.value);
     rows = clampSize(heightInput.value);
     cells = blankGrid(cols, rows, VOID);
+    goalColours = blankGoalColours(cols, rows);
     clearAttachedSolution(true);
     syncSizeInputs();
     renderGrid();
@@ -5161,7 +5337,7 @@
     const name = saveNameInput?.value?.trim() || "Shared Puzzle";
     let shareUrl;
     try {
-      shareUrl = window.BoxxyShareCodec.buildUrl({ name, layout: validation.rows });
+      shareUrl = window.BoxxyShareCodec.buildUrl({ name, layout: validation.rows, goalColours: exportGoalColourMap() });
     } catch (error) {
       setStatus(error?.message || "The share link could not be created.", "error");
       return;
@@ -5248,7 +5424,10 @@
       setStatus(validation.error, "error");
       return;
     }
-    const result = window.BoxxyGameAPI?.startMakerTest?.(validation.rows, solutionMatchesCurrentBoard() ? currentSolution : "");
+    const result = window.BoxxyGameAPI?.startMakerTest?.(validation.rows, solutionMatchesCurrentBoard() ? currentSolution : "", {
+      name: saveNameInput?.value?.trim() || "Custom Test",
+      goalColours: exportGoalColourMap()
+    });
     if (!result?.ok) {
       setStatus(result?.error || "The game could not load this level.", "error");
       return;
@@ -5345,7 +5524,7 @@
     const layout = Array.isArray(detail?.layout) ? detail.layout.map(row => String(row)) : [];
     if (!layout.length || !layout.some(row => row.trim())) return false;
     try {
-      importRows(layout, { quiet: true });
+      importRows(layout, { quiet: true, goalColours: detail?.goalColours });
       clearActiveSave();
       currentPuzzleRef = null;
       const name = String(detail?.name || "Pack puzzle").trim().slice(0, 48) || "Pack puzzle";
@@ -5382,7 +5561,7 @@
     const result = window.BoxxyGameAPI?.startMakerTest?.(
       validation.rows,
       solutionMatchesCurrentBoard() ? currentSolution : String(event?.detail?.solution || ""),
-      { name: displayName }
+      { name: displayName, goalColours: exportGoalColourMap() }
     );
     if (!result?.ok) {
       setStatus(result?.error || "The game could not load this pack puzzle.", "error");
@@ -5401,6 +5580,7 @@
     makerResizeObserver.observe(gridShell);
   }
 
+  setActiveGoalColour(DEFAULT_GOAL_COLOUR);
   selectTool("wall");
   makeRoom(10, 10, false);
   boxesInput.value = "3";

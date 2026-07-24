@@ -3,7 +3,7 @@
  * Copyright © 2026 Sam Cornwell. All rights reserved.
  * Personal non-commercial use only. See LICENSE.md.
  */
-/* BOXXY v141 — private level-pack and Daily Puzzle builder with linked-solution synchronisation. */
+/* BOXXY v162 — private level-pack and Daily Puzzle builder with coloured-target synchronisation. */
 (() => {
   "use strict";
 
@@ -53,6 +53,8 @@
   const MAX_PACK_DRAFTS = 20;
   const VOID = "~";
   const TILE_CHARS = new Set([" ", "#", "@", "$", ".", "*", "+"]);
+  const GOAL_COLOURS = window.BoxxyGoalColours;
+  const DEFAULT_GOAL_COLOUR = GOAL_COLOURS?.DEFAULT || "red";
   const localTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Browser local time";
 
   let savedLevels = [];
@@ -114,6 +116,45 @@
     return normaliseLayout(layout);
   }
 
+  function recordGoalColourMap(record) {
+    const width = Math.max(1, Math.round(Number(record?.cols) || 1));
+    const height = Math.max(1, Math.round(Number(record?.rows) || 1));
+    if (!Array.isArray(record?.cells) || record.cells.length !== width * height) return {};
+    const colours = Array.isArray(record.goalColours) ? record.goalColours : [];
+    const rawRows = [];
+    for (let y = 0; y < height; y++) {
+      let line = "";
+      for (let x = 0; x < width; x++) {
+        const raw = record.cells[y * width + x];
+        const value = raw === VOID ? " " : String(raw || " ").charAt(0);
+        line += TILE_CHARS.has(value) ? value : " ";
+      }
+      rawRows.push(line.replace(/\s+$/g, ""));
+    }
+    let start = 0;
+    let end = rawRows.length;
+    while (start < end && !rawRows[start].trim()) start++;
+    while (end > start && !rawRows[end - 1].trim()) end--;
+    const map = {};
+    for (let sourceY = start; sourceY < end; sourceY++) {
+      for (let x = 0; x < width; x++) {
+        const value = record.cells[sourceY * width + x];
+        if (value !== "." && value !== "*" && value !== "+") continue;
+        const colour = GOAL_COLOURS?.normalise?.(colours[sourceY * width + x]) || DEFAULT_GOAL_COLOUR;
+        if (colour !== DEFAULT_GOAL_COLOUR) map[`${x},${sourceY - start}`] = colour;
+      }
+    }
+    return map;
+  }
+
+  function normaliseGoalColourMap(value, layout) {
+    return GOAL_COLOURS?.normaliseMap?.(value, normaliseLayout(layout)) || {};
+  }
+
+  function sameGoalColourMap(a, b) {
+    return JSON.stringify(a || {}) === JSON.stringify(b || {});
+  }
+
   function countBoxes(layout) {
     return normaliseLayout(layout).join("").split("").filter(char => char === "$" || char === "*").length;
   }
@@ -161,6 +202,7 @@
       author: "",
       authorOverridden: false,
       layout,
+      goalColours: recordGoalColourMap(record),
       solution: cleanSolution(record.solution),
       cols: width,
       rows: layout.length,
@@ -180,6 +222,7 @@
       author: String(entry?.author || "").trim(),
       authorOverridden: Boolean(entry?.authorOverridden && String(entry?.author || "").trim()),
       layout,
+      goalColours: normaliseGoalColourMap(entry?.goalColours, layout),
       solution: cleanSolution(entry?.solution),
       cols: Math.max(1, ...layout.map(row => row.length)),
       rows: layout.length,
@@ -198,11 +241,13 @@
       || entry.cols !== latest.cols
       || entry.rows !== latest.rows
       || entry.boxes !== latest.boxes
+      || !sameGoalColourMap(entry.goalColours, latest.goalColours)
       || entry.layout.length !== nextLayout.length
       || entry.layout.some((row, index) => row !== nextLayout[index]);
     if (!changed) return false;
     if (!entry.nameOverridden) entry.name = latest.name;
     entry.layout = nextLayout;
+    entry.goalColours = { ...latest.goalColours };
     entry.solution = latest.solution;
     entry.cols = latest.cols;
     entry.rows = latest.rows;
@@ -609,6 +654,7 @@
       sourceSaveId: String(item?.sourceSaveId || item?.id || ""),
       name: String(item?.name || "Untitled level"),
       layout: layout.slice(),
+      goalColours: normaliseGoalColourMap(item?.goalColours, layout),
       solution: cleanSolution(item?.solution)
     };
     closeBuilder();
@@ -939,7 +985,7 @@
     const sourceEntries = targetEntries(payload.source);
     const source = sourceEntries.find(entry => entry.id === payload.entryId);
     if (!source) return;
-    const snapshot = { ...source, id: newId("pack-level"), layout: source.layout.slice(), addedAt: Date.now() };
+    const snapshot = { ...source, id: newId("pack-level"), layout: source.layout.slice(), goalColours: { ...(source.goalColours || {}) }, addedAt: Date.now() };
     if (entryAlreadyPresent(target, snapshot)) {
       setStatus(`“${snapshot.name}” is already in that destination.`, "error");
       return;
@@ -1147,7 +1193,8 @@
       pushMinimum: null,
       solutionMoves: solutionMoveCount(entry.solution) || null,
       solution: entry.solution,
-      layout: entry.layout.slice()
+      layout: entry.layout.slice(),
+      ...(Object.keys(entry.goalColours || {}).length ? { goalColours: { ...entry.goalColours } } : {})
     };
   }
 
@@ -1232,7 +1279,8 @@
           timezone: localTimezone,
           name: entry.name,
           solution: entry.solution,
-          layout: entry.layout.slice()
+          layout: entry.layout.slice(),
+          ...(Object.keys(entry.goalColours || {}).length ? { goalColours: { ...entry.goalColours } } : {})
         };
       })
     };

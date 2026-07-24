@@ -2,6 +2,7 @@
  * BOXXY — Pushbox Puzzle
  * Copyright © 2026 Sam Cornwell. All rights reserved.
  * Personal non-commercial use only. See LICENSE.md.
+ * BOXXY v162: fixed-colour targets in the Level Maker and game board.
  */
 :root{
   --paper:#efe5d4;--paper2:#f7f0e5;--ink:#171719;--red:#db3b27;--yellow:#e5b32a;--blue:#20539a;--green:#2f8f5b;--line:#cbbfae;
@@ -25,18 +26,29 @@ button{font:inherit;color:inherit;cursor:pointer}
 .wall::after{content:"";position:absolute;left:5%;right:5%;bottom:5%;height:16%;background:linear-gradient(#111214,#050506)}
 .goal{display:block;z-index:var(--z);overflow:visible}
 .board-art{display:block;background-image:url("assets/board/board-atlas.png");background-repeat:no-repeat;background-size:300% 100%}
-.goal .board-art-goal{position:absolute;left:-3.5%;bottom:-1%;width:107%;height:107%;background-position:0 0;transform:scaleY(.86);transform-origin:50% 100%;filter:drop-shadow(0 2px 1px rgba(48,34,18,.14));opacity:.96}
+.goal .board-art-goal{position:absolute;left:-3.5%;bottom:-1%;width:107%;height:107%;background-position:0 0;transform:scaleY(.86);transform-origin:50% 100%;filter:var(--goal-filter,none) drop-shadow(0 2px 1px rgba(48,34,18,.14));opacity:.96}
 .piece{position:absolute;left:calc((var(--x) + .5) * 100% / var(--cols));top:calc((var(--y) + 1) * 100% / var(--rows));z-index:var(--z);pointer-events:none;overflow:visible}
 .piece.box{width:calc(104% / var(--cols));height:calc(142% / var(--rows));transform:translate(-50%,-100%);transition:left .17s cubic-bezier(.2,.82,.32,1),top .17s cubic-bezier(.2,.82,.32,1),transform .17s ease;display:grid;place-items:end center}
 .piece.box::before{content:"";position:absolute;left:50%;bottom:2%;width:64%;height:13%;transform:translateX(-42%);border-radius:50%;background:rgba(48,34,18,.32);filter:blur(4px);box-shadow:7px 5px 7px rgba(48,34,18,.16);z-index:0}
-.piece.box .board-art-box{position:absolute;left:0;bottom:0;z-index:1;width:100%;height:73.25%;filter:none}
+.piece.box .board-art-box{position:absolute;left:0;bottom:0;z-index:1;width:100%;height:73.25%;filter:var(--goal-filter,none)}
 .piece.box .board-art-box-yellow{background-position:50% 0}
 .piece.box .board-art-box-red{background-position:100% 0}
+.goal-colour-red{--goal-filter:brightness(1)}
+.goal-colour-blue{--goal-filter:hue-rotate(205deg) saturate(1.08) brightness(.82)}
+.goal-colour-green{--goal-filter:hue-rotate(103deg) saturate(.92) brightness(.82)}
+.goal-colour-purple{--goal-filter:hue-rotate(276deg) saturate(.96) brightness(.86)}
+.goal-colour-light-blue{--goal-filter:hue-rotate(190deg) saturate(.68) brightness(1.22)}
+.goal-colour-black{--goal-filter:grayscale(1) brightness(.20) contrast(1.42)}
+.goal-colour-grey{--goal-filter:grayscale(1) brightness(.92) contrast(.74)}
+.goal-colour-burgundy{--goal-filter:hue-rotate(337deg) saturate(1.05) brightness(.58)}
+.goal-colour-brown{--goal-filter:hue-rotate(27deg) saturate(.72) brightness(.60)}
+.goal-colour-orange{--goal-filter:hue-rotate(31deg) saturate(1.15) brightness(1.08)}
+.goal-colour-yellow{--goal-filter:hue-rotate(58deg) saturate(1.22) brightness(1.24) contrast(.94)}
 .piece.player{width:calc(207% / var(--cols));height:0;transform:translateX(-50%);transition:left .17s cubic-bezier(.2,.82,.32,1),top .17s cubic-bezier(.2,.82,.32,1);display:block;overflow:visible;z-index:99999!important;pointer-events:auto}
 .piece.player::before{content:"";position:absolute;left:50%;bottom:3px;width:30%;height:8px;transform:translateX(-38%);border-radius:50%;background:rgba(48,34,18,.34);filter:blur(3px);box-shadow:6px 4px 6px rgba(48,34,18,.14);z-index:0}
 .piece.player img{position:absolute;left:50%;bottom:0;z-index:1;display:block;width:100%;height:auto;max-width:none;max-height:none;object-fit:contain;overflow:visible;clip-path:none;transform:translateX(-50%);transform-origin:50% 100%;filter:none}
 .piece.player.pushing.facing-left,.piece.player.pushing.facing-right,.piece.player.pushing.facing-front,.piece.player.pushing.facing-back{width:calc(207% / var(--cols))}
-.piece.on-goal{filter:drop-shadow(0 0 8px rgba(229,179,42,.48))}.piece.box.pushing{animation:boxPush .2s ease}.piece.player.walking :is(img,canvas){animation:playerWalk .17s linear}.piece.player.pushing :is(img,canvas){animation:playerPush .2s ease}.piece.player.bumping :is(img,canvas){animation:playerBump .16s ease}
+.piece.on-goal{filter:drop-shadow(0 0 7px var(--goal-colour,#e5b32a))}.piece.box.pushing{animation:boxPush .2s ease}.piece.player.walking :is(img,canvas){animation:playerWalk .17s linear}.piece.player.pushing :is(img,canvas){animation:playerPush .2s ease}.piece.player.bumping :is(img,canvas){animation:playerBump .16s ease}
 @keyframes boxPush{50%{transform:translate(-50%,-101%)}}@keyframes playerWalk{50%{transform:translateX(-50%) translateY(-2%)}}@keyframes playerPush{50%{transform:translateX(-50%) translateY(-1%)}}@keyframes playerBump{50%{transform:translateX(-50%) translateY(2%)}}
 .celebration{position:absolute;inset:0;z-index:2400;pointer-events:none;overflow:hidden}.confetti{position:absolute;width:12px;height:12px;animation:confetti 1.2s ease-out forwards}@keyframes confetti{to{transform:translate(var(--dx),var(--dy)) rotate(540deg);opacity:0}}
 .deco{position:absolute;z-index:0;pointer-events:none}.deco-red{width:clamp(75px,10vw,125px);height:clamp(75px,10vw,125px);left:16px;top:24px;background:var(--red);border-radius:0 0 100% 0}.deco-yellow{width:82px;height:62px;right:22px;top:150px;background:var(--yellow)}.stripes{position:absolute;width:58px;height:145px;background:repeating-linear-gradient(90deg,var(--ink) 0 7px,transparent 7px 16px);z-index:0}.stripes-a{right:26px;top:18px}.stripes-b{left:22px;bottom:28px}.semicircle{position:absolute;right:-42px;bottom:20px;width:135px;height:135px;background:var(--ink);border-radius:100% 0 0 100%;z-index:0}
@@ -377,6 +389,27 @@ linear-gradient(135deg,transparent 0 58%,var(--shape-color) 58% 66%,transparent 
   box-shadow:3px 3px 0 var(--ink);
   transform:translate(-2px,-2px);
 }
+.maker-goal-palette{
+  --selected-goal-colour:var(--red);
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;
+  align-items:center;
+  gap:9px;
+  margin:-2px 0 10px;
+  padding:7px 8px;
+  border:1px solid var(--ink);
+  background:#e7ddcf;
+  opacity:.72;
+  transition:opacity .15s ease,box-shadow .15s ease;
+}
+.maker-goal-palette.active{opacity:1;box-shadow:inset 4px 0 0 var(--selected-goal-colour)}
+.maker-goal-palette strong{font-size:8px;letter-spacing:.09em;white-space:nowrap}
+.maker-goal-palette small{font-size:7px;line-height:1.15;color:#5d554b;max-width:110px}
+.maker-goal-swatches{display:grid;grid-template-columns:repeat(11,minmax(18px,1fr));gap:4px;min-width:0}
+.maker-goal-swatches button{position:relative;min-width:0;height:25px;padding:3px;border:1px solid rgba(23,23,25,.55);background:#f8f0e4}
+.maker-goal-swatches button span{display:block;width:100%;height:100%;background:var(--goal-colour);box-shadow:inset 0 0 0 1px rgba(255,255,255,.24)}
+.maker-goal-swatches button.selected{outline:2px solid var(--ink);outline-offset:1px;transform:translateY(-1px)}
+.maker-goal-swatches button.selected::after{content:"";position:absolute;right:1px;bottom:1px;width:5px;height:5px;background:#fff;border:1px solid var(--ink);border-radius:50%}
 .maker-tool-icon{
   position:relative;
   display:block;
@@ -390,7 +423,7 @@ linear-gradient(135deg,transparent 0 58%,var(--shape-color) 58% 66%,transparent 
 .maker-tool-icon.floor{background:#f2e7d6;background-image:linear-gradient(rgba(70,55,35,.12) 1px,transparent 1px),linear-gradient(90deg,rgba(70,55,35,.12) 1px,transparent 1px);background-size:8px 8px}
 .maker-tool-icon.player::before,.maker-tool-icon.playergoal::before{content:"";position:absolute;left:50%;top:50%;width:13px;height:18px;transform:translate(-50%,-50%);border-radius:50% 50% 42% 42%;background:var(--blue);box-shadow:0 3px 0 #15345f}
 .maker-tool-icon.box::before,.maker-tool-icon.boxgoal::before{content:"";position:absolute;inset:5px;background:var(--yellow);border:2px solid #8b6816;box-shadow:2px 2px 0 rgba(23,23,25,.3)}
-.maker-tool-icon.goal::before,.maker-tool-icon.boxgoal::after,.maker-tool-icon.playergoal::after{content:"";position:absolute;left:50%;top:50%;width:17px;height:17px;transform:translate(-50%,-50%);border-radius:50%;border:3px solid var(--red)}
+.maker-tool-icon.goal::before,.maker-tool-icon.boxgoal::after,.maker-tool-icon.playergoal::after{content:"";position:absolute;left:50%;top:50%;width:17px;height:17px;transform:translate(-50%,-50%);border-radius:50%;border:3px solid var(--selected-goal-colour,var(--red))}
 .maker-tool-icon.boxgoal::before,.maker-tool-icon.playergoal::before{z-index:2}
 .maker-tool-icon.boxgoal::after,.maker-tool-icon.playergoal::after{z-index:1}
 .maker-tool-icon.void{background:repeating-linear-gradient(135deg,#ddd2c2 0 5px,#f2eadf 5px 10px)}
@@ -429,7 +462,7 @@ linear-gradient(135deg,transparent 0 58%,var(--shape-color) 58% 66%,transparent 
 .maker-cell.type-floor{background:#f1e7d7}
 .maker-cell.type-wall{background:linear-gradient(145deg,#3a3b3e,#1c1d20 68%,#09090a)}
 .maker-cell.type-wall::after{content:"";position:absolute;left:3px;right:3px;bottom:3px;height:18%;background:#050506}
-.maker-cell.type-goal::before,.maker-cell.type-boxgoal::before,.maker-cell.type-playergoal::before{content:"";position:absolute;left:50%;top:50%;width:42%;height:42%;transform:translate(-50%,-50%);border-radius:50%;border:clamp(2px,.25vw,4px) solid var(--red);z-index:1}
+.maker-cell.type-goal::before,.maker-cell.type-boxgoal::before,.maker-cell.type-playergoal::before{content:"";position:absolute;left:50%;top:50%;width:42%;height:42%;transform:translate(-50%,-50%);border-radius:50%;border:clamp(2px,.25vw,4px) solid var(--goal-colour,var(--red));z-index:1}
 .maker-cell.type-box::after,.maker-cell.type-boxgoal::after{content:"";position:absolute;inset:17%;background:linear-gradient(145deg,#f2c33b,#d89f16);border:2px solid #77570e;box-shadow:2px 2px 0 rgba(23,23,25,.35);z-index:2}
 .maker-cell.type-player::after,.maker-cell.type-playergoal::after{content:"";position:absolute;left:50%;top:50%;width:36%;height:55%;transform:translate(-50%,-50%);border-radius:50% 50% 42% 42%;background:var(--blue);box-shadow:0 3px 0 #15345f;z-index:2}
 .maker-cell:focus-visible{outline:3px solid var(--red);outline-offset:-3px;z-index:5}
@@ -635,9 +668,9 @@ body.maker-testing .level-picker{display:none!important}
 
 /* Make a box on a goal unmistakable in the editor. */
 .maker-tool-icon.boxgoal::after{width:23px;height:23px;border-width:3px}
-.maker-tool-icon.boxgoal::before{inset:7px;background:var(--red);border-color:#7d241b;box-shadow:2px 2px 0 rgba(23,23,25,.35)}
+.maker-tool-icon.boxgoal::before{inset:7px;background:var(--selected-goal-colour,var(--red));border-color:var(--ink);box-shadow:2px 2px 0 rgba(23,23,25,.35)}
 .maker-cell.type-boxgoal::before{width:78%;height:78%;border-width:clamp(2px,.28vw,4px)}
-.maker-cell.type-boxgoal::after{inset:24%;background:linear-gradient(145deg,#e85a42,#bd2f22);border-color:#742219;box-shadow:2px 2px 0 rgba(23,23,25,.35)}
+.maker-cell.type-boxgoal::after{inset:24%;background:linear-gradient(145deg,var(--goal-colour-light,#e85a42),var(--goal-colour,#bd2f22));border-color:var(--goal-colour-dark,#742219);box-shadow:2px 2px 0 rgba(23,23,25,.35)}
 
 /* Larger workshop; the grid now uses a calculated cell size and always fits its bay. */
 .maker-card{width:min(1600px,98.5vw);max-height:98dvh;overflow:hidden}
@@ -2457,4 +2490,16 @@ html.ios-standalone .app{
   .complete-card:not(.final-complete) .complete-secondary{
     min-height:36px;
   }
+}
+
+/* v162 target palette responsiveness */
+@media(max-width:900px){
+  .maker-goal-palette{grid-template-columns:auto 1fr;margin-bottom:6px;gap:6px;padding:5px}
+  .maker-goal-palette small{display:none}
+  .maker-goal-swatches{grid-template-columns:repeat(11,minmax(16px,1fr));gap:3px}
+  .maker-goal-swatches button{height:22px;padding:2px}
+}
+@media(max-width:560px){
+  .maker-goal-palette{grid-template-columns:1fr}
+  .maker-goal-swatches{grid-template-columns:repeat(6,1fr)}
 }
