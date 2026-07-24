@@ -22,7 +22,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="assets/ui/icons/boxxy-yellow-crate-v150-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="assets/ui/icons/boxxy-yellow-crate-v150-16.png">
 <link rel="apple-touch-icon" sizes="180x180" href="assets/ui/icons/boxxy-yellow-crate-touch-v150.png">
-<link rel="manifest" href="boxxy-v151.webmanifest">
+<link rel="manifest" href="boxxy.webmanifest">
 <script>
   if ((navigator.maxTouchPoints || 0) > 0 || "ontouchstart" in window) {
     document.documentElement.classList.add("touch-ui");
@@ -31,10 +31,40 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=162">
-<link rel="stylesheet" href="styles-v147-fixes.css?v=151">
+<link rel="stylesheet" href="styles.css?v=164">
 <link rel="stylesheet" href="how-to-play.css?v=154">
 <link rel="preload" as="image" href="assets/board/board-atlas.png">
+<link rel="preload" as="image" href="assets/board/boxes/box-default-yellow.png">
+<link rel="preload" as="image" href="assets/board/goals/goal-red.png">
+<link rel="preload" as="image" href="assets/board/boxes/box-red.png">
+<link rel="preload" as="image" href="assets/board/goals/goal-blue.png">
+<link rel="preload" as="image" href="assets/board/boxes/box-blue.png">
+<link rel="preload" as="image" href="assets/board/goals/goal-green.png">
+<link rel="preload" as="image" href="assets/board/boxes/box-green.png">
+<link rel="preload" as="image" href="assets/board/goals/goal-purple.png">
+<link rel="preload" as="image" href="assets/board/boxes/box-purple.png">
+<link rel="preload" as="image" href="assets/board/goals/goal-light-blue.png">
+<link rel="preload" as="image" href="assets/board/boxes/box-light-blue.png">
+<link rel="preload" as="image" href="assets/board/goals/goal-teal.png">
+<link rel="preload" as="image" href="assets/board/boxes/box-teal.png">
+<link rel="preload" as="image" href="assets/board/goals/goal-black.png">
+<link rel="preload" as="image" href="assets/board/boxes/box-black.png">
+<link rel="preload" as="image" href="assets/board/goals/goal-grey.png">
+<link rel="preload" as="image" href="assets/board/boxes/box-grey.png">
+<link rel="preload" as="image" href="assets/board/goals/goal-burgundy.png">
+<link rel="preload" as="image" href="assets/board/boxes/box-burgundy.png">
+<link rel="preload" as="image" href="assets/board/goals/goal-brown.png">
+<link rel="preload" as="image" href="assets/board/boxes/box-brown.png">
+<link rel="preload" as="image" href="assets/board/goals/goal-orange.png">
+<link rel="preload" as="image" href="assets/board/boxes/box-orange.png">
+<link rel="preload" as="image" href="assets/board/goals/goal-yellow.png">
+<link rel="preload" as="image" href="assets/board/boxes/box-yellow.png">
+<link rel="preload" as="image" href="assets/board/goals/goal-lime.png">
+<link rel="preload" as="image" href="assets/board/boxes/box-lime.png">
+<link rel="preload" as="image" href="assets/board/goals/goal-pink.png">
+<link rel="preload" as="image" href="assets/board/boxes/box-pink.png">
+<link rel="preload" as="image" href="assets/board/goals/goal-cream.png">
+<link rel="preload" as="image" href="assets/board/boxes/box-cream.png">
 <link rel="preload" as="image" href="assets/ui/boxxy-splash.png">
 </head>
 <body>
@@ -282,12 +312,16 @@
             <button type="button" data-maker-goal-colour="green" aria-label="Green target" title="Green"><span></span></button>
             <button type="button" data-maker-goal-colour="purple" aria-label="Purple target" title="Purple"><span></span></button>
             <button type="button" data-maker-goal-colour="light-blue" aria-label="Light blue target" title="Light blue"><span></span></button>
+            <button type="button" data-maker-goal-colour="teal" aria-label="Teal target" title="Teal"><span></span></button>
             <button type="button" data-maker-goal-colour="black" aria-label="Black target" title="Black"><span></span></button>
             <button type="button" data-maker-goal-colour="grey" aria-label="Grey target" title="Grey"><span></span></button>
             <button type="button" data-maker-goal-colour="burgundy" aria-label="Burgundy target" title="Burgundy"><span></span></button>
             <button type="button" data-maker-goal-colour="brown" aria-label="Brown target" title="Brown"><span></span></button>
             <button type="button" data-maker-goal-colour="orange" aria-label="Orange target" title="Orange"><span></span></button>
             <button type="button" data-maker-goal-colour="yellow" aria-label="Yellow target" title="Yellow"><span></span></button>
+            <button type="button" data-maker-goal-colour="lime" aria-label="Lime target" title="Lime"><span></span></button>
+            <button type="button" data-maker-goal-colour="pink" aria-label="Pink target" title="Pink"><span></span></button>
+            <button type="button" data-maker-goal-colour="cream" aria-label="Cream target" title="Cream"><span></span></button>
           </div>
           <small>Choose a colour, then draw or repaint a goal.</small>
         </div>
@@ -355,7 +389,12 @@
             <button id="makerCopyBtn" type="button">COPY LEVEL</button>
             <button id="makerShareBtn" type="button">COPY SHARE LINK</button>
           </div>
-          <p class="maker-legend"><code>#</code> wall · <code>@</code> player · <code>$</code> box · <code>.</code> goal · <code>*</code> box on goal · <code>+</code> player on goal</p>
+          <p class="maker-legend"><code>#</code> wall · <code>@</code> player · <code>$</code> yellow box · uppercase colour letter = target · lowercase colour letter = box on that target</p>
+          <details class="maker-colour-codes">
+            <summary>COLOUR LETTERS</summary>
+            <p><code>R/r</code> red · <code>B/b</code> blue · <code>G/g</code> green · <code>P/p</code> purple · <code>C/c</code> light blue · <code>T/t</code> teal · <code>K/k</code> black · <code>A/a</code> grey · <code>M/m</code> burgundy · <code>W/w</code> brown · <code>O/o</code> orange · <code>Y/y</code> yellow · <code>L/l</code> lime · <code>F/f</code> pink · <code>I/i</code> cream</p>
+            <p><code>1–0 ! ? % &amp; =</code> preserve a player standing on the corresponding coloured target.</p>
+          </details>
         </section>
 
         <div id="makerStatus" class="maker-status" aria-live="polite">Ready.</div>
@@ -539,8 +578,8 @@
 <audio id="bgMusic" src="assets/audio/cracked-ivory-drift.mp3" preload="auto" autoplay loop playsinline></audio>
 
 <script src="levels.js?v=143"></script>
-<script src="boxxy.js?v=162"></script>
-<script src="pack-builder.js?v=162"></script>
+<script src="boxxy.js?v=164"></script>
+<script src="pack-builder.js?v=164"></script>
 <script src="how-to-play.js?v=153"></script>
 </body>
 </html>

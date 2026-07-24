@@ -33,33 +33,46 @@
   });
 })();
 
-/* BOXXY v163 — fixed target-colour palette backed by dedicated sprite files. */
+/* BOXXY v164 — fifteen sprite-based target colours and text codes. */
 (() => {
   "use strict";
   const DEFAULT = "red";
   const ORDER = Object.freeze([
-    "red", "blue", "green", "purple", "light-blue", "black",
-    "grey", "burgundy", "brown", "orange", "yellow"
+    "red", "blue", "green", "purple", "light-blue",
+    "teal", "black", "grey", "burgundy", "brown",
+    "orange", "yellow", "lime", "pink", "cream"
   ]);
   const PALETTE = Object.freeze({
-    red: Object.freeze({ label: "Red", hex: "#db3b27", goalSprite: "assets/board/goals/goal-red.png", boxSprite: "assets/board/boxes/box-red.png" }),
-    blue: Object.freeze({ label: "Blue", hex: "#20539a", goalSprite: "assets/board/goals/goal-blue.png", boxSprite: "assets/board/boxes/box-blue.png" }),
-    green: Object.freeze({ label: "Green", hex: "#2f8f5b", goalSprite: "assets/board/goals/goal-green.png", boxSprite: "assets/board/boxes/box-green.png" }),
-    purple: Object.freeze({ label: "Purple", hex: "#7443a8", goalSprite: "assets/board/goals/goal-purple.png", boxSprite: "assets/board/boxes/box-purple.png" }),
-    "light-blue": Object.freeze({ label: "Light blue", hex: "#63bfe7", goalSprite: "assets/board/goals/goal-light-blue.png", boxSprite: "assets/board/boxes/box-light-blue.png" }),
-    black: Object.freeze({ label: "Black", hex: "#171719", goalSprite: "assets/board/goals/goal-black.png", boxSprite: "assets/board/boxes/box-black.png" }),
-    grey: Object.freeze({ label: "Grey", hex: "#777b80", goalSprite: "assets/board/goals/goal-grey.png", boxSprite: "assets/board/boxes/box-grey.png" }),
-    burgundy: Object.freeze({ label: "Burgundy", hex: "#7b203d", goalSprite: "assets/board/goals/goal-burgundy.png", boxSprite: "assets/board/boxes/box-burgundy.png" }),
-    brown: Object.freeze({ label: "Brown", hex: "#7b4b2a", goalSprite: "assets/board/goals/goal-brown.png", boxSprite: "assets/board/boxes/box-brown.png" }),
-    orange: Object.freeze({ label: "Orange", hex: "#ef7d18", goalSprite: "assets/board/goals/goal-orange.png", boxSprite: "assets/board/boxes/box-orange.png" }),
-    yellow: Object.freeze({ label: "Yellow", hex: "#ffe04a", goalSprite: "assets/board/goals/goal-yellow.png", boxSprite: "assets/board/boxes/box-yellow.png" })
+    red: Object.freeze({ label: "Red", hex: "#da1c1c", targetCode: "R", boxCode: "r", playerCode: "1" }),
+    blue: Object.freeze({ label: "Blue", hex: "#1048bb", targetCode: "B", boxCode: "b", playerCode: "2" }),
+    green: Object.freeze({ label: "Green", hex: "#28773b", targetCode: "G", boxCode: "g", playerCode: "3" }),
+    purple: Object.freeze({ label: "Purple", hex: "#672b9f", targetCode: "P", boxCode: "p", playerCode: "4" }),
+    "light-blue": Object.freeze({ label: "Light blue", hex: "#55b5dd", targetCode: "C", boxCode: "c", playerCode: "5" }),
+    teal: Object.freeze({ label: "Teal", hex: "#0d9792", targetCode: "T", boxCode: "t", playerCode: "6" }),
+    black: Object.freeze({ label: "Black", hex: "#232323", targetCode: "K", boxCode: "k", playerCode: "7" }),
+    grey: Object.freeze({ label: "Grey", hex: "#727170", targetCode: "A", boxCode: "a", playerCode: "8" }),
+    burgundy: Object.freeze({ label: "Burgundy", hex: "#6c1a1e", targetCode: "M", boxCode: "m", playerCode: "9" }),
+    brown: Object.freeze({ label: "Brown", hex: "#694221", targetCode: "W", boxCode: "w", playerCode: "0" }),
+    orange: Object.freeze({ label: "Orange", hex: "#f26e0c", targetCode: "O", boxCode: "o", playerCode: "!" }),
+    yellow: Object.freeze({ label: "Yellow", hex: "#f4b30f", targetCode: "Y", boxCode: "y", playerCode: "?" }),
+    lime: Object.freeze({ label: "Lime", hex: "#98c20e", targetCode: "L", boxCode: "l", playerCode: "%" }),
+    pink: Object.freeze({ label: "Pink", hex: "#ea6283", targetCode: "F", boxCode: "f", playerCode: "&" }),
+    cream: Object.freeze({ label: "Cream", hex: "#e7e0d0", targetCode: "I", boxCode: "i", playerCode: "=" })
   });
   const GOAL_CHARS = new Set([".", "*", "+"]);
+  const TEXT_CODES = new Map();
 
   function normalise(value) {
     const token = String(value || "").trim().toLowerCase().replace(/_/g, "-");
     return Object.prototype.hasOwnProperty.call(PALETTE, token) ? token : DEFAULT;
   }
+
+  ORDER.forEach(colour => {
+    const entry = PALETTE[colour];
+    TEXT_CODES.set(entry.targetCode, Object.freeze({ cell: ".", colour }));
+    TEXT_CODES.set(entry.boxCode, Object.freeze({ cell: "*", colour }));
+    TEXT_CODES.set(entry.playerCode, Object.freeze({ cell: "+", colour }));
+  });
 
   function normaliseMap(value, layout) {
     const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
@@ -68,11 +81,16 @@
     rows.forEach((row, y) => {
       [...row].forEach((char, x) => {
         if (!GOAL_CHARS.has(char)) return;
-        const colour = normalise(source[x + "," + y]);
-        if (colour !== DEFAULT) result[x + "," + y] = colour;
+        const colour = normalise(source[`${x},${y}`]);
+        if (colour !== DEFAULT) result[`${x},${y}`] = colour;
       });
     });
     return result;
+  }
+
+  function spritePath(type, colour) {
+    const clean = normalise(colour);
+    return `assets/board/${type === "goal" ? "goals/goal" : "boxes/box"}-${clean}.png`;
   }
 
   function style(element, value) {
@@ -81,12 +99,48 @@
     const swatch = PALETTE[colour];
     element.dataset.goalColour = colour;
     element.style.setProperty("--goal-colour", swatch.hex);
-    element.style.setProperty("--goal-sprite", 'url("' + swatch.goalSprite + '")');
-    element.style.setProperty("--box-sprite", 'url("' + swatch.boxSprite + '")');
+    element.style.setProperty("--goal-sprite", `url("${spritePath("goal", colour)}")`);
+    element.style.setProperty("--box-sprite", `url("${spritePath("box", colour)}")`);
     return colour;
   }
 
-  window.BoxxyGoalColours = Object.freeze({ DEFAULT, ORDER, PALETTE, normalise, normaliseMap, style });
+  function decodeTextChar(char) {
+    const decoded = TEXT_CODES.get(String(char || ""));
+    return decoded ? { cell: decoded.cell, colour: decoded.colour } : null;
+  }
+
+  function isTextCode(char) {
+    return TEXT_CODES.has(String(char || ""));
+  }
+
+  function encodeTextCell(cell, colour) {
+    const entry = PALETTE[normalise(colour)];
+    if (cell === ".") return entry.targetCode;
+    if (cell === "*") return entry.boxCode;
+    if (cell === "+") return entry.playerCode;
+    return cell;
+  }
+
+  const preloadImages = [];
+  if (typeof Image !== "undefined") {
+    for (const colour of ORDER) {
+      for (const type of ["goal", "box"]) {
+        const image = new Image();
+        image.decoding = "async";
+        image.src = spritePath(type, colour);
+        preloadImages.push(image);
+      }
+    }
+    const yellow = new Image();
+    yellow.decoding = "async";
+    yellow.src = "assets/board/boxes/box-default-yellow.png";
+    preloadImages.push(yellow);
+  }
+  window.BoxxyColourSpritesReady = Promise.allSettled(preloadImages.map(image => image.decode?.() || Promise.resolve()));
+  window.BoxxyGoalColours = Object.freeze({
+    DEFAULT, ORDER, PALETTE, normalise, normaliseMap, style,
+    spritePath, decodeTextChar, isTextCode, encodeTextCell
+  });
 })();
 
 /* BOXXY v143 — solver route verifier (merged from the former standalone file). */
@@ -322,7 +376,7 @@
   window.BoxxyShareCodec = Object.freeze({ encode, decode, readLocation, buildUrl });
 })();
 
-/* BOXXY v163 — character renderer, game engine, sprite-based coloured targets, Level Maker and Rust/WASM solver adapter. */
+/* BOXXY v164 — character renderer, game engine, fifteen sprite-based target colours, Level Maker and Rust/WASM solver adapter. */
 (() => {
   "use strict";
 
@@ -3805,9 +3859,27 @@
     return exportedRowWindow().rows;
   }
 
+  function exportTextRows() {
+    const windowed = exportedRowWindow();
+    const output = [];
+    for (let sourceY = windowed.start; sourceY < windowed.end; sourceY++) {
+      let line = "";
+      for (let x = 0; x < cols; x++) {
+        const index = indexOf(x, sourceY);
+        const value = cells[index];
+        const encoded = cellHasGoal(value)
+          ? (GOAL_COLOURS?.encodeTextCell?.(value, goalColours[index]) || value)
+          : value;
+        line += encoded === VOID ? " " : encoded;
+      }
+      output.push(line.replace(/\s+$/g, ""));
+    }
+    return output.length ? output : [""];
+  }
+
   function updateTextFromGrid(force = true) {
     if (!force && document.activeElement === textEl) return;
-    textEl.value = exportRows().join("\n");
+    textEl.value = exportTextRows().join("\n");
   }
 
   function commonIndent(lines) {
@@ -3878,22 +3950,31 @@
     if (maxWidth > MAX_SIZE) throw new Error(`The level is ${maxWidth} columns wide. The editor supports up to ${MAX_SIZE}.`);
 
     const cleaned = lines.map(line => String(line).replace(/\t/g, "    ").replace(/_/g, " "));
-    const invalid = [...new Set(cleaned.join("").split("").filter(ch => !" #@$.+*".includes(ch)))];
+    const invalid = [...new Set(cleaned.join("").split("").filter(ch =>
+      !" #@$.+*".includes(ch) && !GOAL_COLOURS?.isTextCode?.(ch)
+    ))];
     if (invalid.length) throw new Error(`Unsupported character${invalid.length === 1 ? "" : "s"}: ${invalid.join(" ")}`);
 
-    const classified = classifySpaces(cleaned);
+    const decodedRows = cleaned.map(line => [...line].map(ch => GOAL_COLOURS?.decodeTextChar?.(ch)?.cell || ch).join(""));
+    const classified = classifySpaces(decodedRows);
     cols = clampSize(classified.width);
     rows = clampSize(classified.height);
     cells = blankGrid(cols, rows, VOID);
     goalColours = blankGoalColours(cols, rows);
-    const importedColourMap = GOAL_COLOURS?.normaliseMap?.(options.goalColours, cleaned) || {};
+    const importedColourMap = GOAL_COLOURS?.normaliseMap?.(options.goalColours, decodedRows) || {};
     for (let y = 0; y < rows; y++) {
       for (let x = 0; x < cols; x++) {
-        const ch = classified.chars[y]?.[x] ?? " ";
+        const sourceChar = cleaned[y]?.[x] ?? " ";
+        const decoded = GOAL_COLOURS?.decodeTextChar?.(sourceChar);
+        const ch = decoded?.cell || classified.chars[y]?.[x] || " ";
         const value = ch === " " && classified.outside.has(`${x},${y}`) ? VOID : ch;
         const index = indexOf(x, y);
         cells[index] = VALID.has(value) ? value : VOID;
-        if (cellHasGoal(cells[index])) goalColours[index] = GOAL_COLOURS?.normalise?.(importedColourMap[`${x},${y}`]) || DEFAULT_GOAL_COLOUR;
+        if (cellHasGoal(cells[index])) {
+          goalColours[index] = decoded?.colour
+            || GOAL_COLOURS?.normalise?.(importedColourMap[`${x},${y}`])
+            || DEFAULT_GOAL_COLOUR;
+        }
       }
     }
     syncSizeInputs();
