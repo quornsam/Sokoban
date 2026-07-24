@@ -3093,6 +3093,7 @@
   const openExistingLevelBtn = document.getElementById("makerOpenLevelBtn");
   const toolButtons = [...document.querySelectorAll("[data-maker-tool]")];
   const goalPalette = document.getElementById("makerGoalPalette");
+  const goalColourControls = goalPalette?.querySelector(".maker-goal-colour-controls");
   const goalColourButtons = [...document.querySelectorAll("[data-maker-goal-colour]")];
   const rainbowModeInput = document.getElementById("makerRainbowMode");
   const rainbowModeState = document.getElementById("makerRainbowState");
@@ -3255,12 +3256,16 @@
     if (rainbowModeState) rainbowModeState.textContent = rainbowMode ? "ON" : "OFF";
     if (rainbowModeDescription) rainbowModeDescription.textContent = rainbowMode
       ? "ON — coloured targets and colour-letter export codes."
-      : "OFF — standard Sokoban targets and symbols.";
+      : "OFF — standard Sokoban: . target, $ box, * box on target.";
     if (goalPalette) {
-      goalPalette.hidden = !rainbowMode;
-      goalPalette.setAttribute("aria-hidden", String(!rainbowMode));
+      goalPalette.hidden = false;
+      goalPalette.removeAttribute("aria-hidden");
+      goalPalette.classList.toggle("rainbow-on", rainbowMode);
+      goalPalette.classList.toggle("rainbow-off", !rainbowMode);
       goalPalette.classList.toggle("active", rainbowMode && GOAL_TOOLS.has(activeTool));
     }
+    if (goalColourControls) goalColourControls.setAttribute("aria-hidden", String(!rainbowMode));
+    goalColourButtons.forEach(button => { button.disabled = !rainbowMode; });
     if (standardLegend) standardLegend.hidden = rainbowMode;
     if (rainbowLegend) rainbowLegend.hidden = !rainbowMode;
     if (colourCodes) {

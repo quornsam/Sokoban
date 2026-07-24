@@ -304,20 +304,18 @@
           <button type="button" data-maker-tool="playergoal"><i class="maker-tool-icon playergoal"></i><span>PLAYER + GOAL</span></button>
           <button type="button" data-maker-tool="void"><i class="maker-tool-icon void"></i><span>VOID</span></button>
         </div>
-        <div class="maker-rainbow-control">
-          <div>
+        <div id="makerGoalPalette" class="maker-goal-palette rainbow-off" aria-label="Rainbow Mode and target colour palette">
+          <div class="maker-rainbow-inline">
             <strong>RAINBOW MODE</strong>
-            <small id="makerRainbowDescription">OFF — standard Sokoban targets and symbols.</small>
+            <label class="maker-rainbow-switch">
+              <input id="makerRainbowMode" type="checkbox" role="switch" aria-describedby="makerRainbowDescription">
+              <span aria-hidden="true"></span>
+              <b id="makerRainbowState">OFF</b>
+            </label>
           </div>
-          <label class="maker-rainbow-switch">
-            <input id="makerRainbowMode" type="checkbox" role="switch" aria-describedby="makerRainbowDescription">
-            <span aria-hidden="true"></span>
-            <b id="makerRainbowState">OFF</b>
-          </label>
-        </div>
-        <div id="makerGoalPalette" class="maker-goal-palette" aria-label="Target colour palette" hidden>
-          <strong>TARGET COLOUR</strong>
-          <div class="maker-goal-swatches">
+          <div class="maker-goal-colour-controls">
+            <strong>TARGET COLOUR</strong>
+            <div class="maker-goal-swatches">
             <button type="button" data-maker-goal-colour="red" aria-label="Red target" title="Red"><span></span></button>
             <button type="button" data-maker-goal-colour="blue" aria-label="Blue target" title="Blue"><span></span></button>
             <button type="button" data-maker-goal-colour="green" aria-label="Green target" title="Green"><span></span></button>
@@ -333,8 +331,10 @@
             <button type="button" data-maker-goal-colour="lime" aria-label="Lime target" title="Lime"><span></span></button>
             <button type="button" data-maker-goal-colour="pink" aria-label="Pink target" title="Pink"><span></span></button>
             <button type="button" data-maker-goal-colour="cream" aria-label="Cream target" title="Cream"><span></span></button>
+            </div>
+            <small>Choose a colour, then draw or repaint a goal.</small>
           </div>
-          <small>Choose a colour, then draw or repaint a goal.</small>
+          <small id="makerRainbowDescription" class="maker-rainbow-description">OFF — standard Sokoban: <code>.</code> target, <code>$</code> box, <code>*</code> box on target.</small>
         </div>
         <section class="maker-existing-strip" aria-labelledby="makerExistingTitle">
           <h3 id="makerExistingTitle">OPEN EXISTING PUZZLE</h3>

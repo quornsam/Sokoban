@@ -377,20 +377,6 @@ linear-gradient(135deg,transparent 0 58%,var(--shape-color) 58% 66%,transparent 
   box-shadow:3px 3px 0 var(--ink);
   transform:translate(-2px,-2px);
 }
-.maker-rainbow-control{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:12px;
-  margin:-2px 0 10px;
-  padding:8px 10px;
-  border:1px solid var(--ink);
-  background:#f6eee2;
-  box-shadow:inset 4px 0 0 var(--red);
-}
-.maker-rainbow-control>div{min-width:0}
-.maker-rainbow-control strong{display:block;font-size:9px;letter-spacing:.1em}
-.maker-rainbow-control small{display:block;margin-top:2px;color:#5d554b;font-size:7px;line-height:1.2}
 .maker-rainbow-switch{display:flex;align-items:center;gap:7px;flex:none;cursor:pointer}
 .maker-rainbow-switch input{position:absolute;opacity:0;pointer-events:none}
 .maker-rainbow-switch span{position:relative;width:40px;height:22px;border:2px solid var(--ink);border-radius:999px;background:#d4c9ba;box-shadow:inset 0 0 0 1px rgba(255,255,255,.45)}
@@ -403,20 +389,27 @@ linear-gradient(135deg,transparent 0 58%,var(--shape-color) 58% 66%,transparent 
 
 .maker-goal-palette{
   --selected-goal-colour:var(--red);
-  display:grid;
-  grid-template-columns:auto minmax(0,1fr) auto;
+  display:flex;
   align-items:center;
-  gap:9px;
+  gap:10px;
   margin:-2px 0 10px;
   padding:7px 8px;
   border:1px solid var(--ink);
   background:#e7ddcf;
-  opacity:.72;
-  transition:opacity .15s ease,box-shadow .15s ease;
+  box-shadow:inset 4px 0 0 var(--red);
+  transition:box-shadow .15s ease,background .15s ease;
 }
-.maker-goal-palette.active{opacity:1;box-shadow:inset 4px 0 0 var(--selected-goal-colour)}
-.maker-goal-palette strong{font-size:8px;letter-spacing:.09em;white-space:nowrap}
-.maker-goal-palette small{font-size:7px;line-height:1.15;color:#5d554b;max-width:110px}
+.maker-goal-palette.active{box-shadow:inset 4px 0 0 var(--selected-goal-colour)}
+.maker-rainbow-inline{display:flex;align-items:center;gap:9px;flex:none;padding-right:10px;border-right:1px solid rgba(23,23,25,.32)}
+.maker-rainbow-inline>strong{font-size:8px;letter-spacing:.09em;white-space:nowrap}
+.maker-goal-colour-controls{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:9px;min-width:0;flex:1}
+.maker-goal-colour-controls>strong{font-size:8px;letter-spacing:.09em;white-space:nowrap}
+.maker-goal-colour-controls>small{font-size:7px;line-height:1.15;color:#5d554b;max-width:110px}
+.maker-rainbow-description{margin-left:auto;max-width:none!important;font-size:7px;line-height:1.2;color:#5d554b;white-space:nowrap}
+.maker-rainbow-description code{font-weight:950;color:var(--ink);background:#f7f0e5;padding:1px 3px;border:1px solid rgba(23,23,25,.25)}
+.maker-goal-palette.rainbow-on>.maker-rainbow-description{display:none}
+.maker-goal-palette.rainbow-off .maker-goal-colour-controls{display:none}
+.maker-goal-palette.rainbow-off{background:#f6eee2;box-shadow:inset 4px 0 0 var(--ink)}
 .maker-goal-swatches{display:grid;grid-template-columns:repeat(15,minmax(14px,1fr));gap:3px;min-width:0}
 .maker-goal-swatches button{position:relative;min-width:0;height:25px;padding:3px;border:1px solid rgba(23,23,25,.55);background:#f8f0e4}
 .maker-goal-swatches button span{display:block;width:100%;height:100%;background:var(--goal-colour);box-shadow:inset 0 0 0 1px rgba(255,255,255,.24)}
@@ -2656,4 +2649,12 @@ html.touch-ui .level-attire{
   height:42%;
   display:block;
   margin:0;
+}
+
+/* BOXXY v167 — Rainbow Mode switch shares the target-colour bar. */
+@media(max-width:900px){
+  .maker-goal-palette{flex-wrap:wrap}
+  .maker-goal-colour-controls{flex-basis:100%;grid-template-columns:auto minmax(0,1fr)}
+  .maker-goal-colour-controls>small{display:none}
+  .maker-rainbow-description{white-space:normal}
 }
