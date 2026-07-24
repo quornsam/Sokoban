@@ -33,7 +33,7 @@
   });
 })();
 
-/* BOXXY v164 — fifteen sprite-based target colours and text codes. */
+/* BOXXY v165 — bright sprite-matched target colours and reversed text codes. */
 (() => {
   "use strict";
   const DEFAULT = "red";
@@ -43,21 +43,21 @@
     "orange", "yellow", "lime", "pink", "cream"
   ]);
   const PALETTE = Object.freeze({
-    red: Object.freeze({ label: "Red", hex: "#da1c1c", targetCode: "R", boxCode: "r", playerCode: "1" }),
-    blue: Object.freeze({ label: "Blue", hex: "#1048bb", targetCode: "B", boxCode: "b", playerCode: "2" }),
-    green: Object.freeze({ label: "Green", hex: "#28773b", targetCode: "G", boxCode: "g", playerCode: "3" }),
-    purple: Object.freeze({ label: "Purple", hex: "#672b9f", targetCode: "P", boxCode: "p", playerCode: "4" }),
-    "light-blue": Object.freeze({ label: "Light blue", hex: "#55b5dd", targetCode: "C", boxCode: "c", playerCode: "5" }),
-    teal: Object.freeze({ label: "Teal", hex: "#0d9792", targetCode: "T", boxCode: "t", playerCode: "6" }),
-    black: Object.freeze({ label: "Black", hex: "#232323", targetCode: "K", boxCode: "k", playerCode: "7" }),
-    grey: Object.freeze({ label: "Grey", hex: "#727170", targetCode: "A", boxCode: "a", playerCode: "8" }),
-    burgundy: Object.freeze({ label: "Burgundy", hex: "#6c1a1e", targetCode: "M", boxCode: "m", playerCode: "9" }),
-    brown: Object.freeze({ label: "Brown", hex: "#694221", targetCode: "W", boxCode: "w", playerCode: "0" }),
-    orange: Object.freeze({ label: "Orange", hex: "#f26e0c", targetCode: "O", boxCode: "o", playerCode: "!" }),
-    yellow: Object.freeze({ label: "Yellow", hex: "#f4b30f", targetCode: "Y", boxCode: "y", playerCode: "?" }),
-    lime: Object.freeze({ label: "Lime", hex: "#98c20e", targetCode: "L", boxCode: "l", playerCode: "%" }),
-    pink: Object.freeze({ label: "Pink", hex: "#ea6283", targetCode: "F", boxCode: "f", playerCode: "&" }),
-    cream: Object.freeze({ label: "Cream", hex: "#e7e0d0", targetCode: "I", boxCode: "i", playerCode: "=" })
+    red: Object.freeze({ label: "Red", hex: "#ec2826", targetCode: "r", boxCode: "R", playerCode: "1" }),
+    blue: Object.freeze({ label: "Blue", hex: "#1553ca", targetCode: "b", boxCode: "B", playerCode: "2" }),
+    green: Object.freeze({ label: "Green", hex: "#328545", targetCode: "g", boxCode: "G", playerCode: "3" }),
+    purple: Object.freeze({ label: "Purple", hex: "#7433ac", targetCode: "p", boxCode: "P", playerCode: "4" }),
+    "light-blue": Object.freeze({ label: "Light blue", hex: "#64c0e8", targetCode: "c", boxCode: "C", playerCode: "5" }),
+    teal: Object.freeze({ label: "Teal", hex: "#119f9a", targetCode: "t", boxCode: "T", playerCode: "6" }),
+    black: Object.freeze({ label: "Black", hex: "#282827", targetCode: "k", boxCode: "K", playerCode: "7" }),
+    grey: Object.freeze({ label: "Grey", hex: "#7e7d7d", targetCode: "a", boxCode: "A", playerCode: "8" }),
+    burgundy: Object.freeze({ label: "Burgundy", hex: "#781f24", targetCode: "m", boxCode: "M", playerCode: "9" }),
+    brown: Object.freeze({ label: "Brown", hex: "#774c29", targetCode: "w", boxCode: "W", playerCode: "0" }),
+    orange: Object.freeze({ label: "Orange", hex: "#f97915", targetCode: "o", boxCode: "O", playerCode: "!" }),
+    yellow: Object.freeze({ label: "Yellow", hex: "#f9bc18", targetCode: "y", boxCode: "Y", playerCode: "?" }),
+    lime: Object.freeze({ label: "Lime", hex: "#a3cb16", targetCode: "l", boxCode: "L", playerCode: "%" }),
+    pink: Object.freeze({ label: "Pink", hex: "#f16e8f", targetCode: "f", boxCode: "F", playerCode: "&" }),
+    cream: Object.freeze({ label: "Cream", hex: "#ece6d9", targetCode: "i", boxCode: "I", playerCode: "=" })
   });
   const GOAL_CHARS = new Set([".", "*", "+"]);
   const TEXT_CODES = new Map();
@@ -376,7 +376,7 @@
   window.BoxxyShareCodec = Object.freeze({ encode, decode, readLocation, buildUrl });
 })();
 
-/* BOXXY v164 — character renderer, game engine, fifteen sprite-based target colours, Level Maker and Rust/WASM solver adapter. */
+/* BOXXY v165 — character renderer, game engine, bright sprite-matched targets, Level Maker and Rust/WASM solver adapter. */
 (() => {
   "use strict";
 
