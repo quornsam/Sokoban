@@ -31,8 +31,10 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=166">
+<link rel="stylesheet" href="styles.css?v=169">
 <link rel="stylesheet" href="how-to-play.css?v=154">
+<link rel="preload" as="image" href="assets/ui/completion/happy-boxxy-sprites-1.png">
+<link rel="preload" as="image" href="assets/ui/completion/happy-boxxy-sprites-2.png">
 <link rel="preload" as="image" href="assets/board/board-atlas.png">
 <link rel="preload" as="image" href="assets/board/boxes/box-default-yellow.png">
 <link rel="preload" as="image" href="assets/board/goals/goal-red.png">
@@ -231,10 +233,7 @@
   <div class="modal-card complete-card" role="dialog" aria-modal="true" aria-labelledby="completeTitle">
     <button id="completeCloseBtn" class="complete-close" type="button" aria-label="Close congratulations">×</button>
     <div class="complete-art" aria-hidden="true">
-      <i class="complete-circle"></i>
-      <i class="complete-square"></i>
-      <i class="complete-line"></i>
-      <span>✓</span>
+      <div id="completeSprite" class="complete-sprite"></div>
     </div>
     <div class="complete-copy">
       <span class="complete-kicker">BAUHAUS COLLECTION</span>
@@ -590,7 +589,7 @@
 <audio id="bgMusic" src="assets/audio/cracked-ivory-drift.mp3" preload="auto" autoplay loop playsinline></audio>
 
 <script src="levels.js?v=143"></script>
-<script src="boxxy.js?v=168"></script>
+<script src="boxxy.js?v=169"></script>
 <script src="pack-builder.js?v=168"></script>
 <script src="how-to-play.js?v=153"></script>
 </body>

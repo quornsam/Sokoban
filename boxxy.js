@@ -1144,6 +1144,7 @@
   const completeTitle = document.getElementById("completeTitle");
   const completeKicker = modal?.querySelector(".complete-kicker");
   const completeCard = modal?.querySelector(".complete-card");
+  const completeSprite = document.getElementById("completeSprite");
   const nextBtn = document.getElementById("nextBtn");
   const completeCloseBtn = document.getElementById("completeCloseBtn");
   const nextBtnLabel = nextBtn?.querySelector("span");
@@ -1230,6 +1231,51 @@
   let completedLevels = new Set();
   let assistedLevels = new Set();
   let highestUnlockedLevel = 0;
+
+  const COMPLETION_SPRITE_SHEETS = Object.freeze([
+    "assets/ui/completion/happy-boxxy-sprites-1.png",
+    "assets/ui/completion/happy-boxxy-sprites-2.png"
+  ]);
+  const COMPLETION_SPRITES_PER_SHEET = 15;
+  const COMPLETION_SPRITE_COLUMNS = 5;
+  const COMPLETION_SPRITE_ROWS = 3;
+  let lastCompletionSpriteIndex = -1;
+
+  function preloadCompletionSpriteSheets() {
+    COMPLETION_SPRITE_SHEETS.forEach(src => {
+      const image = new Image();
+      image.decoding = "async";
+      image.src = src;
+    });
+  }
+
+  function randomCompletionSpriteIndex() {
+    const total = COMPLETION_SPRITE_SHEETS.length * COMPLETION_SPRITES_PER_SHEET;
+    if (total <= 1) return 0;
+    let candidate = Math.floor(Math.random() * total);
+    if (candidate === lastCompletionSpriteIndex) {
+      candidate = (candidate + 1 + Math.floor(Math.random() * (total - 1))) % total;
+    }
+    lastCompletionSpriteIndex = candidate;
+    return candidate;
+  }
+
+  function showRandomCompletionSprite() {
+    if (!completeSprite) return;
+    const absoluteIndex = randomCompletionSpriteIndex();
+    const sheetIndex = Math.floor(absoluteIndex / COMPLETION_SPRITES_PER_SHEET);
+    const localIndex = absoluteIndex % COMPLETION_SPRITES_PER_SHEET;
+    const column = localIndex % COMPLETION_SPRITE_COLUMNS;
+    const row = Math.floor(localIndex / COMPLETION_SPRITE_COLUMNS);
+    const x = COMPLETION_SPRITE_COLUMNS > 1 ? (column / (COMPLETION_SPRITE_COLUMNS - 1)) * 100 : 0;
+    const y = COMPLETION_SPRITE_ROWS > 1 ? (row / (COMPLETION_SPRITE_ROWS - 1)) * 100 : 0;
+
+    completeSprite.style.backgroundImage = `url("${COMPLETION_SPRITE_SHEETS[sheetIndex]}")`;
+    completeSprite.style.backgroundPosition = `${x}% ${y}%`;
+    completeSprite.dataset.spriteIndex = String(absoluteIndex + 1);
+  }
+
+  preloadCompletionSpriteSheets();
 
   function loadLevelProgress() {
     completedLevels = new Set();
@@ -1374,6 +1420,7 @@
     configureFinalCompletionActions();
 
     closeLevelPicker();
+    showRandomCompletionSprite();
     modal.hidden = false;
     burst();
     sfx.finish();
@@ -2597,6 +2644,7 @@
       }
     }
 
+    showRandomCompletionSprite();
     burst();
     sfx.finish();
     setTimeout(() => {

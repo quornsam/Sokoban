@@ -2658,3 +2658,26 @@ html.touch-ui .level-attire{
   .maker-goal-colour-controls>small{display:none}
   .maker-rainbow-description{white-space:normal}
 }
+
+
+/* BOXXY v169 — random completion artwork from Sam's supplied sprite sheets. */
+.complete-art{
+  display:grid;
+  place-items:center;
+  padding:8px;
+  background:#000;
+}
+.complete-sprite{
+  width:100%;
+  max-width:300px;
+  aspect-ratio:9/10;
+  background-repeat:no-repeat;
+  background-size:500% 300%;
+  background-position:0 0;
+  transform:translateZ(0);
+  backface-visibility:hidden;
+}
+@media(max-width:560px){
+  .complete-art{padding:4px}
+  .complete-sprite{width:100%;max-width:none}
+}
