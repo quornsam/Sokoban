@@ -2681,3 +2681,80 @@ html.touch-ui .level-attire{
   .complete-art{padding:4px}
   .complete-sprite{width:100%;max-width:none}
 }
+
+/* BOXXY v170 — larger, centred ordinary level-complete artwork on phones only. */
+@media (max-width:700px){
+  .complete-card:not(.final-complete){
+    width:min(430px,calc(100vw - 16px));
+    max-height:calc(100dvh - 16px);
+    grid-template-columns:1fr;
+    grid-template-rows:clamp(190px,36dvh,270px) minmax(0,auto);
+    overflow:hidden;
+  }
+
+  .complete-card:not(.final-complete) .complete-art{
+    width:100%;
+    min-height:0;
+    height:auto;
+    padding:6px 10px 2px;
+    border-right:0;
+    border-bottom:2px solid var(--ink);
+    place-items:center;
+  }
+
+  .complete-card:not(.final-complete) .complete-sprite{
+    width:auto;
+    height:100%;
+    max-width:100%;
+    max-height:100%;
+    aspect-ratio:9/10;
+    margin:auto;
+  }
+
+  .complete-card:not(.final-complete) .complete-copy{
+    justify-content:flex-start;
+    padding:16px 44px 17px 18px;
+    overflow:auto;
+  }
+
+  .complete-card:not(.final-complete) .complete-kicker{
+    font-size:8px;
+  }
+
+  .complete-card:not(.final-complete) h2{
+    margin:7px 0 8px;
+    font-size:clamp(30px,10vw,42px);
+  }
+
+  .complete-card:not(.final-complete) p{
+    margin-bottom:13px;
+    font-size:11.5px;
+    line-height:1.28;
+  }
+}
+
+/* Short landscape phones keep a side-by-side layout, but give the art real prominence. */
+@media (max-width:950px) and (max-height:500px){
+  .complete-card:not(.final-complete){
+    width:min(680px,calc(100vw - 16px));
+    max-height:calc(100dvh - 16px);
+    grid-template-columns:minmax(190px,42%) minmax(0,1fr);
+    grid-template-rows:1fr;
+  }
+
+  .complete-card:not(.final-complete) .complete-art{
+    height:100%;
+    min-height:220px;
+    padding:5px;
+    border-right:2px solid var(--ink);
+    border-bottom:0;
+  }
+
+  .complete-card:not(.final-complete) .complete-sprite{
+    height:min(94%,260px);
+  }
+
+  .complete-card:not(.final-complete) .complete-copy{
+    padding:13px 43px 13px 15px;
+  }
+}
