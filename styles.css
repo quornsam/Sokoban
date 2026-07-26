@@ -2758,3 +2758,35 @@ html.touch-ui .level-attire{
     padding:13px 43px 13px 15px;
   }
 }
+
+
+/* BOXXY v171 — individually cropped completion artwork.
+   Contain the whole asset and centre it at every responsive size. */
+.complete-sprite{
+  aspect-ratio:1/1;
+  background-size:contain;
+  background-position:center;
+  background-repeat:no-repeat;
+}
+@media (max-width:700px){
+  .complete-card:not(.final-complete) .complete-sprite{
+    aspect-ratio:1/1;
+    background-size:contain;
+    background-position:center;
+  }
+}
+
+
+/* BOXXY v172 — exact canvas rendering from one 6 × 5 sprite sheet. */
+.complete-sprite{
+  display:block;
+  aspect-ratio:1/1;
+  background:#000;
+  background-image:none!important;
+}
+@media (max-width:700px){
+  .complete-card:not(.final-complete) .complete-sprite{
+    aspect-ratio:1/1;
+    background:#000;
+  }
+}

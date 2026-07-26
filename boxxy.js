@@ -1232,29 +1232,68 @@
   let assistedLevels = new Set();
   let highestUnlockedLevel = 0;
 
-  const COMPLETION_SPRITE_SHEETS = Object.freeze([
-    "assets/ui/completion/happy-boxxy-sprites-1.png",
-    "assets/ui/completion/happy-boxxy-sprites-2.png"
-  ]);
-  const COMPLETION_SPRITES_PER_SHEET = 15;
-  const COMPLETION_SPRITE_COLUMNS = 5;
-  const COMPLETION_SPRITE_ROWS = 3;
+  /* BOXXY v172 — one exact 6 × 5 completion sprite sheet.
+     The chosen 350 × 350 cell is copied to a canvas, so there is no CSS
+     background-position rounding and no collection of 30 separate files. */
+  const COMPLETION_SPRITE_SHEET = "assets/ui/completion/happy-sprites-350-grid.png";
+  const COMPLETION_SPRITE_COLUMNS = 6;
+  const COMPLETION_SPRITE_ROWS = 5;
+  const COMPLETION_SPRITE_TOTAL = COMPLETION_SPRITE_COLUMNS * COMPLETION_SPRITE_ROWS;
+  const COMPLETION_SPRITE_CELL = 350;
+  const completionSpriteSheet = new Image();
+  let completionSpriteSheetReady = false;
+  let pendingCompletionSpriteIndex = 0;
   let lastCompletionSpriteIndex = -1;
 
-  function preloadCompletionSpriteSheets() {
-    COMPLETION_SPRITE_SHEETS.forEach(src => {
-      const image = new Image();
-      image.decoding = "async";
-      image.src = src;
-    });
+  function completionSpriteContext() {
+    if (!completeSprite || typeof completeSprite.getContext !== "function") return null;
+    return completeSprite.getContext("2d", { alpha: false });
   }
 
+  function paintCompletionSprite(spriteIndex) {
+    const context = completionSpriteContext();
+    if (!context) return;
+
+    pendingCompletionSpriteIndex = spriteIndex;
+    context.save();
+    context.fillStyle = "#000";
+    context.fillRect(0, 0, COMPLETION_SPRITE_CELL, COMPLETION_SPRITE_CELL);
+
+    if (completionSpriteSheetReady) {
+      const column = spriteIndex % COMPLETION_SPRITE_COLUMNS;
+      const row = Math.floor(spriteIndex / COMPLETION_SPRITE_COLUMNS);
+      context.imageSmoothingEnabled = true;
+      context.imageSmoothingQuality = "high";
+      context.drawImage(
+        completionSpriteSheet,
+        column * COMPLETION_SPRITE_CELL,
+        row * COMPLETION_SPRITE_CELL,
+        COMPLETION_SPRITE_CELL,
+        COMPLETION_SPRITE_CELL,
+        0,
+        0,
+        COMPLETION_SPRITE_CELL,
+        COMPLETION_SPRITE_CELL
+      );
+    }
+    context.restore();
+  }
+
+  completionSpriteSheet.decoding = "async";
+  completionSpriteSheet.addEventListener("load", () => {
+    completionSpriteSheetReady = true;
+    paintCompletionSprite(pendingCompletionSpriteIndex);
+  }, { once: true });
+  completionSpriteSheet.addEventListener("error", () => {
+    completionSpriteSheetReady = false;
+  }, { once: true });
+  completionSpriteSheet.src = COMPLETION_SPRITE_SHEET;
+
   function randomCompletionSpriteIndex() {
-    const total = COMPLETION_SPRITE_SHEETS.length * COMPLETION_SPRITES_PER_SHEET;
-    if (total <= 1) return 0;
-    let candidate = Math.floor(Math.random() * total);
+    if (COMPLETION_SPRITE_TOTAL <= 1) return 0;
+    let candidate = Math.floor(Math.random() * COMPLETION_SPRITE_TOTAL);
     if (candidate === lastCompletionSpriteIndex) {
-      candidate = (candidate + 1 + Math.floor(Math.random() * (total - 1))) % total;
+      candidate = (candidate + 1 + Math.floor(Math.random() * (COMPLETION_SPRITE_TOTAL - 1))) % COMPLETION_SPRITE_TOTAL;
     }
     lastCompletionSpriteIndex = candidate;
     return candidate;
@@ -1262,20 +1301,10 @@
 
   function showRandomCompletionSprite() {
     if (!completeSprite) return;
-    const absoluteIndex = randomCompletionSpriteIndex();
-    const sheetIndex = Math.floor(absoluteIndex / COMPLETION_SPRITES_PER_SHEET);
-    const localIndex = absoluteIndex % COMPLETION_SPRITES_PER_SHEET;
-    const column = localIndex % COMPLETION_SPRITE_COLUMNS;
-    const row = Math.floor(localIndex / COMPLETION_SPRITE_COLUMNS);
-    const x = COMPLETION_SPRITE_COLUMNS > 1 ? (column / (COMPLETION_SPRITE_COLUMNS - 1)) * 100 : 0;
-    const y = COMPLETION_SPRITE_ROWS > 1 ? (row / (COMPLETION_SPRITE_ROWS - 1)) * 100 : 0;
-
-    completeSprite.style.backgroundImage = `url("${COMPLETION_SPRITE_SHEETS[sheetIndex]}")`;
-    completeSprite.style.backgroundPosition = `${x}% ${y}%`;
-    completeSprite.dataset.spriteIndex = String(absoluteIndex + 1);
+    const spriteIndex = randomCompletionSpriteIndex();
+    paintCompletionSprite(spriteIndex);
+    completeSprite.dataset.spriteIndex = String(spriteIndex + 1);
   }
-
-  preloadCompletionSpriteSheets();
 
   function loadLevelProgress() {
     completedLevels = new Set();
