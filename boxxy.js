@@ -33,6 +33,7 @@
   });
 })();
 
+/* BOXXY v174 — cookieless PostHog analytics; no autocapture or session recording. */
 /* BOXXY v168 — Rainbow Mode with pack-preview and walkthrough colour preservation. */
 (() => {
   "use strict";
@@ -1232,6 +1233,50 @@
   let assistedLevels = new Set();
   let highestUnlockedLevel = 0;
 
+  /* BOXXY v174 — deliberately limited, anonymous gameplay analytics.
+     No puzzle layouts, typed names, email addresses or editor content are sent. */
+  const BOXXY_ANALYTICS_VERSION = 174;
+
+  function boxxyAnalyticsOrientation() {
+    const type = String(window.screen?.orientation?.type || "");
+    if (type.startsWith("portrait")) return "portrait";
+    if (type.startsWith("landscape")) return "landscape";
+    return window.innerWidth >= window.innerHeight ? "landscape" : "portrait";
+  }
+
+  function boxxyAnalyticsInputMode() {
+    return window.matchMedia?.("(pointer: coarse)")?.matches ? "touch" : "pointer";
+  }
+
+  function captureBoxxyAnalytics(eventName, properties = {}) {
+    try {
+      if (!window.posthog || typeof window.posthog.capture !== "function") return;
+      window.posthog.capture(eventName, {
+        game: "BOXXY",
+        game_version: BOXXY_ANALYTICS_VERSION,
+        orientation: boxxyAnalyticsOrientation(),
+        input_mode: boxxyAnalyticsInputMode(),
+        ...properties
+      });
+    } catch (_) {
+      /* Analytics must never interfere with the game. */
+    }
+  }
+
+  function currentLevelAnalytics(properties = {}) {
+    return {
+      pack_id: String(activePack?.id || ""),
+      pack_name: String(activePack?.displayName || activePack?.title || ""),
+      level_number: Number(levelIndex) + 1,
+      level_count: Number(LEVELS?.length || 0),
+      ...properties
+    };
+  }
+
+  function elapsedLevelSeconds() {
+    return startedAt ? Math.max(0, Math.round((Date.now() - startedAt) / 1000)) : 0;
+  }
+
   /* BOXXY v173 — one exact 6 × 5 completion sprite sheet.
      The chosen 350 × 350 cell is copied to a canvas, so there is no CSS
      background-position rounding and no collection of 30 separate files. */
@@ -1542,6 +1587,15 @@
       if (modal) modal.hidden = true;
       return;
     }
+
+    captureBoxxyAnalytics("pack_selected", {
+      from_pack_id: String(activePack?.id || ""),
+      from_pack_name: String(activePack?.displayName || activePack?.title || ""),
+      from_level_number: Number(levelIndex) + 1,
+      to_pack_id: String(nextPack.id || ""),
+      to_pack_name: String(nextPack.displayName || nextPack.title || ""),
+      to_level_count: Number(nextPack.levels.length || 0)
+    });
 
     localStorage.setItem(currentLevelStorageKey(), String(levelIndex));
     activePack = nextPack;
@@ -2363,6 +2417,9 @@
     scheduleIdle();
     showCharacterThought(null, !thoughtReady);
     refreshLevelButtons();
+    captureBoxxyAnalytics("level_started", currentLevelAnalytics({
+      guided_solve_start: Boolean(preserveAutoplay)
+    }));
   }
 
   function loadMakerTest(layoutRows, attachedSolution = "", options = {}) {
@@ -2625,7 +2682,9 @@
       const packsWereUnlocked = additionalPacksUnlocked();
       const bestKey = currentBestStorageKey(levelData);
       const oldBest = Number(readBest(levelData) || 0);
-      if (!solvedWithWalkthrough && (!oldBest || moves < oldBest)) localStorage.setItem(bestKey, moves);
+      const firstCompletion = !completedLevels.has(levelIndex);
+      const isNewBest = !solvedWithWalkthrough && (!oldBest || moves < oldBest);
+      if (isNewBest) localStorage.setItem(bestKey, moves);
 
       completedLevels.add(levelIndex);
       if (solvedWithWalkthrough) assistedLevels.add(levelIndex);
@@ -2633,6 +2692,16 @@
       highestUnlockedLevel = Math.max(highestUnlockedLevel, Math.min(levelIndex + 1, LEVELS.length - 1));
       saveLevelProgress();
       refreshLevelButtons();
+      captureBoxxyAnalytics("level_completed", currentLevelAnalytics({
+        moves: Number(moves),
+        pushes: Number(pushes),
+        duration_seconds: elapsedLevelSeconds(),
+        first_completion: firstCompletion,
+        guided_solve: Boolean(solvedWithWalkthrough),
+        new_best: Boolean(isNewBest),
+        previous_best_moves: oldBest || null,
+        pack_completed: levelIndex === LEVELS.length - 1
+      }));
 
       if (levelIndex === LEVELS.length - 1) {
         const canUnlockAdditionalPacks = UNLOCK_SOURCE_PACK_IDS.has(activePack.id);
@@ -2844,7 +2913,15 @@
     } else if (event.key === "r" || event.key === "R") {
       event.preventDefault();
       if (makerTesting || sharedPuzzleMode) restartMakerTest();
-      else loadLevel(levelIndex);
+      else {
+        captureBoxxyAnalytics("level_restarted", currentLevelAnalytics({
+          restart_method: "keyboard",
+          moves_before_restart: Number(moves),
+          pushes_before_restart: Number(pushes),
+          elapsed_seconds: elapsedLevelSeconds()
+        }));
+        loadLevel(levelIndex);
+      }
     }
   });
 
@@ -2951,7 +3028,15 @@
   savePositionBtn?.addEventListener("click", saveOrRestorePosition);
   restartBtn.addEventListener("click", () => {
     if (makerTesting || sharedPuzzleMode) restartMakerTest();
-    else loadLevel(levelIndex);
+    else {
+      captureBoxxyAnalytics("level_restarted", currentLevelAnalytics({
+        restart_method: "button",
+        moves_before_restart: Number(moves),
+        pushes_before_restart: Number(pushes),
+        elapsed_seconds: elapsedLevelSeconds()
+      }));
+      loadLevel(levelIndex);
+    }
   });
   soundBtn.addEventListener("click", () => {
     soundOn = !soundOn;
@@ -3029,6 +3114,9 @@
       openLevelPicker();
       return;
     }
+    captureBoxxyAnalytics("next_level_pressed", currentLevelAnalytics({
+      next_level_number: Number(levelIndex) + 2
+    }));
     loadLevel(levelIndex + 1);
   });
 
@@ -3120,6 +3208,11 @@
       });
       if (!result?.ok) loadLevel(levelIndex);
     } else {
+      captureBoxxyAnalytics("game_opened", {
+        initial_pack_id: String(activePack?.id || ""),
+        initial_pack_name: String(activePack?.displayName || activePack?.title || ""),
+        initial_level_number: Number(levelIndex) + 1
+      });
       loadLevel(levelIndex);
       if (SHARED_PUZZLE_PAYLOAD && !SHARED_PUZZLE_PAYLOAD.ok && thoughtText) {
         thoughtText.textContent = SHARED_PUZZLE_PAYLOAD.error || "That shared puzzle link could not be read.";

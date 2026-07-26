@@ -113,9 +113,12 @@ a{color:var(--blue);font-weight:850}
 </div>
 
 <section>
-  <h2>Privacy and progress</h2>
-  <p>BOXXY does not use user accounts, advertising trackers or analytics, and Sam Cornwell does not receive your game progress or settings.</p>
-  <p>Your progress and settings are stored locally by your browser on your own device. Clearing browser data, changing browser or changing device may remove that information. BOXXY cannot see it, transfer it or restore it for you.</p>
+  <h2>Privacy, analytics and progress</h2>
+  <p>BOXXY does not use user accounts, advertising or session recordings, and it does not ask PostHog to identify you.</p>
+  <p>BOXXY uses PostHog, hosted in the European Union, to measure visits and a small set of gameplay events: opening the game, choosing a puzzle pack, starting or restarting a level, completing a level and pressing next level. A completion event may include the puzzle pack, level number, moves, pushes, time taken, whether a guided solve was used and screen orientation.</p>
+  <p>PostHog is configured in cookieless mode. It does not store BOXXY analytics identifiers in cookies, local storage or session storage. It estimates visitors using a privacy-preserving hash calculated on PostHog's servers. BOXXY does not send puzzle layouts, puzzle links, typed puzzle names, email addresses or other entered text. URL query strings and fragments are removed before analytics events are sent.</p>
+  <p>Your game progress and settings remain stored locally by your browser on your own device and are not sent as analytics. Clearing browser data, changing browser or changing device may remove that information. BOXXY cannot see it, transfer it or restore it for you.</p>
+  <p>PostHog receives the ordinary technical information needed to deliver and measure a web request, such as browser and device information, page path and referrer. BOXXY asks PostHog to respect supported Do Not Track signals. You can read <a href="https://posthog.com/privacy" target="_blank" rel="noopener">PostHog's privacy information</a>.</p>
   <p>If you contact BOXXY by email or make a prize claim, the information you choose to send will be used to deal with that message or claim.</p>
 </section>
 
@@ -135,7 +138,7 @@ a{color:var(--blue);font-weight:850}
   <h2>Contact</h2>
   <p>For legal, privacy, copyright or permission enquiries, email <a href="mailto:archedroof+boxxy@gmail.com">archedroof+boxxy@gmail.com</a>.</p>
   <p><a class="back-link" href="index.html">Return to BOXXY</a></p>
-  <p class="version">BOXXY VERSION 170</p>
+  <p class="version">BOXXY VERSION 174</p>
 </section>
 </main>
 </body>
