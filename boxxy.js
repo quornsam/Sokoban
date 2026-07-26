@@ -1232,7 +1232,7 @@
   let assistedLevels = new Set();
   let highestUnlockedLevel = 0;
 
-  /* BOXXY v172 — one exact 6 × 5 completion sprite sheet.
+  /* BOXXY v173 — one exact 6 × 5 completion sprite sheet.
      The chosen 350 × 350 cell is copied to a canvas, so there is no CSS
      background-position rounding and no collection of 30 separate files. */
   const COMPLETION_SPRITE_SHEET = "assets/ui/completion/happy-sprites-350-grid.png";
@@ -2159,7 +2159,7 @@
     walk() { noise(.035, .016, 1400); tone(220, .045, "triangle", .018, 0, 170); },
     push() { noise(.07, .03, 650); tone(112, .1, "triangle", .04, 0, 68); },
     goal() { tone(560, .08, "triangle", .03); tone(840, .13, "triangle", .035, .07); },
-    bump() { noise(.045, .025, 420); tone(88, .055, "square", .014, 0, 65); },
+    bump() { tone(148, .12, "sine", .032, 0, 78); },
     idle() { tone(510, .07, "sine", .012); tone(620, .09, "sine", .012, .08); },
     finish() { tone(392, .1, "triangle", .035); tone(523, .12, "triangle", .035, .12); tone(784, .18, "triangle", .04, .27); }
   };
