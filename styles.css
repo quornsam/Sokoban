@@ -3664,3 +3664,163 @@ html.touch-ui .level-attire{
     min-height:48px;
   }
 }
+
+
+/* BOXXY v183 — compact Level Maker controls and dedicated editor full screen. */
+.maker-head-actions{
+  display:flex;
+  flex:none;
+  align-items:center;
+  gap:7px;
+}
+.maker-fullscreen{
+  min-height:36px;
+  padding:0 11px;
+  border:2px solid var(--ink);
+  background:var(--blue);
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  font-size:8px;
+  font-weight:950;
+  letter-spacing:.07em;
+  white-space:nowrap;
+}
+.maker-fullscreen span{font-size:17px;line-height:1}
+.maker-fullscreen:active{transform:translate(2px,2px)}
+
+.maker-toolbar{
+  grid-template-columns:repeat(8,minmax(0,1fr));
+  gap:4px;
+  margin-bottom:6px;
+}
+.maker-toolbar button{
+  min-height:34px;
+  padding:3px 4px;
+  gap:4px;
+  font-size:7px;
+  line-height:1.05;
+  letter-spacing:.025em;
+}
+.maker-toolbar button.selected{
+  box-shadow:2px 2px 0 var(--ink);
+  transform:translate(-1px,-1px);
+}
+.maker-tool-icon{width:21px;height:21px}
+.maker-tool-icon.player::before,.maker-tool-icon.playergoal::before{width:10px;height:15px}
+.maker-tool-icon.box::before,.maker-tool-icon.boxgoal::before{inset:4px;border-width:1px}
+.maker-tool-icon.goal::before,.maker-tool-icon.boxgoal::after,.maker-tool-icon.playergoal::after{width:14px;height:14px;border-width:2px}
+
+.maker-goal-palette{
+  min-height:30px;
+  gap:7px;
+  margin:0 0 6px;
+  padding:4px 6px;
+}
+.maker-goal-palette.rainbow-off{
+  width:max-content;
+  max-width:100%;
+  align-self:flex-start;
+}
+.maker-goal-palette.rainbow-on{width:100%}
+.maker-rainbow-inline{gap:6px;padding-right:7px}
+.maker-rainbow-inline>strong,.maker-goal-colour-controls>strong{font-size:7px}
+.maker-rainbow-switch{gap:4px}
+.maker-rainbow-switch span{width:34px;height:19px}
+.maker-rainbow-switch span::after{width:11px;height:11px}
+.maker-rainbow-switch input:checked+span::after{transform:translateX(15px)}
+.maker-rainbow-switch b{min-width:22px;font-size:7px}
+.maker-goal-colour-controls{gap:6px}
+.maker-goal-colour-controls>small{display:none}
+.maker-goal-swatches{gap:2px}
+.maker-goal-swatches button{height:21px;padding:2px}
+.maker-rainbow-description{
+  position:absolute!important;
+  width:1px!important;
+  height:1px!important;
+  margin:-1px!important;
+  padding:0!important;
+  overflow:hidden!important;
+  clip:rect(0 0 0 0)!important;
+  clip-path:inset(50%)!important;
+  white-space:nowrap!important;
+  border:0!important;
+}
+
+.maker-existing-strip{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr);
+  align-items:center;
+  gap:7px;
+  margin-bottom:6px;
+  padding:4px 6px;
+}
+.maker-existing-strip h3{margin:0;white-space:nowrap;font-size:8px}
+.maker-existing-row{grid-template-columns:minmax(120px,.7fr) minmax(155px,1.3fr) auto;gap:4px}
+.maker-existing-row select,.maker-existing-row button{height:27px;font-size:8px}
+.maker-existing-row button{padding:0 9px}
+
+body.maker-editor-fullscreen{overflow:hidden}
+.maker-modal.maker-fullscreen-fallback{
+  position:fixed;
+  inset:0;
+  width:100vw;
+  height:100dvh;
+  padding:0;
+  overflow:hidden;
+  place-items:stretch;
+  background:var(--paper2);
+  backdrop-filter:none;
+}
+.maker-modal.maker-fullscreen-fallback .maker-card,
+.maker-card:fullscreen,
+.maker-card:-webkit-full-screen{
+  width:100vw;
+  height:100dvh;
+  max-width:none;
+  max-height:none;
+  margin:0;
+  padding:10px;
+  overflow:hidden;
+  border:0;
+  box-shadow:none;
+  background:var(--paper2);
+}
+.maker-modal.maker-fullscreen-fallback .maker-layout,
+.maker-card:fullscreen .maker-layout,
+.maker-card:-webkit-full-screen .maker-layout{
+  min-height:0;
+}
+.maker-modal.maker-fullscreen-fallback .maker-head p,
+.maker-card:fullscreen .maker-head p,
+.maker-card:-webkit-full-screen .maker-head p{display:none}
+.maker-modal.maker-fullscreen-fallback .maker-head,
+.maker-card:fullscreen .maker-head,
+.maker-card:-webkit-full-screen .maker-head{padding-bottom:4px}
+
+@media(max-width:1120px){
+  .maker-toolbar{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .maker-toolbar button{min-height:31px}
+  .maker-existing-strip{grid-template-columns:1fr}
+  .maker-existing-strip h3{display:none}
+}
+@media(max-width:760px){
+  .maker-head-actions{gap:4px}
+  .maker-fullscreen{min-height:34px;padding:0 8px}
+  .maker-fullscreen b{display:none}
+  .maker-toolbar{grid-template-columns:repeat(4,minmax(0,1fr));gap:3px}
+  .maker-toolbar button{min-height:30px;padding:2px;font-size:6.5px}
+  .maker-tool-icon{width:18px;height:18px}
+  .maker-goal-palette.rainbow-on{display:grid;grid-template-columns:auto 1fr;align-items:center}
+  .maker-goal-colour-controls{grid-template-columns:1fr}
+  .maker-goal-colour-controls>strong{display:none}
+  .maker-goal-swatches{grid-template-columns:repeat(8,minmax(18px,1fr))}
+  .maker-modal.maker-fullscreen-fallback,
+  .maker-card:fullscreen,
+  .maker-card:-webkit-full-screen{overflow:auto}
+  .maker-modal.maker-fullscreen-fallback .maker-card,
+  .maker-card:fullscreen,
+  .maker-card:-webkit-full-screen{height:auto;min-height:100dvh}
+}

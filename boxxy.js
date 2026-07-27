@@ -1433,7 +1433,7 @@
 
   /* BOXXY v175 — deliberately limited, anonymous gameplay analytics.
      No puzzle layouts, typed names, email addresses or editor content are sent. */
-  const BOXXY_ANALYTICS_VERSION = 182;
+  const BOXXY_ANALYTICS_VERSION = 183;
 
   function boxxyAnalyticsOrientation() {
     const type = String(window.screen?.orientation?.type || "");
@@ -3729,6 +3729,8 @@
   "use strict";
 
   const modal = document.getElementById("levelMakerModal");
+  const makerCard = modal?.querySelector(".maker-card");
+  const makerFullscreenBtn = document.getElementById("makerFullscreenBtn");
   const gridEl = document.getElementById("makerGrid");
   const gridShell = gridEl?.closest(".maker-grid-shell");
   const widthInput = document.getElementById("makerWidth");
@@ -3891,6 +3893,75 @@
       fitGridToShell();
       fitFrame = requestAnimationFrame(fitGridToShell);
     });
+  }
+
+  function makerFullscreenElement() {
+    return document.fullscreenElement || document.webkitFullscreenElement || null;
+  }
+
+  function makerUsesNativeFullscreen() {
+    const active = makerFullscreenElement();
+    return Boolean(active && makerCard && (active === makerCard || makerCard.contains(active)));
+  }
+
+  function makerUsesFallbackFullscreen() {
+    return modal.classList.contains("maker-fullscreen-fallback");
+  }
+
+  function makerIsFullscreen() {
+    return makerUsesNativeFullscreen() || makerUsesFallbackFullscreen();
+  }
+
+  function updateMakerFullscreenButton() {
+    if (!makerFullscreenBtn) return;
+    const active = makerIsFullscreen();
+    const icon = makerFullscreenBtn.querySelector("span");
+    const label = makerFullscreenBtn.querySelector("b");
+    if (icon) icon.textContent = active ? "⤢" : "⛶";
+    if (label) label.textContent = active ? "EXIT" : "FULL SCREEN";
+    makerFullscreenBtn.setAttribute("aria-label", active ? "Exit full screen" : "Enter full screen");
+    makerFullscreenBtn.setAttribute("aria-pressed", String(active));
+    makerFullscreenBtn.title = active ? "Exit full screen" : "Enter full screen";
+  }
+
+  function setMakerFallbackFullscreen(active) {
+    modal.classList.toggle("maker-fullscreen-fallback", active);
+    document.body.classList.toggle("maker-editor-fullscreen", active);
+    updateMakerFullscreenButton();
+    scheduleGridFit();
+  }
+
+  async function exitMakerFullscreen() {
+    setMakerFallbackFullscreen(false);
+    if (!makerUsesNativeFullscreen()) return;
+    const exit = document.exitFullscreen || document.webkitExitFullscreen;
+    if (!exit) return;
+    try {
+      await exit.call(document);
+    } catch (error) {
+      console.warn("The Level Maker could not leave full screen.", error);
+    }
+  }
+
+  async function toggleMakerFullscreen() {
+    if (!makerCard) return;
+    if (makerIsFullscreen()) {
+      await exitMakerFullscreen();
+      return;
+    }
+
+    const enter = makerCard.requestFullscreen || makerCard.webkitRequestFullscreen;
+    if (enter) {
+      try {
+        await enter.call(makerCard);
+        updateMakerFullscreenButton();
+        scheduleGridFit();
+        return;
+      } catch (error) {
+        console.warn("Native Level Maker full screen was unavailable; using the viewport fallback.", error);
+      }
+    }
+    setMakerFallbackFullscreen(true);
   }
 
   function setStatus(message, type = "") {
@@ -6059,6 +6130,7 @@
     exitTestBtn.hidden = !window.BoxxyGameAPI?.isMakerTesting?.();
     renderSavedLevels(activeSaveId);
     populateExistingPacks(existingPackSelect?.value);
+    updateMakerFullscreenButton();
     scheduleGridFit();
     closeBtn.focus({ preventScroll: true });
   }
@@ -6066,6 +6138,7 @@
   function closeMaker() {
     if (solverRunning) cancelSolverSearch();
     if (solverModal) solverModal.hidden = true;
+    exitMakerFullscreen();
     modal.hidden = true;
   }
 
@@ -6276,6 +6349,7 @@
     closeMaker();
   });
 
+  makerFullscreenBtn?.addEventListener("click", toggleMakerFullscreen);
   closeBtn.addEventListener("click", closeMaker);
   modal.addEventListener("click", event => {
     if (event.target === modal) closeMaker();
@@ -6406,6 +6480,14 @@
     closeMaker();
   });
 
+  document.addEventListener("fullscreenchange", () => {
+    updateMakerFullscreenButton();
+    scheduleGridFit();
+  });
+  document.addEventListener("webkitfullscreenchange", () => {
+    updateMakerFullscreenButton();
+    scheduleGridFit();
+  });
   window.addEventListener("boxxy-maker-return", openMaker);
   window.addEventListener("resize", scheduleGridFit);
   window.addEventListener("orientationchange", scheduleGridFit);
