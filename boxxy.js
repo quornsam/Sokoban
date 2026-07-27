@@ -877,14 +877,16 @@
     microban: "Microban",
     chrysalis: "Chrysalis Variations",
     chessboards: "Small Chessboards",
-    haikemono: "Haikemono"
+    haikemono: "Haikemono",
+    exponentially: "Exponentially"
   });
   const PACK_COLLECTION_HEADER_HTML = Object.freeze({
     "boxxy-original-puzzle-pack-of-50-levels": "BOXXY<br>ORIGINALS",
     microban: "MICROBAN",
     chrysalis: "CHRYSALIS<br>VARIATIONS",
     chessboards: "SMALL<br>CHESSBOARDS",
-    haikemono: "HAIKEMONO"
+    haikemono: "HAIKEMONO",
+    exponentially: "EXPONENTIALLY"
   });
 
   function packCollectionLabel(pack) {
@@ -1431,7 +1433,7 @@
 
   /* BOXXY v175 — deliberately limited, anonymous gameplay analytics.
      No puzzle layouts, typed names, email addresses or editor content are sent. */
-  const BOXXY_ANALYTICS_VERSION = 180;
+  const BOXXY_ANALYTICS_VERSION = 182;
 
   function boxxyAnalyticsOrientation() {
     const type = String(window.screen?.orientation?.type || "");

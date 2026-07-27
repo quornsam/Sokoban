@@ -616,6 +616,7 @@ body.maker-testing .level-picker{display:none!important}
 .pack-green .final-pack-art{background:var(--green);color:#fff}
 .pack-blue .final-pack-art{background:var(--blue);color:#fff}
 .pack-yellow .final-pack-art{background:var(--yellow)}
+.pack-purple .final-pack-art{background:#8e44ad;color:#fff}
 .final-pack-name{display:block;padding:9px 8px 8px;font-size:10px;line-height:1.08;font-weight:950;letter-spacing:.04em}
 .final-pack-name small{display:block;margin-top:4px;font-size:8px;letter-spacing:.12em;font-weight:900;color:#6f675d}
 .final-pack-status{min-height:1.2em!important;margin:9px 0 0!important;max-width:none!important;font-size:10px!important;line-height:1.25!important;font-weight:800!important;color:#655d53}
@@ -1586,6 +1587,10 @@ html.ios-standalone .app{
 .complete-card.final-complete .pack-yellow .final-pack-art{
   background:var(--yellow);
   color:var(--ink);
+}
+.complete-card.final-complete .pack-purple .final-pack-art{
+  background:#8e44ad;
+  color:#fff;
 }
 .complete-card.final-complete .pack-black .final-pack-art{
   background:var(--ink);
