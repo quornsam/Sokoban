@@ -872,6 +872,37 @@
         levels: window.SOKOBAN_LEVELS || []
       }];
   const PACK_BY_ID = new Map(PACKS.map(pack => [pack.id, pack]));
+  const PACK_COLLECTION_LABELS = Object.freeze({
+    "boxxy-original-puzzle-pack-of-50-levels": "Boxxy Originals",
+    microban: "Microban",
+    chrysalis: "Chrysalis Variations",
+    chessboards: "Small Chessboards",
+    haikemono: "Haikemono"
+  });
+  const PACK_COLLECTION_HEADER_HTML = Object.freeze({
+    "boxxy-original-puzzle-pack-of-50-levels": "BOXXY<br>ORIGINALS",
+    microban: "MICROBAN",
+    chrysalis: "CHRYSALIS<br>VARIATIONS",
+    chessboards: "SMALL<br>CHESSBOARDS",
+    haikemono: "HAIKEMONO"
+  });
+
+  function packCollectionLabel(pack) {
+    return PACK_COLLECTION_LABELS[pack?.id]
+      || String(pack?.displayName || pack?.title || "Puzzle Pack");
+  }
+
+  function packCollectionHeaderHtml(pack) {
+    if (PACK_COLLECTION_HEADER_HTML[pack?.id]) return PACK_COLLECTION_HEADER_HTML[pack.id];
+    const safeLabel = packCollectionLabel(pack).toUpperCase().replace(/[&<>"']/g, character => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      "\"": "&quot;",
+      "'": "&#39;"
+    })[character]);
+    return safeLabel.replace(/\s+/, "<br>");
+  }
   const SHARED_PUZZLE_PAYLOAD = window.BoxxyShareCodec?.readLocation?.() || null;
   const PRIMARY_PACK_ID = PACKS[0]?.id || "microban";
   const MICROBAN_PACK_ID = "microban";
@@ -1363,6 +1394,14 @@
   let timer = null;
   let idleTimer = null;
   let animTimer = null;
+
+  function updatePackCollectionLabels(pack = activePack) {
+    const label = packCollectionLabel(pack);
+    if (collectionName) collectionName.innerHTML = packCollectionHeaderHtml(pack);
+    document.querySelectorAll("[data-pack-context-label]").forEach(element => {
+      element.textContent = label.toUpperCase();
+    });
+  }
   let blockedPushHeld = false;
   let soundOn = true;
   let musicOn = localStorage.getItem("push-bauhaus-music") !== "off";
@@ -1601,10 +1640,7 @@
     currentTheme = "bauhaus";
     document.body.dataset.theme = "bauhaus";
     localStorage.setItem("boxxy-theme", "bauhaus");
-    if (collectionName) collectionName.innerHTML = "BAUHAUS<br>COLLECTION";
-    document.querySelectorAll(".complete-kicker").forEach(el => {
-      if (!el.closest("#levelMakerModal")) el.textContent = "BAUHAUS COLLECTION";
-    });
+    updatePackCollectionLabels(activePack);
     const wardrobeKicker = document.querySelector(".style-kicker");
     if (wardrobeKicker) wardrobeKicker.textContent = "BAUHAUS WARDROBE";
     themeChoices.forEach(button => button.classList.toggle("active", button.dataset.themeChoice === "bauhaus"));
@@ -1874,6 +1910,7 @@
 
   function openPackModal() {
     if (!packModal) return;
+    updatePackCollectionLabels(activePack);
     closeLevelPicker();
     buildPackSelectors();
     packModal.hidden = false;
@@ -1984,6 +2021,7 @@
 
   function openResetConfirm() {
     if (!resetConfirmModal) return;
+    updatePackCollectionLabels(activePack);
     resetConfirmModal.hidden = false;
   }
 
@@ -2764,7 +2802,7 @@
     completeCard?.classList.remove("final-complete");
     if (finalPackPicker) finalPackPicker.hidden = true;
     if (finalPackStatus) finalPackStatus.textContent = "";
-    if (completeKicker) completeKicker.textContent = activePack.title;
+    updatePackCollectionLabels(activePack);
     if (completeTitle) completeTitle.innerHTML = "PUZZLE<br>CLEARED";
     if (nextBtnLabel) nextBtnLabel.textContent = "NEXT LEVEL";
     if (nextBtnIcon) nextBtnIcon.textContent = "→";
@@ -3116,7 +3154,7 @@
         completeCard?.classList.remove("final-complete");
         if (finalPackPicker) finalPackPicker.hidden = true;
         if (finalPackStatus) finalPackStatus.textContent = solvedWithWalkthrough ? "Guided-solve completions are marked yellow in the level list." : "";
-        if (completeKicker) completeKicker.textContent = activePack.title;
+        if (completeKicker) completeKicker.textContent = packCollectionLabel(activePack).toUpperCase();
         if (completeTitle) completeTitle.innerHTML = solvedWithWalkthrough ? "GUIDED<br>SOLVE" : "PUZZLE<br>CLEARED";
         const statedMinimum = Number(levelData.minimum);
         let summary;

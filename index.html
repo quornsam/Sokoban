@@ -142,7 +142,7 @@
         </div>
         <span>PUSHBOX PUZZLE</span>
       </div>
-      <button id="collectionBtn" class="collection" type="button" aria-haspopup="dialog" aria-controls="packModal" title="Choose a puzzle pack"><b id="collectionName">BAUHAUS<br>COLLECTION</b><i></i><span id="levelCount">1 / 50</span></button>
+      <button id="collectionBtn" class="collection" type="button" aria-haspopup="dialog" aria-controls="packModal" title="Choose a puzzle pack"><b id="collectionName">BOXXY<br>ORIGINALS</b><i></i><span id="levelCount">1 / 50</span></button>
     </header>
 
     <section class="board-wrap">
@@ -263,7 +263,7 @@
 
 <div id="resetConfirmModal" class="modal reset-confirm-modal" hidden>
   <div class="modal-card reset-confirm-card" role="dialog" aria-modal="true" aria-labelledby="resetConfirmTitle">
-    <span class="complete-kicker">BAUHAUS COLLECTION</span>
+    <span class="complete-kicker" data-pack-context-label>BOXXY ORIGINALS</span>
     <h2 id="resetConfirmTitle">RESET<br>PROGRESS?</h2>
     <p>This will clear completed levels and send you back to level 1.</p>
     <div class="reset-confirm-actions">
@@ -277,7 +277,7 @@
   <section class="pack-card" role="dialog" aria-modal="true" aria-labelledby="packModalTitle">
     <header class="pack-head">
       <div>
-        <span class="complete-kicker">BAUHAUS COLLECTION</span>
+        <span class="complete-kicker" data-pack-context-label>BOXXY ORIGINALS</span>
         <h2 id="packModalTitle">PUZZLE PACKS</h2>
         <p>BOXXY Original and Microban are always available. Complete either 50-level pack to unlock the additional collections. Progress is stored separately for each pack.</p>
       </div>
@@ -297,7 +297,7 @@
       <canvas id="completeSprite" class="complete-sprite" width="350" height="350"></canvas>
     </div>
     <div class="complete-copy">
-      <span class="complete-kicker">BAUHAUS COLLECTION</span>
+      <span class="complete-kicker" data-pack-context-label>BOXXY ORIGINALS</span>
       <h2 id="completeTitle">PUZZLE<br>CLEARED</h2>
       <p id="completedPackHeading" class="completed-pack-heading"></p>
       <p id="completeText"></p>
