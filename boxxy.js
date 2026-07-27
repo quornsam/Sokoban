@@ -33,7 +33,7 @@
   });
 })();
 
-/* BOXXY v177 — move-primary pack records, animated totals and star award message. */
+/* BOXXY v178 — slower pack totals, target chimes, modal layout and pack-card fixes. */
 /* BOXXY v175 — reliable queued cookieless PostHog analytics; no autocapture or session recording. */
 /* BOXXY v168 — Rainbow Mode with pack-preview and walkthrough colour preservation. */
 (() => {
@@ -1295,7 +1295,6 @@
   const packTotalMoves = document.getElementById("packTotalMoves");
   const packTotalPushes = document.getElementById("packTotalPushes");
   const packTotalTime = document.getElementById("packTotalTime");
-  const packStatsNote = document.getElementById("packStatsNote");
   const completeTitle = document.getElementById("completeTitle");
   const completeKicker = modal?.querySelector(".complete-kicker");
   const completeCard = modal?.querySelector(".complete-card");
@@ -1391,7 +1390,7 @@
 
   /* BOXXY v175 — deliberately limited, anonymous gameplay analytics.
      No puzzle layouts, typed names, email addresses or editor content are sent. */
-  const BOXXY_ANALYTICS_VERSION = 177;
+  const BOXXY_ANALYTICS_VERSION = 178;
 
   function boxxyAnalyticsOrientation() {
     const type = String(window.screen?.orientation?.type || "");
@@ -1657,10 +1656,27 @@
     packStatsAnimationFrame = 0;
   }
 
+  function packStatBox(element) {
+    return element?.closest?.("div") || null;
+  }
+
+  function clearPackStatTargets() {
+    [packTotalMoves, packTotalPushes, packTotalTime].forEach(element => {
+      packStatBox(element)?.classList.remove("pack-stat-target-hit");
+    });
+  }
+
+  function markPackStatTarget(element, soundIndex) {
+    const box = packStatBox(element);
+    if (!box || box.classList.contains("pack-stat-target-hit")) return;
+    box.classList.add("pack-stat-target-hit");
+    sfx.packStatTarget(soundIndex);
+  }
+
   function hidePackCompletionStats() {
     stopPackStatsAnimation();
+    clearPackStatTargets();
     if (packCompletionStats) packCompletionStats.hidden = true;
-    if (packStatsNote) packStatsNote.hidden = true;
   }
 
   function hidePackStarAward() {
@@ -1678,9 +1694,9 @@
 
   function packCountDuration(target, kind) {
     const value = Math.max(0, Number(target) || 0);
-    const base = kind === "time" ? 820 : 650;
-    const scale = kind === "time" ? 285 : 245;
-    return Math.min(1800, Math.max(650, base + Math.log10(value + 1) * scale));
+    const base = kind === "time" ? 3300 : kind === "pushes" ? 3000 : 2700;
+    const scale = kind === "time" ? 190 : kind === "pushes" ? 180 : 170;
+    return Math.min(4200, Math.max(base, base + Math.log10(value + 1) * scale));
   }
 
   function setPackStatValues(totals, values) {
@@ -1691,33 +1707,52 @@
 
   function animatePackCompletionStats(totals) {
     stopPackStatsAnimation();
+    clearPackStatTargets();
     if (!totals) return;
+
+    const targets = [
+      { key: "moves", duration: packCountDuration(totals.moves, "moves"), available: Boolean(totals.moveLevels), element: packTotalMoves, soundIndex: 0 },
+      { key: "pushes", duration: packCountDuration(totals.pushes, "pushes"), available: Boolean(totals.pushLevels), element: packTotalPushes, soundIndex: 1 },
+      { key: "seconds", duration: packCountDuration(totals.seconds, "time"), available: Boolean(totals.timeLevels), element: packTotalTime, soundIndex: 2 }
+    ];
+
     if (window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches) {
       setPackStatValues(totals, totals);
+      targets.forEach(target => {
+        if (target.available) markPackStatTarget(target.element, target.soundIndex);
+      });
       return;
     }
 
-    const durations = {
-      moves: packCountDuration(totals.moves, "moves"),
-      pushes: packCountDuration(totals.pushes, "pushes"),
-      seconds: packCountDuration(totals.seconds, "time")
-    };
+    const reached = new Set();
     const start = performance.now();
     const easeOutCubic = value => 1 - Math.pow(1 - value, 3);
+    const maxDuration = Math.max(...targets.map(target => target.duration));
 
     const tick = now => {
       const elapsed = Math.max(0, now - start);
       const values = {
-        moves: totals.moves * easeOutCubic(Math.min(1, elapsed / durations.moves)),
-        pushes: totals.pushes * easeOutCubic(Math.min(1, elapsed / durations.pushes)),
-        seconds: totals.seconds * easeOutCubic(Math.min(1, elapsed / durations.seconds))
+        moves: totals.moves * easeOutCubic(Math.min(1, elapsed / targets[0].duration)),
+        pushes: totals.pushes * easeOutCubic(Math.min(1, elapsed / targets[1].duration)),
+        seconds: totals.seconds * easeOutCubic(Math.min(1, elapsed / targets[2].duration))
       };
       setPackStatValues(totals, values);
-      if (elapsed < Math.max(durations.moves, durations.pushes, durations.seconds)) {
+
+      targets.forEach(target => {
+        if (target.available && elapsed >= target.duration && !reached.has(target.key)) {
+          reached.add(target.key);
+          markPackStatTarget(target.element, target.soundIndex);
+        }
+      });
+
+      if (elapsed < maxDuration) {
         packStatsAnimationFrame = requestAnimationFrame(tick);
       } else {
         packStatsAnimationFrame = 0;
         setPackStatValues(totals, totals);
+        targets.forEach(target => {
+          if (target.available && !reached.has(target.key)) markPackStatTarget(target.element, target.soundIndex);
+        });
       }
     };
 
@@ -1728,16 +1763,9 @@
     if (!packCompletionStats || !pack) return null;
     const totals = packCompletionTotals(pack);
     packCompletionStats.hidden = false;
+    packCompletionStats.style.setProperty("--pack-stat-accent", packAccentColour(pack));
+    clearPackStatTargets();
     setPackStatValues(totals, animate ? { moves: 0, pushes: 0, seconds: 0 } : totals);
-
-    if (packStatsNote) {
-      const missingDetailed = totals.recordedLevels < totals.levelCount;
-      packStatsNote.hidden = !missingDetailed;
-      packStatsNote.textContent = missingDetailed
-        ? `Detailed pushes and time are recorded for ${totals.recordedLevels} of ${totals.levelCount} levels. Earlier completions did not store those figures.`
-        : "";
-    }
-
     if (animate) requestAnimationFrame(() => animatePackCompletionStats(totals));
     return totals;
   }
@@ -1843,7 +1871,7 @@
     button.type = "button";
     button.className = `${compact ? "final-pack-option" : "pack-option"} pack-${pack.accent || "black"}`;
     button.dataset.packId = pack.id;
-    if (pack.id === activePack.id) button.classList.add("active");
+    if (!compact && pack.id === activePack.id) button.classList.add("active");
     if (isLocked) {
       button.classList.add("locked");
       button.disabled = true;
@@ -2532,6 +2560,13 @@
     goal() { tone(560, .08, "triangle", .03); tone(840, .13, "triangle", .035, .07); },
     bump() { tone(148, .12, "sine", .032, 0, 78); },
     idle() { tone(510, .07, "sine", .012); tone(620, .09, "sine", .012, .08); },
+    packStatTarget(index = 0) {
+      const notes = [659.25, 783.99, 987.77];
+      const note = notes[Math.max(0, Math.min(notes.length - 1, Number(index) || 0))];
+      tone(note, .18, "sine", .035, 0, note * 1.06);
+      tone(note * 1.5, .28, "triangle", .022, .055, note * 1.62);
+      if (index === 2) tone(note * 2, .34, "sine", .018, .11, note * 2.08);
+    },
     finish() { tone(392, .1, "triangle", .035); tone(523, .12, "triangle", .035, .12); tone(784, .18, "triangle", .04, .27); }
   };
 
