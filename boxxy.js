@@ -33,6 +33,7 @@
   });
 })();
 
+/* BOXXY v176 — pack completion celebrations, aggregate totals and coloured header stars. */
 /* BOXXY v175 — reliable queued cookieless PostHog analytics; no autocapture or session recording. */
 /* BOXXY v168 — Rainbow Mode with pack-preview and walkthrough colour preservation. */
 (() => {
@@ -879,6 +880,114 @@
   const ADDITIONAL_PACKS_UNLOCK_KEY = "boxxy-additional-packs-unlocked-v1";
   const ACTIVE_PACK_STORAGE_KEY = "boxxy-active-pack-v2";
   const packStorageKeyFor = (packId, suffix) => `boxxy-pack-${packId}-${suffix}-v1`;
+  const packCompletionStatsKeyFor = packId => packStorageKeyFor(packId, "completion-stats");
+  const PACK_ACCENT_COLOURS = Object.freeze({
+    red: "#db3b27",
+    black: "#171719",
+    green: "#2f8f5b",
+    blue: "#20539a",
+    yellow: "#e5b32a",
+    purple: "#8e44ad",
+    orange: "#f47a20",
+    teal: "#00a6b2"
+  });
+
+  function readPackCompletionStats(packId) {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(packCompletionStatsKeyFor(packId)) || "null");
+      if (parsed && typeof parsed === "object" && parsed.levels && typeof parsed.levels === "object") {
+        return parsed;
+      }
+    } catch (_) {}
+    return { version: 1, levels: {} };
+  }
+
+  function writePackCompletionStats(packId, data) {
+    try { localStorage.setItem(packCompletionStatsKeyFor(packId), JSON.stringify(data)); } catch (_) {}
+  }
+
+  function recordLevelCompletionStats(pack, index, result) {
+    if (!pack?.id || !Number.isInteger(index) || index < 0) return;
+    const data = readPackCompletionStats(pack.id);
+    const key = String(index);
+    if (data.levels[key]) return;
+    data.levels[key] = {
+      moves: Math.max(0, Number(result.moves) || 0),
+      pushes: Math.max(0, Number(result.pushes) || 0),
+      seconds: Math.max(0, Number(result.seconds) || 0),
+      guided: Boolean(result.guided),
+      completedAt: Number(result.completedAt) || Date.now()
+    };
+    writePackCompletionStats(pack.id, data);
+  }
+
+  function bestMovesForPack(pack, level) {
+    if (!pack?.id || !level) return null;
+    const current = localStorage.getItem(packStorageKeyFor(pack.id, `best-${level.sourceNumber}`));
+    if (current != null && Number.isFinite(Number(current))) return Number(current);
+    if (pack.id === MICROBAN_PACK_ID) {
+      const legacy = localStorage.getItem(`push-bauhaus-v22-best-${level.sourceNumber}`);
+      if (legacy != null && Number.isFinite(Number(legacy))) return Number(legacy);
+    }
+    return null;
+  }
+
+  function packCompletionTotals(pack) {
+    const data = readPackCompletionStats(pack.id);
+    let moves = 0;
+    let pushes = 0;
+    let seconds = 0;
+    let moveLevels = 0;
+    let pushLevels = 0;
+    let timeLevels = 0;
+    let recordedLevels = 0;
+
+    pack.levels.forEach((level, index) => {
+      const record = data.levels[String(index)];
+      if (record && typeof record === "object") {
+        recordedLevels++;
+        if (Number.isFinite(Number(record.moves))) {
+          moves += Math.max(0, Number(record.moves));
+          moveLevels++;
+        }
+        if (Number.isFinite(Number(record.pushes))) {
+          pushes += Math.max(0, Number(record.pushes));
+          pushLevels++;
+        }
+        if (Number.isFinite(Number(record.seconds))) {
+          seconds += Math.max(0, Number(record.seconds));
+          timeLevels++;
+        }
+        return;
+      }
+      const best = bestMovesForPack(pack, level);
+      if (best != null) {
+        moves += Math.max(0, best);
+        moveLevels++;
+      }
+    });
+
+    return {
+      moves,
+      pushes,
+      seconds,
+      moveLevels,
+      pushLevels,
+      timeLevels,
+      recordedLevels,
+      levelCount: pack.levels.length
+    };
+  }
+
+  function formatPackDuration(totalSeconds) {
+    const seconds = Math.max(0, Math.round(Number(totalSeconds) || 0));
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const remainder = seconds % 60;
+    if (hours) return `${hours}h ${String(minutes).padStart(2, "0")}m ${String(remainder).padStart(2, "0")}s`;
+    if (minutes) return `${minutes}m ${String(remainder).padStart(2, "0")}s`;
+    return `${remainder}s`;
+  }
 
   function packIsComplete(packId) {
     const pack = PACK_BY_ID.get(packId);
@@ -1137,11 +1246,18 @@
   const levelCloseBtn = document.getElementById("levelCloseBtn");
   const levelResetBtn = document.getElementById("levelResetBtn");
   const collectionCompleteStar = document.getElementById("collectionCompleteStar");
+  const completedPackStars = document.getElementById("completedPackStars");
+  const grandCelebration = document.getElementById("grandCelebration");
   const resetConfirmModal = document.getElementById("resetConfirmModal");
   const resetConfirmBtn = document.getElementById("resetConfirmBtn");
   const resetCancelBtn = document.getElementById("resetCancelBtn");
   const modal = document.getElementById("completeModal");
   const completeText = document.getElementById("completeText");
+  const packCompletionStats = document.getElementById("packCompletionStats");
+  const packTotalMoves = document.getElementById("packTotalMoves");
+  const packTotalPushes = document.getElementById("packTotalPushes");
+  const packTotalTime = document.getElementById("packTotalTime");
+  const packStatsNote = document.getElementById("packStatsNote");
   const completeTitle = document.getElementById("completeTitle");
   const completeKicker = modal?.querySelector(".complete-kicker");
   const completeCard = modal?.querySelector(".complete-card");
@@ -1203,6 +1319,7 @@
   let playedRoute = "";
   let makerCompletedRoute = "";
   let completeMode = "normal";
+  let completionPackContext = null;
   let startedAt = 0;
   let timer = null;
   let idleTimer = null;
@@ -1235,7 +1352,7 @@
 
   /* BOXXY v175 — deliberately limited, anonymous gameplay analytics.
      No puzzle layouts, typed names, email addresses or editor content are sent. */
-  const BOXXY_ANALYTICS_VERSION = 175;
+  const BOXXY_ANALYTICS_VERSION = 176;
 
   function boxxyAnalyticsOrientation() {
     const type = String(window.screen?.orientation?.type || "");
@@ -1470,13 +1587,13 @@
     return Boolean(LEVELS.length) && completedLevels.has(LEVELS.length - 1);
   }
 
-  function activePackEarnsPrize() {
-    return activePack.id === PRIMARY_PACK_ID && LEVELS.length === 50 && collectionIsComplete();
+  function activePackEarnsPrize(pack = activePack) {
+    return pack?.id === PRIMARY_PACK_ID && pack?.levels?.length === 50 && packIsComplete(pack.id);
   }
 
-  function configureFinalCompletionActions() {
+  function configureFinalCompletionActions(pack = completionPackContext || activePack) {
     if (nextBtn) nextBtn.hidden = true;
-    if (claimPrizeBtn) claimPrizeBtn.hidden = !activePackEarnsPrize();
+    if (claimPrizeBtn) claimPrizeBtn.hidden = !activePackEarnsPrize(pack);
   }
 
   function restoreStandardCompletionActions() {
@@ -1485,7 +1602,8 @@
   }
 
   function openPrizeModal() {
-    if (!prizeModal || !activePackEarnsPrize()) return;
+    const pack = completionPackContext || activePack;
+    if (!prizeModal || !activePackEarnsPrize(pack)) return;
     if (modal) modal.hidden = true;
     prizeModal.hidden = false;
     prizeCloseBtn?.focus({ preventScroll: true });
@@ -1495,13 +1613,65 @@
     if (prizeModal) prizeModal.hidden = true;
   }
 
+  function hidePackCompletionStats() {
+    if (packCompletionStats) packCompletionStats.hidden = true;
+    if (packStatsNote) packStatsNote.hidden = true;
+  }
+
+  function renderPackCompletionStats(pack) {
+    if (!packCompletionStats || !pack) return;
+    const totals = packCompletionTotals(pack);
+    packCompletionStats.hidden = false;
+    if (packTotalMoves) packTotalMoves.textContent = totals.moveLevels ? totals.moves.toLocaleString() : "—";
+    if (packTotalPushes) packTotalPushes.textContent = totals.pushLevels ? totals.pushes.toLocaleString() : "—";
+    if (packTotalTime) packTotalTime.textContent = totals.timeLevels ? formatPackDuration(totals.seconds) : "—";
+
+    if (packStatsNote) {
+      const missingDetailed = totals.recordedLevels < totals.levelCount;
+      packStatsNote.hidden = !missingDetailed;
+      packStatsNote.textContent = missingDetailed
+        ? `Detailed pushes and time are recorded for ${totals.recordedLevels} of ${totals.levelCount} levels. Earlier completions did not store those figures.`
+        : "";
+    }
+  }
+
   function closeCompleteModal() {
     if (modal) modal.hidden = true;
     restoreStandardCompletionActions();
     completeCard?.classList.remove("final-complete");
+    completionPackContext = null;
+    hidePackCompletionStats();
+  }
+
+  function packAccentColour(pack) {
+    return PACK_ACCENT_COLOURS[String(pack?.accent || "black").toLowerCase()] || PACK_ACCENT_COLOURS.black;
+  }
+
+  function updateCompletedPackStars() {
+    if (!completedPackStars) return;
+    completedPackStars.innerHTML = "";
+    const completedPacks = PACKS.filter(pack => packIsComplete(pack.id));
+    completedPackStars.hidden = completedPacks.length === 0;
+
+    completedPacks.forEach(pack => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "completed-pack-star";
+      button.style.setProperty("--pack-star-colour", packAccentColour(pack));
+      button.setAttribute("aria-label", `View congratulations for ${pack.displayName || pack.title}`);
+      button.title = `View congratulations for ${pack.displayName || pack.title}`;
+      button.innerHTML = '<svg viewBox="0 0 100 100" aria-hidden="true" focusable="false"><path d="M50 6 62.7 34.2 93.5 37.5 70.5 58.3 77 88.5 50 73 23 88.5 29.5 58.3 6.5 37.5 37.3 34.2Z"/></svg>';
+      button.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        showCollectionCongratulations(pack.id);
+      });
+      completedPackStars.appendChild(button);
+    });
   }
 
   function updateCollectionCompleteStar() {
+    updateCompletedPackStars();
     if (!collectionCompleteStar) return;
     const earned = collectionIsComplete() && !makerTesting && !sharedPuzzleMode;
     collectionCompleteStar.hidden = !earned;
@@ -1511,26 +1681,29 @@
       : "";
   }
 
-  function showCollectionCongratulations() {
-    if (!collectionIsComplete() || !modal) return;
+  function showCollectionCongratulations(packId = activePack.id) {
+    const pack = PACK_BY_ID.get(packId) || activePack;
+    if (!packIsComplete(pack.id) || !modal) return;
 
+    completionPackContext = pack;
     completeMode = "final";
     completeCard?.classList.add("final-complete");
     if (completeKicker) completeKicker.textContent = "CONGRATULATIONS";
     if (completeTitle) completeTitle.innerHTML = "WELL<br>DONE";
     if (completeText) {
-      completeText.textContent = `You have completed ${activePack.displayName}. Every level in this collection has been cleared.`;
+      completeText.textContent = `You have completed ${pack.displayName}. Every level in this collection has been cleared.`;
     }
+    renderPackCompletionStats(pack);
 
-    buildPackSelectors();
+    buildPackSelectors(pack.id);
     if (finalPackPicker) finalPackPicker.hidden = false;
     if (finalPackStatus) finalPackStatus.textContent = "";
-    configureFinalCompletionActions();
+    configureFinalCompletionActions(pack);
 
     closeLevelPicker();
     showRandomCompletionSprite();
     modal.hidden = false;
-    burst();
+    grandBurst(pack);
     sfx.finish();
   }
 
@@ -1596,7 +1769,7 @@
     return button;
   }
 
-  function buildPackSelectors() {
+  function buildPackSelectors(excludePackId = activePack.id) {
     if (packGrid) {
       packGrid.innerHTML = "";
       PACKS.forEach((pack, index) => packGrid.appendChild(createPackButton(pack, index, false)));
@@ -1604,7 +1777,7 @@
     if (finalPackGrid) {
       finalPackGrid.innerHTML = "";
       PACKS.forEach((pack, index) => {
-        if (pack.id !== activePack.id) finalPackGrid.appendChild(createPackButton(pack, index, true));
+        if (pack.id !== excludePackId) finalPackGrid.appendChild(createPackButton(pack, index, true));
       });
     }
   }
@@ -1664,6 +1837,7 @@
     assistedLevels = new Set();
     highestUnlockedLevel = 0;
     saveLevelProgress();
+    try { localStorage.removeItem(packCompletionStatsKeyFor(activePack.id)); } catch (_) {}
     LEVELS.forEach((level) => {
       localStorage.removeItem(currentBestStorageKey(level));
       localStorage.removeItem(packStorageKey(`position-${LEVELS.indexOf(level)}`));
@@ -2663,6 +2837,8 @@
 
     if (sharedPuzzleMode) {
       completeMode = "shared";
+      completionPackContext = null;
+      hidePackCompletionStats();
       restoreStandardCompletionActions();
       if (finalPackPicker) finalPackPicker.hidden = true;
       if (finalPackStatus) finalPackStatus.textContent = "";
@@ -2680,6 +2856,8 @@
       const pushText = `${pushes} ${pushes === 1 ? "push" : "pushes"}`;
       makerCompletedRoute = !solvedWithGuidedRoute ? capturedRoute : "";
       completeMode = "maker";
+      completionPackContext = null;
+      hidePackCompletionStats();
       restoreStandardCompletionActions();
       if (finalPackPicker) finalPackPicker.hidden = true;
       if (finalPackStatus) finalPackStatus.textContent = "";
@@ -2717,8 +2895,16 @@
       const bestKey = currentBestStorageKey(levelData);
       const oldBest = Number(readBest(levelData) || 0);
       const firstCompletion = !completedLevels.has(levelIndex);
+      const completionDurationSeconds = elapsedLevelSeconds();
       const isNewBest = !solvedWithWalkthrough && (!oldBest || moves < oldBest);
       if (isNewBest) localStorage.setItem(bestKey, moves);
+      recordLevelCompletionStats(activePack, levelIndex, {
+        moves,
+        pushes,
+        seconds: completionDurationSeconds,
+        guided: solvedWithWalkthrough,
+        completedAt: Date.now()
+      });
 
       completedLevels.add(levelIndex);
       if (solvedWithWalkthrough) assistedLevels.add(levelIndex);
@@ -2729,7 +2915,7 @@
       captureBoxxyAnalytics("level_completed", currentLevelAnalytics({
         moves: Number(moves),
         pushes: Number(pushes),
-        duration_seconds: elapsedLevelSeconds(),
+        duration_seconds: completionDurationSeconds,
         first_completion: firstCompletion,
         guided_solve: Boolean(solvedWithWalkthrough),
         new_best: Boolean(isNewBest),
@@ -2742,16 +2928,20 @@
         const unlockedAdditionalPacksNow = canUnlockAdditionalPacks && !packsWereUnlocked;
         if (canUnlockAdditionalPacks) localStorage.setItem(ADDITIONAL_PACKS_UNLOCK_KEY, "true");
         completeMode = "final";
+        completionPackContext = activePack;
         completeCard?.classList.add("final-complete");
         if (completeKicker) completeKicker.textContent = "CONGRATULATIONS";
         if (completeTitle) completeTitle.innerHTML = "WELL<br>DONE";
         completeText.textContent = `You have completed ${activePack.displayName}. Level ${LEVELS.length} was solved in ${moves} moves and ${pushes} pushes.${solvedWithWalkthrough ? " This completion used the guided solve." : ""}${learnedRoute ? " Your route has been saved as this level's guided solve." : ""}${unlockedAdditionalPacksNow ? " The additional puzzle packs are now unlocked." : ""}`;
-        buildPackSelectors();
+        renderPackCompletionStats(activePack);
+        buildPackSelectors(activePack.id);
         if (finalPackPicker) finalPackPicker.hidden = false;
         if (finalPackStatus) finalPackStatus.textContent = solvedWithWalkthrough ? "Guided-solve completions are shown in yellow in the level list." : "";
-        configureFinalCompletionActions();
+        configureFinalCompletionActions(activePack);
       } else {
         completeMode = "normal";
+        completionPackContext = null;
+        hidePackCompletionStats();
         restoreStandardCompletionActions();
         completeCard?.classList.remove("final-complete");
         if (finalPackPicker) finalPackPicker.hidden = true;
@@ -2776,12 +2966,14 @@
       }
     }
 
+    const grandCelebrationPack = completeMode === "final" ? (completionPackContext || activePack) : null;
     showRandomCompletionSprite();
     burst();
     sfx.finish();
     setTimeout(() => {
       modal.hidden = false;
       render("idle");
+      if (grandCelebrationPack) grandBurst(grandCelebrationPack);
     }, 500);
   }
 
@@ -2801,6 +2993,57 @@
       celebration.appendChild(confetti);
     }
     setTimeout(() => { celebration.innerHTML = ""; }, 1400);
+  }
+
+  function grandBurst(pack = activePack) {
+    if (!grandCelebration) return;
+    grandCelebration.innerHTML = "";
+    grandCelebration.hidden = false;
+    const accent = packAccentColour(pack);
+    const colors = [accent, "#e5b32a", "#20539a", "#db3b27", "#f7f0e5", "#2f8f5b"];
+    const origins = [
+      [14, 22, 0], [86, 20, 120], [23, 70, 250],
+      [78, 68, 380], [50, 12, 520], [50, 82, 690]
+    ];
+
+    origins.forEach(([x, y, delay], fireworkIndex) => {
+      const firework = document.createElement("span");
+      firework.className = "grand-firework";
+      firework.style.left = `${x}%`;
+      firework.style.top = `${y}%`;
+      firework.style.setProperty("--ring-colour", colors[fireworkIndex % colors.length]);
+      firework.style.setProperty("--firework-delay", `${delay}ms`);
+      for (let i = 0; i < 18; i++) {
+        const spark = document.createElement("i");
+        const angle = (Math.PI * 2 * i / 18) + (Math.random() - .5) * .14;
+        const distance = 82 + Math.random() * 105;
+        spark.style.setProperty("--tx", `${Math.cos(angle) * distance}px`);
+        spark.style.setProperty("--ty", `${Math.sin(angle) * distance}px`);
+        spark.style.setProperty("--spark-colour", colors[(i + fireworkIndex) % colors.length]);
+        spark.style.setProperty("--spark-delay", `${delay + Math.random() * 90}ms`);
+        firework.appendChild(spark);
+      }
+      grandCelebration.appendChild(firework);
+    });
+
+    for (let i = 0; i < 150; i++) {
+      const piece = document.createElement("i");
+      piece.className = "grand-confetti";
+      piece.style.left = `${Math.random() * 100}%`;
+      piece.style.background = colors[i % colors.length];
+      piece.style.setProperty("--confetti-delay", `${Math.random() * 950}ms`);
+      piece.style.setProperty("--confetti-duration", `${1700 + Math.random() * 1500}ms`);
+      piece.style.setProperty("--confetti-drift", `${(Math.random() - .5) * 360}px`);
+      piece.style.setProperty("--confetti-spin", `${540 + Math.random() * 1080}deg`);
+      piece.style.width = `${6 + Math.random() * 9}px`;
+      piece.style.height = `${10 + Math.random() * 18}px`;
+      grandCelebration.appendChild(piece);
+    }
+
+    window.setTimeout(() => {
+      grandCelebration.innerHTML = "";
+      grandCelebration.hidden = true;
+    }, 4300);
   }
 
   function undo() {

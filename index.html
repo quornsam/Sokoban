@@ -24,7 +24,7 @@
 <link rel="apple-touch-icon" sizes="180x180" href="assets/ui/icons/boxxy-yellow-crate-touch-v150.png">
 <link rel="manifest" href="boxxy.webmanifest">
 <script>
-  /* BOXXY v175 — reliable anonymous, cookieless PostHog analytics (EU). */
+  /* BOXXY v176 — pack completion celebrations, totals and header stars; reliable cookieless analytics. */
   !function(t,e){var o,n,p,r;e.__SV||(window.posthog&&window.posthog.__loaded)||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.crossOrigin="anonymous",p.async=!0,p.src=s.api_host.replace(".i.posthog.com","-assets.i.posthog.com")+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="init capture register register_once register_for_session unregister unregister_for_session getFeatureFlag getFeatureFlagResult isFeatureEnabled reloadFeatureFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSessionId getSurveys getActiveMatchingSurveys renderSurvey canRenderSurvey getNextSurveyStep identify setPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException loadToolbar get_property getSessionProperty createPersonProfile opt_in_capturing opt_out_capturing has_opted_in_capturing has_opted_out_capturing clear_opt_in_out_capturing debug".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
 
   posthog.init("phc_m3pTt7JcQ89N9kGZjSkceiqWdRgjPypmAQxZVq5goJfh", {
@@ -85,7 +85,7 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=175">
+<link rel="stylesheet" href="styles.css?v=176">
 <link rel="stylesheet" href="how-to-play.css?v=154">
 <link rel="preload" as="image" href="assets/ui/completion/happy-sprites-350-grid.png">
 <link rel="preload" as="image" href="assets/board/board-atlas.png">
@@ -135,7 +135,13 @@
 <main class="app">
   <section class="play-area">
     <header class="masthead">
-      <div class="title"><strong>BO<span id="makerHotspot" class="maker-hotspot">X</span>XY</strong><span>PUSHBOX PUZZLE</span></div>
+      <div class="title">
+        <div class="title-word-row">
+          <strong>BO<span id="makerHotspot" class="maker-hotspot">X</span>XY</strong>
+          <div id="completedPackStars" class="completed-pack-stars" hidden aria-label="Completed puzzle packs"></div>
+        </div>
+        <span>PUSHBOX PUZZLE</span>
+      </div>
       <button id="collectionBtn" class="collection" type="button" aria-haspopup="dialog" aria-controls="packModal" title="Choose a puzzle pack"><b id="collectionName">BAUHAUS<br>COLLECTION</b><i></i><span id="levelCount">1 / 50</span></button>
     </header>
 
@@ -282,6 +288,8 @@
   </section>
 </div>
 
+<div id="grandCelebration" class="grand-celebration" hidden aria-hidden="true"></div>
+
 <div id="completeModal" class="modal complete-modal" hidden>
   <div class="modal-card complete-card" role="dialog" aria-modal="true" aria-labelledby="completeTitle">
     <button id="completeCloseBtn" class="complete-close" type="button" aria-label="Close congratulations">×</button>
@@ -292,6 +300,12 @@
       <span class="complete-kicker">BAUHAUS COLLECTION</span>
       <h2 id="completeTitle">PUZZLE<br>CLEARED</h2>
       <p id="completeText"></p>
+      <section id="packCompletionStats" class="pack-completion-stats" hidden aria-label="Puzzle pack totals">
+        <div><span>TOTAL MOVES</span><strong id="packTotalMoves">—</strong></div>
+        <div><span>TOTAL PUSHES</span><strong id="packTotalPushes">—</strong></div>
+        <div><span>TOTAL TIME</span><strong id="packTotalTime">—</strong></div>
+        <p id="packStatsNote" class="pack-stats-note" hidden></p>
+      </section>
       <section id="finalPackPicker" class="final-pack-picker" hidden aria-labelledby="finalPackTitle">
         <div class="final-pack-heading">
           <strong id="finalPackTitle">CHOOSE ANOTHER LEVEL PACK</strong>
@@ -642,7 +656,7 @@
 <audio id="bgMusic" src="assets/audio/cracked-ivory-drift.mp3" preload="auto" autoplay loop playsinline></audio>
 
 <script src="levels.js?v=143"></script>
-<script src="boxxy.js?v=175"></script>
+<script src="boxxy.js?v=176"></script>
 <script src="pack-builder.js?v=168"></script>
 <script src="how-to-play.js?v=153"></script>
 </body>
