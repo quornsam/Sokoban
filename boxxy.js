@@ -33,7 +33,7 @@
   });
 })();
 
-/* BOXXY v179 — selected pack-completion layout, centred sprite and full selector link. */
+/* BOXXY v180 — responsive pack-completion layout, varied star messages and unclipped pack cards. */
 /* BOXXY v175 — reliable queued cookieless PostHog analytics; no autocapture or session recording. */
 /* BOXXY v168 — Rainbow Mode with pack-preview and walkthrough colour preservation. */
 (() => {
@@ -1392,7 +1392,7 @@
 
   /* BOXXY v175 — deliberately limited, anonymous gameplay analytics.
      No puzzle layouts, typed names, email addresses or editor content are sent. */
-  const BOXXY_ANALYTICS_VERSION = 179;
+  const BOXXY_ANALYTICS_VERSION = 180;
 
   function boxxyAnalyticsOrientation() {
     const type = String(window.screen?.orientation?.type || "");
@@ -1685,13 +1685,31 @@
     if (packStarAward) packStarAward.hidden = true;
   }
 
+  const PACK_STAR_AWARD_MESSAGES = Object.freeze([
+    packName => `A star has been added to your badge collection for completing “${packName}”. Find it beside BOXXY at the top of your screen, you box-pusher extraordinaire.`,
+    packName => `You earned a star for completing “${packName}”. It is waiting beside BOXXY at the top of your screen, you crate-shifting champion.`,
+    packName => `“${packName}” is complete, and its star now sits beside BOXXY at the top of your screen, you warehouse wizard.`,
+    packName => `Your new star for conquering “${packName}” is beside BOXXY at the top of your screen, you puzzle-pushing prodigy.`,
+    packName => `Pack complete. Look beside BOXXY at the top of your screen for your latest star, you Sokoban superstar.`
+  ]);
+  let lastPackStarAwardMessage = -1;
+
+  function nextPackStarAwardMessage(packName) {
+    let index = Math.floor(Math.random() * PACK_STAR_AWARD_MESSAGES.length);
+    if (PACK_STAR_AWARD_MESSAGES.length > 1 && index === lastPackStarAwardMessage) {
+      index = (index + 1 + Math.floor(Math.random() * (PACK_STAR_AWARD_MESSAGES.length - 1))) % PACK_STAR_AWARD_MESSAGES.length;
+    }
+    lastPackStarAwardMessage = index;
+    return PACK_STAR_AWARD_MESSAGES[index](packName);
+  }
+
   function showPackStarAward(pack) {
     if (!packStarAward || !pack) return;
     packStarAward.hidden = false;
     if (packStarAwardIcon) packStarAwardIcon.style.setProperty("--pack-star-colour", packAccentColour(pack));
     if (packStarAwardText) {
       const packName = String(pack.displayName || pack.title || "this puzzle pack");
-      packStarAwardText.textContent = `A star has been added to your badge collection for completing “${packName}”. Find it beside BOXXY at the top of your screen, box-pusher extraordinaire.`;
+      packStarAwardText.textContent = nextPackStarAwardMessage(packName);
     }
   }
 
@@ -1827,7 +1845,7 @@
     completeMode = "final";
     completeCard?.classList.add("final-complete");
     if (completeKicker) completeKicker.textContent = "CONGRATULATIONS";
-    if (completeTitle) completeTitle.innerHTML = "WELL<br>DONE";
+    if (completeTitle) completeTitle.textContent = "WELL DONE";
     if (completedPackHeading) completedPackHeading.textContent = String(pack.displayName || pack.title || "");
     if (completeText) completeText.textContent = "";
     showPackStarAward(pack);
@@ -3080,7 +3098,7 @@
         completionPackContext = activePack;
         completeCard?.classList.add("final-complete");
         if (completeKicker) completeKicker.textContent = "CONGRATULATIONS";
-        if (completeTitle) completeTitle.innerHTML = "WELL<br>DONE";
+        if (completeTitle) completeTitle.textContent = "WELL DONE";
         if (completedPackHeading) completedPackHeading.textContent = String(activePack.displayName || activePack.title || "");
         completeText.textContent = "";
         showPackStarAward(activePack);

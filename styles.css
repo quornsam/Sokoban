@@ -3593,3 +3593,69 @@ html.touch-ui .level-attire{
 @media(prefers-reduced-motion:reduce){
   .pack-completion-stats > div.pack-stat-target-hit{animation:none!important}
 }
+
+
+/* BOXXY v180 — iPad/desktop completion fixes. */
+/* The sprite canvas previously had an intentional yellow decorative frame. The artwork now sits cleanly on the black panel. */
+.complete-card.final-complete .complete-sprite{
+  border:0!important;
+  box-shadow:none!important;
+}
+
+/* Override the generic red modal-button rule: MORE is a simple text link. */
+.complete-card.final-complete .final-pack-more-btn{
+  width:auto;
+  min-height:0;
+  margin:0;
+  padding:0 1px;
+  border:0;
+  background:transparent;
+  color:var(--ink);
+  box-shadow:none;
+  text-decoration:underline;
+  text-decoration-thickness:2px;
+  text-underline-offset:3px;
+}
+.complete-card.final-complete .final-pack-more-btn:hover,
+.complete-card.final-complete .final-pack-more-btn:focus-visible{
+  background:transparent;
+  color:var(--blue);
+}
+
+@media(min-width:701px){
+  .complete-card.final-complete h2{
+    white-space:nowrap;
+  }
+  .complete-card.final-complete .pack-star-award p{
+    max-width:none;
+  }
+  .complete-card.final-complete .final-pack-option{
+    height:auto;
+    min-height:108px;
+    grid-template-rows:52px auto;
+    overflow:visible;
+  }
+  .complete-card.final-complete .final-pack-name{
+    height:auto;
+    min-height:56px;
+    overflow:visible;
+    overflow-wrap:anywhere;
+  }
+  .complete-card.final-complete .final-pack-name small,
+  .complete-card.final-complete .pack-lock-label{
+    overflow:visible;
+    white-space:normal;
+  }
+}
+
+@media(min-width:701px) and (max-height:700px){
+  .complete-card.final-complete .final-pack-option{
+    height:auto;
+    min-height:88px;
+    grid-template-rows:40px auto;
+  }
+  .complete-card.final-complete .final-pack-name{
+    height:auto;
+    min-height:48px;
+  }
+}
