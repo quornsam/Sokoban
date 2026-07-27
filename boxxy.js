@@ -33,7 +33,7 @@
   });
 })();
 
-/* BOXXY v174 — cookieless PostHog analytics; no autocapture or session recording. */
+/* BOXXY v175 — reliable queued cookieless PostHog analytics; no autocapture or session recording. */
 /* BOXXY v168 — Rainbow Mode with pack-preview and walkthrough colour preservation. */
 (() => {
   "use strict";
@@ -1233,9 +1233,9 @@
   let assistedLevels = new Set();
   let highestUnlockedLevel = 0;
 
-  /* BOXXY v174 — deliberately limited, anonymous gameplay analytics.
+  /* BOXXY v175 — deliberately limited, anonymous gameplay analytics.
      No puzzle layouts, typed names, email addresses or editor content are sent. */
-  const BOXXY_ANALYTICS_VERSION = 174;
+  const BOXXY_ANALYTICS_VERSION = 175;
 
   function boxxyAnalyticsOrientation() {
     const type = String(window.screen?.orientation?.type || "");
@@ -1248,16 +1248,50 @@
     return window.matchMedia?.("(pointer: coarse)")?.matches ? "touch" : "pointer";
   }
 
+  const boxxyAnalyticsQueue = [];
+  let boxxyAnalyticsReady = Boolean(window.BOXXY_POSTHOG_READY);
+
+  function sendBoxxyAnalytics(eventName, properties) {
+    const client = window.BOXXY_POSTHOG_INSTANCE || window.posthog;
+    if (!client || typeof client.capture !== "function") return false;
+    client.capture(eventName, properties);
+    return true;
+  }
+
+  function flushBoxxyAnalyticsQueue() {
+    boxxyAnalyticsReady = Boolean(window.BOXXY_POSTHOG_READY);
+    if (!boxxyAnalyticsReady) return;
+    while (boxxyAnalyticsQueue.length) {
+      const queued = boxxyAnalyticsQueue.shift();
+      try {
+        if (!sendBoxxyAnalytics(queued.eventName, queued.properties)) {
+          boxxyAnalyticsQueue.unshift(queued);
+          break;
+        }
+      } catch (_) {
+        /* One failed event must not block the game or later events. */
+      }
+    }
+  }
+
+  window.addEventListener("boxxy-posthog-ready", flushBoxxyAnalyticsQueue);
+
   function captureBoxxyAnalytics(eventName, properties = {}) {
     try {
-      if (!window.posthog || typeof window.posthog.capture !== "function") return;
-      window.posthog.capture(eventName, {
+      const payload = {
         game: "BOXXY",
         game_version: BOXXY_ANALYTICS_VERSION,
         orientation: boxxyAnalyticsOrientation(),
         input_mode: boxxyAnalyticsInputMode(),
         ...properties
-      });
+      };
+      if (!boxxyAnalyticsReady || !window.BOXXY_POSTHOG_READY) {
+        boxxyAnalyticsQueue.push({ eventName, properties: payload });
+        return;
+      }
+      if (!sendBoxxyAnalytics(eventName, payload)) {
+        boxxyAnalyticsQueue.push({ eventName, properties: payload });
+      }
     } catch (_) {
       /* Analytics must never interfere with the game. */
     }
