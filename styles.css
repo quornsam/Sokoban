@@ -3307,3 +3307,289 @@ html.touch-ui .level-attire{
   .complete-card.final-complete .final-pack-name{height:40px;padding-top:4px}
   .complete-card.final-complete .claim-prize-btn{min-height:38px}
 }
+
+/* BOXXY v179 — chosen spacious Layout B for completed-pack congratulations. */
+.completed-pack-heading{
+  display:none;
+  margin:8px 0 14px!important;
+  max-width:none!important;
+  color:#5d554d;
+  font-size:12px!important;
+  line-height:1.2!important;
+  font-weight:950!important;
+  letter-spacing:.075em;
+  text-transform:uppercase;
+}
+.complete-card.final-complete .completed-pack-heading{display:block}
+.complete-card.final-complete #completeText{display:none!important}
+
+/* One reward colour for every pack: the selected pack only colours its star. */
+.pack-completion-stats > div.pack-stat-target-hit{
+  background:#ffe58a!important;
+  border-color:var(--ink)!important;
+  animation:boxxyPackStatTarget179 .85s cubic-bezier(.18,.82,.24,1) forwards!important;
+}
+@keyframes boxxyPackStatTarget179{
+  0%{transform:scale(1);box-shadow:5px 5px 0 rgba(23,23,25,.15)}
+  36%{transform:translateY(-4px) scale(1.055);box-shadow:0 0 0 4px #f2c121,8px 8px 0 var(--ink)}
+  70%{transform:translateY(1px) scale(.99);box-shadow:0 0 0 2px #f2c121,5px 5px 0 var(--ink)}
+  100%{transform:scale(1);box-shadow:0 0 0 2px #f2c121,5px 5px 0 var(--ink)}
+}
+
+.final-pack-more-row{
+  display:flex;
+  justify-content:flex-end;
+  min-height:22px;
+  margin-top:7px;
+}
+.final-pack-more-btn{
+  appearance:none;
+  border:0;
+  background:transparent;
+  padding:0 1px;
+  color:var(--ink);
+  font-family:inherit;
+  font-size:10px;
+  font-weight:950;
+  line-height:1;
+  letter-spacing:.12em;
+  text-decoration:underline;
+  text-decoration-thickness:2px;
+  text-underline-offset:3px;
+  cursor:pointer;
+}
+.final-pack-more-btn[hidden]{display:none!important}
+.final-pack-more-btn:hover,.final-pack-more-btn:focus-visible{
+  color:var(--blue);
+  outline:2px solid var(--yellow);
+  outline-offset:3px;
+}
+
+@media(min-width:701px){
+  .complete-modal{
+    display:grid;
+    place-items:center;
+    padding:12px;
+    overflow:hidden;
+  }
+  .complete-card.final-complete{
+    width:min(1100px,calc(100vw - 24px));
+    max-height:calc(100dvh - 24px);
+    grid-template-columns:120px minmax(0,1fr);
+    overflow:hidden;
+  }
+  .complete-card.final-complete .complete-art{
+    position:relative;
+    width:120px;
+    min-height:0!important;
+    height:auto!important;
+    display:grid;
+    place-items:center;
+    padding:7px;
+    overflow:hidden;
+    background:#050505;
+    border-right:4px solid var(--ink);
+  }
+  .complete-card.final-complete .complete-sprite{
+    position:static!important;
+    display:block;
+    width:106px!important;
+    height:106px!important;
+    max-width:calc(100% - 2px)!important;
+    max-height:calc(100% - 14px)!important;
+    margin:auto!important;
+    aspect-ratio:1/1;
+    object-fit:contain;
+    border:3px solid var(--yellow);
+    background:#050505;
+    box-shadow:5px 5px 0 rgba(23,23,25,.35);
+    transform:none!important;
+  }
+  .complete-card.final-complete .complete-copy{
+    min-width:0;
+    min-height:0;
+    display:block;
+    overflow-x:hidden;
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    padding:24px 48px 26px 30px;
+  }
+  .complete-card.final-complete h2{
+    margin:0;
+    font-size:clamp(46px,5.2vw,68px);
+    line-height:.86;
+    letter-spacing:-.055em;
+  }
+  .complete-card.final-complete .pack-star-award{
+    grid-template-columns:58px minmax(0,1fr);
+    gap:14px;
+    max-width:none;
+    margin:0 0 14px;
+    padding:11px 14px;
+    border:3px solid var(--ink);
+    box-shadow:5px 5px 0 rgba(23,23,25,.16);
+  }
+  .complete-card.final-complete .pack-star-award-icon{width:56px;height:56px}
+  .complete-card.final-complete .pack-star-award p{
+    font-size:14px;
+    line-height:1.36;
+  }
+  .complete-card.final-complete .pack-completion-stats{
+    max-width:none;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:12px;
+    margin:0 0 20px;
+  }
+  .complete-card.final-complete .pack-completion-stats > div{
+    min-height:86px;
+    display:grid;
+    align-content:center;
+    justify-items:center;
+    padding:12px 8px 10px;
+    background:#f7f1e6;
+    border:3px solid var(--ink);
+    box-shadow:5px 5px 0 rgba(23,23,25,.15);
+  }
+  .complete-card.final-complete .pack-completion-stats span{
+    font-size:9px;
+    letter-spacing:.11em;
+  }
+  .complete-card.final-complete .pack-completion-stats strong{
+    margin-top:6px;
+    font-size:24px;
+  }
+  .complete-card.final-complete .final-pack-picker{
+    margin:0;
+    padding-top:14px;
+    border-top:3px solid var(--ink);
+  }
+  .complete-card.final-complete .final-pack-heading{
+    display:block;
+    margin-bottom:10px;
+  }
+  .complete-card.final-complete .final-pack-heading strong{
+    font-size:12px;
+    letter-spacing:.1em;
+  }
+  .complete-card.final-complete .final-pack-grid{
+    display:grid;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    align-items:stretch;
+    gap:8px;
+  }
+  .complete-card.final-complete .final-pack-option{
+    min-height:108px;
+    height:108px;
+    display:grid;
+    grid-template-columns:1fr;
+    grid-template-rows:52px minmax(0,1fr);
+    overflow:hidden;
+    border:3px solid var(--ink);
+    box-shadow:5px 5px 0 rgba(23,23,25,.14);
+  }
+  .complete-card.final-complete .final-pack-art{
+    width:100%;
+    height:52px;
+    min-height:52px;
+    margin:0;
+    border-bottom:3px solid var(--ink);
+  }
+  .complete-card.final-complete .final-pack-art i{
+    width:52px;
+    height:52px;
+    left:-12px;
+    top:-13px;
+  }
+  .complete-card.final-complete .final-pack-art b{
+    right:8px;
+    bottom:4px;
+    font-size:28px;
+  }
+  .complete-card.final-complete .final-pack-name{
+    min-height:53px;
+    height:53px;
+    padding:7px;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    overflow:hidden;
+    font-size:8px;
+    line-height:1.08;
+    letter-spacing:.045em;
+  }
+  .complete-card.final-complete .final-pack-name small{
+    margin-top:5px;
+    font-size:7px;
+    line-height:1.15;
+  }
+  .complete-card.final-complete .final-pack-status{
+    min-height:0!important;
+    margin:0!important;
+    font-size:8px!important;
+  }
+  .complete-card.final-complete .complete-actions{margin-top:8px}
+  .complete-card.final-complete .claim-prize-btn{
+    min-height:58px;
+    padding:11px 18px;
+    font-size:14px;
+  }
+  .complete-card.final-complete .claim-prize-btn b{font-size:24px}
+}
+
+/* Short laptops keep the chosen layout, but use measured reductions rather than cramming it. */
+@media(min-width:701px) and (max-height:700px){
+  .complete-card.final-complete{width:min(1000px,calc(100vw - 24px))}
+  .complete-card.final-complete .complete-copy{padding-top:16px;padding-bottom:16px}
+  .complete-card.final-complete h2{font-size:50px}
+  .completed-pack-heading{margin:6px 0 9px!important;font-size:10px!important}
+  .complete-card.final-complete .pack-star-award{margin-bottom:10px;padding:8px 11px}
+  .complete-card.final-complete .pack-star-award-icon{width:44px;height:44px}
+  .complete-card.final-complete .pack-star-award p{font-size:11.5px;line-height:1.25}
+  .complete-card.final-complete .pack-completion-stats{gap:8px;margin-bottom:12px}
+  .complete-card.final-complete .pack-completion-stats > div{min-height:68px;padding:8px 6px}
+  .complete-card.final-complete .pack-completion-stats strong{font-size:19px}
+  .complete-card.final-complete .final-pack-picker{padding-top:9px}
+  .complete-card.final-complete .final-pack-heading{margin-bottom:6px}
+  .complete-card.final-complete .final-pack-option{height:88px;min-height:88px;grid-template-rows:40px 48px}
+  .complete-card.final-complete .final-pack-art{height:40px;min-height:40px}
+  .complete-card.final-complete .final-pack-name{height:48px;min-height:48px;padding:5px 6px;font-size:7.2px}
+  .complete-card.final-complete .final-pack-name small{margin-top:3px;font-size:5.8px}
+  .final-pack-more-row{min-height:17px;margin-top:4px}
+  .complete-card.final-complete .claim-prize-btn{min-height:46px;padding-block:7px;font-size:11px}
+}
+
+@media(max-width:700px){
+  .complete-card.final-complete .complete-art{
+    display:grid!important;
+    place-items:center!important;
+    padding:3px!important;
+    background:#050505;
+  }
+  .complete-card.final-complete .complete-sprite{
+    position:static!important;
+    width:34px!important;
+    height:34px!important;
+    max-width:calc(100% - 4px)!important;
+    max-height:calc(100% - 8px)!important;
+    margin:auto!important;
+    aspect-ratio:1/1;
+    object-fit:contain;
+    border:2px solid var(--yellow);
+    background:#050505;
+    transform:none!important;
+  }
+  .completed-pack-heading{
+    margin:4px 0 7px!important;
+    font-size:8px!important;
+    line-height:1.1!important;
+  }
+  .complete-card.final-complete .pack-completion-stats > div.pack-stat-target-hit{
+    box-shadow:0 0 0 2px #f2c121,3px 3px 0 var(--ink)!important;
+  }
+  .final-pack-more-row{min-height:16px;margin-top:4px}
+  .final-pack-more-btn{font-size:8px;text-underline-offset:2px}
+}
+
+@media(prefers-reduced-motion:reduce){
+  .pack-completion-stats > div.pack-stat-target-hit{animation:none!important}
+}

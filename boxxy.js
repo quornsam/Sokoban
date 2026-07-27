@@ -33,7 +33,7 @@
   });
 })();
 
-/* BOXXY v178 — slower pack totals, target chimes, modal layout and pack-card fixes. */
+/* BOXXY v179 — selected pack-completion layout, centred sprite and full selector link. */
 /* BOXXY v175 — reliable queued cookieless PostHog analytics; no autocapture or session recording. */
 /* BOXXY v168 — Rainbow Mode with pack-preview and walkthrough colour preservation. */
 (() => {
@@ -1296,6 +1296,7 @@
   const packTotalPushes = document.getElementById("packTotalPushes");
   const packTotalTime = document.getElementById("packTotalTime");
   const completeTitle = document.getElementById("completeTitle");
+  const completedPackHeading = document.getElementById("completedPackHeading");
   const completeKicker = modal?.querySelector(".complete-kicker");
   const completeCard = modal?.querySelector(".complete-card");
   const completeSprite = document.getElementById("completeSprite");
@@ -1310,6 +1311,7 @@
   const finalPackPicker = document.getElementById("finalPackPicker");
   const finalPackStatus = document.getElementById("finalPackStatus");
   const finalPackGrid = document.getElementById("finalPackGrid");
+  const finalPackMoreBtn = document.getElementById("finalPackMoreBtn");
   const packModal = document.getElementById("packModal");
   const packGrid = document.getElementById("packGrid");
   const packCloseBtn = document.getElementById("packCloseBtn");
@@ -1390,7 +1392,7 @@
 
   /* BOXXY v175 — deliberately limited, anonymous gameplay analytics.
      No puzzle layouts, typed names, email addresses or editor content are sent. */
-  const BOXXY_ANALYTICS_VERSION = 178;
+  const BOXXY_ANALYTICS_VERSION = 179;
 
   function boxxyAnalyticsOrientation() {
     const type = String(window.screen?.orientation?.type || "");
@@ -1688,15 +1690,16 @@
     packStarAward.hidden = false;
     if (packStarAwardIcon) packStarAwardIcon.style.setProperty("--pack-star-colour", packAccentColour(pack));
     if (packStarAwardText) {
-      packStarAwardText.textContent = "A star has been added to your badge collection for completing this pack. Find it beside BOXXY at the top of your screen, box-pusher extraordinaire.";
+      const packName = String(pack.displayName || pack.title || "this puzzle pack");
+      packStarAwardText.textContent = `A star has been added to your badge collection for completing “${packName}”. Find it beside BOXXY at the top of your screen, box-pusher extraordinaire.`;
     }
   }
 
-  function packCountDuration(target, kind) {
-    const value = Math.max(0, Number(target) || 0);
-    const base = kind === "time" ? 3300 : kind === "pushes" ? 3000 : 2700;
-    const scale = kind === "time" ? 190 : kind === "pushes" ? 180 : 170;
-    return Math.min(4200, Math.max(base, base + Math.log10(value + 1) * scale));
+  function packCountDuration(_target, kind) {
+    /* All three counters start together and land in a clear, evenly spaced order. */
+    if (kind === "moves") return 3200;
+    if (kind === "pushes") return 4000;
+    return 4800;
   }
 
   function setPackStatValues(totals, values) {
@@ -1763,7 +1766,6 @@
     if (!packCompletionStats || !pack) return null;
     const totals = packCompletionTotals(pack);
     packCompletionStats.hidden = false;
-    packCompletionStats.style.setProperty("--pack-stat-accent", packAccentColour(pack));
     clearPackStatTargets();
     setPackStatValues(totals, animate ? { moves: 0, pushes: 0, seconds: 0 } : totals);
     if (animate) requestAnimationFrame(() => animatePackCompletionStats(totals));
@@ -1826,9 +1828,8 @@
     completeCard?.classList.add("final-complete");
     if (completeKicker) completeKicker.textContent = "CONGRATULATIONS";
     if (completeTitle) completeTitle.innerHTML = "WELL<br>DONE";
-    if (completeText) {
-      completeText.textContent = `You have completed ${pack.displayName}. Every level in this collection has been cleared.`;
-    }
+    if (completedPackHeading) completedPackHeading.textContent = String(pack.displayName || pack.title || "");
+    if (completeText) completeText.textContent = "";
     showPackStarAward(pack);
     renderPackCompletionStats(pack, true);
 
@@ -1913,9 +1914,13 @@
     }
     if (finalPackGrid) {
       finalPackGrid.innerHTML = "";
-      PACKS.forEach((pack, index) => {
-        if (pack.id !== excludePackId) finalPackGrid.appendChild(createPackButton(pack, index, true));
+      const alternatives = PACKS
+        .map((pack, index) => ({ pack, index }))
+        .filter(entry => entry.pack.id !== excludePackId);
+      alternatives.slice(0, 4).forEach(({ pack, index }) => {
+        finalPackGrid.appendChild(createPackButton(pack, index, true));
       });
+      if (finalPackMoreBtn) finalPackMoreBtn.hidden = PACKS.length <= 4;
     }
   }
 
@@ -3076,7 +3081,8 @@
         completeCard?.classList.add("final-complete");
         if (completeKicker) completeKicker.textContent = "CONGRATULATIONS";
         if (completeTitle) completeTitle.innerHTML = "WELL<br>DONE";
-        completeText.textContent = `You have completed ${activePack.displayName}. Level ${LEVELS.length} was solved in ${moves} moves and ${pushes} pushes.${solvedWithWalkthrough ? " This completion used the guided solve." : ""}${learnedRoute ? " Your route has been saved as this level's guided solve." : ""}${unlockedAdditionalPacksNow ? " The additional puzzle packs are now unlocked." : ""}`;
+        if (completedPackHeading) completedPackHeading.textContent = String(activePack.displayName || activePack.title || "");
+        completeText.textContent = "";
         showPackStarAward(activePack);
         renderPackCompletionStats(activePack, false);
         buildPackSelectors(activePack.id);
@@ -3477,6 +3483,10 @@
     else pauseBackgroundMusic();
   });
   collectionBtn?.addEventListener("click", openPackModal);
+  finalPackMoreBtn?.addEventListener("click", () => {
+    closeCompleteModal();
+    openPackModal();
+  });
   packCloseBtn?.addEventListener("click", closePackModal);
   packModal?.addEventListener("click", event => { if (event.target === packModal) closePackModal(); });
   themeCloseBtn?.addEventListener("click", closeThemeModal);
