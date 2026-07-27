@@ -33,7 +33,7 @@
   });
 })();
 
-/* BOXXY v176 — pack completion celebrations, aggregate totals and coloured header stars. */
+/* BOXXY v177 — move-primary pack records, animated totals and star award message. */
 /* BOXXY v175 — reliable queued cookieless PostHog analytics; no autocapture or session recording. */
 /* BOXXY v168 — Rainbow Mode with pack-preview and walkthrough colour preservation. */
 (() => {
@@ -907,18 +907,53 @@
   }
 
   function recordLevelCompletionStats(pack, index, result) {
-    if (!pack?.id || !Number.isInteger(index) || index < 0) return;
+    if (!pack?.id || !Number.isInteger(index) || index < 0) return false;
     const data = readPackCompletionStats(pack.id);
     const key = String(index);
-    if (data.levels[key]) return;
-    data.levels[key] = {
+    const attempt = {
       moves: Math.max(0, Number(result.moves) || 0),
       pushes: Math.max(0, Number(result.pushes) || 0),
       seconds: Math.max(0, Number(result.seconds) || 0),
       guided: Boolean(result.guided),
       completedAt: Number(result.completedAt) || Date.now()
     };
+    const previous = data.levels[key];
+
+    if (!previous || typeof previous !== "object") {
+      data.levels[key] = attempt;
+      writePackCompletionStats(pack.id, data);
+      return true;
+    }
+
+    const previousMoves = Math.max(0, Number(previous.moves) || 0);
+    if (attempt.moves > previousMoves) return false;
+
+    if (attempt.moves < previousMoves) {
+      data.levels[key] = attempt;
+      writePackCompletionStats(pack.id, data);
+      return true;
+    }
+
+    let changed = false;
+    const next = { ...previous, moves: previousMoves };
+    const previousPushes = Math.max(0, Number(previous.pushes) || 0);
+    const previousSeconds = Math.max(0, Number(previous.seconds) || 0);
+
+    if (!Number.isFinite(Number(previous.pushes)) || attempt.pushes < previousPushes) {
+      next.pushes = attempt.pushes;
+      changed = true;
+    }
+    if (!Number.isFinite(Number(previous.seconds)) || attempt.seconds < previousSeconds) {
+      next.seconds = attempt.seconds;
+      changed = true;
+    }
+
+    if (!changed) return false;
+    next.completedAt = attempt.completedAt;
+    next.guided = Boolean(previous.guided && attempt.guided);
+    data.levels[key] = next;
     writePackCompletionStats(pack.id, data);
+    return true;
   }
 
   function bestMovesForPack(pack, level) {
@@ -1253,6 +1288,9 @@
   const resetCancelBtn = document.getElementById("resetCancelBtn");
   const modal = document.getElementById("completeModal");
   const completeText = document.getElementById("completeText");
+  const packStarAward = document.getElementById("packStarAward");
+  const packStarAwardIcon = document.getElementById("packStarAwardIcon");
+  const packStarAwardText = document.getElementById("packStarAwardText");
   const packCompletionStats = document.getElementById("packCompletionStats");
   const packTotalMoves = document.getElementById("packTotalMoves");
   const packTotalPushes = document.getElementById("packTotalPushes");
@@ -1346,13 +1384,14 @@
   let backgroundDecorBuilt = false;
   let backgroundFadeTimer = null;
   let backgroundBuildNonce = 0;
+  let packStatsAnimationFrame = 0;
   let completedLevels = new Set();
   let assistedLevels = new Set();
   let highestUnlockedLevel = 0;
 
   /* BOXXY v175 — deliberately limited, anonymous gameplay analytics.
      No puzzle layouts, typed names, email addresses or editor content are sent. */
-  const BOXXY_ANALYTICS_VERSION = 176;
+  const BOXXY_ANALYTICS_VERSION = 177;
 
   function boxxyAnalyticsOrientation() {
     const type = String(window.screen?.orientation?.type || "");
@@ -1613,18 +1652,83 @@
     if (prizeModal) prizeModal.hidden = true;
   }
 
+  function stopPackStatsAnimation() {
+    if (packStatsAnimationFrame) cancelAnimationFrame(packStatsAnimationFrame);
+    packStatsAnimationFrame = 0;
+  }
+
   function hidePackCompletionStats() {
+    stopPackStatsAnimation();
     if (packCompletionStats) packCompletionStats.hidden = true;
     if (packStatsNote) packStatsNote.hidden = true;
   }
 
-  function renderPackCompletionStats(pack) {
-    if (!packCompletionStats || !pack) return;
+  function hidePackStarAward() {
+    if (packStarAward) packStarAward.hidden = true;
+  }
+
+  function showPackStarAward(pack) {
+    if (!packStarAward || !pack) return;
+    packStarAward.hidden = false;
+    if (packStarAwardIcon) packStarAwardIcon.style.setProperty("--pack-star-colour", packAccentColour(pack));
+    if (packStarAwardText) {
+      packStarAwardText.textContent = "A star has been added to your badge collection for completing this pack. Find it beside BOXXY at the top of your screen, box-pusher extraordinaire.";
+    }
+  }
+
+  function packCountDuration(target, kind) {
+    const value = Math.max(0, Number(target) || 0);
+    const base = kind === "time" ? 820 : 650;
+    const scale = kind === "time" ? 285 : 245;
+    return Math.min(1800, Math.max(650, base + Math.log10(value + 1) * scale));
+  }
+
+  function setPackStatValues(totals, values) {
+    if (packTotalMoves) packTotalMoves.textContent = totals.moveLevels ? Math.max(0, Math.round(values.moves)).toLocaleString() : "—";
+    if (packTotalPushes) packTotalPushes.textContent = totals.pushLevels ? Math.max(0, Math.round(values.pushes)).toLocaleString() : "—";
+    if (packTotalTime) packTotalTime.textContent = totals.timeLevels ? formatPackDuration(values.seconds) : "—";
+  }
+
+  function animatePackCompletionStats(totals) {
+    stopPackStatsAnimation();
+    if (!totals) return;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches) {
+      setPackStatValues(totals, totals);
+      return;
+    }
+
+    const durations = {
+      moves: packCountDuration(totals.moves, "moves"),
+      pushes: packCountDuration(totals.pushes, "pushes"),
+      seconds: packCountDuration(totals.seconds, "time")
+    };
+    const start = performance.now();
+    const easeOutCubic = value => 1 - Math.pow(1 - value, 3);
+
+    const tick = now => {
+      const elapsed = Math.max(0, now - start);
+      const values = {
+        moves: totals.moves * easeOutCubic(Math.min(1, elapsed / durations.moves)),
+        pushes: totals.pushes * easeOutCubic(Math.min(1, elapsed / durations.pushes)),
+        seconds: totals.seconds * easeOutCubic(Math.min(1, elapsed / durations.seconds))
+      };
+      setPackStatValues(totals, values);
+      if (elapsed < Math.max(durations.moves, durations.pushes, durations.seconds)) {
+        packStatsAnimationFrame = requestAnimationFrame(tick);
+      } else {
+        packStatsAnimationFrame = 0;
+        setPackStatValues(totals, totals);
+      }
+    };
+
+    packStatsAnimationFrame = requestAnimationFrame(tick);
+  }
+
+  function renderPackCompletionStats(pack, animate = false) {
+    if (!packCompletionStats || !pack) return null;
     const totals = packCompletionTotals(pack);
     packCompletionStats.hidden = false;
-    if (packTotalMoves) packTotalMoves.textContent = totals.moveLevels ? totals.moves.toLocaleString() : "—";
-    if (packTotalPushes) packTotalPushes.textContent = totals.pushLevels ? totals.pushes.toLocaleString() : "—";
-    if (packTotalTime) packTotalTime.textContent = totals.timeLevels ? formatPackDuration(totals.seconds) : "—";
+    setPackStatValues(totals, animate ? { moves: 0, pushes: 0, seconds: 0 } : totals);
 
     if (packStatsNote) {
       const missingDetailed = totals.recordedLevels < totals.levelCount;
@@ -1633,6 +1737,9 @@
         ? `Detailed pushes and time are recorded for ${totals.recordedLevels} of ${totals.levelCount} levels. Earlier completions did not store those figures.`
         : "";
     }
+
+    if (animate) requestAnimationFrame(() => animatePackCompletionStats(totals));
+    return totals;
   }
 
   function closeCompleteModal() {
@@ -1641,6 +1748,7 @@
     completeCard?.classList.remove("final-complete");
     completionPackContext = null;
     hidePackCompletionStats();
+    hidePackStarAward();
   }
 
   function packAccentColour(pack) {
@@ -1693,7 +1801,8 @@
     if (completeText) {
       completeText.textContent = `You have completed ${pack.displayName}. Every level in this collection has been cleared.`;
     }
-    renderPackCompletionStats(pack);
+    showPackStarAward(pack);
+    renderPackCompletionStats(pack, true);
 
     buildPackSelectors(pack.id);
     if (finalPackPicker) finalPackPicker.hidden = false;
@@ -2933,7 +3042,8 @@
         if (completeKicker) completeKicker.textContent = "CONGRATULATIONS";
         if (completeTitle) completeTitle.innerHTML = "WELL<br>DONE";
         completeText.textContent = `You have completed ${activePack.displayName}. Level ${LEVELS.length} was solved in ${moves} moves and ${pushes} pushes.${solvedWithWalkthrough ? " This completion used the guided solve." : ""}${learnedRoute ? " Your route has been saved as this level's guided solve." : ""}${unlockedAdditionalPacksNow ? " The additional puzzle packs are now unlocked." : ""}`;
-        renderPackCompletionStats(activePack);
+        showPackStarAward(activePack);
+        renderPackCompletionStats(activePack, false);
         buildPackSelectors(activePack.id);
         if (finalPackPicker) finalPackPicker.hidden = false;
         if (finalPackStatus) finalPackStatus.textContent = solvedWithWalkthrough ? "Guided-solve completions are shown in yellow in the level list." : "";
@@ -2942,6 +3052,7 @@
         completeMode = "normal";
         completionPackContext = null;
         hidePackCompletionStats();
+        hidePackStarAward();
         restoreStandardCompletionActions();
         completeCard?.classList.remove("final-complete");
         if (finalPackPicker) finalPackPicker.hidden = true;
@@ -2973,7 +3084,10 @@
     setTimeout(() => {
       modal.hidden = false;
       render("idle");
-      if (grandCelebrationPack) grandBurst(grandCelebrationPack);
+      if (grandCelebrationPack) {
+        renderPackCompletionStats(grandCelebrationPack, true);
+        grandBurst(grandCelebrationPack);
+      }
     }, 500);
   }
 

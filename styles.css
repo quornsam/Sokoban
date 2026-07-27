@@ -3090,3 +3090,48 @@ html.touch-ui .level-attire{
 @media(prefers-reduced-motion:reduce){
   .grand-firework::before,.grand-firework i,.grand-confetti{animation-duration:.01ms!important;animation-delay:0ms!important}
 }
+
+
+/* BOXXY v177 — star award panel and animated aggregate totals. */
+.pack-star-award{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr);
+  align-items:center;
+  gap:12px;
+  max-width:620px;
+  margin:0 0 17px;
+  padding:11px 13px;
+  background:#fff8ea;
+  border:2px solid var(--ink);
+  box-shadow:4px 4px 0 rgba(23,23,25,.14);
+}
+.pack-star-award[hidden]{display:none!important}
+.pack-star-award-icon{
+  width:58px;
+  height:58px;
+  display:grid;
+  place-items:center;
+  flex:none;
+  filter:drop-shadow(2px 3px 0 rgba(23,23,25,.22));
+}
+.pack-star-award-icon svg{display:block;width:100%;height:100%;overflow:visible}
+.pack-star-award-icon path{
+  fill:var(--pack-star-colour,var(--red));
+  stroke:#f2c121;
+  stroke-width:9;
+  stroke-linejoin:round;
+  paint-order:stroke fill;
+}
+.pack-star-award p{
+  margin:0;
+  color:var(--ink);
+  font-size:clamp(12px,1.45vw,16px);
+  line-height:1.32;
+  font-weight:820;
+}
+@media(max-width:760px){
+  .pack-star-award{gap:8px;margin-bottom:12px;padding:8px 9px;box-shadow:2px 2px 0 rgba(23,23,25,.14)}
+  .pack-star-award-icon{width:38px;height:38px;filter:drop-shadow(1px 2px 0 rgba(23,23,25,.2))}
+  .pack-star-award-icon path{stroke-width:10}
+  .pack-star-award p{font-size:10px;line-height:1.3}
+}
