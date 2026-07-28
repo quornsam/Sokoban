@@ -85,7 +85,7 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=183">
+<link rel="stylesheet" href="styles.css?v=184">
 <link rel="stylesheet" href="how-to-play.css?v=154">
 <link rel="preload" as="image" href="assets/ui/completion/happy-sprites-350-grid.png">
 <link rel="preload" as="image" href="assets/board/board-atlas.png">
@@ -155,6 +155,14 @@
         <div id="pieceLayer" class="layer"></div>
         <div id="celebration" class="celebration" aria-hidden="true"></div>
       </div>
+      <button id="mobileFullscreenBtn" class="mobile-fullscreen-btn" type="button" hidden aria-label="Enter full screen" aria-pressed="false" title="Enter full screen">
+        <svg class="mobile-fullscreen-enter" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M9 4H4v5M15 4h5v5M20 15v5h-5M9 20H4v-5"/>
+        </svg>
+        <svg class="mobile-fullscreen-exit" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M9 4v5H4M15 4v5h5M15 20v-5h5M9 20v-5H4"/>
+        </svg>
+      </button>
       <button id="cancelGuidedBtn" class="cancel-guided-btn" type="button" hidden aria-label="Stop guided solve">
         <span aria-hidden="true">■</span><b>STOP GUIDED SOLVE</b><small>ESC</small>
       </button>
@@ -664,8 +672,8 @@
 <a class="legal-link" href="legal.html" target="_blank" rel="noopener">© 2026 SAM CORNWELL · LEGAL</a>
 <audio id="bgMusic" src="assets/audio/cracked-ivory-drift.mp3" preload="auto" autoplay loop playsinline></audio>
 
-<script src="levels.js?v=183"></script>
-<script src="boxxy.js?v=183"></script>
+<script src="levels.js?v=184"></script>
+<script src="boxxy.js?v=184"></script>
 <script src="pack-builder.js?v=168"></script>
 <script src="how-to-play.js?v=153"></script>
 </body>

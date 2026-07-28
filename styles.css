@@ -3824,3 +3824,62 @@ body.maker-editor-fullscreen{overflow:hidden}
   .maker-card:fullscreen,
   .maker-card:-webkit-full-screen{height:auto;min-height:100dvh}
 }
+
+
+/* BOXXY v184 — discreet phone full-screen control over the gameplay area. */
+.mobile-fullscreen-btn{
+  display:none;
+  position:absolute;
+  right:max(12px,env(safe-area-inset-right));
+  bottom:max(12px,env(safe-area-inset-bottom));
+  z-index:6500;
+  width:46px;
+  height:46px;
+  padding:11px;
+  border:1px solid rgba(255,255,255,.52);
+  border-radius:12px;
+  background:rgba(23,23,25,.54);
+  color:#fff;
+  box-shadow:0 5px 16px rgba(23,23,25,.24),inset 0 1px 0 rgba(255,255,255,.13);
+  -webkit-backdrop-filter:blur(6px);
+  backdrop-filter:blur(6px);
+  place-items:center;
+  line-height:0;
+  touch-action:manipulation;
+}
+.mobile-fullscreen-btn:hover{background:rgba(23,23,25,.66)}
+.mobile-fullscreen-btn:active{transform:scale(.96);filter:none}
+.mobile-fullscreen-btn svg{grid-area:1/1;width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:2.15;stroke-linecap:round;stroke-linejoin:round}
+.mobile-fullscreen-btn .mobile-fullscreen-exit{display:none}
+.mobile-fullscreen-btn[aria-pressed="true"] .mobile-fullscreen-enter{display:none}
+.mobile-fullscreen-btn[aria-pressed="true"] .mobile-fullscreen-exit{display:block}
+.mobile-fullscreen-btn[hidden]{display:none!important}
+@media (max-width:760px) and (pointer:coarse){
+  .mobile-fullscreen-btn{display:grid}
+}
+@media (max-height:520px) and (orientation:landscape) and (pointer:coarse){
+  .mobile-fullscreen-btn{display:grid;right:max(9px,env(safe-area-inset-right));bottom:max(9px,env(safe-area-inset-bottom));width:42px;height:42px;padding:10px;border-radius:10px}
+}
+
+.mobile-fullscreen-hint{
+  position:fixed;
+  left:50%;
+  bottom:max(18px,env(safe-area-inset-bottom));
+  z-index:12000;
+  width:min(360px,calc(100vw - 28px));
+  padding:12px 14px;
+  border:1px solid rgba(255,255,255,.25);
+  border-radius:12px;
+  background:rgba(23,23,25,.92);
+  color:#fff;
+  box-shadow:0 12px 30px rgba(0,0,0,.3);
+  font-size:12px;
+  font-weight:800;
+  line-height:1.35;
+  text-align:center;
+  opacity:0;
+  pointer-events:none;
+  transform:translate(-50%,14px);
+  transition:opacity .18s ease,transform .18s ease;
+}
+.mobile-fullscreen-hint.show{opacity:1;transform:translate(-50%,0)}

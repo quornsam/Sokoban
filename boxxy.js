@@ -1354,6 +1354,7 @@
   const bgDecor = document.getElementById("bgDecor");
   const app = document.querySelector(".app");
   const fullscreenBtn = document.getElementById("fullscreenBtn");
+  const mobileFullscreenBtn = document.getElementById("mobileFullscreenBtn");
   const autoSolveBtn = document.getElementById("autoSolveBtn");
   const cancelGuidedBtn = document.getElementById("cancelGuidedBtn");
   const instruction = document.querySelector(".instruction");
@@ -2388,32 +2389,82 @@
     return Boolean(document.fullscreenEnabled || document.webkitFullscreenEnabled || document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen);
   }
 
+  function phoneFullscreenLayout() {
+    return window.matchMedia("(max-width: 760px) and (pointer: coarse), (max-height: 520px) and (orientation: landscape) and (pointer: coarse)").matches;
+  }
+
+  function setFullscreenControlState(control, active) {
+    if (!control) return;
+    control.setAttribute("aria-label", active ? "Exit full screen" : "Enter full screen");
+    control.title = active ? "Exit full screen" : "Enter full screen";
+    control.setAttribute("aria-pressed", String(active));
+  }
+
+  function standaloneDisplayMode() {
+    return Boolean(window.navigator.standalone || window.matchMedia("(display-mode: standalone)").matches);
+  }
+
+  function showMobileFullscreenHint() {
+    let hint = document.getElementById("mobileFullscreenHint");
+    if (!hint) {
+      hint = document.createElement("div");
+      hint.id = "mobileFullscreenHint";
+      hint.className = "mobile-fullscreen-hint";
+      hint.setAttribute("role", "status");
+      hint.setAttribute("aria-live", "polite");
+      document.body.appendChild(hint);
+    }
+    const applePhone = /iPhone|iPod/i.test(navigator.userAgent);
+    hint.textContent = applePhone
+      ? "For full screen on iPhone: tap Share, choose Add to Home Screen, then open BOXXY from its icon."
+      : "This browser cannot enter full screen. Add BOXXY to your Home screen and open it from its icon.";
+    hint.classList.remove("show");
+    requestAnimationFrame(() => hint.classList.add("show"));
+    clearTimeout(showMobileFullscreenHint.timer);
+    showMobileFullscreenHint.timer = setTimeout(() => hint.classList.remove("show"), 5600);
+  }
+
   function updateFullscreenButton() {
-    if (!fullscreenBtn) return;
+    const supported = fullscreenSupported();
     const desktop = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
-    fullscreenBtn.hidden = !desktop || !fullscreenSupported();
+    const phone = phoneFullscreenLayout();
     const active = Boolean(fullscreenElement());
-    const icon = fullscreenBtn.querySelector("span");
-    const label = fullscreenBtn.querySelector("b");
-    if (icon) icon.textContent = active ? "⤢" : "⛶";
-    if (label) label.textContent = active ? "EXIT" : "FULL SCREEN";
-    fullscreenBtn.setAttribute("aria-label", active ? "Exit full screen" : "Enter full screen");
-    fullscreenBtn.title = active ? "Exit full screen" : "Enter full screen";
-    fullscreenBtn.setAttribute("aria-pressed", String(active));
+
+    if (fullscreenBtn) {
+      fullscreenBtn.hidden = !desktop || !supported;
+      const icon = fullscreenBtn.querySelector("span");
+      const label = fullscreenBtn.querySelector("b");
+      if (icon) icon.textContent = active ? "⤢" : "⛶";
+      if (label) label.textContent = active ? "EXIT" : "FULL SCREEN";
+      setFullscreenControlState(fullscreenBtn, active);
+    }
+
+    if (mobileFullscreenBtn) {
+      mobileFullscreenBtn.hidden = !phone || standaloneDisplayMode();
+      setFullscreenControlState(mobileFullscreenBtn, active);
+    }
   }
 
   async function toggleFullscreen() {
+    if (!fullscreenSupported()) {
+      showMobileFullscreenHint();
+      return;
+    }
     try {
       if (fullscreenElement()) {
         const exit = document.exitFullscreen || document.webkitExitFullscreen;
         if (exit) await exit.call(document);
       } else {
         const root = document.documentElement;
-        const enter = root.requestFullscreen || root.webkitRequestFullscreen;
-        if (enter) await enter.call(root);
+        if (root.requestFullscreen) {
+          await root.requestFullscreen({ navigationUI: "hide" });
+        } else if (root.webkitRequestFullscreen) {
+          await root.webkitRequestFullscreen();
+        }
       }
     } catch (error) {
       console.warn("Fullscreen could not be changed.", error);
+      if (phoneFullscreenLayout()) showMobileFullscreenHint();
     }
   }
 
@@ -3509,6 +3560,7 @@
   autoSolveBtn.addEventListener("click", startAutoplay);
   cancelGuidedBtn?.addEventListener("click", cancelGuidedSolve);
   fullscreenBtn?.addEventListener("click", toggleFullscreen);
+  mobileFullscreenBtn?.addEventListener("click", toggleFullscreen);
   document.addEventListener("fullscreenchange", () => { updateFullscreenButton(); scheduleBoardResize(); });
   document.addEventListener("webkitfullscreenchange", () => { updateFullscreenButton(); scheduleBoardResize(); });
   window.addEventListener("resize", () => { updateFullscreenButton(); scheduleBoardResize(); });
