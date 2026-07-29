@@ -33,6 +33,7 @@
   });
 })();
 
+/* BOXXY v185 — The Jigsaw pack, teal collection card and jigsaw-piece completion reward. */
 /* BOXXY v180 — responsive pack-completion layout, varied star messages and unclipped pack cards. */
 /* BOXXY v175 — reliable queued cookieless PostHog analytics; no autocapture or session recording. */
 /* BOXXY v168 — Rainbow Mode with pack-preview and walkthrough colour preservation. */
@@ -878,6 +879,7 @@
     chrysalis: "Chrysalis Variations",
     chessboards: "Small Chessboards",
     haikemono: "Haikemono",
+    jigsaw: "The Jigsaw",
     exponentially: "Exponentially"
   });
   const PACK_COLLECTION_HEADER_HTML = Object.freeze({
@@ -886,6 +888,7 @@
     chrysalis: "CHRYSALIS<br>VARIATIONS",
     chessboards: "SMALL<br>CHESSBOARDS",
     haikemono: "HAIKEMONO",
+    jigsaw: "THE JIGSAW",
     exponentially: "EXPONENTIALLY"
   });
 
@@ -908,6 +911,7 @@
   const SHARED_PUZZLE_PAYLOAD = window.BoxxyShareCodec?.readLocation?.() || null;
   const PRIMARY_PACK_ID = PACKS[0]?.id || "microban";
   const MICROBAN_PACK_ID = "microban";
+  const JIGSAW_PACK_ID = "jigsaw";
   const ALWAYS_UNLOCKED_PACK_IDS = new Set([PRIMARY_PACK_ID, MICROBAN_PACK_ID]);
   const UNLOCK_SOURCE_PACK_IDS = new Set([PRIMARY_PACK_ID, MICROBAN_PACK_ID]);
   const ADDITIONAL_PACKS_UNLOCK_KEY = "boxxy-additional-packs-unlocked-v1";
@@ -1731,25 +1735,46 @@
     packName => `Your new star for conquering “${packName}” is beside BOXXY at the top of your screen, you puzzle-pushing prodigy.`,
     packName => `Pack complete. Look beside BOXXY at the top of your screen for your latest star, you Sokoban superstar.`
   ]);
-  let lastPackStarAwardMessage = -1;
+  const PACK_JIGSAW_AWARD_MESSAGES = Object.freeze([
+    packName => `A jigsaw puzzle piece has been added to your badge collection for completing “${packName}”. Find it beside BOXXY at the top of your screen, you box-pusher extraordinaire.`,
+    packName => `You completed “${packName}” and earned its jigsaw puzzle piece. It is waiting beside BOXXY at the top of your screen, you puzzle-pushing prodigy.`,
+    packName => `“${packName}” is complete. Its jigsaw puzzle piece now sits beside BOXXY at the top of your screen, you crate-shifting champion.`
+  ]);
+  const PACK_STAR_SVG = '<svg viewBox="0 0 100 100" aria-hidden="true" focusable="false"><path d="M50 6 62.7 34.2 93.5 37.5 70.5 58.3 77 88.5 50 73 23 88.5 29.5 58.3 6.5 37.5 37.3 34.2Z"/></svg>';
+  const PACK_JIGSAW_SVG = '<svg viewBox="0 0 100 100" aria-hidden="true" focusable="false"><path d="M8 25H35C35 13 41 5 50 5S65 13 65 25H92V38C80 38 74 44 74 52S80 66 92 66V92H65C65 80 59 74 51 74S37 80 37 92H8V65C20 65 26 59 26 51S20 37 8 37Z"/></svg>';
+  const lastPackAwardMessage = { star: -1, jigsaw: -1 };
 
-  function nextPackStarAwardMessage(packName) {
-    let index = Math.floor(Math.random() * PACK_STAR_AWARD_MESSAGES.length);
-    if (PACK_STAR_AWARD_MESSAGES.length > 1 && index === lastPackStarAwardMessage) {
-      index = (index + 1 + Math.floor(Math.random() * (PACK_STAR_AWARD_MESSAGES.length - 1))) % PACK_STAR_AWARD_MESSAGES.length;
+  function packRewardKind(pack) {
+    return pack?.id === JIGSAW_PACK_ID ? "jigsaw" : "star";
+  }
+
+  function packRewardSvg(pack) {
+    return packRewardKind(pack) === "jigsaw" ? PACK_JIGSAW_SVG : PACK_STAR_SVG;
+  }
+
+  function nextPackAwardMessage(pack) {
+    const kind = packRewardKind(pack);
+    const messages = kind === "jigsaw" ? PACK_JIGSAW_AWARD_MESSAGES : PACK_STAR_AWARD_MESSAGES;
+    let index = Math.floor(Math.random() * messages.length);
+    if (messages.length > 1 && index === lastPackAwardMessage[kind]) {
+      index = (index + 1 + Math.floor(Math.random() * (messages.length - 1))) % messages.length;
     }
-    lastPackStarAwardMessage = index;
-    return PACK_STAR_AWARD_MESSAGES[index](packName);
+    lastPackAwardMessage[kind] = index;
+    const packName = String(pack?.displayName || pack?.title || "this puzzle pack");
+    return messages[index](packName);
   }
 
   function showPackStarAward(pack) {
     if (!packStarAward || !pack) return;
+    const kind = packRewardKind(pack);
     packStarAward.hidden = false;
-    if (packStarAwardIcon) packStarAwardIcon.style.setProperty("--pack-star-colour", packAccentColour(pack));
-    if (packStarAwardText) {
-      const packName = String(pack.displayName || pack.title || "this puzzle pack");
-      packStarAwardText.textContent = nextPackStarAwardMessage(packName);
+    packStarAward.dataset.rewardType = kind;
+    packStarAward.setAttribute("aria-label", kind === "jigsaw" ? "Pack completion jigsaw puzzle piece awarded" : "Pack completion star awarded");
+    if (packStarAwardIcon) {
+      packStarAwardIcon.innerHTML = packRewardSvg(pack);
+      packStarAwardIcon.style.setProperty("--pack-star-colour", packAccentColour(pack));
     }
+    if (packStarAwardText) packStarAwardText.textContent = nextPackAwardMessage(pack);
   }
 
   function packCountDuration(_target, kind) {
@@ -1850,12 +1875,13 @@
 
     completedPacks.forEach(pack => {
       const button = document.createElement("button");
+      const rewardKind = packRewardKind(pack);
       button.type = "button";
-      button.className = "completed-pack-star";
+      button.className = `completed-pack-star completed-pack-reward-${rewardKind}`;
       button.style.setProperty("--pack-star-colour", packAccentColour(pack));
       button.setAttribute("aria-label", `View congratulations for ${pack.displayName || pack.title}`);
       button.title = `View congratulations for ${pack.displayName || pack.title}`;
-      button.innerHTML = '<svg viewBox="0 0 100 100" aria-hidden="true" focusable="false"><path d="M50 6 62.7 34.2 93.5 37.5 70.5 58.3 77 88.5 50 73 23 88.5 29.5 58.3 6.5 37.5 37.3 34.2Z"/></svg>';
+      button.innerHTML = packRewardSvg(pack);
       button.addEventListener("click", event => {
         event.preventDefault();
         event.stopPropagation();
@@ -1869,8 +1895,12 @@
     updateCompletedPackStars();
     if (!collectionCompleteStar) return;
     const earned = collectionIsComplete() && !makerTesting && !sharedPuzzleMode;
+    const rewardKind = packRewardKind(activePack);
     collectionCompleteStar.hidden = !earned;
     collectionCompleteStar.setAttribute("aria-hidden", String(!earned));
+    collectionCompleteStar.dataset.rewardType = rewardKind;
+    collectionCompleteStar.innerHTML = packRewardSvg(activePack);
+    collectionCompleteStar.style.setProperty("--pack-star-colour", packAccentColour(activePack));
     collectionCompleteStar.title = earned
       ? `View the congratulations screen for ${activePack.displayName}`
       : "";

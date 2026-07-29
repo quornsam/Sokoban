@@ -3,6 +3,7 @@
  * Copyright © 2026 Sam Cornwell. All rights reserved.
  * Personal non-commercial use only. See LICENSE.md.
  * BOXXY v166: fifteen dedicated box and target sprite colours.
+ * BOXXY v185: The Jigsaw pack colour and jigsaw-piece completion reward.
  */
 :root{
   --paper:#efe5d4;--paper2:#f7f0e5;--ink:#171719;--red:#db3b27;--yellow:#e5b32a;--blue:#20539a;--green:#2f8f5b;--line:#cbbfae;
@@ -617,6 +618,7 @@ body.maker-testing .level-picker{display:none!important}
 .pack-blue .final-pack-art{background:var(--blue);color:#fff}
 .pack-yellow .final-pack-art{background:var(--yellow)}
 .pack-purple .final-pack-art{background:#8e44ad;color:#fff}
+.pack-teal .final-pack-art{background:#00a6b2;color:#fff}
 .final-pack-name{display:block;padding:9px 8px 8px;font-size:10px;line-height:1.08;font-weight:950;letter-spacing:.04em}
 .final-pack-name small{display:block;margin-top:4px;font-size:8px;letter-spacing:.12em;font-weight:900;color:#6f675d}
 .final-pack-status{min-height:1.2em!important;margin:9px 0 0!important;max-width:none!important;font-size:10px!important;line-height:1.25!important;font-weight:800!important;color:#655d53}
@@ -1403,8 +1405,8 @@ html.ios-standalone .app{
   overflow:visible;
 }
 .collection-complete-star path{
-  fill:#f2c121;
-  stroke:#20539a;
+  fill:var(--pack-star-colour,var(--red));
+  stroke:#f2c121;
   stroke-width:8;
   stroke-linejoin:round;
   paint-order:stroke fill;
@@ -1590,6 +1592,10 @@ html.ios-standalone .app{
 }
 .complete-card.final-complete .pack-purple .final-pack-art{
   background:#8e44ad;
+  color:#fff;
+}
+.complete-card.final-complete .pack-teal .final-pack-art{
+  background:#00a6b2;
   color:#fff;
 }
 .complete-card.final-complete .pack-black .final-pack-art{
