@@ -33,7 +33,7 @@
   });
 })();
 
-/* BOXXY v185 — The Jigsaw pack, teal collection card and jigsaw-piece completion reward. */
+/* BOXXY v186 — clearer locked-pack instructions and corrected jigsaw-piece reward silhouette. */
 /* BOXXY v180 — responsive pack-completion layout, varied star messages and unclipped pack cards. */
 /* BOXXY v175 — reliable queued cookieless PostHog analytics; no autocapture or session recording. */
 /* BOXXY v168 — Rainbow Mode with pack-preview and walkthrough colour preservation. */
@@ -1741,7 +1741,7 @@
     packName => `“${packName}” is complete. Its jigsaw puzzle piece now sits beside BOXXY at the top of your screen, you crate-shifting champion.`
   ]);
   const PACK_STAR_SVG = '<svg viewBox="0 0 100 100" aria-hidden="true" focusable="false"><path d="M50 6 62.7 34.2 93.5 37.5 70.5 58.3 77 88.5 50 73 23 88.5 29.5 58.3 6.5 37.5 37.3 34.2Z"/></svg>';
-  const PACK_JIGSAW_SVG = '<svg viewBox="0 0 100 100" aria-hidden="true" focusable="false"><path d="M8 25H35C35 13 41 5 50 5S65 13 65 25H92V38C80 38 74 44 74 52S80 66 92 66V92H65C65 80 59 74 51 74S37 80 37 92H8V65C20 65 26 59 26 51S20 37 8 37Z"/></svg>';
+  const PACK_JIGSAW_SVG = '<svg viewBox="0 0 100 100" aria-hidden="true" focusable="false"><path d="M8 26H34C34 14 40 6 50 6S66 14 66 26H82V38C82 42 84 44 88 44C94 44 98 48 98 54S94 66 88 66C84 66 82 68 82 72V90H64C64 78 58 72 50 72S36 78 36 90H8V64C20 64 28 58 28 50S20 36 8 36Z"/></svg>';
   const lastPackAwardMessage = { star: -1, jigsaw: -1 };
 
   function packRewardKind(pack) {
@@ -1984,12 +1984,12 @@
     if (isLocked) {
       const lockText = document.createElement("em");
       lockText.className = "pack-lock-label";
-      lockText.textContent = "COMPLETE BOXXY ORIGINAL OR MICROBAN";
+      lockText.textContent = "TO UNLOCK YOU MUST COMPLETE BOXXY ORIGINALS OR MICROBAN";
       name.appendChild(lockText);
     }
     button.append(art, name);
     button.title = isLocked
-      ? "Complete BOXXY Original Puzzle Pack or Microban Series to unlock this pack."
+      ? "To unlock this pack, you must complete BOXXY Originals or Microban."
       : (pack.description || pack.displayName || pack.title);
     button.addEventListener("click", () => switchPack(pack.id));
     return button;
