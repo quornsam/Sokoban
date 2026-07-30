@@ -33,7 +33,7 @@
   });
 })();
 
-/* BOXXY v193 — corrected landscape phone Zen controls at the handset bottom edge. */
+/* BOXXY v194 — square phone Zen controls over the uninterrupted animated background. */
 /* BOXXY v180 — responsive pack-completion layout, varied star messages and unclipped pack cards. */
 /* BOXXY v175 — reliable queued cookieless PostHog analytics; no autocapture or session recording. */
 /* BOXXY v168 — Rainbow Mode with pack-preview and walkthrough colour preservation. */
