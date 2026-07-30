@@ -33,6 +33,7 @@
   });
 })();
 
+/* BOXXY v196 — reliable first-load splash and startup loading gate. */
 /* BOXXY v195 — legal modal, Zen next-level control, lower landscape arrows and mobile music pause. */
 /* BOXXY v180 — responsive pack-completion layout, varied star messages and unclipped pack cards. */
 /* BOXXY v175 — reliable queued cookieless PostHog analytics; no autocapture or session recording. */
@@ -124,22 +125,9 @@
     return cell;
   }
 
-  const preloadImages = [];
-  if (typeof Image !== "undefined") {
-    for (const colour of ORDER) {
-      for (const type of ["goal", "box"]) {
-        const image = new Image();
-        image.decoding = "async";
-        image.src = spritePath(type, colour);
-        preloadImages.push(image);
-      }
-    }
-    const yellow = new Image();
-    yellow.decoding = "async";
-    yellow.src = "assets/board/boxes/box-default-yellow.png";
-    preloadImages.push(yellow);
-  }
-  window.BoxxyColourSpritesReady = Promise.allSettled(preloadImages.map(image => image.decode?.() || Promise.resolve()));
+  // Colour sprites now load only when a level actually uses them. The previous
+  // all-colours preload delayed first paint on fresh mobile browsers.
+  window.BoxxyColourSpritesReady = Promise.resolve([]);
   window.BoxxyGoalColours = Object.freeze({
     DEFAULT, ORDER, PALETTE, normalise, normaliseMap, style,
     spritePath, decodeTextChar, isTextCode, encodeTextCell
@@ -557,14 +545,22 @@
     return promise;
   }
 
-  const ready = Promise.all(FRAMES.map(frame => loadFrame(frame, style.bodyType, activeTheme())))
-    .then(() => Promise.all(FRAMES.map(frame => renderFrameUrl(frame))))
+  const ready = renderFrameUrl("player-front")
     .then(() => {
       document.querySelectorAll("canvas[data-character-preview]").forEach(canvas => {
         canvases.add(canvas);
         draw(canvas, canvas.dataset.characterPreview || "player-front");
       });
     }).catch(error => console.error("Character style assets could not be prepared.", error));
+
+  let characterWarmPromise = null;
+  function warmCharacterFrames() {
+    if (characterWarmPromise) return characterWarmPromise;
+    characterWarmPromise = Promise.allSettled(
+      FRAMES.filter(frame => frame !== "player-front").map(frame => renderFrameUrl(frame))
+    );
+    return characterWarmPromise;
+  }
 
   function sizeScratch(canvas, width, height) {
     if (canvas.width !== width) canvas.width = width;
@@ -847,6 +843,7 @@
 
   window.CharacterStyler = {
     ready,
+    warm: warmCharacterFrames,
     draw,
     drawImage,
     redrawAll,
@@ -2124,22 +2121,133 @@
     updateCollectionCompleteStar();
   }
 
-  let splashStartedAt = performance.now();
+  const splashStartedAt = performance.now();
+  const splashProgressBar = document.getElementById("splashProgressBar");
+  const splashProgressText = document.getElementById("splashProgressText");
   let splashDismissed = false;
 
-  function hideSplashScreen(){
+  function setSplashProgress(percent, label) {
+    const value = Math.max(0, Math.min(100, Number(percent) || 0));
+    if (splashProgressBar) splashProgressBar.style.transform = `scaleX(${value / 100})`;
+    if (splashProgressText && label) splashProgressText.textContent = label;
+  }
+
+  function hideSplashScreen() {
     if (!splashScreen || splashDismissed) return;
     splashDismissed = true;
+    setSplashProgress(100, "READY");
+    splashScreen.setAttribute("aria-hidden", "true");
     splashScreen.classList.add("hide");
     window.setTimeout(() => { splashScreen.hidden = true; }, 700);
   }
 
-  function scheduleSplashHide(){
+  function waitForImage(image) {
+    if (!image) return Promise.resolve();
+    return new Promise(resolve => {
+      let finished = false;
+      const done = () => {
+        if (finished) return;
+        finished = true;
+        image.removeEventListener("load", done);
+        image.removeEventListener("error", done);
+        const decoded = image.complete && image.naturalWidth > 0 && typeof image.decode === "function"
+          ? image.decode().catch(() => {})
+          : Promise.resolve();
+        decoded.finally(resolve);
+      };
+      image.addEventListener("load", done, { once: true });
+      image.addEventListener("error", done, { once: true });
+      if (image.complete) done();
+    });
+  }
+
+  function loadStartupImage(src) {
+    return new Promise(resolve => {
+      const image = new Image();
+      image.decoding = "async";
+      image.onload = image.onerror = () => {
+        const decoded = image.naturalWidth > 0 && typeof image.decode === "function"
+          ? image.decode().catch(() => {})
+          : Promise.resolve();
+        decoded.finally(resolve);
+      };
+      image.src = src;
+    });
+  }
+
+  function currentBoardAssetPaths() {
+    const paths = new Set(["assets/board/boxes/box-default-yellow.png"]);
+    for (const goal of goals) {
+      const colour = GOAL_COLOURS?.normalise?.(goal.colour) || "red";
+      paths.add(GOAL_COLOURS?.spritePath?.("goal", colour) || `assets/board/goals/goal-${colour}.png`);
+      paths.add(GOAL_COLOURS?.spritePath?.("box", colour) || `assets/board/boxes/box-${colour}.png`);
+    }
+    return [...paths];
+  }
+
+  function waitForFirstBoard() {
+    return new Promise(resolve => {
+      const started = performance.now();
+      let stableFrames = 0;
+      let lastSize = "";
+      const inspect = () => {
+        const rect = board?.getBoundingClientRect?.();
+        const playerImage = pieceLayer?.querySelector?.(".player img");
+        const expectedWalls = walls?.size || 0;
+        const expectedGoals = goals?.length || 0;
+        const expectedBoxes = boxes?.length || 0;
+        const boardPopulated = Boolean(
+          rect && rect.width > 24 && rect.height > 24 &&
+          wallLayer?.children.length === expectedWalls &&
+          goalLayer?.children.length === expectedGoals &&
+          pieceLayer?.querySelectorAll?.(".box").length === expectedBoxes &&
+          playerImage
+        );
+        const playerVisible = Boolean(playerImage?.complete && playerImage.naturalWidth > 0);
+        const fullyReady = Boolean(boardPopulated && playerVisible && playerImage.dataset.characterReady === "true");
+        const size = rect ? `${Math.round(rect.width)}x${Math.round(rect.height)}` : "";
+        stableFrames = fullyReady && size === lastSize ? stableFrames + 1 : 0;
+        lastSize = size;
+        if (stableFrames >= 2) {
+          waitForImage(playerImage).finally(resolve);
+          return;
+        }
+        const elapsed = performance.now() - started;
+        if (elapsed > 20000 && boardPopulated && playerVisible) {
+          waitForImage(playerImage).finally(resolve);
+          return;
+        }
+        if (elapsed > 30000) {
+          resolve();
+          return;
+        }
+        requestAnimationFrame(inspect);
+      };
+      requestAnimationFrame(inspect);
+    });
+  }
+
+  async function completeStartupSplash() {
     if (!splashScreen || splashDismissed) return;
-    const minVisible = 1500;
-    const elapsed = performance.now() - splashStartedAt;
-    const wait = Math.max(0, minVisible - elapsed);
-    window.setTimeout(hideSplashScreen, wait);
+    setSplashProgress(16, "LOADING BOXXY…");
+    const splashImage = splashScreen.querySelector("img");
+    await waitForImage(splashImage);
+    if (splashImage?.naturalWidth > 0) splashScreen.classList.add("logo-ready");
+    setSplashProgress(28, "PREPARING PUZZLE…");
+    await Promise.all(currentBoardAssetPaths().map(loadStartupImage));
+    setSplashProgress(58, "LOADING CHARACTER…");
+    await Promise.resolve(window.CharacterStyler?.ready);
+    setSplashProgress(82, "BUILDING BOARD…");
+    await waitForFirstBoard();
+    setSplashProgress(96, "FINALISING…");
+    const remaining = Math.max(0, 1500 - (performance.now() - splashStartedAt));
+    if (remaining) await new Promise(resolve => window.setTimeout(resolve, remaining));
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    hideSplashScreen();
+
+    const warmCharacter = () => window.CharacterStyler?.warm?.();
+    if ("requestIdleCallback" in window) window.requestIdleCallback(warmCharacter, { timeout: 2500 });
+    else window.setTimeout(warmCharacter, 700);
   }
 
 
@@ -3883,35 +3991,29 @@
   loadLevelProgress();
   buildLevelButtons();
   buildPackSelectors();
-  Promise.resolve(window.CharacterStyler?.ready).finally(() => {
-    if (SHARED_PUZZLE_PAYLOAD?.ok) {
-      const result = loadMakerTest(SHARED_PUZZLE_PAYLOAD.layout, "", {
-        shared: true,
-        name: SHARED_PUZZLE_PAYLOAD.name,
-        goalColours: SHARED_PUZZLE_PAYLOAD.goalColours
-      });
-      if (!result?.ok) loadLevel(levelIndex);
-    } else {
-      captureBoxxyAnalytics("game_opened", {
-        initial_pack_id: String(activePack?.id || ""),
-        initial_pack_name: String(activePack?.displayName || activePack?.title || ""),
-        initial_level_number: Number(levelIndex) + 1
-      });
-      loadLevel(levelIndex);
-      if (SHARED_PUZZLE_PAYLOAD && !SHARED_PUZZLE_PAYLOAD.ok && thoughtText) {
-        thoughtText.textContent = SHARED_PUZZLE_PAYLOAD.error || "That shared puzzle link could not be read.";
-      }
-    }
-  });
-
-  if (document.readyState === "complete") {
-    scheduleSplashHide();
+  setSplashProgress(12, "PREPARING PUZZLE…");
+  if (SHARED_PUZZLE_PAYLOAD?.ok) {
+    const result = loadMakerTest(SHARED_PUZZLE_PAYLOAD.layout, "", {
+      shared: true,
+      name: SHARED_PUZZLE_PAYLOAD.name,
+      goalColours: SHARED_PUZZLE_PAYLOAD.goalColours
+    });
+    if (!result?.ok) loadLevel(levelIndex);
   } else {
-    window.addEventListener("load", () => {
-      requestAnimationFrame(() => requestAnimationFrame(scheduleSplashHide));
-    }, { once: true });
-    window.setTimeout(scheduleSplashHide, 3200);
+    captureBoxxyAnalytics("game_opened", {
+      initial_pack_id: String(activePack?.id || ""),
+      initial_pack_name: String(activePack?.displayName || activePack?.title || ""),
+      initial_level_number: Number(levelIndex) + 1
+    });
+    loadLevel(levelIndex);
+    if (SHARED_PUZZLE_PAYLOAD && !SHARED_PUZZLE_PAYLOAD.ok && thoughtText) {
+      thoughtText.textContent = SHARED_PUZZLE_PAYLOAD.error || "That shared puzzle link could not be read.";
+    }
   }
+  completeStartupSplash().catch(error => {
+    console.error("BOXXY startup could not be completed cleanly.", error);
+    hideSplashScreen();
+  });
 
 })();
 

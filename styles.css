@@ -3,6 +3,7 @@
  * Copyright © 2026 Sam Cornwell. All rights reserved.
  * Personal non-commercial use only. See LICENSE.md.
  * BOXXY v166: fifteen dedicated box and target sprite colours.
+ * BOXXY v196: reliable first-load splash and startup loading gate.
  * BOXXY v195: legal modal, Zen next-level control, lower landscape arrows and mobile music pause.
  */
 :root{
@@ -236,9 +237,15 @@ linear-gradient(135deg,transparent 0 58%,var(--shape-color) 58% 66%,transparent 
 .splash-screen.hide{opacity:0;visibility:hidden;pointer-events:none}
 .splash-inner{width:min(84vw,760px);padding:clamp(14px,2.6vw,24px)}
 .splash-logo-wrap{position:relative;display:block;width:100%;max-width:min(640px,82vw);margin:0 auto}
-.splash-logo-wrap img{display:block;width:100%;height:auto;filter:drop-shadow(0 16px 28px rgba(255,150,0,.16))}
-.splash-sheen{position:absolute;left:23%;top:19%;width:64%;height:34%;pointer-events:none;overflow:hidden}
+.splash-logo-wrap img{display:block;width:100%;height:auto;opacity:0;filter:drop-shadow(0 16px 28px rgba(255,150,0,.16));transition:opacity .18s ease}
+.splash-screen.logo-ready .splash-logo-wrap img{opacity:1}
+.splash-loading{width:min(520px,76vw);margin:clamp(18px,3.2vh,30px) auto 0;text-align:center;color:#f6efe3;font:800 11px/1.2 Arial,Helvetica,sans-serif;letter-spacing:.18em}
+.splash-progress-track{width:100%;height:8px;overflow:hidden;border:1px solid rgba(255,255,255,.42);border-radius:999px;background:rgba(255,255,255,.12);box-shadow:inset 0 1px 4px rgba(0,0,0,.55)}
+.splash-progress-track span{display:block;width:100%;height:100%;border-radius:inherit;background:#f2c121;box-shadow:0 0 12px rgba(242,193,33,.68);transform:scaleX(.035);transform-origin:left center;transition:transform .24s ease}
+#splashProgressText{display:block;margin-top:10px;min-height:1.2em}
+.splash-sheen{opacity:0;transition:opacity .18s ease;position:absolute;left:23%;top:19%;width:64%;height:34%;pointer-events:none;overflow:hidden}
 .splash-sheen::before{content:"";position:absolute;top:-10%;bottom:-10%;width:18%;left:-28%;background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,.03) 22%,rgba(255,255,255,.24) 42%,rgba(255,255,255,.70) 50%,rgba(255,255,255,.24) 58%,rgba(255,255,255,.03) 78%,rgba(255,255,255,0));transform:skewX(-18deg);mix-blend-mode:screen;filter:blur(.4px);animation:splashSheen 2.8s cubic-bezier(.2,.72,.27,.98) infinite}
+.splash-screen.logo-ready .splash-sheen{opacity:1}
 @keyframes splashSheen{0%{left:-28%;opacity:0}10%{opacity:.18}26%{opacity:.98}46%{opacity:.98}64%{opacity:.24}100%{left:112%;opacity:0}}
 @media (max-width: 700px){
   .splash-inner{width:min(92vw,560px);padding:14px}
