@@ -3,7 +3,7 @@
  * Copyright © 2026 Sam Cornwell. All rights reserved.
  * Personal non-commercial use only. See LICENSE.md.
  * BOXXY v166: fifteen dedicated box and target sprite colours.
- * BOXXY v190: larger phone Zen board with simple floating control layout.
+ * BOXXY v191: square phone Zen controls over the uninterrupted animated background.
  */
 :root{
   --paper:#efe5d4;--paper2:#f7f0e5;--ink:#171719;--red:#db3b27;--yellow:#e5b32a;--blue:#20539a;--green:#2f8f5b;--line:#cbbfae;
@@ -4277,35 +4277,74 @@ body.maker-editor-fullscreen{overflow:hidden}
 }
 
 
-/* BOXXY v190 — simple portrait phone Zen layout based on the supplied sketch.
-   The board uses all space above the floating control pad; the small actions sit
-   beside the upper arrow instead of reserving a separate row. */
+/* BOXXY v191 — portrait phone Zen layout.
+   Keep the full animated background visible, reserve only the space needed for
+   the board and use four equal square arrow buttons close to the bottom edge. */
 @media (max-width:760px) and (pointer:coarse) and (orientation:portrait){
   html.phone-zen-mode{--max-cell:76px}
   body.phone-zen-mode{
-    --zen-pad-size:min(68vw,280px,33dvh);
-    --zen-pad-bottom:max(8px,env(safe-area-inset-bottom));
-    --zen-action-size:44px;
+    --zen-arrow-size:min(23vw,92px,12.5dvh);
+    --zen-arrow-gap:8px;
+    --zen-pad-width:calc((var(--zen-arrow-size) * 3) + (var(--zen-arrow-gap) * 2));
+    --zen-pad-height:calc((var(--zen-arrow-size) * 2) + var(--zen-arrow-gap));
+    --zen-pad-bottom:max(10px,env(safe-area-inset-bottom));
+    --zen-action-size:46px;
   }
+
+  /* The background fills the whole phone. Padding reserves board space only. */
   body.phone-zen-mode .board-wrap{
-    inset:0 0 calc(var(--zen-pad-size) + var(--zen-pad-bottom) + 10px) 0!important;
-    width:auto!important;
-    height:auto!important;
-    padding:max(8px,env(safe-area-inset-top)) max(6px,env(safe-area-inset-right)) 4px max(6px,env(safe-area-inset-left))!important;
+    inset:0!important;
+    width:100%!important;
+    height:100%!important;
+    padding:
+      max(8px,env(safe-area-inset-top))
+      max(6px,env(safe-area-inset-right))
+      calc(var(--zen-pad-height) + var(--zen-pad-bottom) + 14px)
+      max(6px,env(safe-area-inset-left))!important;
+    background:linear-gradient(135deg,#f4ebdd,#eadcca)!important;
   }
+
+  /* No panel or dock behind the controls. */
+  body.phone-zen-mode .side-panel,
+  body.phone-zen-mode .move-zone,
+  body.phone-zen-mode .top-actions,
+  body.phone-zen-mode .dpad{
+    background:transparent!important;
+    border:0!important;
+    box-shadow:none!important;
+  }
+
   body.phone-zen-mode .move-zone{
-    width:var(--zen-pad-size)!important;
-    height:var(--zen-pad-size)!important;
+    width:var(--zen-pad-width)!important;
+    height:var(--zen-pad-height)!important;
     left:50%!important;
     right:auto!important;
     top:auto!important;
     bottom:var(--zen-pad-bottom)!important;
     transform:translateX(-50%)!important;
   }
+
   body.phone-zen-mode .dpad{
-    width:100%!important;
-    height:100%!important;
+    width:var(--zen-pad-width)!important;
+    height:var(--zen-pad-height)!important;
+    aspect-ratio:auto!important;
+    display:grid!important;
+    grid-template-columns:repeat(3,var(--zen-arrow-size))!important;
+    grid-template-rows:repeat(2,var(--zen-arrow-size))!important;
+    grid-template-areas:". up ." "left down right"!important;
+    gap:var(--zen-arrow-gap)!important;
+    padding:0!important;
   }
+
+  body.phone-zen-mode .dpad button{
+    width:var(--zen-arrow-size)!important;
+    height:var(--zen-arrow-size)!important;
+    min-width:var(--zen-arrow-size)!important;
+    min-height:var(--zen-arrow-size)!important;
+    aspect-ratio:1/1!important;
+    border-radius:13px!important;
+  }
+
   body.phone-zen-mode .top-actions #restartBtn,
   body.phone-zen-mode .top-actions #undoBtn{
     width:var(--zen-action-size)!important;
@@ -4313,7 +4352,10 @@ body.maker-editor-fullscreen{overflow:hidden}
     min-width:var(--zen-action-size)!important;
     min-height:var(--zen-action-size)!important;
     top:auto!important;
-    bottom:calc(var(--zen-pad-bottom) + var(--zen-pad-size) - 72px)!important;
+    bottom:calc(
+      var(--zen-pad-bottom) + var(--zen-arrow-size) + var(--zen-arrow-gap)
+      + ((var(--zen-arrow-size) - var(--zen-action-size)) / 2)
+    )!important;
   }
   body.phone-zen-mode .top-actions #restartBtn{
     left:max(18px,env(safe-area-inset-left))!important;
@@ -4323,10 +4365,6 @@ body.maker-editor-fullscreen{overflow:hidden}
     right:max(18px,env(safe-area-inset-right))!important;
     left:auto!important;
   }
-  body.phone-zen-mode .top-actions .action span{
-    font-size:18px!important;
-  }
-  body.phone-zen-mode .top-actions .action b{
-    font-size:6px!important;
-  }
+  body.phone-zen-mode .top-actions .action span{font-size:18px!important}
+  body.phone-zen-mode .top-actions .action b{font-size:6px!important}
 }
