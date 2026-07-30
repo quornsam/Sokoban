@@ -33,7 +33,7 @@
   });
 })();
 
-/* BOXXY v186 — clearer locked-pack instructions and corrected jigsaw-piece reward silhouette. */
+/* BOXXY v187 — phone Restart/Undo swap and distraction-free phone Zen Mode. */
 /* BOXXY v180 — responsive pack-completion layout, varied star messages and unclipped pack cards. */
 /* BOXXY v175 — reliable queued cookieless PostHog analytics; no autocapture or session recording. */
 /* BOXXY v168 — Rainbow Mode with pack-preview and walkthrough colour preservation. */
@@ -2434,6 +2434,24 @@
     return Boolean(window.navigator.standalone || window.matchMedia("(display-mode: standalone)").matches);
   }
 
+  function phoneZenModeActive() {
+    return document.body.classList.contains("phone-zen-mode");
+  }
+
+  function setPhoneZenMode(active) {
+    const enabled = Boolean(active && phoneFullscreenLayout());
+    document.documentElement.classList.toggle("phone-zen-mode", enabled);
+    document.body.classList.toggle("phone-zen-mode", enabled);
+    if (enabled) {
+      try { window.scrollTo({ top: 0, left: 0, behavior: "instant" }); } catch (_) { window.scrollTo(0, 0); }
+    }
+    if (mobileFullscreenBtn) setFullscreenControlState(mobileFullscreenBtn, enabled);
+    requestAnimationFrame(() => {
+      scheduleBoardResize();
+      requestAnimationFrame(scheduleBoardResize);
+    });
+  }
+
   function showMobileFullscreenHint() {
     let hint = document.getElementById("mobileFullscreenHint");
     if (!hint) {
@@ -2458,24 +2476,36 @@
     const supported = fullscreenSupported();
     const desktop = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
     const phone = phoneFullscreenLayout();
-    const active = Boolean(fullscreenElement());
+    const desktopFullscreenActive = Boolean(fullscreenElement());
+    let phoneZenActive = phoneZenModeActive();
+
+    if (!phone && phoneZenActive) {
+      document.documentElement.classList.remove("phone-zen-mode");
+      document.body.classList.remove("phone-zen-mode");
+      phoneZenActive = false;
+    }
 
     if (fullscreenBtn) {
       fullscreenBtn.hidden = !desktop || !supported;
       const icon = fullscreenBtn.querySelector("span");
       const label = fullscreenBtn.querySelector("b");
-      if (icon) icon.textContent = active ? "⤢" : "⛶";
-      if (label) label.textContent = active ? "EXIT" : "FULL SCREEN";
-      setFullscreenControlState(fullscreenBtn, active);
+      if (icon) icon.textContent = desktopFullscreenActive ? "⤢" : "⛶";
+      if (label) label.textContent = desktopFullscreenActive ? "EXIT" : "FULL SCREEN";
+      setFullscreenControlState(fullscreenBtn, desktopFullscreenActive);
     }
 
     if (mobileFullscreenBtn) {
-      mobileFullscreenBtn.hidden = !phone || standaloneDisplayMode();
-      setFullscreenControlState(mobileFullscreenBtn, active);
+      mobileFullscreenBtn.hidden = !phone;
+      setFullscreenControlState(mobileFullscreenBtn, phoneZenActive);
     }
   }
 
   async function toggleFullscreen() {
+    if (phoneFullscreenLayout()) {
+      setPhoneZenMode(!phoneZenModeActive());
+      return;
+    }
+
     if (!fullscreenSupported()) {
       showMobileFullscreenHint();
       return;
@@ -2494,7 +2524,6 @@
       }
     } catch (error) {
       console.warn("Fullscreen could not be changed.", error);
-      if (phoneFullscreenLayout()) showMobileFullscreenHint();
     }
   }
 
@@ -3594,7 +3623,9 @@
   document.addEventListener("fullscreenchange", () => { updateFullscreenButton(); scheduleBoardResize(); });
   document.addEventListener("webkitfullscreenchange", () => { updateFullscreenButton(); scheduleBoardResize(); });
   window.addEventListener("resize", () => { updateFullscreenButton(); scheduleBoardResize(); });
-  window.addEventListener("orientationchange", scheduleBoardResize);
+  window.addEventListener("orientationchange", () => {
+    window.setTimeout(() => { updateFullscreenButton(); scheduleBoardResize(); }, 80);
+  });
 
   undoBtn.addEventListener("click", undo);
   savePositionBtn?.addEventListener("click", saveOrRestorePosition);
@@ -3756,6 +3787,7 @@
   document.addEventListener("pointerdown", retryMusicAfterInteraction, { capture: true });
   document.addEventListener("keydown", retryMusicAfterInteraction, { capture: true });
   window.addEventListener("keydown", event => {
+    if (event.key === "Escape" && phoneZenModeActive()) { setPhoneZenMode(false); return; }
     if (event.key === "Escape" && packModal && !packModal.hidden) { closePackModal(); return; }
     if (event.key === "Escape" && themeModal && !themeModal.hidden) { closeThemeModal(); return; }
     if (event.key === "Escape" && resetConfirmModal && !resetConfirmModal.hidden) {
