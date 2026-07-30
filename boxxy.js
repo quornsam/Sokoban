@@ -33,7 +33,7 @@
   });
 })();
 
-/* BOXXY v188 — safer phone Zen controls and brighter trousers/skirt palette. */
+/* BOXXY v189 — full-screen phone Zen background, larger arrows and automatic background motion. */
 /* BOXXY v180 — responsive pack-completion layout, varied star messages and unclipped pack cards. */
 /* BOXXY v175 — reliable queued cookieless PostHog analytics; no autocapture or session recording. */
 /* BOXXY v168 — Rainbow Mode with pack-preview and walkthrough colour preservation. */
@@ -1428,6 +1428,7 @@
   let thoughtReady = false;
   let audioUnlocked = false;
   let konamiIndex = 0;
+  let phoneZenActivatedKonamiMotion = false;
   let backgroundDecorBuilt = false;
   let backgroundFadeTimer = null;
   let backgroundBuildNonce = 0;
@@ -2442,9 +2443,18 @@
     const enabled = Boolean(active && phoneFullscreenLayout());
     document.documentElement.classList.toggle("phone-zen-mode", enabled);
     document.body.classList.toggle("phone-zen-mode", enabled);
+
     if (enabled) {
+      if (!document.body.classList.contains("konami-background")) {
+        document.body.classList.add("konami-background");
+        phoneZenActivatedKonamiMotion = true;
+      }
       try { window.scrollTo({ top: 0, left: 0, behavior: "instant" }); } catch (_) { window.scrollTo(0, 0); }
+    } else if (phoneZenActivatedKonamiMotion) {
+      document.body.classList.remove("konami-background");
+      phoneZenActivatedKonamiMotion = false;
     }
+
     if (mobileFullscreenBtn) setFullscreenControlState(mobileFullscreenBtn, enabled);
     requestAnimationFrame(() => {
       scheduleBoardResize();
@@ -2480,8 +2490,7 @@
     let phoneZenActive = phoneZenModeActive();
 
     if (!phone && phoneZenActive) {
-      document.documentElement.classList.remove("phone-zen-mode");
-      document.body.classList.remove("phone-zen-mode");
+      setPhoneZenMode(false);
       phoneZenActive = false;
     }
 
