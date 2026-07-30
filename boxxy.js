@@ -33,6 +33,7 @@
   });
 })();
 
+/* BOXXY v201 — supplied streak-flame artwork with coded day count inside the flame. */
 /* BOXXY v200 — Daily Boxxy schedule, sharing, local-midnight rollover and streak flame. */
 /* BOXXY v196 — reliable first-load splash and startup loading gate. */
 /* BOXXY v195 — legal modal, Zen next-level control, lower landscape arrows and mobile music pause. */
@@ -1027,13 +1028,12 @@
   }
 
   function dailyStreakTier(streak) {
-    if (streak >= 365) return "year";
-    if (streak >= 100) return "hundred";
-    if (streak >= 50) return "fifty";
-    if (streak >= 20) return "twenty";
-    if (streak >= 10) return "ten";
-    if (streak >= 5) return "five";
-    if (streak >= 1) return "one";
+    if (streak >= 365) return "silver";
+    if (streak >= 100) return "purple";
+    if (streak >= 50) return "fire";
+    if (streak >= 20) return "red";
+    if (streak >= 5) return "blue";
+    if (streak >= 1) return "green";
     return "zero";
   }
 
@@ -2059,6 +2059,7 @@
     const streak = calculateDailyStreak();
     const tier = dailyStreakTier(streak);
     dailyStreak.dataset.tier = tier;
+    dailyStreak.dataset.digits = String(Math.min(5, String(streak).length));
     if (dailyStreakNumber) dailyStreakNumber.textContent = String(streak);
     const label = `Daily Boxxy streak: ${streak} ${streak === 1 ? "day" : "days"}`;
     dailyStreak.setAttribute("aria-label", label);

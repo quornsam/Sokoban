@@ -3,6 +3,7 @@
  * Copyright © 2026 Sam Cornwell. All rights reserved.
  * Personal non-commercial use only. See LICENSE.md.
  * BOXXY v166: fifteen dedicated box and target sprite colours.
+ * BOXXY v201: supplied streak-flame artwork with coded day count inside the flame.
  * BOXXY v196: reliable first-load splash and startup loading gate.
  * BOXXY v195: legal modal, Zen next-level control, lower landscape arrows and mobile music pause.
  */
@@ -4445,14 +4446,12 @@ body.maker-editor-fullscreen{overflow:hidden}
 }
 
 
-/* BOXXY v200 — Daily Boxxy, responsive invitation, share panel and streak flame. */
+/* BOXXY v201 — supplied streak-flame artwork; daily number remains code-driven. */
 .daily-streak-badge{
-  --flame-fill:#fff;
-  --flame-stroke:#2f8f5b;
-  --flame-text:#2f8f5b;
   appearance:none;
-  width:clamp(27px,2.35vw,38px);
-  height:clamp(34px,2.95vw,47px);
+  position:relative;
+  width:clamp(25px,2.15vw,34px);
+  height:clamp(25px,2.15vw,34px);
   flex:none;
   padding:0;
   border:0;
@@ -4462,17 +4461,48 @@ body.maker-editor-fullscreen{overflow:hidden}
   filter:drop-shadow(2px 2px 0 rgba(23,23,25,.22));
   transition:transform .14s ease,filter .14s ease;
 }
-.daily-streak-badge svg{display:block;width:100%;height:100%;overflow:visible}
-.daily-streak-flame{fill:var(--flame-fill);stroke:var(--flame-stroke);stroke-width:5;stroke-linejoin:round;paint-order:stroke fill}
-.daily-streak-number{fill:var(--flame-text);font:1000 31px/1 Arial,sans-serif;letter-spacing:-1px;paint-order:stroke;stroke:rgba(255,255,255,.12);stroke-width:1px}
-.daily-streak-badge[data-tier="zero"]{--flame-fill:#fff;--flame-stroke:#2f8f5b;--flame-text:#2f8f5b}
-.daily-streak-badge[data-tier="one"]{--flame-fill:#2f8f5b;--flame-stroke:#1d653c;--flame-text:#fff}
-.daily-streak-badge[data-tier="five"]{--flame-fill:#72b94d;--flame-stroke:#2f8f5b;--flame-text:#fff}
-.daily-streak-badge[data-tier="ten"]{--flame-fill:#c8d52d;--flame-stroke:#78921f;--flame-text:#20351f}
-.daily-streak-badge[data-tier="twenty"]{--flame-fill:#f2c121;--flame-stroke:#c58a11;--flame-text:#171719}
-.daily-streak-badge[data-tier="fifty"]{--flame-fill:#f47a20;--flame-stroke:#b84416;--flame-text:#fff7dc}
-.daily-streak-badge[data-tier="hundred"]{--flame-fill:#db3b27;--flame-stroke:#8c2017;--flame-text:#f2c121}
-.daily-streak-badge[data-tier="year"]{--flame-fill:#171719;--flame-stroke:#c6cbd1;--flame-text:#c6cbd1;filter:drop-shadow(2px 2px 0 rgba(23,23,25,.38))}
+.daily-streak-flame{
+  position:absolute;
+  inset:0;
+  background-position:center;
+  background-repeat:no-repeat;
+  background-size:contain;
+  pointer-events:none;
+}
+.daily-streak-number{
+  position:absolute;
+  z-index:1;
+  left:50%;
+  top:67%;
+  transform:translate(-50%,-50%);
+  min-width:0;
+  color:#fff;
+  font-family:"Arial Black",Arial,sans-serif;
+  font-size:clamp(5.5px,.62vw,9px);
+  font-weight:1000;
+  line-height:1;
+  letter-spacing:-.06em;
+  text-align:center;
+  white-space:nowrap;
+  pointer-events:none;
+  text-shadow:-1px 0 0 rgba(10,17,20,.82),1px 0 0 rgba(10,17,20,.82),0 -1px 0 rgba(10,17,20,.82),0 1px 0 rgba(10,17,20,.82);
+}
+.daily-streak-badge[data-digits="1"] .daily-streak-number{font-size:clamp(7.5px,.82vw,12px)}
+.daily-streak-badge[data-digits="2"] .daily-streak-number{font-size:clamp(6.4px,.71vw,10.5px)}
+.daily-streak-badge[data-digits="3"] .daily-streak-number{font-size:clamp(5.5px,.62vw,9px)}
+.daily-streak-badge[data-digits="4"] .daily-streak-number{font-size:clamp(4.7px,.53vw,7.8px)}
+.daily-streak-badge[data-digits="5"] .daily-streak-number{font-size:clamp(4.1px,.47vw,6.8px)}
+.daily-streak-badge[data-tier="zero"] .daily-streak-flame{background-image:url("assets/ui/streak-flames/streak-zero.png")}
+.daily-streak-badge[data-tier="green"] .daily-streak-flame{background-image:url("assets/ui/streak-flames/streak-green.png")}
+.daily-streak-badge[data-tier="blue"] .daily-streak-flame{background-image:url("assets/ui/streak-flames/streak-blue.png")}
+.daily-streak-badge[data-tier="red"] .daily-streak-flame{background-image:url("assets/ui/streak-flames/streak-red.png")}
+.daily-streak-badge[data-tier="fire"] .daily-streak-flame{background-image:url("assets/ui/streak-flames/streak-fire.png")}
+.daily-streak-badge[data-tier="purple"] .daily-streak-flame{background-image:url("assets/ui/streak-flames/streak-purple.png")}
+.daily-streak-badge[data-tier="silver"] .daily-streak-flame{background-image:url("assets/ui/streak-flames/streak-silver.png")}
+.daily-streak-badge[data-tier="zero"] .daily-streak-number{
+  color:#176e24;
+  text-shadow:-1px 0 0 rgba(255,255,255,.92),1px 0 0 rgba(255,255,255,.92),0 -1px 0 rgba(255,255,255,.92),0 1px 0 rgba(255,255,255,.92);
+}
 .daily-streak-badge:hover,.daily-streak-badge:focus-visible{transform:translateY(-2px) scale(1.06);filter:drop-shadow(3px 4px 0 rgba(23,23,25,.28));outline:0}
 .daily-streak-badge:active{transform:translateY(1px) scale(.97)}
 
@@ -4529,8 +4559,7 @@ body.daily-mode .collection{border-color:#2f8f5b;box-shadow:4px 4px 0 rgba(47,14
 body.daily-mode .collection i{background:#2f8f5b}
 
 @media(max-width:760px){
-  .daily-streak-badge{width:21px;height:27px;filter:drop-shadow(1px 1px 0 rgba(23,23,25,.22))}
-  .daily-streak-number{font-size:29px}
+  .daily-streak-badge{width:clamp(16px,5vw,21px);height:clamp(16px,5vw,21px);filter:drop-shadow(1px 1px 0 rgba(23,23,25,.22))}
   .daily-quote-play{min-height:31px;padding-inline:8px;font-size:8px}
   .daily-quote-play small{padding:4px 5px;font-size:6.5px}
   .daily-quote-dismiss{width:27px;font-size:19px}
@@ -4551,8 +4580,7 @@ body.daily-mode .collection i{background:#2f8f5b}
   .daily-share-status{display:block;margin-top:8px}
 }
 @media(max-width:390px){
-  .daily-streak-badge{width:18px;height:24px}
-  .daily-streak-number{font-size:28px}
+  .daily-streak-badge{width:15px;height:15px}
   .daily-quote-play small{display:none}
 }
 @media(max-height:520px) and (orientation:landscape){
