@@ -3,7 +3,7 @@
  * Copyright © 2026 Sam Cornwell. All rights reserved.
  * Personal non-commercial use only. See LICENSE.md.
  * BOXXY v166: fifteen dedicated box and target sprite colours.
- * BOXXY v187: phone Restart/Undo swap and distraction-free phone Zen Mode.
+ * BOXXY v188: safer phone Zen controls and brighter trousers/skirt palette.
  */
 :root{
   --paper:#efe5d4;--paper2:#f7f0e5;--ink:#171719;--red:#db3b27;--yellow:#e5b32a;--blue:#20539a;--green:#2f8f5b;--line:#cbbfae;
@@ -3890,7 +3890,7 @@ body.maker-editor-fullscreen{overflow:hidden}
 }
 .mobile-fullscreen-hint.show{opacity:1;transform:translate(-50%,0)}
 
-/* BOXXY v187 — phone action swap and distraction-free Zen Mode. */
+/* BOXXY v188 — phone action swap, safer Zen controls and distraction-free layout. */
 
 /* On phones, Restart occupies Undo's former position and Undo moves to Restart's. */
 @media (max-width:760px) and (pointer:coarse){
@@ -3975,11 +3975,11 @@ body.maker-editor-fullscreen{overflow:hidden}
   body.phone-zen-mode .top-actions #undoBtn{
     min-width:0;
     min-height:0;
-    height:72px;
-    width:min(19vw,78px);
+    height:min(68px,calc(18vw - 6px),calc(8.333dvh - 11px));
+    width:min(68px,calc(18vw - 6px),calc(8.333dvh - 11px));
     align-self:center;
     justify-self:center;
-    border-radius:11px;
+    border-radius:10px;
     box-shadow:0 5px 14px rgba(55,38,20,.14);
     pointer-events:auto;
   }
@@ -3991,8 +3991,8 @@ body.maker-editor-fullscreen{overflow:hidden}
   body.phone-zen-mode .top-actions #undoBtn{
     background:linear-gradient(rgba(225,75,50,.96),rgba(201,46,31,.96));
   }
-  body.phone-zen-mode .top-actions .action span{font-size:29px}
-  body.phone-zen-mode .top-actions .action b{font-size:8px;white-space:nowrap}
+  body.phone-zen-mode .top-actions .action span{font-size:clamp(20px,6vw,25px)}
+  body.phone-zen-mode .top-actions .action b{font-size:7px;white-space:nowrap}
   body.phone-zen-mode .move-zone{
     min-width:0;
     min-height:0;
@@ -4037,8 +4037,9 @@ body.maker-editor-fullscreen{overflow:hidden}
   body.phone-zen-mode .side-panel{
     grid-column:1;
     grid-row:2;
-    grid-template-columns:minmax(74px,1fr) minmax(164px,230px) minmax(74px,1fr)!important;
+    grid-template-columns:minmax(48px,1fr) minmax(150px,230px) minmax(48px,1fr)!important;
     grid-template-rows:minmax(0,1fr)!important;
+    column-gap:clamp(12px,4vw,22px);
     padding:4px max(6px,env(safe-area-inset-right)) max(6px,env(safe-area-inset-bottom)) max(6px,env(safe-area-inset-left));
   }
   body.phone-zen-mode .top-actions{display:contents!important}
@@ -4059,21 +4060,24 @@ body.maker-editor-fullscreen{overflow:hidden}
     grid-column:2;
     grid-row:1;
     grid-template-columns:1fr 1fr!important;
-    grid-template-rows:minmax(0,1fr) 62px!important;
-    padding:max(6px,env(safe-area-inset-top)) max(6px,env(safe-area-inset-right)) max(6px,env(safe-area-inset-bottom)) 4px;
+    grid-template-rows:minmax(0,1fr) auto!important;
+    row-gap:18px;
+    padding:max(6px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) 8px;
   }
   body.phone-zen-mode .top-actions{display:contents!important}
   body.phone-zen-mode .top-actions #restartBtn{
     grid-column:1;
     grid-row:2;
-    width:calc(100% - 8px);
-    height:54px;
+    width:min(68px,calc(18dvh - 7px));
+    height:min(68px,calc(18dvh - 7px));
+    justify-self:start;
   }
   body.phone-zen-mode .top-actions #undoBtn{
     grid-column:2;
     grid-row:2;
-    width:calc(100% - 8px);
-    height:54px;
+    width:min(68px,calc(18dvh - 7px));
+    height:min(68px,calc(18dvh - 7px));
+    justify-self:end;
   }
   body.phone-zen-mode .move-zone{
     grid-column:1/-1;

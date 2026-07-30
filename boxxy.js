@@ -33,7 +33,7 @@
   });
 })();
 
-/* BOXXY v187 — phone Restart/Undo swap and distraction-free phone Zen Mode. */
+/* BOXXY v188 — safer phone Zen controls and brighter trousers/skirt palette. */
 /* BOXXY v180 — responsive pack-completion layout, varied star messages and unclipped pack cards. */
 /* BOXXY v175 — reliable queued cookieless PostHog analytics; no autocapture or session recording. */
 /* BOXXY v168 — Rainbow Mode with pack-preview and walkthrough colour preservation. */
@@ -417,14 +417,14 @@
       ["Violet", "#704f86"], ["Lavender", "#a38bc2"], ["Rose pink", "#c65f83"]
     ],
     trousers: [
-      ["Black", "#161619"], ["Charcoal", "#292829"], ["Graphite", "#4b4a4d"],
-      ["Navy", "#33435d"], ["Denim", "#4b6684"], ["Pale denim", "#8da9c2"],
-      ["Cobalt", "#294e83"], ["Sky blue", "#9bc3df"], ["Chocolate", "#624431"],
-      ["Tan", "#957151"], ["Sand", "#c9ae80"], ["Cream", "#e7d8b8"],
-      ["Bottle green", "#365447"], ["Olive", "#626442"], ["Pale sage", "#aebd9e"],
-      ["Stone", "#b5a78d"], ["Light grey", "#c8c5c0"], ["Warm white", "#ece5da"],
-      ["Burgundy", "#68383b"], ["Plum", "#5d405d"], ["Pale pink", "#d9a8ae"],
-      ["Pale yellow", "#ded29a"], ["Lilac", "#b8a8c8"], ["Aqua", "#92c8c1"]
+      ["Black", "#161619"], ["Charcoal", "#292829"], ["Navy", "#22345f"],
+      ["Denim", "#4b6684"], ["Bauhaus blue", "#20539a"], ["Electric blue", "#2478d4"],
+      ["Sky blue", "#55b9ee"], ["Turquoise", "#18b8b2"], ["Emerald", "#21a366"],
+      ["Bright green", "#4fbd4a"], ["Lime", "#9dcc33"], ["Sun yellow", "#f0c928"],
+      ["Tangerine", "#f28b35"], ["Bauhaus red", "#db3b27"], ["Coral", "#ef6a55"],
+      ["Hot pink", "#ef4f9a"], ["Magenta", "#ca3eb6"], ["Violet", "#7a4fc6"],
+      ["Bright purple", "#9a5de8"], ["Burgundy", "#68383b"], ["Chocolate", "#624431"],
+      ["Cream", "#e7d8b8"], ["Silver", "#c8c5c0"], ["Warm white", "#ece5da"]
     ],
     hair: [
       ["Black", "#292727"], ["Blue black", "#293d54"], ["Dark brown", "#543627"],
