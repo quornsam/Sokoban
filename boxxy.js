@@ -3345,14 +3345,24 @@
       : `${String(minutes).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`;
   }
 
+  function formatDailyShareDuration(totalSeconds) {
+    const total = Math.max(0, Math.floor(Number(totalSeconds) || 0));
+    const minutes = Math.floor(total / 60);
+    const seconds = total % 60;
+    const parts = [];
+    if (minutes) parts.push(`${minutes} ${minutes === 1 ? "minute" : "minutes"}`);
+    if (seconds || !minutes) parts.push(`${seconds} ${seconds === 1 ? "second" : "seconds"}`);
+    return parts.join(" ");
+  }
+
   function buildDailyShareText(puzzle, result) {
     if (!puzzle) return "";
     const sequence = Number(puzzle.sequence) || "";
-    const duration = formatClockDuration(result.seconds);
+    const duration = formatDailyShareDuration(result.seconds);
     const moveWord = Number(result.moves) === 1 ? "move" : "moves";
     return [
       `Daily Boxxy #${sequence} · ${formatDailyDate(puzzle.date, { long: true, year: true })}`,
-      `I completed the Daily Boxxy in ${duration}, ${Number(result.moves) || 0} ${moveWord}.`,
+      `I completed today's Daily Boxxy in ${duration} & ${Number(result.moves) || 0} ${moveWord}.`,
       "",
       emojiDailyBoard(puzzle.layout)
     ].join("\n");
