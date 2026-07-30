@@ -26,6 +26,7 @@
 <link rel="preload" as="image" href="assets/ui/boxxy-splash.png" fetchpriority="high">
 <script>
   /* BOXXY v196 — reliable first-load splash and startup loading gate. */
+  /* BOXXY v202 — optically aligned, equally spaced streak and completion badges. */
   /* BOXXY v201 — supplied streak-flame artwork with coded day count inside the flame. */
   /* BOXXY v200 — Daily Boxxy puzzle, local-midnight rollover, sharing and streak flame. */
   /* BOXXY v195 — legal modal, Zen next-level control, lower landscape arrows and mobile music pause. */
@@ -117,11 +118,13 @@
       <div class="title">
         <div class="title-word-row">
           <strong>BO<span id="makerHotspot" class="maker-hotspot">X</span>XY</strong>
-          <button id="dailyStreak" class="daily-streak-badge" type="button" data-tier="zero" data-digits="1" aria-label="Daily Boxxy streak: 0 days" title="Daily Boxxy streak: 0 days">
-            <span class="daily-streak-flame" aria-hidden="true"></span>
-            <span id="dailyStreakNumber" class="daily-streak-number" aria-hidden="true">0</span>
-          </button>
-          <div id="completedPackStars" class="completed-pack-stars" hidden aria-label="Completed puzzle packs"></div>
+          <div class="title-badges">
+            <button id="dailyStreak" class="daily-streak-badge" type="button" data-tier="zero" data-digits="1" aria-label="Daily Boxxy streak: 0 days" title="Daily Boxxy streak: 0 days">
+              <span class="daily-streak-flame" aria-hidden="true"></span>
+              <span id="dailyStreakNumber" class="daily-streak-number" aria-hidden="true">0</span>
+            </button>
+            <div id="completedPackStars" class="completed-pack-stars" hidden aria-label="Completed puzzle packs"></div>
+          </div>
         </div>
         <span>PUSHBOX PUZZLE</span>
       </div>
