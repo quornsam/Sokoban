@@ -4443,3 +4443,125 @@ body.maker-editor-fullscreen{overflow:hidden}
   .legal-section{padding-block:15px}
   .legal-grid .legal-section{padding:15px}
 }
+
+
+/* BOXXY v200 — Daily Boxxy, responsive invitation, share panel and streak flame. */
+.daily-streak-badge{
+  --flame-fill:#fff;
+  --flame-stroke:#2f8f5b;
+  --flame-text:#2f8f5b;
+  appearance:none;
+  width:clamp(27px,2.35vw,38px);
+  height:clamp(34px,2.95vw,47px);
+  flex:none;
+  padding:0;
+  border:0;
+  background:transparent;
+  display:grid;
+  place-items:center;
+  filter:drop-shadow(2px 2px 0 rgba(23,23,25,.22));
+  transition:transform .14s ease,filter .14s ease;
+}
+.daily-streak-badge svg{display:block;width:100%;height:100%;overflow:visible}
+.daily-streak-flame{fill:var(--flame-fill);stroke:var(--flame-stroke);stroke-width:5;stroke-linejoin:round;paint-order:stroke fill}
+.daily-streak-number{fill:var(--flame-text);font:1000 31px/1 Arial,sans-serif;letter-spacing:-1px;paint-order:stroke;stroke:rgba(255,255,255,.12);stroke-width:1px}
+.daily-streak-badge[data-tier="zero"]{--flame-fill:#fff;--flame-stroke:#2f8f5b;--flame-text:#2f8f5b}
+.daily-streak-badge[data-tier="one"]{--flame-fill:#2f8f5b;--flame-stroke:#1d653c;--flame-text:#fff}
+.daily-streak-badge[data-tier="five"]{--flame-fill:#72b94d;--flame-stroke:#2f8f5b;--flame-text:#fff}
+.daily-streak-badge[data-tier="ten"]{--flame-fill:#c8d52d;--flame-stroke:#78921f;--flame-text:#20351f}
+.daily-streak-badge[data-tier="twenty"]{--flame-fill:#f2c121;--flame-stroke:#c58a11;--flame-text:#171719}
+.daily-streak-badge[data-tier="fifty"]{--flame-fill:#f47a20;--flame-stroke:#b84416;--flame-text:#fff7dc}
+.daily-streak-badge[data-tier="hundred"]{--flame-fill:#db3b27;--flame-stroke:#8c2017;--flame-text:#f2c121}
+.daily-streak-badge[data-tier="year"]{--flame-fill:#171719;--flame-stroke:#c6cbd1;--flame-text:#c6cbd1;filter:drop-shadow(2px 2px 0 rgba(23,23,25,.38))}
+.daily-streak-badge:hover,.daily-streak-badge:focus-visible{transform:translateY(-2px) scale(1.06);filter:drop-shadow(3px 4px 0 rgba(23,23,25,.28));outline:0}
+.daily-streak-badge:active{transform:translateY(1px) scale(.97)}
+
+.daily-quote-prompt{min-width:0;flex:1;display:flex;align-items:stretch;gap:7px;font-style:normal}
+.daily-quote-prompt[hidden]{display:none!important}
+.instruction.daily-prompt-active .thought-text{display:none}
+.daily-quote-play{min-width:0;flex:1;min-height:35px;padding:5px 10px 5px 13px;border:2px solid #2f8f5b;background:#fff;color:var(--ink);display:flex;align-items:center;justify-content:space-between;gap:12px;text-align:left;box-shadow:3px 3px 0 rgba(47,143,91,.24);font-weight:1000;letter-spacing:.055em}
+.daily-quote-play span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.daily-quote-play small{flex:none;padding:4px 7px;background:#2f8f5b;color:#fff;font-size:8px;line-height:1;letter-spacing:.09em}
+.daily-quote-play:hover,.daily-quote-play:focus-visible{background:#f2f8f3;transform:translate(-1px,-1px);box-shadow:4px 4px 0 rgba(47,143,91,.28)}
+.daily-quote-dismiss{width:31px;flex:none;padding:0;border:1px solid rgba(23,23,25,.28);background:rgba(255,255,255,.54);color:var(--ink);font:900 22px/1 Arial,sans-serif}
+.daily-quote-dismiss:hover,.daily-quote-dismiss:focus-visible{background:#fff;border-color:var(--ink)}
+
+.level-picker #levelButtons .daily-level-option{grid-column:1/-1;height:43px;padding:0 11px;border:2px solid #2f8f5b;background:#fff;color:var(--ink);display:flex;align-items:center;justify-content:space-between;gap:10px;text-align:left;box-shadow:3px 3px 0 rgba(47,143,91,.2);font-size:10px;letter-spacing:.055em}
+.level-picker #levelButtons .daily-level-option strong{font-size:11px;letter-spacing:.065em}
+.level-picker #levelButtons .daily-level-option span{flex:none;padding:5px 8px;background:#2f8f5b;color:#fff;font-size:8px;font-weight:1000;letter-spacing:.075em}
+.level-picker #levelButtons .daily-level-option.current{background:#2f8f5b;border-color:#1d653c;color:#fff}
+.level-picker #levelButtons .daily-level-option.current span{background:#fff;color:#2f8f5b}
+.level-picker #levelButtons .daily-level-option.completed:not(.current){background:#e9f5ec;border-color:#2f8f5b;color:#245f3d}
+.level-picker #levelButtons .daily-level-option.completed:not(.current) span{background:#2f8f5b;color:#fff}
+.level-picker #levelButtons .daily-level-option:disabled{background:#e5e0d8;border-color:#aaa298;color:#777067;box-shadow:none}
+.level-picker #levelButtons .daily-level-option:disabled span{background:#8f887f;color:#fff}
+
+.daily-invite-modal{z-index:10500;background:rgba(23,23,25,.57);backdrop-filter:blur(7px)}
+.daily-invite-card{position:relative;width:min(570px,calc(100vw - 28px));padding:31px 34px 29px;border:3px solid var(--ink);background:linear-gradient(145deg,#fffaf2,#eee3d2);box-shadow:13px 13px 0 rgba(47,143,91,.78);overflow:hidden}
+.daily-invite-card::before{content:"";position:absolute;width:190px;height:190px;right:-78px;top:-85px;border-radius:50%;background:#f2c121;opacity:.9}
+.daily-invite-close{position:absolute;z-index:2;right:13px;top:11px;width:33px;height:33px;padding:0;border:2px solid var(--ink);background:#fff;color:var(--ink);font:900 23px/1 Arial,sans-serif}
+.daily-invite-kicker{position:relative;z-index:1;display:block;color:#2f8f5b;font-size:10px;font-weight:1000;letter-spacing:.16em}
+.daily-invite-mark{position:relative;z-index:1;width:66px;height:66px;margin:17px 0 10px;display:grid;place-items:center;background:#2f8f5b;color:#fff;border:3px solid var(--ink);box-shadow:5px 5px 0 var(--yellow);font:1000 39px/1 Arial,sans-serif}
+.daily-invite-card h2{position:relative;z-index:1;margin:0;font-size:clamp(48px,9vw,75px);line-height:.82;letter-spacing:-.055em}
+.daily-invite-card>p{position:relative;z-index:1;max-width:410px;margin:15px 0 0;color:#51493f;font-size:14px;line-height:1.42}
+.daily-invite-status{min-height:1.25em!important;margin-top:8px!important;color:#2f8f5b!important;font-size:10px!important;font-weight:950;letter-spacing:.08em;text-transform:uppercase}
+.daily-invite-actions{position:relative;z-index:1;display:flex;align-items:stretch;justify-content:flex-end;gap:10px;margin-top:24px}
+.daily-invite-actions button{font-weight:1000;letter-spacing:.07em}
+.daily-invite-later{padding:12px 15px;border:2px solid var(--ink);background:#eee5d8;color:var(--ink)}
+.daily-invite-play{min-width:230px;padding:10px 11px 10px 16px;border:2px solid var(--ink);background:#2f8f5b;color:#fff;display:flex;align-items:center;justify-content:space-between;gap:15px;box-shadow:5px 5px 0 var(--yellow)}
+.daily-invite-play b{width:30px;height:30px;display:grid;place-items:center;background:#fff;color:#2f8f5b;font-size:20px}
+.daily-invite-play:disabled{background:#8e887f;box-shadow:none;cursor:not-allowed}
+
+.complete-card.daily-complete{width:min(900px,92vw)}
+.complete-card.daily-complete .complete-copy{overflow:auto}
+.daily-share-panel{max-width:620px;margin:2px 0 18px;padding:13px;border:2px solid var(--ink);background:#fff9ee;box-shadow:5px 5px 0 rgba(47,143,91,.24);text-align:left}
+.daily-share-panel[hidden]{display:none!important}
+.daily-share-heading{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:9px}
+.daily-share-heading strong{font-size:10px;letter-spacing:.1em}
+.daily-share-heading span{font-size:7px;font-weight:900;letter-spacing:.08em;color:#71675a;text-align:right}
+.daily-share-panel textarea{box-sizing:border-box;width:100%;height:176px;resize:none;padding:10px;border:1px solid rgba(23,23,25,.35);background:#fff;color:var(--ink);font:700 12px/1.25 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre;overflow:auto}
+.daily-share-actions{display:flex;align-items:center;gap:12px;margin-top:9px}
+.daily-share-button{min-width:180px;padding:9px 10px 9px 13px;border:2px solid var(--ink);background:#2f8f5b;color:#fff;display:flex;align-items:center;justify-content:space-between;gap:13px;font-weight:1000;letter-spacing:.08em;box-shadow:4px 4px 0 var(--yellow)}
+.daily-share-button b{width:25px;height:25px;display:grid;place-items:center;background:#fff;color:#2f8f5b;font-size:17px}
+.daily-share-status{min-height:1em;color:#2f8f5b;font-size:9px;font-weight:1000;letter-spacing:.08em}
+
+body.daily-mode .collection{border-color:#2f8f5b;box-shadow:4px 4px 0 rgba(47,143,91,.22)}
+body.daily-mode .collection i{background:#2f8f5b}
+
+@media(max-width:760px){
+  .daily-streak-badge{width:21px;height:27px;filter:drop-shadow(1px 1px 0 rgba(23,23,25,.22))}
+  .daily-streak-number{font-size:29px}
+  .daily-quote-play{min-height:31px;padding-inline:8px;font-size:8px}
+  .daily-quote-play small{padding:4px 5px;font-size:6.5px}
+  .daily-quote-dismiss{width:27px;font-size:19px}
+  .daily-invite-card{padding:25px 22px 23px;box-shadow:8px 8px 0 rgba(47,143,91,.78)}
+  .daily-invite-mark{width:53px;height:53px;margin-top:13px;font-size:31px}
+  .daily-invite-card h2{font-size:clamp(43px,15vw,61px)}
+  .daily-invite-card>p{font-size:12px}
+  .daily-invite-actions{display:grid;grid-template-columns:1fr;gap:8px;margin-top:18px}
+  .daily-invite-play,.daily-invite-later{width:100%;min-width:0;min-height:43px}
+  .daily-invite-play{grid-row:1}
+  .daily-invite-later{grid-row:2}
+  .complete-card.daily-complete{width:min(550px,calc(100vw - 16px))}
+  .daily-share-heading{display:block}
+  .daily-share-heading span{display:block;margin-top:3px;text-align:left}
+  .daily-share-panel textarea{height:145px;font-size:10px}
+  .daily-share-actions{display:block}
+  .daily-share-button{width:100%;min-width:0}
+  .daily-share-status{display:block;margin-top:8px}
+}
+@media(max-width:390px){
+  .daily-streak-badge{width:18px;height:24px}
+  .daily-streak-number{font-size:28px}
+  .daily-quote-play small{display:none}
+}
+@media(max-height:520px) and (orientation:landscape){
+  .daily-invite-card{width:min(680px,calc(100vw - 20px));padding:17px 24px 16px;box-shadow:7px 7px 0 rgba(47,143,91,.78)}
+  .daily-invite-mark{float:left;width:45px;height:45px;margin:9px 14px 8px 0;font-size:27px}
+  .daily-invite-card h2{font-size:42px;line-height:.86;margin-top:9px}
+  .daily-invite-card>p{margin-top:8px;font-size:10px}
+  .daily-invite-actions{display:flex;margin-top:10px}
+  .daily-invite-play{width:auto;min-width:210px}
+  .daily-invite-later{width:auto}
+  .complete-card.daily-complete .daily-share-panel textarea{height:90px}
+}

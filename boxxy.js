@@ -33,6 +33,7 @@
   });
 })();
 
+/* BOXXY v200 — Daily Boxxy schedule, sharing, local-midnight rollover and streak flame. */
 /* BOXXY v196 — reliable first-load splash and startup loading gate. */
 /* BOXXY v195 — legal modal, Zen next-level control, lower landscape arrows and mobile music pause. */
 /* BOXXY v180 — responsive pack-completion layout, varied star messages and unclipped pack cards. */
@@ -905,6 +906,137 @@
     })[character]);
     return safeLabel.replace(/\s+/, "<br>");
   }
+
+  const DAILY_SCHEDULE = window.BOXXY_DAILY_SCHEDULE && window.BOXXY_DAILY_SCHEDULE.frontEndEnabled !== false
+    ? window.BOXXY_DAILY_SCHEDULE
+    : null;
+  const DAILY_PUZZLES = Array.isArray(DAILY_SCHEDULE?.puzzles)
+    ? DAILY_SCHEDULE.puzzles
+        .filter(puzzle => puzzle && /^\d{4}-\d{2}-\d{2}$/.test(String(puzzle.date || "")) && Array.isArray(puzzle.layout))
+        .slice()
+        .sort((a, b) => String(a.date).localeCompare(String(b.date)))
+    : [];
+  const DAILY_PUZZLE_BY_DATE = new Map(DAILY_PUZZLES.map(puzzle => [String(puzzle.date), puzzle]));
+  const DAILY_COMPLETIONS_KEY = "boxxy-daily-completions-v1";
+  const DAILY_INVITE_SEEN_PREFIX = "boxxy-daily-invite-seen-";
+  const DAILY_QUOTE_DISMISSED_PREFIX = "boxxy-daily-quote-dismissed-";
+  const DAILY_DATE_OVERRIDE = (() => {
+    try {
+      const value = new URLSearchParams(window.location.search).get("dailyDate");
+      return DAILY_PUZZLE_BY_DATE.has(String(value || "")) ? String(value) : "";
+    } catch (_) {
+      return "";
+    }
+  })();
+
+  function localDateKey(date = new Date()) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+
+  function activeDailyDateKey() {
+    return DAILY_DATE_OVERRIDE || localDateKey();
+  }
+
+  function dailyPuzzleForToday() {
+    return DAILY_PUZZLE_BY_DATE.get(activeDailyDateKey()) || null;
+  }
+
+  function parseDateKey(dateKey) {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateKey || ""));
+    if (!match) return null;
+    return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12, 0, 0, 0);
+  }
+
+  function formatDailyDate(dateKey, options = {}) {
+    const date = parseDateKey(dateKey);
+    if (!date) return String(dateKey || "");
+    try {
+      return new Intl.DateTimeFormat("en-GB", {
+        weekday: options.weekday ? "long" : undefined,
+        day: "numeric",
+        month: options.long ? "long" : "short",
+        year: options.year ? "numeric" : undefined
+      }).format(date);
+    } catch (_) {
+      return dateKey;
+    }
+  }
+
+  function readDailyCompletions() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(DAILY_COMPLETIONS_KEY) || "{}");
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+    } catch (_) {
+      return {};
+    }
+  }
+
+  function writeDailyCompletions(completions) {
+    try { localStorage.setItem(DAILY_COMPLETIONS_KEY, JSON.stringify(completions)); } catch (_) {}
+  }
+
+  function dailyCompletion(dateKey) {
+    const value = readDailyCompletions()[String(dateKey || "")];
+    return value && typeof value === "object" ? value : null;
+  }
+
+  function recordDailyCompletion(puzzle, result) {
+    if (!puzzle?.date) return null;
+    const completions = readDailyCompletions();
+    const key = String(puzzle.date);
+    const attempt = {
+      sequence: Number(puzzle.sequence) || 0,
+      moves: Math.max(0, Number(result.moves) || 0),
+      pushes: Math.max(0, Number(result.pushes) || 0),
+      seconds: Math.max(0, Number(result.seconds) || 0),
+      completedAt: Number(result.completedAt) || Date.now()
+    };
+    const previous = completions[key];
+    const previousMoves = Number(previous?.moves);
+    const previousPushes = Number(previous?.pushes);
+    const previousSeconds = Number(previous?.seconds);
+    if (!previous || !Number.isFinite(previousMoves) || attempt.moves < Math.max(0, previousMoves)) {
+      completions[key] = attempt;
+    } else {
+      completions[key] = {
+        ...previous,
+        pushes: Number.isFinite(previousPushes) ? Math.min(Math.max(0, previousPushes), attempt.pushes) : attempt.pushes,
+        seconds: Number.isFinite(previousSeconds) ? Math.min(Math.max(0, previousSeconds), attempt.seconds) : attempt.seconds,
+        completedAt: attempt.completedAt
+      };
+    }
+    writeDailyCompletions(completions);
+    return completions[key];
+  }
+
+  function calculateDailyStreak(referenceDateKey = activeDailyDateKey()) {
+    const completions = readDailyCompletions();
+    const eligible = DAILY_PUZZLES.filter(puzzle => String(puzzle.date) <= String(referenceDateKey));
+    if (!eligible.length) return 0;
+    let index = eligible.length - 1;
+    if (eligible[index]?.date === referenceDateKey && !completions[referenceDateKey]) index--;
+    let streak = 0;
+    for (; index >= 0; index--) {
+      if (!completions[String(eligible[index].date)]) break;
+      streak++;
+    }
+    return streak;
+  }
+
+  function dailyStreakTier(streak) {
+    if (streak >= 365) return "year";
+    if (streak >= 100) return "hundred";
+    if (streak >= 50) return "fifty";
+    if (streak >= 20) return "twenty";
+    if (streak >= 10) return "ten";
+    if (streak >= 5) return "five";
+    if (streak >= 1) return "one";
+    return "zero";
+  }
+
   const SHARED_PUZZLE_PAYLOAD = window.BoxxyShareCodec?.readLocation?.() || null;
   const PRIMARY_PACK_ID = PACKS[0]?.id || "microban";
   const MICROBAN_PACK_ID = "microban";
@@ -1152,7 +1284,7 @@
 
   function updateSavePositionButton() {
     if (!savePositionBtn) return;
-    const unavailable = makerTesting || sharedPuzzleMode;
+    const unavailable = makerTesting || sharedPuzzleMode || dailyMode;
     savePositionBtn.hidden = unavailable;
     if (unavailable) return;
 
@@ -1226,7 +1358,7 @@
   }
 
   function saveOrRestorePosition() {
-    if (makerTesting || sharedPuzzleMode || completed || autoplayRunning) return;
+    if (makerTesting || sharedPuzzleMode || dailyMode || completed || autoplayRunning) return;
     if (currentCheckpoint && atFreshLevelStart()) {
       restoreCheckpoint();
       return;
@@ -1316,12 +1448,28 @@
   const levelResetBtn = document.getElementById("levelResetBtn");
   const collectionCompleteStar = document.getElementById("collectionCompleteStar");
   const completedPackStars = document.getElementById("completedPackStars");
+  const dailyStreak = document.getElementById("dailyStreak");
+  const dailyStreakNumber = document.getElementById("dailyStreakNumber");
+  const dailyQuotePrompt = document.getElementById("dailyQuotePrompt");
+  const dailyQuotePlay = document.getElementById("dailyQuotePlay");
+  const dailyQuoteDismiss = document.getElementById("dailyQuoteDismiss");
+  const dailyQuoteMeta = document.getElementById("dailyQuoteMeta");
+  const dailyInviteModal = document.getElementById("dailyInviteModal");
+  const dailyInviteClose = document.getElementById("dailyInviteClose");
+  const dailyInviteLater = document.getElementById("dailyInviteLater");
+  const dailyInvitePlay = document.getElementById("dailyInvitePlay");
+  const dailyInviteText = document.getElementById("dailyInviteText");
+  const dailyInviteStatus = document.getElementById("dailyInviteStatus");
   const grandCelebration = document.getElementById("grandCelebration");
   const resetConfirmModal = document.getElementById("resetConfirmModal");
   const resetConfirmBtn = document.getElementById("resetConfirmBtn");
   const resetCancelBtn = document.getElementById("resetCancelBtn");
   const modal = document.getElementById("completeModal");
   const completeText = document.getElementById("completeText");
+  const dailySharePanel = document.getElementById("dailySharePanel");
+  const dailyShareText = document.getElementById("dailyShareText");
+  const dailyShareButton = document.getElementById("dailyShareButton");
+  const dailyShareStatus = document.getElementById("dailyShareStatus");
   const packStarAward = document.getElementById("packStarAward");
   const packStarAwardIcon = document.getElementById("packStarAwardIcon");
   const packStarAwardText = document.getElementById("packStarAwardText");
@@ -1391,6 +1539,9 @@
   let makerTesting = false;
   let sharedPuzzleMode = false;
   let sharedPuzzleName = "";
+  let dailyMode = false;
+  let dailyPuzzle = null;
+  let dailyMidnightTimer = 0;
   let makerLayout = null;
   let makerGoalColours = {};
   let makerSolution = "";
@@ -1441,7 +1592,7 @@
 
   /* BOXXY v175 — deliberately limited, anonymous gameplay analytics.
      No puzzle layouts, typed names, email addresses or editor content are sent. */
-  const BOXXY_ANALYTICS_VERSION = 183;
+  const BOXXY_ANALYTICS_VERSION = 200;
 
   function boxxyAnalyticsOrientation() {
     const type = String(window.screen?.orientation?.type || "");
@@ -1504,6 +1655,16 @@
   }
 
   function currentLevelAnalytics(properties = {}) {
+    if (dailyMode && dailyPuzzle) {
+      return {
+        pack_id: "daily-boxxy",
+        pack_name: "Daily Boxxy",
+        level_number: Number(dailyPuzzle.sequence) || 0,
+        level_count: Number(DAILY_PUZZLES.length || 0),
+        daily_date: String(dailyPuzzle.date || ""),
+        ...properties
+      };
+    }
     return {
       pack_id: String(activePack?.id || ""),
       pack_name: String(activePack?.displayName || activePack?.title || ""),
@@ -1685,6 +1846,9 @@
   function restoreStandardCompletionActions() {
     if (nextBtn) nextBtn.hidden = false;
     if (claimPrizeBtn) claimPrizeBtn.hidden = true;
+    if (dailySharePanel) dailySharePanel.hidden = true;
+    if (dailyShareStatus) dailyShareStatus.textContent = "";
+    completeCard?.classList.remove("daily-complete");
   }
 
   function openPrizeModal() {
@@ -1889,7 +2053,121 @@
     return PACK_ACCENT_COLOURS[String(pack?.accent || "black").toLowerCase()] || PACK_ACCENT_COLOURS.black;
   }
 
+
+  function updateDailyStreak() {
+    if (!dailyStreak) return;
+    const streak = calculateDailyStreak();
+    const tier = dailyStreakTier(streak);
+    dailyStreak.dataset.tier = tier;
+    if (dailyStreakNumber) dailyStreakNumber.textContent = String(streak);
+    const label = `Daily Boxxy streak: ${streak} ${streak === 1 ? "day" : "days"}`;
+    dailyStreak.setAttribute("aria-label", label);
+    dailyStreak.title = label;
+  }
+
+  function dailyAvailabilityLabel(puzzle = dailyPuzzleForToday()) {
+    if (puzzle) {
+      if (dailyCompletion(puzzle.date)) return "COMPLETED";
+      return DAILY_DATE_OVERRIDE ? "TEST DATE" : "TODAY";
+    }
+    const today = activeDailyDateKey();
+    const first = DAILY_PUZZLES[0];
+    const last = DAILY_PUZZLES[DAILY_PUZZLES.length - 1];
+    if (first && today < first.date) return `STARTS ${formatDailyDate(first.date).toUpperCase()}`;
+    if (last && today > last.date) return "MORE SOON";
+    return "UNAVAILABLE";
+  }
+
+  function updateDailyQuotePrompt() {
+    if (!instruction || !dailyQuotePrompt) return;
+    const puzzle = dailyPuzzleForToday();
+    const dismissed = puzzle ? localStorage.getItem(`${DAILY_QUOTE_DISMISSED_PREFIX}${puzzle.date}`) === "1" : true;
+    const show = Boolean(puzzle && !dailyMode && !dailyCompletion(puzzle.date) && !dismissed && !makerTesting && !sharedPuzzleMode);
+    dailyQuotePrompt.hidden = !show;
+    instruction.classList.toggle("daily-prompt-active", show);
+    if (dailyQuoteMeta && puzzle) dailyQuoteMeta.textContent = DAILY_DATE_OVERRIDE ? `#${Number(puzzle.sequence) || ""} · TEST` : `#${Number(puzzle.sequence) || ""} · TODAY`;
+  }
+
+  function closeDailyInvite() {
+    if (dailyInviteModal) dailyInviteModal.hidden = true;
+  }
+
+  function configureDailyInvite(puzzle = dailyPuzzleForToday()) {
+    if (!dailyInviteModal) return false;
+    const first = DAILY_PUZZLES[0];
+    const last = DAILY_PUZZLES[DAILY_PUZZLES.length - 1];
+    if (puzzle) {
+      const complete = Boolean(dailyCompletion(puzzle.date));
+      if (dailyInviteText) dailyInviteText.textContent = complete
+        ? `Daily Boxxy #${Number(puzzle.sequence) || ""} for ${formatDailyDate(puzzle.date, { weekday: true, long: true })} is already complete.`
+        : `Daily Boxxy #${Number(puzzle.sequence) || ""} for ${formatDailyDate(puzzle.date, { weekday: true, long: true })} is ready.`;
+      if (dailyInviteStatus) dailyInviteStatus.textContent = complete ? "TODAY’S PUZZLE COMPLETED" : "RESETS AT 00:00 LOCAL TIME";
+      if (dailyInvitePlay) {
+        dailyInvitePlay.disabled = complete;
+        const label = dailyInvitePlay.querySelector("span");
+        if (label) label.textContent = complete ? "COMPLETED TODAY" : "PLAY TODAY’S PUZZLE";
+      }
+      return true;
+    }
+    const today = activeDailyDateKey();
+    if (first && today < first.date) {
+      if (dailyInviteText) dailyInviteText.textContent = `The first Daily Boxxy arrives on ${formatDailyDate(first.date, { weekday: true, long: true, year: true })}.`;
+      if (dailyInviteStatus) dailyInviteStatus.textContent = "A NEW PUZZLE AT 00:00 LOCAL TIME";
+    } else if (last && today > last.date) {
+      if (dailyInviteText) dailyInviteText.textContent = "The current Daily Boxxy schedule is complete. More puzzles will be added soon.";
+      if (dailyInviteStatus) dailyInviteStatus.textContent = "MORE DAILY PUZZLES COMING SOON";
+    } else {
+      if (dailyInviteText) dailyInviteText.textContent = "No Daily Boxxy is scheduled for today.";
+      if (dailyInviteStatus) dailyInviteStatus.textContent = "CHECK AGAIN TOMORROW";
+    }
+    if (dailyInvitePlay) {
+      dailyInvitePlay.disabled = true;
+      const label = dailyInvitePlay.querySelector("span");
+      if (label) label.textContent = "NOT AVAILABLE TODAY";
+    }
+    return false;
+  }
+
+  function showDailyInvite(force = false) {
+    if (!dailyInviteModal || sharedPuzzleMode || makerTesting || dailyMode) return;
+    const puzzle = dailyPuzzleForToday();
+    if (!force) {
+      if (!puzzle || dailyCompletion(puzzle.date)) return;
+      const key = `${DAILY_INVITE_SEEN_PREFIX}${puzzle.date}`;
+      if (localStorage.getItem(key) === "1") return;
+      try { localStorage.setItem(key, "1"); } catch (_) {}
+    }
+    configureDailyInvite(puzzle);
+    dailyInviteModal.hidden = false;
+    requestAnimationFrame(() => (puzzle ? dailyInvitePlay : dailyInviteClose)?.focus?.({ preventScroll: true }));
+  }
+
+  function millisecondsUntilNextLocalMidnight() {
+    const now = new Date();
+    const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 80);
+    return Math.max(1000, next.getTime() - now.getTime());
+  }
+
+  function scheduleDailyMidnightRefresh() {
+    window.clearTimeout(dailyMidnightTimer);
+    if (DAILY_DATE_OVERRIDE) return;
+    dailyMidnightTimer = window.setTimeout(() => {
+      const nextPuzzle = dailyPuzzleForToday();
+      updateDailyStreak();
+      buildLevelButtons();
+      updateDailyQuotePrompt();
+      if (dailyMode) {
+        if (nextPuzzle) loadDailyPuzzle(nextPuzzle);
+        else loadLevel(levelIndex);
+      } else {
+        showDailyInvite(false);
+      }
+      scheduleDailyMidnightRefresh();
+    }, millisecondsUntilNextLocalMidnight());
+  }
+
   function updateCompletedPackStars() {
+    updateDailyStreak();
     if (!completedPackStars) return;
     completedPackStars.innerHTML = "";
     const completedPacks = PACKS.filter(pack => packIsComplete(pack.id));
@@ -2044,6 +2322,7 @@
     if (nextPack.id === activePack.id) {
       closePackModal();
       if (modal) modal.hidden = true;
+      if (dailyMode) loadLevel(levelIndex);
       return;
     }
 
@@ -2103,8 +2382,25 @@
   }
 
   function refreshLevelButtons() {
-    [...levelButtons.children].forEach((button, index) => {
-      const isCurrent = index === levelIndex;
+    const todayPuzzle = dailyPuzzleForToday();
+    const dailyButton = levelButtons?.querySelector?.("[data-daily-level]");
+    if (dailyButton) {
+      const available = Boolean(todayPuzzle);
+      const complete = Boolean(todayPuzzle && dailyCompletion(todayPuzzle.date));
+      const status = dailyButton.querySelector("span");
+      dailyButton.classList.toggle("current", dailyMode);
+      dailyButton.classList.toggle("completed", complete && !dailyMode);
+      dailyButton.disabled = !available;
+      dailyButton.setAttribute("aria-disabled", String(!available));
+      dailyButton.title = available
+        ? `Daily Boxxy #${Number(todayPuzzle.sequence) || ""} — ${formatDailyDate(todayPuzzle.date, { weekday: true, long: true })}`
+        : dailyAvailabilityLabel(null);
+      if (status) status.textContent = dailyAvailabilityLabel(todayPuzzle);
+    }
+
+    [...levelButtons.querySelectorAll("button[data-level-index]")].forEach(button => {
+      const index = Number(button.dataset.levelIndex);
+      const isCurrent = !dailyMode && index === levelIndex;
       const isCompleted = completedLevels.has(index);
       const isAssisted = assistedLevels.has(index);
       const isLocked = index > highestUnlockedLevel;
@@ -2119,6 +2415,7 @@
         : `${activePack.displayName}: ${index + 1}. ${LEVELS[index].name}`;
     });
     updateCollectionCompleteStar();
+    updateDailyQuotePrompt();
   }
 
   const splashStartedAt = performance.now();
@@ -2975,9 +3272,9 @@
 
     movesEl.textContent = moves;
     pushesEl.textContent = pushes;
-    minimumEl.textContent = (makerTesting || sharedPuzzleMode) ? "—" : (levelData.minimum ?? "—");
-    levelCount.textContent = sharedPuzzleMode ? "SHARED" : makerTesting ? "MAKER" : `${levelIndex + 1} / ${LEVELS.length}`;
-    const best = (makerTesting || sharedPuzzleMode) ? null : readBest(levelData);
+    minimumEl.textContent = (makerTesting || sharedPuzzleMode || dailyMode) ? "—" : (levelData.minimum ?? "—");
+    levelCount.textContent = sharedPuzzleMode ? "SHARED" : makerTesting ? "MAKER" : dailyMode ? `DAILY #${Number(dailyPuzzle?.sequence) || ""}` : `${levelIndex + 1} / ${LEVELS.length}`;
+    const best = (makerTesting || sharedPuzzleMode) ? null : dailyMode ? dailyBestMoves(dailyPuzzle) : readBest(levelData);
     bestEl.textContent = best || "—";
     undoBtn.disabled = !history.length || completed;
     updateSavePositionButton();
@@ -3007,7 +3304,190 @@
     }, 5500);
   }
 
+
+  function dailyBestMoves(puzzle = dailyPuzzle) {
+    const record = puzzle?.date ? dailyCompletion(puzzle.date) : null;
+    const value = Number(record?.moves);
+    return Number.isFinite(value) && value > 0 ? value : null;
+  }
+
+  function emojiDailyBoard(rows) {
+    const source = Array.isArray(rows) ? rows.map(row => String(row)) : [];
+    if (!source.length) return "";
+    const width = Math.max(...source.map(row => row.length));
+    const height = source.length;
+    const grid = source.map(row => row.padEnd(width, " ").split(""));
+    const outside = new Set();
+    const queue = [];
+    const keyFor = (x, y) => `${x},${y}`;
+    const addOutside = (x, y) => {
+      if (x < 0 || y < 0 || x >= width || y >= height || grid[y][x] !== " ") return;
+      const key = keyFor(x, y);
+      if (outside.has(key)) return;
+      outside.add(key);
+      queue.push([x, y]);
+    };
+    for (let x = 0; x < width; x++) { addOutside(x, 0); addOutside(x, height - 1); }
+    for (let y = 0; y < height; y++) { addOutside(0, y); addOutside(width - 1, y); }
+    while (queue.length) {
+      const [x, y] = queue.shift();
+      addOutside(x + 1, y); addOutside(x - 1, y); addOutside(x, y + 1); addOutside(x, y - 1);
+    }
+    const emoji = { "#": "⬛️", "$": "🟥", ".": "🟨", "*": "⭕️", "@": "🧍‍♂️", "+": "🧍‍♂️" };
+    return grid.map((row, y) => row.map((cell, x) => {
+      if (cell === " " && outside.has(keyFor(x, y))) return "　";
+      return emoji[cell] || "◻️";
+    }).join("").replace(/　+$/g, "")).join("\n");
+  }
+
+  function formatClockDuration(totalSeconds) {
+    const seconds = Math.max(0, Math.floor(Number(totalSeconds) || 0));
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const remainder = seconds % 60;
+    return hours
+      ? `${hours}:${String(minutes).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`
+      : `${String(minutes).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`;
+  }
+
+  function buildDailyShareText(puzzle, result) {
+    if (!puzzle) return "";
+    const sequence = Number(puzzle.sequence) || "";
+    const duration = formatClockDuration(result.seconds);
+    const moveWord = Number(result.moves) === 1 ? "move" : "moves";
+    return [
+      `Daily Boxxy #${sequence} · ${formatDailyDate(puzzle.date, { long: true, year: true })}`,
+      `I completed the Daily Boxxy in ${duration}, ${Number(result.moves) || 0} ${moveWord}.`,
+      "",
+      emojiDailyBoard(puzzle.layout)
+    ].join("\n");
+  }
+
+  async function shareDailyResult() {
+    const text = String(dailyShareText?.value || "");
+    if (!text) return;
+    if (dailyShareStatus) dailyShareStatus.textContent = "";
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: "Daily Boxxy", text });
+        if (dailyShareStatus) dailyShareStatus.textContent = "SHARED";
+        return;
+      }
+    } catch (error) {
+      if (error?.name === "AbortError") return;
+    }
+    let copied = false;
+    try {
+      await navigator.clipboard.writeText(text);
+      copied = true;
+    } catch (_) {
+      try {
+        dailyShareText.focus();
+        dailyShareText.select();
+        copied = document.execCommand("copy");
+        dailyShareText.setSelectionRange(0, 0);
+      } catch (_) {}
+    }
+    if (dailyShareStatus) dailyShareStatus.textContent = copied ? "COPIED — PASTE IT ANYWHERE" : "SELECT THE TEXT AND COPY";
+  }
+
+  function loadDailyPuzzle(puzzle = dailyPuzzleForToday(), preserveBackground = false) {
+    if (!puzzle || !Array.isArray(puzzle.layout) || !puzzle.layout.length) {
+      showDailyInvite(true);
+      return false;
+    }
+    stopAutoplay();
+    guidedSolveUsed = false;
+    resetEasterEgg();
+    blockedPushHeld = false;
+    clearTimeout(animTimer);
+    closeLevelPicker();
+    closePackModal();
+    closeDailyInvite();
+    makerTesting = false;
+    sharedPuzzleMode = false;
+    sharedPuzzleName = "";
+    dailyMode = true;
+    dailyPuzzle = puzzle;
+    window.BOXXY_SHARED_MODE = false;
+    document.body.classList.remove("maker-testing", "shared-puzzle");
+    document.body.classList.add("daily-mode");
+    if (collectionBtn) collectionBtn.disabled = false;
+    if (makerReturnBtn) makerReturnBtn.hidden = true;
+    makerLayout = null;
+    makerGoalColours = {};
+    makerSolution = "";
+    playedRoute = "";
+    makerCompletedRoute = "";
+    if (makerApplySolveBtn) makerApplySolveBtn.hidden = true;
+    levelData = {
+      sourceNumber: `daily-${String(puzzle.date)}`,
+      name: "Daily Boxxy",
+      tier: "DAILY BOXXY",
+      author: "Sam Cornwell",
+      minimum: "—",
+      pushMinimum: 0,
+      solution: String(puzzle.solution || ""),
+      layout: puzzle.layout.map(row => String(row)),
+      goalColours: puzzle.goalColours || {}
+    };
+    const parsed = parseLayout(levelData.layout, levelData.goalColours);
+    width = parsed.width;
+    height = parsed.height;
+    walls = parsed.walls;
+    floor = parsed.floor;
+    outside = parsed.outside;
+    player = [...parsed.player];
+    boxes = parsed.boxes.map(([x, y]) => ({ x, y, moving: false }));
+    goals = parsed.goals.map(goal => ({ ...goal }));
+    levelData.pushMinimum = boxes.length;
+    moves = 0;
+    pushes = 0;
+    history = [];
+    facing = "front";
+    completed = false;
+    currentCheckpoint = null;
+    completeMode = "daily";
+    if (modal) modal.hidden = true;
+    setZenNextButtonVisible(false);
+    restoreStandardCompletionActions();
+    if (finalPackPicker) finalPackPicker.hidden = true;
+    if (finalPackStatus) finalPackStatus.textContent = "";
+    if (completeKicker) completeKicker.textContent = "DAILY BOXXY";
+    if (completeTitle) completeTitle.innerHTML = "DAILY<br>COMPLETE";
+    if (nextBtnLabel) nextBtnLabel.textContent = "BACK TO GAME";
+    if (nextBtnIcon) nextBtnIcon.textContent = "←";
+    if (collectionName) collectionName.innerHTML = "BOXXY<br>DAILY";
+    document.title = `Daily Boxxy #${Number(puzzle.sequence) || ""} — BOXXY`;
+    board.style.setProperty("--cols", width);
+    board.style.setProperty("--rows", height);
+    board.style.setProperty("--ratio", width / height);
+    board.style.aspectRatio = `${width} / ${height}`;
+    if (!preserveBackground) refreshBackgroundDecor(backgroundDecorBuilt);
+    scheduleBoardResize();
+    creditTitle.textContent = `DAILY BOXXY · #${Number(puzzle.sequence) || ""}`;
+    creditSub.textContent = `SAM CORNWELL · ${width}×${height} · ${boxes.length} ${boxes.length === 1 ? "BOX" : "BOXES"}`;
+    startedAt = Date.now();
+    clearInterval(timer);
+    timer = setInterval(updateTime, 250);
+    buildFloor();
+    buildVoid();
+    buildWalls();
+    buildGoals();
+    render("idle");
+    updateTime();
+    scheduleIdle();
+    if (thoughtText) thoughtText.textContent = `Daily Boxxy #${Number(puzzle.sequence) || ""}. One puzzle. One day. Good luck.`;
+    refreshLevelButtons();
+    captureBoxxyAnalytics("daily_puzzle_started", currentLevelAnalytics());
+    return true;
+  }
+
   function loadLevel(index, preserveAutoplay = false, preserveBackground = false) {
+    dailyMode = false;
+    dailyPuzzle = null;
+    document.body.classList.remove("daily-mode");
+    if (completedPackHeading) completedPackHeading.textContent = "";
     makerTesting = false;
     sharedPuzzleMode = false;
     sharedPuzzleName = "";
@@ -3293,9 +3773,44 @@
     completed = true;
     clearTimeout(animTimer);
     clearInterval(timer);
-    if (!makerTesting && !sharedPuzzleMode) clearCurrentCheckpoint();
+    if (!makerTesting && !sharedPuzzleMode && !dailyMode) clearCurrentCheckpoint();
 
-    if (sharedPuzzleMode) {
+    if (dailyMode && dailyPuzzle) {
+      const completionSeconds = elapsedLevelSeconds();
+      recordDailyCompletion(dailyPuzzle, {
+        moves,
+        pushes,
+        seconds: completionSeconds,
+        completedAt: Date.now()
+      });
+      completeMode = "daily";
+      completionPackContext = null;
+      hidePackCompletionStats();
+      hidePackStarAward();
+      restoreStandardCompletionActions();
+      completeCard?.classList.add("daily-complete");
+      if (finalPackPicker) finalPackPicker.hidden = true;
+      if (finalPackStatus) finalPackStatus.textContent = "";
+      if (completeKicker) completeKicker.textContent = `DAILY BOXXY #${Number(dailyPuzzle.sequence) || ""}`;
+      if (completeTitle) completeTitle.innerHTML = "DAILY<br>COMPLETE";
+      if (completedPackHeading) completedPackHeading.textContent = formatDailyDate(dailyPuzzle.date, { weekday: true, long: true, year: true });
+      if (makerApplySolveBtn) makerApplySolveBtn.hidden = true;
+      completeText.textContent = `Completed in ${formatClockDuration(completionSeconds)} and ${moves} ${moves === 1 ? "move" : "moves"}. Your Daily Boxxy streak is now ${calculateDailyStreak()}.`;
+      if (dailyShareText) dailyShareText.value = buildDailyShareText(dailyPuzzle, { seconds: completionSeconds, moves });
+      if (dailySharePanel) dailySharePanel.hidden = false;
+      if (dailyShareStatus) dailyShareStatus.textContent = "";
+      if (nextBtnLabel) nextBtnLabel.textContent = "BACK TO GAME";
+      if (nextBtnIcon) nextBtnIcon.textContent = "←";
+      updateDailyStreak();
+      updateDailyQuotePrompt();
+      refreshLevelButtons();
+      captureBoxxyAnalytics("daily_puzzle_completed", currentLevelAnalytics({
+        moves: Number(moves),
+        pushes: Number(pushes),
+        duration_seconds: completionSeconds,
+        streak_days: calculateDailyStreak()
+      }));
+    } else if (sharedPuzzleMode) {
       completeMode = "shared";
       completionPackContext = null;
       hidePackCompletionStats();
@@ -3410,6 +3925,7 @@
         if (finalPackPicker) finalPackPicker.hidden = true;
         if (finalPackStatus) finalPackStatus.textContent = solvedWithWalkthrough ? "Guided-solve completions are marked yellow in the level list." : "";
         if (completeKicker) completeKicker.textContent = packCollectionLabel(activePack).toUpperCase();
+        if (completedPackHeading) completedPackHeading.textContent = "";
         if (completeTitle) completeTitle.innerHTML = solvedWithWalkthrough ? "GUIDED<br>SOLVE" : "PUZZLE<br>CLEARED";
         const statedMinimum = Number(levelData.minimum);
         let summary;
@@ -3530,9 +4046,26 @@
 
   function buildLevelButtons() {
     levelButtons.innerHTML = "";
+    const dailyButton = document.createElement("button");
+    dailyButton.type = "button";
+    dailyButton.className = "daily-level-option";
+    dailyButton.dataset.dailyLevel = "true";
+    dailyButton.innerHTML = '<strong>BOXXY DAILY</strong><span>TODAY</span>';
+    dailyButton.addEventListener("click", () => {
+      const puzzle = dailyPuzzleForToday();
+      if (!puzzle) {
+        showDailyInvite(true);
+        return;
+      }
+      closeLevelPicker();
+      loadDailyPuzzle(puzzle);
+    });
+    levelButtons.appendChild(dailyButton);
+
     LEVELS.forEach((level, index) => {
       const button = document.createElement("button");
       button.type = "button";
+      button.dataset.levelIndex = String(index);
       button.textContent = index + 1;
       button.addEventListener("click", () => {
         if (index > highestUnlockedLevel) return;
@@ -3573,6 +4106,11 @@
   }
 
   function startAutoplay() {
+    if (dailyMode) {
+      if (thoughtText) thoughtText.textContent = "Guided solve is unavailable for the Daily Boxxy.";
+      resetEasterEgg();
+      return;
+    }
     if (!desktopEasterEggAvailable() || autoplayRunning) return;
     const testingMaker = makerTesting;
     const solution = String(testingMaker ? makerSolution : levelData?.solution || "").replace(/[^udlrUDLR]/g, "");
@@ -3794,6 +4332,7 @@
   savePositionBtn?.addEventListener("click", saveOrRestorePosition);
   restartBtn.addEventListener("click", () => {
     if (makerTesting || sharedPuzzleMode) restartMakerTest();
+    else if (dailyMode) loadDailyPuzzle(dailyPuzzle, true);
     else {
       captureBoxxyAnalytics("level_restarted", currentLevelAnalytics({
         restart_method: "button",
@@ -3823,6 +4362,22 @@
   });
   packCloseBtn?.addEventListener("click", closePackModal);
   packModal?.addEventListener("click", event => { if (event.target === packModal) closePackModal(); });
+  dailyStreak?.addEventListener("click", () => {
+    const puzzle = dailyPuzzleForToday();
+    if (puzzle && !dailyCompletion(puzzle.date)) loadDailyPuzzle(puzzle);
+    else showDailyInvite(true);
+  });
+  dailyQuotePlay?.addEventListener("click", () => loadDailyPuzzle(dailyPuzzleForToday()));
+  dailyQuoteDismiss?.addEventListener("click", () => {
+    const puzzle = dailyPuzzleForToday();
+    if (puzzle) { try { localStorage.setItem(`${DAILY_QUOTE_DISMISSED_PREFIX}${puzzle.date}`, "1"); } catch (_) {} }
+    updateDailyQuotePrompt();
+  });
+  dailyInvitePlay?.addEventListener("click", () => loadDailyPuzzle(dailyPuzzleForToday()));
+  dailyInviteClose?.addEventListener("click", closeDailyInvite);
+  dailyInviteLater?.addEventListener("click", closeDailyInvite);
+  dailyInviteModal?.addEventListener("click", event => { if (event.target === dailyInviteModal) closeDailyInvite(); });
+  dailyShareButton?.addEventListener("click", shareDailyResult);
   themeCloseBtn?.addEventListener("click", closeThemeModal);
   themeChoices.forEach(button => button.addEventListener("click", () => { applyTheme(button.dataset.themeChoice); closeThemeModal(); }));
   themeModal?.addEventListener("click", event => { if (event.target === themeModal) closeThemeModal(); });
@@ -3894,6 +4449,11 @@
     if (completeMode === "maker") {
       modal.hidden = true;
       window.dispatchEvent(new CustomEvent("boxxy-maker-return"));
+      return;
+    }
+    if (completeMode === "daily") {
+      modal.hidden = true;
+      loadLevel(levelIndex);
       return;
     }
     if (completeMode === "final") {
@@ -3972,6 +4532,7 @@
   document.addEventListener("keydown", retryMusicAfterInteraction, { capture: true });
   window.addEventListener("keydown", event => {
     if (event.key === "Escape" && phoneZenModeActive()) { setPhoneZenMode(false); return; }
+    if (event.key === "Escape" && dailyInviteModal && !dailyInviteModal.hidden) { closeDailyInvite(); return; }
     if (event.key === "Escape" && packModal && !packModal.hidden) { closePackModal(); return; }
     if (event.key === "Escape" && themeModal && !themeModal.hidden) { closeThemeModal(); return; }
     if (event.key === "Escape" && resetConfirmModal && !resetConfirmModal.hidden) {
@@ -3989,6 +4550,7 @@
 
   applyTheme(currentTheme, false);
   loadLevelProgress();
+  updateDailyStreak();
   buildLevelButtons();
   buildPackSelectors();
   setSplashProgress(12, "PREPARING PUZZLE…");
@@ -4010,10 +4572,14 @@
       thoughtText.textContent = SHARED_PUZZLE_PAYLOAD.error || "That shared puzzle link could not be read.";
     }
   }
-  completeStartupSplash().catch(error => {
+  completeStartupSplash().then(() => {
+    window.setTimeout(() => showDailyInvite(false), 180);
+  }).catch(error => {
     console.error("BOXXY startup could not be completed cleanly.", error);
     hideSplashScreen();
+    window.setTimeout(() => showDailyInvite(false), 180);
   });
+  scheduleDailyMidnightRefresh();
 
 })();
 
