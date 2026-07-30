@@ -3,7 +3,7 @@
  * Copyright © 2026 Sam Cornwell. All rights reserved.
  * Personal non-commercial use only. See LICENSE.md.
  * BOXXY v166: fifteen dedicated box and target sprite colours.
- * BOXXY v192: lower landscape phone Zen arrow pad.
+ * BOXXY v193: corrected landscape phone Zen controls at the handset bottom edge.
  */
 :root{
   --paper:#efe5d4;--paper2:#f7f0e5;--ink:#171719;--red:#db3b27;--yellow:#e5b32a;--blue:#20539a;--green:#2f8f5b;--line:#cbbfae;
@@ -4236,48 +4236,119 @@ body.maker-editor-fullscreen{overflow:hidden}
   }
 }
 
-/* Landscape phones: the board remains on the left; floating actions sit above the larger arrow pad. */
+/* BOXXY v193 — landscape phone Zen layout.
+   When the phone is turned sideways, the handset's original bottom edge is the
+   left side of the viewport. Keep the approved panel-free design and place the
+   square arrow pad against that left edge. Restart and Undo occupy the two
+   empty top corners of the same simple 3-by-2 control footprint. */
 @media (max-height:520px) and (orientation:landscape) and (pointer:coarse){
+  html.phone-zen-mode{--max-cell:68px}
   body.phone-zen-mode{
-    --zen-pad-size:min(38vw,330px,78dvh);
-    --zen-pad-right:max(14px,env(safe-area-inset-right));
-    --zen-pad-bottom:max(8px,env(safe-area-inset-bottom));
+    --zen-arrow-size:min(18.5dvh,76px,9.5vw);
+    --zen-arrow-gap:7px;
+    --zen-pad-width:calc((var(--zen-arrow-size) * 3) + (var(--zen-arrow-gap) * 2));
+    --zen-pad-height:calc((var(--zen-arrow-size) * 2) + var(--zen-arrow-gap));
+    --zen-pad-left:max(8px,env(safe-area-inset-left));
+    --zen-action-size:42px;
   }
+
+  /* Leave the whole animated background visible. Only reserve enough room on
+     the left so the gameplay board cannot sit underneath the controls. */
   body.phone-zen-mode .board-wrap{
-    padding:max(10px,env(safe-area-inset-top))
-      calc(var(--zen-pad-size) + 42px + env(safe-area-inset-right))
-      max(10px,env(safe-area-inset-bottom))
-      max(10px,env(safe-area-inset-left))!important;
+    inset:0!important;
+    width:100%!important;
+    height:100%!important;
+    padding:
+      max(8px,env(safe-area-inset-top))
+      max(8px,env(safe-area-inset-right))
+      max(8px,env(safe-area-inset-bottom))
+      calc(var(--zen-pad-left) + var(--zen-pad-width) + 14px)!important;
+    background:linear-gradient(135deg,#f4ebdd,#eadcca)!important;
   }
+
+  body.phone-zen-mode .side-panel,
+  body.phone-zen-mode .move-zone,
+  body.phone-zen-mode .top-actions,
+  body.phone-zen-mode .dpad{
+    background:transparent!important;
+    border:0!important;
+    box-shadow:none!important;
+  }
+
   body.phone-zen-mode .move-zone{
-    width:var(--zen-pad-size)!important;
-    height:var(--zen-pad-size)!important;
-    right:var(--zen-pad-right)!important;
-    left:auto!important;
-    bottom:var(--zen-pad-bottom)!important;
-    top:auto!important;
-    transform:none!important;
+    width:var(--zen-pad-width)!important;
+    height:var(--zen-pad-height)!important;
+    left:var(--zen-pad-left)!important;
+    right:auto!important;
+    top:50%!important;
+    bottom:auto!important;
+    transform:translateY(-50%)!important;
+  }
+
+  body.phone-zen-mode .dpad{
+    width:var(--zen-pad-width)!important;
+    height:var(--zen-pad-height)!important;
+    aspect-ratio:auto!important;
+    display:grid!important;
+    grid-template-columns:repeat(3,var(--zen-arrow-size))!important;
+    grid-template-rows:repeat(2,var(--zen-arrow-size))!important;
+    grid-template-areas:". up ." "left down right"!important;
+    gap:var(--zen-arrow-gap)!important;
+    padding:0!important;
+  }
+
+  body.phone-zen-mode .dpad button{
+    width:var(--zen-arrow-size)!important;
+    height:var(--zen-arrow-size)!important;
+    min-width:var(--zen-arrow-size)!important;
+    min-height:var(--zen-arrow-size)!important;
+    aspect-ratio:1/1!important;
+    border-radius:13px!important;
+  }
+
+  /* Small actions fill the otherwise empty top-left and top-right positions;
+     they do not create a panel and cannot overlap the directional buttons. */
+  body.phone-zen-mode .top-actions #restartBtn,
+  body.phone-zen-mode .top-actions #undoBtn{
+    width:var(--zen-action-size)!important;
+    height:var(--zen-action-size)!important;
+    min-width:var(--zen-action-size)!important;
+    min-height:var(--zen-action-size)!important;
+    top:calc(
+      50% - (var(--zen-pad-height) / 2)
+      + ((var(--zen-arrow-size) - var(--zen-action-size)) / 2)
+    )!important;
+    bottom:auto!important;
   }
   body.phone-zen-mode .top-actions #restartBtn{
-    top:max(12px,env(safe-area-inset-top))!important;
-    bottom:auto!important;
-    right:calc(var(--zen-pad-right) + var(--zen-pad-size) - 48px)!important;
-    left:auto!important;
+    left:calc(
+      var(--zen-pad-left)
+      + ((var(--zen-arrow-size) - var(--zen-action-size)) / 2)
+    )!important;
+    right:auto!important;
   }
   body.phone-zen-mode .top-actions #undoBtn{
-    top:max(12px,env(safe-area-inset-top))!important;
-    bottom:auto!important;
-    right:var(--zen-pad-right)!important;
-    left:auto!important;
-  }
-  body.phone-zen-mode .mobile-fullscreen-btn{
-    left:max(10px,env(safe-area-inset-left))!important;
+    left:calc(
+      var(--zen-pad-left)
+      + (var(--zen-arrow-size) * 2)
+      + (var(--zen-arrow-gap) * 2)
+      + ((var(--zen-arrow-size) - var(--zen-action-size)) / 2)
+    )!important;
     right:auto!important;
+  }
+  body.phone-zen-mode .top-actions .action span{font-size:17px!important}
+  body.phone-zen-mode .top-actions .action b{font-size:6px!important}
+
+  body.phone-zen-mode .mobile-fullscreen-btn{
+    left:auto!important;
+    right:max(10px,env(safe-area-inset-right))!important;
+    top:max(10px,env(safe-area-inset-top))!important;
+    bottom:auto!important;
   }
 }
 
 
-/* BOXXY v191 — portrait phone Zen layout.
+/* BOXXY v193 — approved portrait phone Zen layout (unchanged from v191).
    Keep the full animated background visible, reserve only the space needed for
    the board and use four equal square arrow buttons close to the bottom edge. */
 @media (max-width:760px) and (pointer:coarse) and (orientation:portrait){
@@ -4367,14 +4438,4 @@ body.maker-editor-fullscreen{overflow:hidden}
   }
   body.phone-zen-mode .top-actions .action span{font-size:18px!important}
   body.phone-zen-mode .top-actions .action b{font-size:6px!important}
-}
-
-
-/* BOXXY v192 — landscape-phone-only correction.
-   Keep the approved v191 layout and simply anchor the arrow pad nearer the
-   lower safe-area edge. Portrait Zen Mode is unchanged. */
-@media (max-height:520px) and (orientation:landscape) and (pointer:coarse){
-  body.phone-zen-mode .move-zone{
-    bottom:max(0px,calc(env(safe-area-inset-bottom) - 2px))!important;
-  }
 }
