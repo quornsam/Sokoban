@@ -33,7 +33,7 @@
   });
 })();
 
-/* BOXXY v189 — full-screen phone Zen background, larger arrows and automatic background motion. */
+/* BOXXY v190 — larger phone Zen board with simple floating control layout. */
 /* BOXXY v180 — responsive pack-completion layout, varied star messages and unclipped pack cards. */
 /* BOXXY v175 — reliable queued cookieless PostHog analytics; no autocapture or session recording. */
 /* BOXXY v168 — Rainbow Mode with pack-preview and walkthrough colour preservation. */
