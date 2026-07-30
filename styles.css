@@ -3,7 +3,7 @@
  * Copyright © 2026 Sam Cornwell. All rights reserved.
  * Personal non-commercial use only. See LICENSE.md.
  * BOXXY v166: fifteen dedicated box and target sprite colours.
- * BOXXY v191: square phone Zen controls over the uninterrupted animated background.
+ * BOXXY v192: lower landscape phone Zen arrow pad.
  */
 :root{
   --paper:#efe5d4;--paper2:#f7f0e5;--ink:#171719;--red:#db3b27;--yellow:#e5b32a;--blue:#20539a;--green:#2f8f5b;--line:#cbbfae;
@@ -4367,4 +4367,14 @@ body.maker-editor-fullscreen{overflow:hidden}
   }
   body.phone-zen-mode .top-actions .action span{font-size:18px!important}
   body.phone-zen-mode .top-actions .action b{font-size:6px!important}
+}
+
+
+/* BOXXY v192 — landscape-phone-only correction.
+   Keep the approved v191 layout and simply anchor the arrow pad nearer the
+   lower safe-area edge. Portrait Zen Mode is unchanged. */
+@media (max-height:520px) and (orientation:landscape) and (pointer:coarse){
+  body.phone-zen-mode .move-zone{
+    bottom:max(0px,calc(env(safe-area-inset-bottom) - 2px))!important;
+  }
 }
