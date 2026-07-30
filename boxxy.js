@@ -33,7 +33,7 @@
   });
 })();
 
-/* BOXXY v194 — square phone Zen controls over the uninterrupted animated background. */
+/* BOXXY v195 — legal modal, Zen next-level control, lower landscape arrows and mobile music pause. */
 /* BOXXY v180 — responsive pack-completion layout, varied star messages and unclipped pack cards. */
 /* BOXXY v175 — reliable queued cookieless PostHog analytics; no autocapture or session recording. */
 /* BOXXY v168 — Rainbow Mode with pack-preview and walkthrough colour preservation. */
@@ -1359,6 +1359,10 @@
   const app = document.querySelector(".app");
   const fullscreenBtn = document.getElementById("fullscreenBtn");
   const mobileFullscreenBtn = document.getElementById("mobileFullscreenBtn");
+  const zenNextBtn = document.getElementById("zenNextBtn");
+  const legalBtn = document.getElementById("legalBtn");
+  const legalModal = document.getElementById("legalModal");
+  const legalCloseBtn = document.getElementById("legalCloseBtn");
   const autoSolveBtn = document.getElementById("autoSolveBtn");
   const cancelGuidedBtn = document.getElementById("cancelGuidedBtn");
   const instruction = document.querySelector(".instruction");
@@ -1412,6 +1416,7 @@
   let blockedPushHeld = false;
   let soundOn = true;
   let musicOn = localStorage.getItem("push-bauhaus-music") !== "off";
+  let musicPausedForHiddenTab = false;
   let audioCtx = null;
   let autoplayRunning = false;
   let autoplayTimer = null;
@@ -1855,8 +1860,27 @@
     return totals;
   }
 
+  function setZenNextButtonVisible(visible) {
+    if (!zenNextBtn) return;
+    zenNextBtn.hidden = !Boolean(visible);
+  }
+
+  function openLegalModal() {
+    if (!legalModal) return;
+    legalModal.hidden = false;
+    requestAnimationFrame(() => legalCloseBtn?.focus());
+  }
+
+  function closeLegalModal() {
+    if (!legalModal) return;
+    legalModal.hidden = true;
+    legalBtn?.focus();
+  }
+
   function closeCompleteModal() {
+    const showZenNext = phoneZenModeActive() && completeMode === "normal" && levelIndex < LEVELS.length - 1;
     if (modal) modal.hidden = true;
+    setZenNextButtonVisible(showZenNext);
     restoreStandardCompletionActions();
     completeCard?.classList.remove("final-complete");
     completionPackContext = null;
@@ -2456,6 +2480,7 @@
     }
 
     if (mobileFullscreenBtn) setFullscreenControlState(mobileFullscreenBtn, enabled);
+    setZenNextButtonVisible(enabled && completed && modal?.hidden && completeMode === "normal" && levelIndex < LEVELS.length - 1);
     requestAnimationFrame(() => {
       scheduleBoardResize();
       requestAnimationFrame(scheduleBoardResize);
@@ -2919,6 +2944,7 @@
     currentCheckpoint = readCurrentCheckpoint();
     completeMode = "normal";
     modal.hidden = true;
+    setZenNextButtonVisible(false);
     restoreStandardCompletionActions();
     completeCard?.classList.remove("final-complete");
     if (finalPackPicker) finalPackPicker.hidden = true;
@@ -3300,6 +3326,7 @@
     burst();
     sfx.finish();
     setTimeout(() => {
+      setZenNextButtonVisible(false);
       modal.hidden = false;
       render("idle");
       if (grandCelebrationPack) {
@@ -3620,10 +3647,29 @@
   // redrawAll() updates the existing gameplay image directly. Rebuilding the entire
   // piece layer here created a race in which Olive could be left on the default
   // fallback sprite after an attire change.
+  function mobileOrTabletInput() {
+    return Boolean((navigator.maxTouchPoints || 0) > 0 || window.matchMedia?.("(pointer: coarse)")?.matches);
+  }
+
+  function pauseMusicForHiddenTab() {
+    if (!mobileOrTabletInput() || !musicOn || !bgMusic || bgMusic.paused) return;
+    musicPausedForHiddenTab = true;
+    pauseBackgroundMusic();
+  }
+
+  function resumeMusicAfterHiddenTab() {
+    requestAnimationFrame(refreshPlayerVisual);
+    if (!musicPausedForHiddenTab) return;
+    musicPausedForHiddenTab = false;
+    if (musicOn) startBackgroundMusic();
+  }
+
   window.addEventListener("characterstylechange", () => requestAnimationFrame(refreshPlayerVisual));
-  window.addEventListener("pageshow", () => requestAnimationFrame(refreshPlayerVisual));
+  window.addEventListener("pageshow", resumeMusicAfterHiddenTab);
+  window.addEventListener("pagehide", pauseMusicForHiddenTab);
   document.addEventListener("visibilitychange", () => {
-    if (!document.hidden) requestAnimationFrame(refreshPlayerVisual);
+    if (document.hidden) pauseMusicForHiddenTab();
+    else resumeMusicAfterHiddenTab();
   });
   autoSolveBtn.addEventListener("click", startAutoplay);
   cancelGuidedBtn?.addEventListener("click", cancelGuidedSolve);
@@ -3704,6 +3750,12 @@
     window.dispatchEvent(new CustomEvent("boxxy-maker-return"));
   });
 
+  legalBtn?.addEventListener("click", openLegalModal);
+  legalCloseBtn?.addEventListener("click", closeLegalModal);
+  legalModal?.addEventListener("click", event => {
+    if (event.target === legalModal) closeLegalModal();
+  });
+
   completeCloseBtn?.addEventListener("click", closeCompleteModal);
   claimPrizeBtn?.addEventListener("click", openPrizeModal);
   prizeCloseBtn?.addEventListener("click", closePrizeModal);
@@ -3714,7 +3766,18 @@
     if (event.target === modal && completeMode === "final") closeCompleteModal();
   });
 
+  zenNextBtn?.addEventListener("click", () => {
+    if (completeMode !== "normal" || levelIndex >= LEVELS.length - 1) return;
+    setZenNextButtonVisible(false);
+    captureBoxxyAnalytics("next_level_pressed", currentLevelAnalytics({
+      next_level_number: Number(levelIndex) + 2,
+      next_level_method: "zen_overlay"
+    }));
+    loadLevel(levelIndex + 1);
+  });
+
   nextBtn.addEventListener("click", () => {
+    setZenNextButtonVisible(false);
     if (completeMode === "shared") {
       modal.hidden = true;
       restartMakerTest();
@@ -3738,6 +3801,10 @@
 
   document.addEventListener("keydown", event => {
     if (event.key !== "Escape") return;
+    if (legalModal && !legalModal.hidden) {
+      closeLegalModal();
+      return;
+    }
     if (prizeModal && !prizeModal.hidden) {
       closePrizeModal();
       return;

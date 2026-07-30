@@ -3,7 +3,7 @@
  * Copyright © 2026 Sam Cornwell. All rights reserved.
  * Personal non-commercial use only. See LICENSE.md.
  * BOXXY v166: fifteen dedicated box and target sprite colours.
- * BOXXY v194: square phone Zen controls over the uninterrupted animated background.
+ * BOXXY v195: legal modal, Zen next-level control, lower landscape arrows and mobile music pause.
  */
 :root{
   --paper:#efe5d4;--paper2:#f7f0e5;--ink:#171719;--red:#db3b27;--yellow:#e5b32a;--blue:#20539a;--green:#2f8f5b;--line:#cbbfae;
@@ -1056,7 +1056,7 @@ body.shared-puzzle .credit strong{overflow:hidden;text-overflow:ellipsis;white-s
 }
 .maker-generator-panel{min-height:max-content;align-self:start}
 
-.legal-link{position:fixed;z-index:250;right:8px;bottom:5px;padding:3px 6px;border:1px solid rgba(23,23,25,.35);background:rgba(247,240,229,.9);color:var(--ink);font-size:8px;font-weight:900;letter-spacing:.06em;text-decoration:none;opacity:.72;backdrop-filter:blur(4px)}
+.legal-link{position:fixed;z-index:250;right:8px;bottom:5px;padding:3px 6px;border:1px solid rgba(23,23,25,.35);background:rgba(247,240,229,.9);color:var(--ink);font:900 8px/1.2 Inter,ui-sans-serif,sans-serif;letter-spacing:.06em;text-decoration:none;opacity:.72;backdrop-filter:blur(4px);cursor:pointer}
 .legal-link:hover,.legal-link:focus-visible{opacity:1;border-color:var(--ink);outline:none}
 @media(max-width:620px){.legal-link{right:4px;bottom:3px;font-size:6px;padding:2px 4px}}
 
@@ -4237,12 +4237,14 @@ body.maker-editor-fullscreen{overflow:hidden}
 }
 
 /* Landscape phones: board remains on the left and controls remain on the right.
-   The arrow pad is flush with the lower viewport edge; action positions are unchanged. */
+   The 3×2 arrow pad itself—not a larger empty square—is anchored to the lower edge. */
 @media (max-height:520px) and (orientation:landscape) and (pointer:coarse){
   body.phone-zen-mode{
-    --zen-pad-size:min(38vw,330px,78dvh);
+    --zen-landscape-arrow:min(12vw,104px,25dvh);
+    --zen-pad-size:calc(var(--zen-landscape-arrow) + var(--zen-landscape-arrow) + var(--zen-landscape-arrow) + 18px);
+    --zen-landscape-pad-height:calc(var(--zen-landscape-arrow) + var(--zen-landscape-arrow) + 9px);
     --zen-pad-right:max(14px,env(safe-area-inset-right));
-    --zen-pad-bottom:0px;
+    --zen-pad-bottom:max(2px,env(safe-area-inset-bottom));
   }
   body.phone-zen-mode .board-wrap{
     padding:max(10px,env(safe-area-inset-top))
@@ -4252,12 +4254,27 @@ body.maker-editor-fullscreen{overflow:hidden}
   }
   body.phone-zen-mode .move-zone{
     width:var(--zen-pad-size)!important;
-    height:var(--zen-pad-size)!important;
+    height:var(--zen-landscape-pad-height)!important;
     right:var(--zen-pad-right)!important;
     left:auto!important;
     bottom:var(--zen-pad-bottom)!important;
     top:auto!important;
     transform:none!important;
+  }
+  body.phone-zen-mode .dpad{
+    width:var(--zen-pad-size)!important;
+    height:var(--zen-landscape-pad-height)!important;
+    grid-template-columns:repeat(3,var(--zen-landscape-arrow))!important;
+    grid-template-rows:repeat(2,var(--zen-landscape-arrow))!important;
+    grid-template-areas:". up ." "left down right"!important;
+    gap:9px!important;
+  }
+  body.phone-zen-mode .dpad button{
+    width:var(--zen-landscape-arrow)!important;
+    height:var(--zen-landscape-arrow)!important;
+    min-width:var(--zen-landscape-arrow)!important;
+    min-height:var(--zen-landscape-arrow)!important;
+    aspect-ratio:1/1!important;
   }
   body.phone-zen-mode .top-actions #restartBtn{
     top:max(12px,env(safe-area-inset-top))!important;
@@ -4368,4 +4385,54 @@ body.maker-editor-fullscreen{overflow:hidden}
   }
   body.phone-zen-mode .top-actions .action span{font-size:18px!important}
   body.phone-zen-mode .top-actions .action b{font-size:6px!important}
+}
+
+
+/* BOXXY v195 — in-game legal modal and Zen completion continuation. */
+.legal-modal{z-index:11000;background:rgba(21,21,21,.58);backdrop-filter:blur(7px)}
+.legal-card{position:relative;width:min(900px,calc(100vw - 28px));max-height:min(88dvh,790px);display:flex;flex-direction:column;overflow:hidden;background:#fffaf2;border:3px solid var(--ink);box-shadow:12px 12px 0 rgba(23,23,25,.22),0 28px 70px rgba(0,0,0,.34)}
+.legal-modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding:20px 22px 17px;border-bottom:3px solid var(--ink);background:linear-gradient(135deg,#fffaf2,#efe5d4)}
+.legal-modal-head span{display:block;font-size:10px;font-weight:950;letter-spacing:.17em}
+.legal-modal-head h2{margin:5px 0 0;font-size:clamp(38px,7vw,64px);line-height:.86;letter-spacing:-.045em}
+.legal-close{flex:0 0 42px;width:42px;height:42px;padding:0;border:2px solid var(--ink);background:var(--red);color:#fff;font-size:30px;font-weight:500;line-height:1;display:grid;place-items:center;cursor:pointer}
+.legal-modal-scroll{overflow:auto;padding:20px 22px 24px;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.legal-intro{margin:0 0 18px;font-size:16px;font-weight:700;line-height:1.45}
+.legal-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border-top:1px solid var(--line);border-left:1px solid var(--line)}
+.legal-section{padding:18px 0;border-bottom:1px solid var(--line)}
+.legal-grid .legal-section{padding:18px;border-right:1px solid var(--line)}
+.legal-section h3{margin:0 0 8px;font-size:19px;letter-spacing:.035em}
+.legal-section p{margin:0 0 10px;font-size:14px;font-weight:560;line-height:1.5}
+.legal-section p:last-child{margin-bottom:0}
+.legal-section a{color:var(--blue);font-weight:850}
+.legal-notice{padding:18px;border-left:9px solid var(--red);background:#f2e8d8}
+.legal-contact{padding:18px;background:#fff8ed}
+.legal-small{font-size:13px!important;color:#514b43}
+.legal-version{font-size:10px!important;font-weight:850!important;letter-spacing:.1em;opacity:.68}
+
+.zen-next-btn{position:fixed;z-index:8450;display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:138px;height:44px;padding:7px 8px 7px 14px;border:2px solid var(--ink);border-radius:10px;background:var(--ink);color:#fff;font-size:10px;font-weight:950;letter-spacing:.08em;box-shadow:5px 5px 0 var(--red);touch-action:manipulation}
+.zen-next-btn[hidden]{display:none!important}
+.zen-next-btn b{width:28px;height:28px;display:grid;place-items:center;background:var(--yellow);color:var(--ink);font-size:19px}
+
+@media (max-width:760px) and (pointer:coarse) and (orientation:portrait){
+  body.phone-zen-mode .zen-next-btn{
+    left:50%;right:auto;top:auto;
+    bottom:calc(var(--zen-pad-height) + var(--zen-pad-bottom) + 16px);
+    transform:translateX(-50%);
+  }
+}
+@media (max-height:520px) and (orientation:landscape) and (pointer:coarse){
+  body.phone-zen-mode .zen-next-btn{
+    left:auto;top:auto;
+    right:calc(var(--zen-pad-right) + var(--zen-landscape-arrow));
+    bottom:calc(var(--zen-landscape-pad-height) + var(--zen-pad-bottom) + 12px);
+    transform:none;
+  }
+}
+@media(max-width:700px){
+  .legal-card{width:calc(100vw - 18px);max-height:92dvh}
+  .legal-modal-head{padding:16px 16px 13px}
+  .legal-modal-scroll{padding:15px 16px 18px}
+  .legal-grid{grid-template-columns:1fr}
+  .legal-section{padding-block:15px}
+  .legal-grid .legal-section{padding:15px}
 }

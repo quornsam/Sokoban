@@ -24,7 +24,7 @@
 <link rel="apple-touch-icon" sizes="180x180" href="assets/ui/icons/boxxy-yellow-crate-touch-v150.png">
 <link rel="manifest" href="boxxy.webmanifest">
 <script>
-  /* BOXXY v194 — square phone Zen controls over the uninterrupted animated background. */
+  /* BOXXY v195 — legal modal, Zen next-level control, lower landscape arrows and mobile music pause. */
   /* BOXXY v180 — responsive completion modal with unclipped pack cards and varied star messages. */
   !function(t,e){var o,n,p,r;e.__SV||(window.posthog&&window.posthog.__loaded)||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.crossOrigin="anonymous",p.async=!0,p.src=s.api_host.replace(".i.posthog.com","-assets.i.posthog.com")+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="init capture register register_once register_for_session unregister unregister_for_session getFeatureFlag getFeatureFlagResult isFeatureEnabled reloadFeatureFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSessionId getSurveys getActiveMatchingSurveys renderSurvey canRenderSurvey getNextSurveyStep identify setPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException loadToolbar get_property getSessionProperty createPersonProfile opt_in_capturing opt_out_capturing has_opted_in_capturing has_opted_out_capturing clear_opt_in_out_capturing debug".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
 
@@ -86,7 +86,7 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=194">
+<link rel="stylesheet" href="styles.css?v=195">
 <link rel="stylesheet" href="how-to-play.css?v=154">
 <link rel="preload" as="image" href="assets/ui/completion/happy-sprites-350-grid.png">
 <link rel="preload" as="image" href="assets/board/board-atlas.png">
@@ -163,6 +163,9 @@
         <svg class="mobile-fullscreen-exit" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
           <path d="M9 4v5H4M15 4v5h5M15 20v-5h5M9 20v-5H4"/>
         </svg>
+      </button>
+      <button id="zenNextBtn" class="zen-next-btn" type="button" hidden aria-label="Go to next level">
+        <span>NEXT LEVEL</span><b aria-hidden="true">→</b>
       </button>
       <button id="cancelGuidedBtn" class="cancel-guided-btn" type="button" hidden aria-label="Stop guided solve">
         <span aria-hidden="true">■</span><b>STOP GUIDED SOLVE</b><small>ESC</small>
@@ -670,11 +673,75 @@
 </div>
 
 <button id="autoSolveBtn" type="button" hidden tabindex="-1" aria-hidden="true">PLAY SOLUTION</button>
-<a class="legal-link" href="legal.html" target="_blank" rel="noopener">© 2026 SAM CORNWELL · LEGAL</a>
+
+<div id="legalModal" class="modal legal-modal" hidden>
+  <section class="legal-card" role="dialog" aria-modal="true" aria-labelledby="legalTitle">
+    <header class="legal-modal-head">
+      <div>
+        <span>BOXXY · PUSHBOX PUZZLE</span>
+        <h2 id="legalTitle">LEGAL</h2>
+      </div>
+      <button id="legalCloseBtn" class="legal-close" type="button" aria-label="Close legal information">×</button>
+    </header>
+    <div class="legal-modal-scroll">
+      <p class="legal-intro">Plain-English information about ownership, permitted use, privacy and playing BOXXY.</p>
+
+      <section class="legal-section legal-notice">
+        <h3>Ownership and copyright</h3>
+        <p><strong>BOXXY © 2026 Sam Cornwell. All rights reserved.</strong></p>
+        <p>BOXXY, its original artwork, characters, presentation and original collection of 50 puzzles belong to Sam Cornwell. BOXXY is not released as an open-source project, and its source code is not offered for public use.</p>
+      </section>
+
+      <div class="legal-grid">
+        <section class="legal-section">
+          <h3>Permitted use</h3>
+          <p>You may play and share BOXXY for personal and other non-commercial use. You may not sell, commercially exploit, republish, redistribute or reuse BOXXY, its code or its original assets without written permission from Sam Cornwell.</p>
+        </section>
+        <section class="legal-section">
+          <h3>Free to play</h3>
+          <p>BOXXY is currently free to play, with no advertising and no charge to the player. Features, availability and these arrangements may change, or BOXXY may be withdrawn, without notice.</p>
+        </section>
+        <section class="legal-section">
+          <h3>Puzzle collections</h3>
+          <p>The original 50 BOXXY levels are exclusive to BOXXY. Additional puzzle packs may include work by other puzzle authors. BOXXY respects those authors and credits their names on the relevant puzzle pack where applicable.</p>
+          <p><strong>More puzzles are coming soon.</strong></p>
+        </section>
+        <section class="legal-section">
+          <h3>For players of all ages</h3>
+          <p>BOXXY is a puzzle game for anyone who enjoys Sokoban, brain teasers, memory practice and problem-solving.</p>
+          <p class="legal-small">BOXXY is not a medical product or treatment and makes no claim to prevent, diagnose, treat or improve dementia or any other medical condition.</p>
+        </section>
+      </div>
+
+      <section class="legal-section">
+        <h3>Privacy, analytics and progress</h3>
+        <p>BOXXY does not use user accounts, advertising or session recordings, and it does not ask PostHog to identify you.</p>
+        <p>BOXXY uses PostHog, hosted in the European Union, to measure visits and a small set of gameplay events: opening the game, choosing a puzzle pack, starting or restarting a level, completing a level and pressing next level. A completion event may include the puzzle pack, level number, moves, pushes, time taken, whether a guided solve was used and screen orientation.</p>
+        <p>PostHog is configured in cookieless mode. It does not store BOXXY analytics identifiers in cookies, local storage or session storage. It estimates visitors using a privacy-preserving hash calculated on PostHog's servers. BOXXY does not send puzzle layouts, puzzle links, typed puzzle names, email addresses or other entered text. URL query strings and fragments are removed before analytics events are sent.</p>
+        <p>Your game progress and settings remain stored locally by your browser on your own device and are not sent as analytics. Clearing browser data, changing browser or changing device may remove that information. BOXXY cannot see it, transfer it or restore it for you.</p>
+        <p>PostHog receives the ordinary technical information needed to deliver and measure a web request, such as browser and device information, page path and referrer. BOXXY asks PostHog to respect supported Do Not Track signals. You can read <a href="https://posthog.com/privacy" target="_blank" rel="noopener">PostHog's privacy information</a>.</p>
+        <p>If you contact BOXXY by email or make a prize claim, the information you choose to send will be used to deal with that message or claim.</p>
+      </section>
+
+      <section class="legal-section">
+        <h3>No guarantee</h3>
+        <p>BOXXY is provided “as is”. Although care is taken over the game, no promise is made that it will always be error-free, uninterrupted, compatible with every device or permanently available.</p>
+      </section>
+
+      <section class="legal-section legal-contact">
+        <h3>Contact</h3>
+        <p>For legal, privacy, copyright or permission enquiries, email <a href="mailto:archedroof+boxxy@gmail.com">archedroof+boxxy@gmail.com</a>.</p>
+        <p class="legal-version">BOXXY VERSION 195</p>
+      </section>
+    </div>
+  </section>
+</div>
+
+<button id="legalBtn" class="legal-link" type="button" aria-haspopup="dialog" aria-controls="legalModal">© 2026 SAM CORNWELL · LEGAL</button>
 <audio id="bgMusic" src="assets/audio/cracked-ivory-drift.mp3" preload="auto" autoplay loop playsinline></audio>
 
-<script src="levels.js?v=194"></script>
-<script src="boxxy.js?v=194"></script>
+<script src="levels.js?v=195"></script>
+<script src="boxxy.js?v=195"></script>
 <script src="pack-builder.js?v=168"></script>
 <script src="how-to-play.js?v=153"></script>
 </body>
