@@ -33,6 +33,7 @@
   });
 })();
 
+/* BOXXY v203 — corrected Daily share emoji, copy-text control and coming-soon wording. */
 /* BOXXY v201 — supplied streak-flame artwork with coded day count inside the flame. */
 /* BOXXY v200 — Daily Boxxy schedule, sharing, local-midnight rollover and streak flame. */
 /* BOXXY v196 — reliable first-load splash and startup loading gate. */
@@ -1469,6 +1470,7 @@
   const dailySharePanel = document.getElementById("dailySharePanel");
   const dailyShareText = document.getElementById("dailyShareText");
   const dailyShareButton = document.getElementById("dailyShareButton");
+  const dailyCopyButton = document.getElementById("dailyCopyButton");
   const dailyShareStatus = document.getElementById("dailyShareStatus");
   const packStarAward = document.getElementById("packStarAward");
   const packStarAwardIcon = document.getElementById("packStarAwardIcon");
@@ -2074,7 +2076,7 @@
     const today = activeDailyDateKey();
     const first = DAILY_PUZZLES[0];
     const last = DAILY_PUZZLES[DAILY_PUZZLES.length - 1];
-    if (first && today < first.date) return `STARTS ${formatDailyDate(first.date).toUpperCase()}`;
+    if (first && today < first.date) return "COMING SOON";
     if (last && today > last.date) return "MORE SOON";
     return "UNAVAILABLE";
   }
@@ -2111,12 +2113,15 @@
       return true;
     }
     const today = activeDailyDateKey();
+    let unavailableLabel = "NOT AVAILABLE TODAY";
     if (first && today < first.date) {
-      if (dailyInviteText) dailyInviteText.textContent = `The first Daily Boxxy arrives on ${formatDailyDate(first.date, { weekday: true, long: true, year: true })}.`;
-      if (dailyInviteStatus) dailyInviteStatus.textContent = "A NEW PUZZLE AT 00:00 LOCAL TIME";
+      if (dailyInviteText) dailyInviteText.textContent = "Daily Boxxy is coming soon.";
+      if (dailyInviteStatus) dailyInviteStatus.textContent = "A NEW PUZZLE EVERY DAY";
+      unavailableLabel = "COMING SOON";
     } else if (last && today > last.date) {
       if (dailyInviteText) dailyInviteText.textContent = "The current Daily Boxxy schedule is complete. More puzzles will be added soon.";
       if (dailyInviteStatus) dailyInviteStatus.textContent = "MORE DAILY PUZZLES COMING SOON";
+      unavailableLabel = "MORE COMING SOON";
     } else {
       if (dailyInviteText) dailyInviteText.textContent = "No Daily Boxxy is scheduled for today.";
       if (dailyInviteStatus) dailyInviteStatus.textContent = "CHECK AGAIN TOMORROW";
@@ -2124,7 +2129,7 @@
     if (dailyInvitePlay) {
       dailyInvitePlay.disabled = true;
       const label = dailyInvitePlay.querySelector("span");
-      if (label) label.textContent = "NOT AVAILABLE TODAY";
+      if (label) label.textContent = unavailableLabel;
     }
     return false;
   }
@@ -3316,29 +3321,18 @@
     const source = Array.isArray(rows) ? rows.map(row => String(row)) : [];
     if (!source.length) return "";
     const width = Math.max(...source.map(row => row.length));
-    const height = source.length;
-    const grid = source.map(row => row.padEnd(width, " ").split(""));
-    const outside = new Set();
-    const queue = [];
-    const keyFor = (x, y) => `${x},${y}`;
-    const addOutside = (x, y) => {
-      if (x < 0 || y < 0 || x >= width || y >= height || grid[y][x] !== " ") return;
-      const key = keyFor(x, y);
-      if (outside.has(key)) return;
-      outside.add(key);
-      queue.push([x, y]);
+    const emoji = {
+      " ": "◻️",
+      "#": "⬛️",
+      "$": "🟨",
+      ".": "⭕️",
+      "*": "🟥",
+      "@": "🧍‍♂️",
+      "+": "🧍‍♂️"
     };
-    for (let x = 0; x < width; x++) { addOutside(x, 0); addOutside(x, height - 1); }
-    for (let y = 0; y < height; y++) { addOutside(0, y); addOutside(width - 1, y); }
-    while (queue.length) {
-      const [x, y] = queue.shift();
-      addOutside(x + 1, y); addOutside(x - 1, y); addOutside(x, y + 1); addOutside(x, y - 1);
-    }
-    const emoji = { "#": "⬛️", "$": "🟥", ".": "🟨", "*": "⭕️", "@": "🧍‍♂️", "+": "🧍‍♂️" };
-    return grid.map((row, y) => row.map((cell, x) => {
-      if (cell === " " && outside.has(keyFor(x, y))) return "　";
-      return emoji[cell] || "◻️";
-    }).join("").replace(/　+$/g, "")).join("\n");
+    return source
+      .map(row => row.padEnd(width, " ").split("").map(cell => emoji[cell] || "◻️").join(""))
+      .join("\n");
   }
 
   function formatClockDuration(totalSeconds) {
@@ -3364,19 +3358,9 @@
     ].join("\n");
   }
 
-  async function shareDailyResult() {
+  async function copyDailyResult() {
     const text = String(dailyShareText?.value || "");
-    if (!text) return;
-    if (dailyShareStatus) dailyShareStatus.textContent = "";
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: "Daily Boxxy", text });
-        if (dailyShareStatus) dailyShareStatus.textContent = "SHARED";
-        return;
-      }
-    } catch (error) {
-      if (error?.name === "AbortError") return;
-    }
+    if (!text) return false;
     let copied = false;
     try {
       await navigator.clipboard.writeText(text);
@@ -3390,6 +3374,23 @@
       } catch (_) {}
     }
     if (dailyShareStatus) dailyShareStatus.textContent = copied ? "COPIED — PASTE IT ANYWHERE" : "SELECT THE TEXT AND COPY";
+    return copied;
+  }
+
+  async function shareDailyResult() {
+    const text = String(dailyShareText?.value || "");
+    if (!text) return;
+    if (dailyShareStatus) dailyShareStatus.textContent = "";
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: "Daily Boxxy", text });
+        if (dailyShareStatus) dailyShareStatus.textContent = "SHARED";
+        return;
+      }
+    } catch (error) {
+      if (error?.name === "AbortError") return;
+    }
+    await copyDailyResult();
   }
 
   function loadDailyPuzzle(puzzle = dailyPuzzleForToday(), preserveBackground = false) {
@@ -4379,6 +4380,7 @@
   dailyInviteLater?.addEventListener("click", closeDailyInvite);
   dailyInviteModal?.addEventListener("click", event => { if (event.target === dailyInviteModal) closeDailyInvite(); });
   dailyShareButton?.addEventListener("click", shareDailyResult);
+  dailyCopyButton?.addEventListener("click", copyDailyResult);
   themeCloseBtn?.addEventListener("click", closeThemeModal);
   themeChoices.forEach(button => button.addEventListener("click", () => { applyTheme(button.dataset.themeChoice); closeThemeModal(); }));
   themeModal?.addEventListener("click", event => { if (event.target === themeModal) closeThemeModal(); });

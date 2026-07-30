@@ -3,6 +3,7 @@
  * Copyright © 2026 Sam Cornwell. All rights reserved.
  * Personal non-commercial use only. See LICENSE.md.
  * BOXXY v166: fifteen dedicated box and target sprite colours.
+ * BOXXY v203: corrected Daily share emoji, copy-text control and coming-soon wording.
  * BOXXY v202: optically aligned, equally spaced streak and completion badges.
  * BOXXY v201: supplied streak-flame artwork with coded day count inside the flame.
  * BOXXY v196: reliable first-load splash and startup loading gate.
@@ -4541,7 +4542,6 @@ body.maker-editor-fullscreen{overflow:hidden}
 .daily-invite-card::before{content:"";position:absolute;width:190px;height:190px;right:-78px;top:-85px;border-radius:50%;background:#f2c121;opacity:.9}
 .daily-invite-close{position:absolute;z-index:2;right:13px;top:11px;width:33px;height:33px;padding:0;border:2px solid var(--ink);background:#fff;color:var(--ink);font:900 23px/1 Arial,sans-serif}
 .daily-invite-kicker{position:relative;z-index:1;display:block;color:#2f8f5b;font-size:10px;font-weight:1000;letter-spacing:.16em}
-.daily-invite-mark{position:relative;z-index:1;width:66px;height:66px;margin:17px 0 10px;display:grid;place-items:center;background:#2f8f5b;color:#fff;border:3px solid var(--ink);box-shadow:5px 5px 0 var(--yellow);font:1000 39px/1 Arial,sans-serif}
 .daily-invite-card h2{position:relative;z-index:1;margin:0;font-size:clamp(48px,9vw,75px);line-height:.82;letter-spacing:-.055em}
 .daily-invite-card>p{position:relative;z-index:1;max-width:410px;margin:15px 0 0;color:#51493f;font-size:14px;line-height:1.42}
 .daily-invite-status{min-height:1.25em!important;margin-top:8px!important;color:#2f8f5b!important;font-size:10px!important;font-weight:950;letter-spacing:.08em;text-transform:uppercase}
@@ -4561,8 +4561,11 @@ body.maker-editor-fullscreen{overflow:hidden}
 .daily-share-heading span{font-size:7px;font-weight:900;letter-spacing:.08em;color:#71675a;text-align:right}
 .daily-share-panel textarea{box-sizing:border-box;width:100%;height:176px;resize:none;padding:10px;border:1px solid rgba(23,23,25,.35);background:#fff;color:var(--ink);font:700 12px/1.25 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre;overflow:auto}
 .daily-share-actions{display:flex;align-items:center;gap:12px;margin-top:9px}
-.daily-share-button{min-width:180px;padding:9px 10px 9px 13px;border:2px solid var(--ink);background:#2f8f5b;color:#fff;display:flex;align-items:center;justify-content:space-between;gap:13px;font-weight:1000;letter-spacing:.08em;box-shadow:4px 4px 0 var(--yellow)}
+.daily-share-buttons{display:flex;align-items:stretch;gap:9px}
+.daily-share-button,.daily-copy-button{min-height:45px;padding:9px 10px 9px 13px;border:2px solid var(--ink);font-weight:1000;letter-spacing:.08em}
+.daily-share-button{min-width:180px;background:#2f8f5b;color:#fff;display:flex;align-items:center;justify-content:space-between;gap:13px;box-shadow:4px 4px 0 var(--yellow)}
 .daily-share-button b{width:25px;height:25px;display:grid;place-items:center;background:#fff;color:#2f8f5b;font-size:17px}
+.daily-copy-button{min-width:132px;background:#fff;color:var(--ink);box-shadow:4px 4px 0 rgba(23,23,25,.16)}
 .daily-share-status{min-height:1em;color:#2f8f5b;font-size:9px;font-weight:1000;letter-spacing:.08em}
 
 body.daily-mode .collection{border-color:#2f8f5b;box-shadow:4px 4px 0 rgba(47,143,91,.22)}
@@ -4574,7 +4577,6 @@ body.daily-mode .collection i{background:#2f8f5b}
   .daily-quote-play small{padding:4px 5px;font-size:6.5px}
   .daily-quote-dismiss{width:27px;font-size:19px}
   .daily-invite-card{padding:25px 22px 23px;box-shadow:8px 8px 0 rgba(47,143,91,.78)}
-  .daily-invite-mark{width:53px;height:53px;margin-top:13px;font-size:31px}
   .daily-invite-card h2{font-size:clamp(43px,15vw,61px)}
   .daily-invite-card>p{font-size:12px}
   .daily-invite-actions{display:grid;grid-template-columns:1fr;gap:8px;margin-top:18px}
@@ -4586,7 +4588,8 @@ body.daily-mode .collection i{background:#2f8f5b}
   .daily-share-heading span{display:block;margin-top:3px;text-align:left}
   .daily-share-panel textarea{height:145px;font-size:10px}
   .daily-share-actions{display:block}
-  .daily-share-button{width:100%;min-width:0}
+  .daily-share-buttons{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
+  .daily-share-button,.daily-copy-button{width:100%;min-width:0}
   .daily-share-status{display:block;margin-top:8px}
 }
 @media(max-width:390px){
@@ -4594,7 +4597,6 @@ body.daily-mode .collection i{background:#2f8f5b}
 }
 @media(max-height:520px) and (orientation:landscape){
   .daily-invite-card{width:min(680px,calc(100vw - 20px));padding:17px 24px 16px;box-shadow:7px 7px 0 rgba(47,143,91,.78)}
-  .daily-invite-mark{float:left;width:45px;height:45px;margin:9px 14px 8px 0;font-size:27px}
   .daily-invite-card h2{font-size:42px;line-height:.86;margin-top:9px}
   .daily-invite-card>p{margin-top:8px;font-size:10px}
   .daily-invite-actions{display:flex;margin-top:10px}

@@ -26,6 +26,7 @@
 <link rel="preload" as="image" href="assets/ui/boxxy-splash.png" fetchpriority="high">
 <script>
   /* BOXXY v196 — reliable first-load splash and startup loading gate. */
+  /* BOXXY v203 — corrected Daily share emoji, copy-text control and coming-soon wording. */
   /* BOXXY v202 — optically aligned, equally spaced streak and completion badges. */
   /* BOXXY v201 — supplied streak-flame artwork with coded day count inside the flame. */
   /* BOXXY v200 — Daily Boxxy puzzle, local-midnight rollover, sharing and streak flame. */
@@ -91,7 +92,7 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=200">
+<link rel="stylesheet" href="styles.css?v=203">
 <link rel="stylesheet" href="how-to-play.css?v=154">
 <link rel="preload" as="image" href="assets/board/boxes/box-default-yellow.png">
 <link rel="preload" as="image" href="assets/board/goals/goal-red.png">
@@ -243,7 +244,6 @@
   <section class="daily-invite-card" role="dialog" aria-modal="true" aria-labelledby="dailyInviteTitle" aria-describedby="dailyInviteText">
     <button id="dailyInviteClose" class="daily-invite-close" type="button" aria-label="Close Daily Boxxy invitation">×</button>
     <span class="daily-invite-kicker">A NEW PUZZLE EVERY DAY</span>
-    <div class="daily-invite-mark" aria-hidden="true">B</div>
     <h2 id="dailyInviteTitle">BOXXY<br>DAILY</h2>
     <p id="dailyInviteText">Today’s box-pushing puzzle is ready.</p>
     <p id="dailyInviteStatus" class="daily-invite-status"></p>
@@ -324,7 +324,10 @@
         </div>
         <textarea id="dailyShareText" readonly spellcheck="false" aria-label="Daily Boxxy result text"></textarea>
         <div class="daily-share-actions">
-          <button id="dailyShareButton" class="daily-share-button" type="button"><span>SHARE RESULT</span><b aria-hidden="true">↗</b></button>
+          <div class="daily-share-buttons">
+            <button id="dailyShareButton" class="daily-share-button" type="button"><span>SHARE RESULT</span><b aria-hidden="true">↗</b></button>
+            <button id="dailyCopyButton" class="daily-copy-button" type="button">COPY TEXT</button>
+          </div>
           <span id="dailyShareStatus" class="daily-share-status" role="status" aria-live="polite"></span>
         </div>
       </section>
@@ -757,7 +760,7 @@
 
 <script src="daily-puzzles/boxxy-daily-puzzles.js?v=200"></script>
 <script src="levels.js?v=200"></script>
-<script src="boxxy.js?v=200"></script>
+<script src="boxxy.js?v=203"></script>
 <script src="pack-builder.js?v=168"></script>
 <script src="how-to-play.js?v=153"></script>
 </body>
