@@ -893,25 +893,21 @@
     jigsaw: "THE JIGSAW",
     exponentially: "EXPONENTIALLY"
   });
-
   const PACK_ARTWORK = Object.freeze({
     "boxxy-original-puzzle-pack-of-50-levels": {
-      desktopSrc: "assets/pack-art/boxxy-originals-pack-art.png",
-      mobileSrc: "assets/pack-art/boxxy-originals-pack-art.png",
-      desktopPosition: "center center",
-      mobilePosition: "center center"
+      desktop: "assets/pack-art/boxxy-originals-banner.webp",
+      mobile: "assets/pack-art/boxxy-originals-mobile.webp",
+      alt: "Indi sitting on a crate and scratching his head"
     },
     jigsaw: {
-      desktopSrc: "assets/pack-art/the-jigsaw-pack-art.png",
-      mobileSrc: "assets/pack-art/the-jigsaw-pack-art.png",
-      desktopPosition: "center 34%",
-      mobilePosition: "42% center"
+      desktop: "assets/pack-art/the-jigsaw-banner.webp",
+      mobile: "assets/pack-art/the-jigsaw-mobile.webp",
+      alt: "Indi studying The Jigsaw map"
     },
     exponentially: {
-      desktopSrc: "assets/pack-art/exponentially-pack-art.png",
-      mobileSrc: "assets/pack-art/exponentially-pack-art.png",
-      desktopPosition: "center center",
-      mobilePosition: "center center"
+      desktop: "assets/pack-art/exponentially-source.webp",
+      mobile: "assets/pack-art/exponentially-mobile.webp",
+      alt: "Indi screaming among a huge number of boxes"
     }
   });
 
@@ -2343,20 +2339,27 @@
     const art = document.createElement("span");
     art.className = "final-pack-art";
     art.setAttribute("aria-hidden", "true");
-    const shape = document.createElement("i");
     const number = document.createElement("b");
     number.textContent = String(index + 1).padStart(2, "0");
     const artwork = packArtwork(pack);
-    if (artwork?.desktopSrc) {
-      art.classList.add("has-image");
-      art.style.setProperty("--pack-art-image", `url("${String(artwork.desktopSrc)}")`);
-      art.style.setProperty("--pack-art-mobile-image", `url("${String(artwork.mobileSrc || artwork.desktopSrc)}")`);
-      if (artwork.desktopPosition) art.style.setProperty("--pack-art-position", String(artwork.desktopPosition));
-      if (artwork.mobilePosition) art.style.setProperty("--pack-art-mobile-position", String(artwork.mobilePosition));
-      if (artwork.desktopSize) art.style.setProperty("--pack-art-size", String(artwork.desktopSize));
-      if (artwork.mobileSize) art.style.setProperty("--pack-art-mobile-size", String(artwork.mobileSize));
+    if (artwork?.desktop) {
+      art.classList.add("image-art");
+      const picture = document.createElement("picture");
+      const source = document.createElement("source");
+      source.media = "(max-width: 620px)";
+      source.srcset = artwork.mobile || artwork.desktop;
+      const image = document.createElement("img");
+      image.src = artwork.desktop;
+      image.alt = artwork.alt || "";
+      image.loading = "lazy";
+      image.decoding = "async";
+      picture.append(source, image);
+      number.className = "pack-no";
+      art.append(picture, number);
+    } else {
+      const shape = document.createElement("i");
+      art.append(shape, number);
     }
-    art.append(shape, number);
 
     const name = document.createElement("span");
     name.className = "final-pack-name";
