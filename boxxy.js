@@ -894,6 +894,27 @@
     exponentially: "EXPONENTIALLY"
   });
 
+  const PACK_ARTWORK = Object.freeze({
+    "boxxy-original-puzzle-pack-of-50-levels": {
+      desktopSrc: "assets/pack-art/boxxy-originals-pack-art.png",
+      mobileSrc: "assets/pack-art/boxxy-originals-pack-art.png",
+      desktopPosition: "center center",
+      mobilePosition: "center center"
+    },
+    jigsaw: {
+      desktopSrc: "assets/pack-art/the-jigsaw-pack-art.png",
+      mobileSrc: "assets/pack-art/the-jigsaw-pack-art.png",
+      desktopPosition: "center 34%",
+      mobilePosition: "42% center"
+    },
+    exponentially: {
+      desktopSrc: "assets/pack-art/exponentially-pack-art.png",
+      mobileSrc: "assets/pack-art/exponentially-pack-art.png",
+      desktopPosition: "center center",
+      mobilePosition: "center center"
+    }
+  });
+
   function packCollectionLabel(pack) {
     return PACK_COLLECTION_LABELS[pack?.id]
       || String(pack?.displayName || pack?.title || "Puzzle Pack");
@@ -909,6 +930,10 @@
       "'": "&#39;"
     })[character]);
     return safeLabel.replace(/\s+/, "<br>");
+  }
+
+  function packArtwork(pack) {
+    return pack ? (PACK_ARTWORK[pack.id] || null) : null;
   }
 
   const DAILY_LAUNCH_DATE = /^\d{4}-\d{2}-\d{2}$/.test(String(window.BOXXY_DAILY_LAUNCH_DATE || ""))
@@ -2321,6 +2346,16 @@
     const shape = document.createElement("i");
     const number = document.createElement("b");
     number.textContent = String(index + 1).padStart(2, "0");
+    const artwork = packArtwork(pack);
+    if (artwork?.desktopSrc) {
+      art.classList.add("has-image");
+      art.style.setProperty("--pack-art-image", `url("${String(artwork.desktopSrc)}")`);
+      art.style.setProperty("--pack-art-mobile-image", `url("${String(artwork.mobileSrc || artwork.desktopSrc)}")`);
+      if (artwork.desktopPosition) art.style.setProperty("--pack-art-position", String(artwork.desktopPosition));
+      if (artwork.mobilePosition) art.style.setProperty("--pack-art-mobile-position", String(artwork.mobilePosition));
+      if (artwork.desktopSize) art.style.setProperty("--pack-art-size", String(artwork.desktopSize));
+      if (artwork.mobileSize) art.style.setProperty("--pack-art-mobile-size", String(artwork.mobileSize));
+    }
     art.append(shape, number);
 
     const name = document.createElement("span");
