@@ -33,7 +33,7 @@
   });
 })();
 
-/* BOXXY v209 — smooth first-person movement and opaque walls. */
+/* BOXXY v210 — adjustable first-person / overhead camera with full-map zoom. */
 /* BOXXY v205 — shorter mobile Daily Complete modal and single-line heading. */
 /* BOXXY v203 — corrected Daily share emoji, copy-text control and coming-soon wording. */
 /* BOXXY v201 — supplied streak-flame artwork with coded day count inside the flame. */
@@ -1517,6 +1517,22 @@
   const firstPersonHotspot = document.getElementById("firstPersonHotspot");
   const firstPersonCanvas = document.getElementById("firstPersonCanvas");
   const firstPersonBoom = document.getElementById("firstPersonBoom");
+
+  const firstPersonCameraControl = document.createElement("div");
+  firstPersonCameraControl.id = "firstPersonCameraControl";
+  firstPersonCameraControl.className = "first-person-camera-control";
+  firstPersonCameraControl.hidden = true;
+  firstPersonCameraControl.innerHTML = `
+    <div class="first-person-camera-heading">
+      <span>CAMERA</span>
+      <output id="firstPersonCameraValue" for="firstPersonCameraSlider">FIRST PERSON</output>
+    </div>
+    <input id="firstPersonCameraSlider" class="first-person-camera-slider" type="range" min="0" max="100" step="1" value="0" aria-label="Zoom the 3D camera from first person to the whole map">
+    <div class="first-person-camera-scale" aria-hidden="true"><span>FIRST PERSON</span><span>WHOLE MAP</span></div>`;
+  board?.appendChild(firstPersonCameraControl);
+  const firstPersonCameraSlider = firstPersonCameraControl.querySelector("#firstPersonCameraSlider");
+  const firstPersonCameraValue = firstPersonCameraControl.querySelector("#firstPersonCameraValue");
+
   const bgDecor = document.getElementById("bgDecor");
   const app = document.querySelector(".app");
   const fullscreenBtn = document.getElementById("fullscreenBtn");
@@ -1597,6 +1613,8 @@
   let firstPersonRenderFrame = 0;
   let firstPersonBoomTimer = 0;
   let firstPersonMotion = null;
+  let firstPersonCameraZoom = 0;
+  const firstPersonAvatarImages = new Map();
   let currentAnimation = "idle";
   let thoughtTimer = null;
   let lastThought = "";
@@ -3243,6 +3261,91 @@
     ][((heading % 4) + 4) % 4];
   }
 
+  function firstPersonCameraLabel(value = firstPersonCameraZoom) {
+    const amount = Math.max(0, Math.min(100, Math.round(Number(value) || 0)));
+    if (amount === 0) return "FIRST PERSON";
+    if (amount === 100) return "WHOLE MAP";
+    return `${amount}% OUT`;
+  }
+
+  function setFirstPersonCameraZoom(value, renderNow = true) {
+    firstPersonCameraZoom = Math.max(0, Math.min(100, Number(value) || 0));
+    if (firstPersonCameraSlider) firstPersonCameraSlider.value = String(Math.round(firstPersonCameraZoom));
+    if (firstPersonCameraValue) firstPersonCameraValue.textContent = firstPersonCameraLabel();
+    if (renderNow) scheduleFirstPersonRender();
+  }
+
+  function firstPersonAvatarImage(frame = "player-back") {
+    let image = firstPersonAvatarImages.get(frame);
+    if (image) return image;
+    image = new Image();
+    image.alt = "";
+    image.decoding = "async";
+    image.addEventListener("load", scheduleFirstPersonRender);
+    image.addEventListener("error", scheduleFirstPersonRender);
+    firstPersonAvatarImages.set(frame, image);
+    Promise.resolve(window.CharacterStyler?.drawImage?.(image, frame)).finally(scheduleFirstPersonRender);
+    return image;
+  }
+
+  function resetFirstPersonAvatarImages() {
+    firstPersonAvatarImages.clear();
+    if (firstPersonMode) scheduleFirstPersonRender();
+  }
+
+  function firstPersonViewGeometry(angle, cssWidth, cssHeight, playerX, playerZ, playerHeight, stepBob = 0) {
+    const forwardX = Math.sin(angle);
+    const forwardZ = -Math.cos(angle);
+    const rightX = Math.cos(angle);
+    const rightZ = Math.sin(angle);
+    const corners = [
+      { x: 0, z: 0 },
+      { x: width, z: 0 },
+      { x: width, z: height },
+      { x: 0, z: height }
+    ];
+    const forwardValues = corners.map(point => point.x * forwardX + point.z * forwardZ);
+    const rightValues = corners.map(point => point.x * rightX + point.z * rightZ);
+    const forwardSpan = Math.max(...forwardValues) - Math.min(...forwardValues);
+    const rightSpan = Math.max(...rightValues) - Math.min(...rightValues);
+    const mapCentreX = width / 2;
+    const mapCentreZ = height / 2;
+    const aspect = Math.max(0.55, cssWidth / Math.max(1, cssHeight));
+    const fitSpan = Math.max(forwardSpan, rightSpan / aspect);
+    const wholeMapBack = Math.max(4.5, forwardSpan * 0.82 + 3.5);
+    const wholeMapHeight = Math.max(6, fitSpan * 1.72 + 4);
+    const zoom = firstPersonEase(firstPersonCameraZoom / 100);
+    const cameraX = playerX + (mapCentreX - forwardX * wholeMapBack - playerX) * zoom;
+    const cameraZ = playerZ + (mapCentreZ - forwardZ * wholeMapBack - playerZ) * zoom;
+    const cameraHeight = playerHeight + (wholeMapHeight - playerHeight) * zoom;
+    const nearTargetDistance = 6;
+    const targetX = playerX + forwardX * nearTargetDistance + (mapCentreX - (playerX + forwardX * nearTargetDistance)) * zoom;
+    const targetZ = playerZ + forwardZ * nearTargetDistance + (mapCentreZ - (playerZ + forwardZ * nearTargetDistance)) * zoom;
+    const targetHeight = playerHeight + (0.12 - playerHeight) * zoom;
+    const horizontalLookDistance = Math.max(0.01,
+      (targetX - cameraX) * forwardX + (targetZ - cameraZ) * forwardZ
+    );
+    const pitch = Math.atan2(cameraHeight - targetHeight, horizontalLookDistance);
+    const focal = Math.min(cssWidth * 0.78, cssHeight * 1.28);
+    const centreY = cssHeight * (0.43 + zoom * 0.055) + stepBob * (1 - zoom) * 2.4;
+    return {
+      cameraX,
+      cameraZ,
+      cameraHeight,
+      forwardX,
+      forwardZ,
+      rightX,
+      rightZ,
+      cosPitch: Math.cos(pitch),
+      sinPitch: Math.sin(pitch),
+      pitch,
+      zoom,
+      centreX: cssWidth / 2,
+      centreY,
+      focal
+    };
+  }
+
   function resetFirstPersonEasterEgg() {
     firstPersonClickCount = 0;
     firstPersonArmed = false;
@@ -3278,6 +3381,8 @@
     facing = firstPersonFacingForHeading();
     resetFirstPersonEasterEgg();
     document.body.classList.add("first-person-mode");
+    setFirstPersonCameraZoom(0, false);
+    firstPersonCameraControl.hidden = false;
     if (firstPersonCanvas) firstPersonCanvas.hidden = false;
     board?.setAttribute("aria-label", "First-person BOXXY view. Up moves forward, down steps back, and left or right turns.");
     showFirstPersonBoom();
@@ -3292,6 +3397,7 @@
     firstPersonMode = false;
     firstPersonMotion = null;
     document.body.classList.remove("first-person-mode");
+    firstPersonCameraControl.hidden = true;
     cancelAnimationFrame(firstPersonRenderFrame);
     firstPersonRenderFrame = 0;
     clearTimeout(firstPersonBoomTimer);
@@ -3422,18 +3528,20 @@
   function firstPersonProjectedPolygon(worldPoints, view) {
     const cameraPoints = worldPoints.map(point => {
       const relX = point.x - view.cameraX;
+      const relY = point.y - view.cameraHeight;
       const relZ = point.z - view.cameraZ;
+      const horizontalForward = relX * view.forwardX + relZ * view.forwardZ;
       return {
         x: relX * view.rightX + relZ * view.rightZ,
-        y: point.y,
-        z: relX * view.forwardX + relZ * view.forwardZ
+        y: horizontalForward * view.sinPitch + relY * view.cosPitch,
+        z: horizontalForward * view.cosPitch - relY * view.sinPitch
       };
     });
     const clipped = clipFirstPersonPolygon(cameraPoints);
     if (clipped.length < 3) return null;
     const screenPoints = clipped.map(point => ({
       x: view.centreX + (point.x / point.z) * view.focal,
-      y: view.horizon - ((point.y - view.cameraHeight) / point.z) * view.focal
+      y: view.centreY - (point.y / point.z) * view.focal
     }));
     const depth = clipped.reduce((sum, point) => sum + point.z, 0) / clipped.length;
     return { points: screenPoints, depth };
@@ -3474,44 +3582,44 @@
     context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
     context.clearRect(0, 0, cssWidth, cssHeight);
 
-    const sky = context.createLinearGradient(0, 0, 0, cssHeight * 0.48);
-    sky.addColorStop(0, "#071015");
-    sky.addColorStop(1, "#28444c");
-    context.fillStyle = sky;
-    context.fillRect(0, 0, cssWidth, cssHeight * 0.49);
-    const ground = context.createLinearGradient(0, cssHeight * 0.38, 0, cssHeight);
-    ground.addColorStop(0, "#162429");
-    ground.addColorStop(1, "#05090b");
-    context.fillStyle = ground;
-    context.fillRect(0, cssHeight * 0.38, cssWidth, cssHeight * 0.62);
-
     const now = performance.now();
     let angle = firstPersonHeading * Math.PI / 2;
-    let cameraX = player[0] + 0.5;
-    let cameraZ = player[1] + 0.5;
+    let playerRenderX = player[0] + 0.5;
+    let playerRenderZ = player[1] + 0.5;
     let motionProgress = 1;
     let motionEase = 1;
     const activeMotion = firstPersonMotionInProgress(now) ? firstPersonMotion : null;
     if (activeMotion) {
       motionProgress = Math.max(0, Math.min(1, (now - activeMotion.startedAt) / activeMotion.duration));
       motionEase = firstPersonEase(motionProgress);
-      cameraX = activeMotion.fromX + (activeMotion.toX - activeMotion.fromX) * motionEase;
-      cameraZ = activeMotion.fromZ + (activeMotion.toZ - activeMotion.fromZ) * motionEase;
+      playerRenderX = activeMotion.fromX + (activeMotion.toX - activeMotion.fromX) * motionEase;
+      playerRenderZ = activeMotion.fromZ + (activeMotion.toZ - activeMotion.fromZ) * motionEase;
       angle = activeMotion.fromAngle + (activeMotion.toAngle - activeMotion.fromAngle) * motionEase;
     }
     const stepBob = activeMotion?.type === "step" ? Math.sin(motionProgress * Math.PI) : 0;
-    const view = {
-      cameraX,
-      cameraZ,
-      cameraHeight: 0.54 + stepBob * 0.018,
-      forwardX: Math.sin(angle),
-      forwardZ: -Math.cos(angle),
-      rightX: Math.cos(angle),
-      rightZ: Math.sin(angle),
-      centreX: cssWidth / 2,
-      horizon: cssHeight * 0.43 + stepBob * 2.4,
-      focal: Math.min(cssWidth * 0.78, cssHeight * 1.28)
-    };
+    const playerEyeHeight = 0.54 + stepBob * 0.018;
+    const view = firstPersonViewGeometry(
+      angle,
+      cssWidth,
+      cssHeight,
+      playerRenderX,
+      playerRenderZ,
+      playerEyeHeight,
+      stepBob
+    );
+
+    const sky = context.createLinearGradient(0, 0, 0, Math.max(1, cssHeight * 0.62));
+    sky.addColorStop(0, "#071015");
+    sky.addColorStop(1, "#28444c");
+    context.fillStyle = sky;
+    context.fillRect(0, 0, cssWidth, cssHeight);
+    const projectedHorizon = view.centreY - Math.tan(view.pitch) * view.focal;
+    const groundStart = Math.max(0, Math.min(cssHeight, projectedHorizon));
+    const ground = context.createLinearGradient(0, groundStart, 0, cssHeight);
+    ground.addColorStop(0, "#162429");
+    ground.addColorStop(1, "#05090b");
+    context.fillStyle = ground;
+    context.fillRect(0, groundStart, cssWidth, cssHeight - groundStart);
 
     const floorPolygons = [];
     for (const point of floor) {
@@ -3526,7 +3634,7 @@
     }
     floorPolygons.sort((a, b) => b.depth - a.depth);
     floorPolygons.forEach(polygon => {
-      const fade = Math.max(0.16, Math.min(1, 1.15 - polygon.depth / 18));
+      const fade = Math.max(0.16, Math.min(1, 1.15 - polygon.depth / 28));
       context.globalAlpha = fade;
       traceFirstPersonPolygon(context, polygon.points);
       context.fillStyle = (polygon.x + polygon.z) % 2 ? "rgba(211,226,220,.105)" : "rgba(244,237,218,.145)";
@@ -3550,7 +3658,7 @@
       }
       const projected = firstPersonProjectedPolygon(points, view);
       if (!projected) return;
-      const fade = Math.max(0.25, Math.min(1, 1.22 - projected.depth / 18));
+      const fade = Math.max(0.25, Math.min(1, 1.22 - projected.depth / 28));
       context.globalAlpha = fade;
       traceFirstPersonPolygon(context, projected.points);
       context.fillStyle = colour;
@@ -3623,9 +3731,65 @@
       });
     });
 
+    if (view.zoom > 0.015) {
+      const avatarHalfWidth = 0.30;
+      const avatarHeight = 0.88;
+      const projected = firstPersonProjectedPolygon([
+        { x: playerRenderX - view.rightX * avatarHalfWidth, z: playerRenderZ - view.rightZ * avatarHalfWidth, y: 0 },
+        { x: playerRenderX + view.rightX * avatarHalfWidth, z: playerRenderZ + view.rightZ * avatarHalfWidth, y: 0 },
+        { x: playerRenderX + view.rightX * avatarHalfWidth, z: playerRenderZ + view.rightZ * avatarHalfWidth, y: avatarHeight },
+        { x: playerRenderX - view.rightX * avatarHalfWidth, z: playerRenderZ - view.rightZ * avatarHalfWidth, y: avatarHeight }
+      ], view);
+      if (projected && projected.points.length === 4) {
+        const frame = activeMotion?.type === "step"
+          ? (activeMotion.movedBox ? "push-back" : "walk-back")
+          : "player-back";
+        faces.push({
+          ...projected,
+          kind: "avatar",
+          image: firstPersonAvatarImage(frame),
+          alpha: Math.max(0, Math.min(1, (view.zoom - 0.015) / 0.12))
+        });
+      }
+    }
+
     faces.sort((a, b) => b.depth - a.depth);
     faces.forEach(face => {
-      const fade = Math.max(0.28, Math.min(1, 1.18 - face.depth / 20));
+      if (face.kind === "avatar") {
+        const xs = face.points.map(point => point.x);
+        const ys = face.points.map(point => point.y);
+        const left = Math.min(...xs);
+        const right = Math.max(...xs);
+        const top = Math.min(...ys);
+        const bottom = Math.max(...ys);
+        const projectedWidth = Math.max(1, right - left);
+        const projectedHeight = Math.max(1, bottom - top);
+        const avatarHeight = Math.max(projectedHeight, 34 * view.zoom);
+        const avatarWidth = Math.max(projectedWidth, avatarHeight * 0.72);
+        const avatarLeft = (left + right) / 2 - avatarWidth / 2;
+        const avatarTop = bottom - avatarHeight;
+        context.globalAlpha = face.alpha;
+        if (face.image?.complete && face.image.naturalWidth > 0) {
+          const cropX = face.image.naturalWidth * (82 / 300);
+          const cropY = face.image.naturalHeight * (74 / 260);
+          const cropWidth = face.image.naturalWidth * (136 / 300);
+          const cropHeight = face.image.naturalHeight * (186 / 260);
+          context.drawImage(
+            face.image,
+            cropX, cropY, cropWidth, cropHeight,
+            avatarLeft, avatarTop, avatarWidth, avatarHeight
+          );
+        } else {
+          context.fillStyle = "rgba(30,25,24,.88)";
+          context.beginPath();
+          context.arc(avatarLeft + avatarWidth / 2, avatarTop + avatarHeight * 0.20, avatarWidth * 0.18, 0, Math.PI * 2);
+          context.fill();
+          context.fillRect(avatarLeft + avatarWidth * 0.31, avatarTop + avatarHeight * 0.34, avatarWidth * 0.38, avatarHeight * 0.54);
+        }
+        context.globalAlpha = 1;
+        return;
+      }
+      const fade = Math.max(0.28, Math.min(1, 1.18 - face.depth / 32));
       context.globalAlpha = face.kind === "wall" ? 1 : fade;
       traceFirstPersonPolygon(context, face.points);
       context.fillStyle = face.fill;
@@ -3650,19 +3814,23 @@
     });
     context.globalAlpha = 1;
 
-    const glow = context.createRadialGradient(view.centreX, view.horizon, 0, view.centreX, view.horizon, Math.min(cssWidth, cssHeight) * 0.6);
-    glow.addColorStop(0, "rgba(212,244,237,.055)");
+    const glow = context.createRadialGradient(view.centreX, view.centreY, 0, view.centreX, view.centreY, Math.min(cssWidth, cssHeight) * 0.72);
+    glow.addColorStop(0, `rgba(212,244,237,${0.055 * (1 - view.zoom)})`);
     glow.addColorStop(1, "rgba(0,0,0,.28)");
     context.fillStyle = glow;
     context.fillRect(0, 0, cssWidth, cssHeight);
 
-    context.beginPath();
-    context.arc(view.centreX, view.horizon, 3.2, 0, Math.PI * 2);
-    context.fillStyle = "rgba(255,248,225,.72)";
-    context.fill();
-    context.strokeStyle = "rgba(12,21,24,.82)";
-    context.lineWidth = 1;
-    context.stroke();
+    if (view.zoom < 0.18) {
+      context.globalAlpha = 1 - view.zoom / 0.18;
+      context.beginPath();
+      context.arc(view.centreX, view.centreY, 3.2, 0, Math.PI * 2);
+      context.fillStyle = "rgba(255,248,225,.72)";
+      context.fill();
+      context.strokeStyle = "rgba(12,21,24,.82)";
+      context.lineWidth = 1;
+      context.stroke();
+      context.globalAlpha = 1;
+    }
 
     if (activeMotion) scheduleFirstPersonRender();
   }
@@ -4661,6 +4829,16 @@
     autoplayTimer = setTimeout(playNext, 320);
   }
 
+  firstPersonCameraSlider?.addEventListener("input", event => {
+    setFirstPersonCameraZoom(event.currentTarget.value);
+  });
+  firstPersonCameraSlider?.addEventListener("change", event => {
+    setFirstPersonCameraZoom(event.currentTarget.value);
+  });
+  firstPersonCameraSlider?.addEventListener("pointerup", () => {
+    board?.focus?.({ preventScroll: true });
+  });
+
   const directionMap = {
     ArrowUp: [0, -1], w: [0, -1], W: [0, -1],
     ArrowDown: [0, 1], s: [0, 1], S: [0, 1],
@@ -4682,6 +4860,7 @@
         exitFirstPersonMode();
         return;
       }
+      if (event.target === firstPersonCameraSlider && event.key.startsWith("Arrow")) return;
       if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
         event.preventDefault();
         if (!event.repeat) turnFirstPerson(event.key === "ArrowLeft" ? -1 : 1);
@@ -4842,7 +5021,10 @@
     if (musicOn) startBackgroundMusic();
   }
 
-  window.addEventListener("characterstylechange", () => requestAnimationFrame(refreshPlayerVisual));
+  window.addEventListener("characterstylechange", () => {
+    requestAnimationFrame(refreshPlayerVisual);
+    resetFirstPersonAvatarImages();
+  });
   window.addEventListener("pageshow", resumeMusicAfterHiddenTab);
   window.addEventListener("pagehide", pauseMusicForHiddenTab);
   document.addEventListener("visibilitychange", () => {
