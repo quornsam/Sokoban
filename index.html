@@ -93,7 +93,7 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=207">
+<link rel="stylesheet" href="styles.css?v=208">
 <link rel="stylesheet" href="how-to-play.css?v=154">
 <link rel="preload" as="image" href="assets/board/boxes/box-default-yellow.png">
 <link rel="preload" as="image" href="assets/board/goals/goal-red.png">
@@ -119,7 +119,7 @@
     <header class="masthead">
       <div class="title">
         <div class="title-word-row">
-          <strong>BO<span id="makerHotspot" class="maker-hotspot">X</span>XY</strong>
+          <strong>BO<span id="makerHotspot" class="maker-hotspot">X</span>X<span id="firstPersonHotspot" class="first-person-hotspot">Y</span></strong>
           <div class="title-badges">
             <button id="dailyStreak" class="daily-streak-badge" type="button" data-tier="zero" data-digits="1" aria-label="Daily Boxxy streak: 0 days" title="Daily Boxxy streak: 0 days">
               <span class="daily-streak-flame" aria-hidden="true"></span>
@@ -136,6 +136,8 @@
     <section class="board-wrap">
       <div id="bgDecor" class="bg-decor" aria-hidden="true"></div>
       <div id="board" class="board" aria-label="BOXXY Pushbox Puzzle game board" tabindex="0">
+        <canvas id="firstPersonCanvas" class="first-person-canvas" hidden aria-label="First-person view of the current BOXXY puzzle"></canvas>
+        <div id="firstPersonBoom" class="first-person-boom" hidden aria-hidden="true">BOOM</div>
         <div id="floorLayer" class="layer"></div>
         <div id="voidLayer" class="layer"></div>
         <div id="wallLayer" class="layer"></div>
@@ -762,7 +764,7 @@
 
 <script src="daily-puzzles/boxxy-daily-loader.js?v=207"></script>
 <script src="levels.js?v=200"></script>
-<script src="boxxy.js?v=207"></script>
+<script src="boxxy.js?v=208"></script>
 <script src="pack-builder.js?v=207"></script>
 <script src="how-to-play.js?v=153"></script>
 </body>

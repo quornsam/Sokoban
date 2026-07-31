@@ -33,6 +33,7 @@
   });
 })();
 
+/* BOXXY v208 — secret desktop first-person view, triggered from the final Y in BOXXY. */
 /* BOXXY v205 — shorter mobile Daily Complete modal and single-line heading. */
 /* BOXXY v203 — corrected Daily share emoji, copy-text control and coming-soon wording. */
 /* BOXXY v201 — supplied streak-flame artwork with coded day count inside the flame. */
@@ -1513,6 +1514,9 @@
   const celebration = document.getElementById("celebration");
   const board = document.getElementById("board");
   const boardWrap = document.querySelector(".board-wrap");
+  const firstPersonHotspot = document.getElementById("firstPersonHotspot");
+  const firstPersonCanvas = document.getElementById("firstPersonCanvas");
+  const firstPersonBoom = document.getElementById("firstPersonBoom");
   const bgDecor = document.getElementById("bgDecor");
   const app = document.querySelector(".app");
   const fullscreenBtn = document.getElementById("fullscreenBtn");
@@ -1585,6 +1589,13 @@
   let easterClickCount = 0;
   let easterArmed = false;
   let easterResetTimer = null;
+  let firstPersonMode = false;
+  let firstPersonHeading = 2;
+  let firstPersonClickCount = 0;
+  let firstPersonArmed = false;
+  let firstPersonResetTimer = null;
+  let firstPersonRenderFrame = 0;
+  let firstPersonBoomTimer = 0;
   let currentAnimation = "idle";
   let thoughtTimer = null;
   let lastThought = "";
@@ -3001,7 +3012,10 @@
   }
 
   function scheduleBoardResize() {
-    requestAnimationFrame(() => requestAnimationFrame(resizeBoard));
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      resizeBoard();
+      scheduleFirstPersonRender();
+    }));
   }
 
   function parseLayout(rows, goalColours = {}) {
@@ -3200,6 +3214,369 @@
     finish() { tone(392, .1, "triangle", .035); tone(523, .12, "triangle", .035, .12); tone(784, .18, "triangle", .04, .27); }
   };
 
+  const FIRST_PERSON_GOAL_COLOURS = {
+    red: "#e33a27",
+    blue: "#2878d0",
+    green: "#37a853",
+    yellow: "#f1c62b",
+    lime: "#9fce38",
+    pink: "#df6aa7",
+    cream: "#f1dfb5"
+  };
+
+  function firstPersonFacingForHeading(heading = firstPersonHeading) {
+    return ["back", "right", "front", "left"][((heading % 4) + 4) % 4];
+  }
+
+  function firstPersonHeadingForFacing(direction = facing) {
+    const map = { back: 0, right: 1, front: 2, left: 3 };
+    return Number.isInteger(map[direction]) ? map[direction] : 2;
+  }
+
+  function firstPersonDirectionVector(heading = firstPersonHeading) {
+    return [
+      [0, -1],
+      [1, 0],
+      [0, 1],
+      [-1, 0]
+    ][((heading % 4) + 4) % 4];
+  }
+
+  function resetFirstPersonEasterEgg() {
+    firstPersonClickCount = 0;
+    firstPersonArmed = false;
+    clearTimeout(firstPersonResetTimer);
+    firstPersonResetTimer = null;
+  }
+
+  function registerFirstPersonClick() {
+    if (!desktopEasterEggAvailable() || firstPersonMode) return;
+    firstPersonClickCount += 1;
+    clearTimeout(firstPersonResetTimer);
+    firstPersonResetTimer = setTimeout(resetFirstPersonEasterEgg, 10000);
+    if (firstPersonClickCount >= 5) firstPersonArmed = true;
+  }
+
+  function showFirstPersonBoom() {
+    if (!firstPersonBoom) return;
+    clearTimeout(firstPersonBoomTimer);
+    firstPersonBoom.hidden = false;
+    firstPersonBoom.classList.remove("is-active");
+    void firstPersonBoom.offsetWidth;
+    firstPersonBoom.classList.add("is-active");
+    firstPersonBoomTimer = setTimeout(() => {
+      firstPersonBoom.hidden = true;
+      firstPersonBoom.classList.remove("is-active");
+    }, 640);
+  }
+
+  function enterFirstPersonMode() {
+    if (firstPersonMode || !desktopEasterEggAvailable() || autoplayRunning) return false;
+    firstPersonMode = true;
+    firstPersonHeading = firstPersonHeadingForFacing(facing);
+    facing = firstPersonFacingForHeading();
+    resetFirstPersonEasterEgg();
+    document.body.classList.add("first-person-mode");
+    if (firstPersonCanvas) firstPersonCanvas.hidden = false;
+    board?.setAttribute("aria-label", "First-person BOXXY view. Up moves forward, down steps back, and left or right turns.");
+    showFirstPersonBoom();
+    showCharacterThought("First person. Up and down move; left and right turn. Press Y or Escape to return.", true);
+    scheduleBoardResize();
+    board?.focus?.({ preventScroll: true });
+    return true;
+  }
+
+  function exitFirstPersonMode() {
+    if (!firstPersonMode) return false;
+    firstPersonMode = false;
+    document.body.classList.remove("first-person-mode");
+    cancelAnimationFrame(firstPersonRenderFrame);
+    firstPersonRenderFrame = 0;
+    clearTimeout(firstPersonBoomTimer);
+    if (firstPersonBoom) firstPersonBoom.hidden = true;
+    if (firstPersonCanvas) {
+      firstPersonCanvas.hidden = true;
+      const context = firstPersonCanvas.getContext("2d");
+      context?.clearRect(0, 0, firstPersonCanvas.width, firstPersonCanvas.height);
+    }
+    board?.setAttribute("aria-label", "BOXXY Pushbox Puzzle game board");
+    showCharacterThought("Back to the map. That was probably not meant to happen.", true);
+    scheduleBoardResize();
+    return true;
+  }
+
+  function turnFirstPerson(amount) {
+    firstPersonHeading = (firstPersonHeading + amount + 4) % 4;
+    facing = firstPersonFacingForHeading();
+    render("idle");
+  }
+
+  function stepFirstPerson(amount, holdBlocked = false) {
+    const [dx, dy] = firstPersonDirectionVector();
+    move(dx * amount, dy * amount, holdBlocked, false, firstPersonFacingForHeading());
+  }
+
+  function clipFirstPersonPolygon(points, near = 0.075) {
+    if (!points.length) return [];
+    const output = [];
+    for (let index = 0; index < points.length; index++) {
+      const current = points[index];
+      const previous = points[(index + points.length - 1) % points.length];
+      const currentInside = current.z >= near;
+      const previousInside = previous.z >= near;
+      const intersection = () => {
+        const span = current.z - previous.z;
+        const t = Math.abs(span) < 1e-9 ? 0 : (near - previous.z) / span;
+        return {
+          x: previous.x + (current.x - previous.x) * t,
+          y: previous.y + (current.y - previous.y) * t,
+          z: near
+        };
+      };
+      if (currentInside) {
+        if (!previousInside) output.push(intersection());
+        output.push(current);
+      } else if (previousInside) {
+        output.push(intersection());
+      }
+    }
+    return output;
+  }
+
+  function firstPersonProjectedPolygon(worldPoints, view) {
+    const cameraPoints = worldPoints.map(point => {
+      const relX = point.x - view.cameraX;
+      const relZ = point.z - view.cameraZ;
+      return {
+        x: relX * view.rightX + relZ * view.rightZ,
+        y: point.y,
+        z: relX * view.forwardX + relZ * view.forwardZ
+      };
+    });
+    const clipped = clipFirstPersonPolygon(cameraPoints);
+    if (clipped.length < 3) return null;
+    const screenPoints = clipped.map(point => ({
+      x: view.centreX + (point.x / point.z) * view.focal,
+      y: view.horizon - ((point.y - view.cameraHeight) / point.z) * view.focal
+    }));
+    const depth = clipped.reduce((sum, point) => sum + point.z, 0) / clipped.length;
+    return { points: screenPoints, depth };
+  }
+
+  function traceFirstPersonPolygon(context, points) {
+    if (!points.length) return;
+    context.beginPath();
+    context.moveTo(points[0].x, points[0].y);
+    for (let index = 1; index < points.length; index++) context.lineTo(points[index].x, points[index].y);
+    context.closePath();
+  }
+
+  function firstPersonFaceInset(points, amount = 0.17) {
+    const centre = points.reduce((result, point) => ({ x: result.x + point.x, y: result.y + point.y }), { x: 0, y: 0 });
+    centre.x /= points.length;
+    centre.y /= points.length;
+    return points.map(point => ({
+      x: point.x + (centre.x - point.x) * amount,
+      y: point.y + (centre.y - point.y) * amount
+    }));
+  }
+
+  function renderFirstPersonView() {
+    if (!firstPersonMode || !firstPersonCanvas || firstPersonCanvas.hidden || !board) return;
+    const rect = board.getBoundingClientRect();
+    const cssWidth = Math.max(1, Math.round(rect.width));
+    const cssHeight = Math.max(1, Math.round(rect.height));
+    const pixelRatio = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
+    const requiredWidth = Math.round(cssWidth * pixelRatio);
+    const requiredHeight = Math.round(cssHeight * pixelRatio);
+    if (firstPersonCanvas.width !== requiredWidth || firstPersonCanvas.height !== requiredHeight) {
+      firstPersonCanvas.width = requiredWidth;
+      firstPersonCanvas.height = requiredHeight;
+    }
+    const context = firstPersonCanvas.getContext("2d", { alpha: false });
+    if (!context) return;
+    context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    context.clearRect(0, 0, cssWidth, cssHeight);
+
+    const sky = context.createLinearGradient(0, 0, 0, cssHeight * 0.48);
+    sky.addColorStop(0, "#071015");
+    sky.addColorStop(1, "#28444c");
+    context.fillStyle = sky;
+    context.fillRect(0, 0, cssWidth, cssHeight * 0.49);
+    const ground = context.createLinearGradient(0, cssHeight * 0.38, 0, cssHeight);
+    ground.addColorStop(0, "#162429");
+    ground.addColorStop(1, "#05090b");
+    context.fillStyle = ground;
+    context.fillRect(0, cssHeight * 0.38, cssWidth, cssHeight * 0.62);
+
+    const angle = firstPersonHeading * Math.PI / 2;
+    const view = {
+      cameraX: player[0] + 0.5,
+      cameraZ: player[1] + 0.5,
+      cameraHeight: 0.54,
+      forwardX: Math.sin(angle),
+      forwardZ: -Math.cos(angle),
+      rightX: Math.cos(angle),
+      rightZ: Math.sin(angle),
+      centreX: cssWidth / 2,
+      horizon: cssHeight * 0.43,
+      focal: Math.min(cssWidth * 0.78, cssHeight * 1.28)
+    };
+
+    const floorPolygons = [];
+    for (const point of floor) {
+      const [x, z] = point.split(",").map(Number);
+      const projected = firstPersonProjectedPolygon([
+        { x, z, y: 0 },
+        { x: x + 1, z, y: 0 },
+        { x: x + 1, z: z + 1, y: 0 },
+        { x, z: z + 1, y: 0 }
+      ], view);
+      if (projected) floorPolygons.push({ ...projected, x, z });
+    }
+    floorPolygons.sort((a, b) => b.depth - a.depth);
+    floorPolygons.forEach(polygon => {
+      const fade = Math.max(0.16, Math.min(1, 1.15 - polygon.depth / 18));
+      context.globalAlpha = fade;
+      traceFirstPersonPolygon(context, polygon.points);
+      context.fillStyle = (polygon.x + polygon.z) % 2 ? "rgba(211,226,220,.105)" : "rgba(244,237,218,.145)";
+      context.fill();
+      context.strokeStyle = "rgba(220,244,238,.32)";
+      context.lineWidth = 1;
+      context.stroke();
+    });
+    context.globalAlpha = 1;
+
+    goals.forEach(goal => {
+      const colour = FIRST_PERSON_GOAL_COLOURS[String(goal.colour || "red").toLowerCase()] || FIRST_PERSON_GOAL_COLOURS.red;
+      const points = [];
+      for (let index = 0; index < 24; index++) {
+        const theta = index / 24 * Math.PI * 2;
+        points.push({
+          x: goal.x + 0.5 + Math.cos(theta) * 0.29,
+          z: goal.y + 0.5 + Math.sin(theta) * 0.29,
+          y: 0.012
+        });
+      }
+      const projected = firstPersonProjectedPolygon(points, view);
+      if (!projected) return;
+      const fade = Math.max(0.25, Math.min(1, 1.22 - projected.depth / 18));
+      context.globalAlpha = fade;
+      traceFirstPersonPolygon(context, projected.points);
+      context.fillStyle = colour;
+      context.fill();
+      context.strokeStyle = "rgba(255,255,255,.92)";
+      context.lineWidth = 1.4;
+      context.stroke();
+    });
+    context.globalAlpha = 1;
+
+    const faces = [];
+    const addCuboid = ({ x0, z0, x1, z1, objectHeight, kind, colour, onGoal = false }) => {
+      const sideFill = kind === "wall" ? "rgba(31,47,53,.49)" : colour;
+      const topFill = kind === "wall" ? "rgba(133,161,161,.44)" : onGoal ? colour : "rgba(255,214,72,.70)";
+      const edge = kind === "wall" ? "rgba(210,239,235,.57)" : "rgba(255,246,205,.86)";
+      const pushFace = (worldPoints, fill, top = false) => {
+        const projected = firstPersonProjectedPolygon(worldPoints, view);
+        if (projected) faces.push({ ...projected, fill, edge, kind, top });
+      };
+      pushFace([
+        { x: x0, z: z0, y: objectHeight },
+        { x: x1, z: z0, y: objectHeight },
+        { x: x1, z: z1, y: objectHeight },
+        { x: x0, z: z1, y: objectHeight }
+      ], topFill, true);
+      if (view.cameraX <= x0) pushFace([
+        { x: x0, z: z1, y: 0 }, { x: x0, z: z0, y: 0 },
+        { x: x0, z: z0, y: objectHeight }, { x: x0, z: z1, y: objectHeight }
+      ], sideFill);
+      if (view.cameraX >= x1) pushFace([
+        { x: x1, z: z0, y: 0 }, { x: x1, z: z1, y: 0 },
+        { x: x1, z: z1, y: objectHeight }, { x: x1, z: z0, y: objectHeight }
+      ], sideFill);
+      if (view.cameraZ <= z0) pushFace([
+        { x: x0, z: z0, y: 0 }, { x: x1, z: z0, y: 0 },
+        { x: x1, z: z0, y: objectHeight }, { x: x0, z: z0, y: objectHeight }
+      ], sideFill);
+      if (view.cameraZ >= z1) pushFace([
+        { x: x1, z: z1, y: 0 }, { x: x0, z: z1, y: 0 },
+        { x: x0, z: z1, y: objectHeight }, { x: x1, z: z1, y: objectHeight }
+      ], sideFill);
+    };
+
+    for (const point of walls) {
+      const [x, z] = point.split(",").map(Number);
+      addCuboid({ x0: x + 0.025, z0: z + 0.025, x1: x + 0.975, z1: z + 0.975, objectHeight: 0.98, kind: "wall" });
+    }
+    boxes.forEach(box => {
+      const goal = goalAt(box.x, box.y);
+      const goalColour = FIRST_PERSON_GOAL_COLOURS[String(goal?.colour || "yellow").toLowerCase()] || "#efbd2c";
+      const fill = goal
+        ? `${goalColour}b8`
+        : "rgba(239,184,37,.68)";
+      addCuboid({
+        x0: box.x + 0.14,
+        z0: box.y + 0.14,
+        x1: box.x + 0.86,
+        z1: box.y + 0.86,
+        objectHeight: 0.72,
+        kind: "box",
+        colour: fill,
+        onGoal: Boolean(goal)
+      });
+    });
+
+    faces.sort((a, b) => b.depth - a.depth);
+    faces.forEach(face => {
+      const fade = Math.max(0.28, Math.min(1, 1.18 - face.depth / 20));
+      context.globalAlpha = fade;
+      traceFirstPersonPolygon(context, face.points);
+      context.fillStyle = face.fill;
+      context.fill();
+      context.strokeStyle = face.edge;
+      context.lineWidth = face.kind === "wall" ? 1.15 : 1.55;
+      context.stroke();
+      if (face.kind === "box" && !face.top && face.points.length >= 4) {
+        const inset = firstPersonFaceInset(face.points, 0.2);
+        traceFirstPersonPolygon(context, inset);
+        context.strokeStyle = "rgba(69,49,10,.70)";
+        context.lineWidth = 1.2;
+        context.stroke();
+        context.beginPath();
+        context.moveTo(inset[0].x, inset[0].y);
+        context.lineTo(inset[2].x, inset[2].y);
+        context.moveTo(inset[1].x, inset[1].y);
+        context.lineTo(inset[3].x, inset[3].y);
+        context.strokeStyle = "rgba(85,57,8,.42)";
+        context.stroke();
+      }
+    });
+    context.globalAlpha = 1;
+
+    const glow = context.createRadialGradient(view.centreX, view.horizon, 0, view.centreX, view.horizon, Math.min(cssWidth, cssHeight) * 0.6);
+    glow.addColorStop(0, "rgba(212,244,237,.055)");
+    glow.addColorStop(1, "rgba(0,0,0,.28)");
+    context.fillStyle = glow;
+    context.fillRect(0, 0, cssWidth, cssHeight);
+
+    context.beginPath();
+    context.arc(view.centreX, view.horizon, 3.2, 0, Math.PI * 2);
+    context.fillStyle = "rgba(255,248,225,.72)";
+    context.fill();
+    context.strokeStyle = "rgba(12,21,24,.82)";
+    context.lineWidth = 1;
+    context.stroke();
+  }
+
+  function scheduleFirstPersonRender() {
+    if (!firstPersonMode || !firstPersonCanvas || firstPersonCanvas.hidden) return;
+    cancelAnimationFrame(firstPersonRenderFrame);
+    firstPersonRenderFrame = requestAnimationFrame(() => {
+      firstPersonRenderFrame = 0;
+      renderFirstPersonView();
+    });
+  }
+
   function buildFloor() {
     if (floorLayer) floorLayer.innerHTML = "";
   }
@@ -3297,6 +3674,7 @@
     undoBtn.disabled = !history.length || completed;
     updateSavePositionButton();
     refreshLevelButtons();
+    scheduleFirstPersonRender();
   }
 
   function updateTime() {
@@ -3727,7 +4105,7 @@
     scheduleIdle();
   }
 
-  function move(dx, dy, holdBlocked = false, fromAutoplay = false) {
+  function move(dx, dy, holdBlocked = false, fromAutoplay = false, facingOverride = "") {
     if (completed || (autoplayRunning && !fromAutoplay)) return;
     ensureAudio();
     clearTimeout(animTimer);
@@ -3736,7 +4114,7 @@
     const ny = player[1] + dy;
 
     if (blocked(nx, ny)) {
-      facing = attemptedFacing;
+      facing = facingOverride || attemptedFacing;
       blockedPushHeld = holdBlocked;
       sfx.bump();
       render("pushing");
@@ -3750,7 +4128,7 @@
       const bx = nx + dx;
       const by = ny + dy;
       if (blocked(bx, by) || boxIndex(bx, by) >= 0) {
-        facing = attemptedFacing;
+        facing = facingOverride || attemptedFacing;
         blockedPushHeld = holdBlocked;
         sfx.bump();
         render("pushing");
@@ -3767,7 +4145,7 @@
       player = [nx, ny];
       moves++;
       pushes++;
-      facing = attemptedFacing;
+      facing = facingOverride || attemptedFacing;
       sfx.push();
       if (isGoal(bx, by)) sfx.goal();
       render("pushing");
@@ -3777,7 +4155,7 @@
       boxes.forEach(box => { box.moving = false; });
       player = [nx, ny];
       moves++;
-      facing = attemptedFacing;
+      facing = facingOverride || attemptedFacing;
       sfx.walk();
       render("walking");
     }
@@ -4199,8 +4577,31 @@
       cancelGuidedSolve();
       return;
     }
+    if (firstPersonMode) {
+      if (event.key === "Escape" || event.key.toLowerCase() === "y") {
+        event.preventDefault();
+        exitFirstPersonMode();
+        return;
+      }
+      if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+        event.preventDefault();
+        if (!event.repeat) turnFirstPerson(event.key === "ArrowLeft" ? -1 : 1);
+        return;
+      }
+      if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+        event.preventDefault();
+        if (event.repeat && blockedPushHeld) return;
+        stepFirstPerson(event.key === "ArrowUp" ? 1 : -1, true);
+        return;
+      }
+    }
     if (checkKonamiCode(event.key)) {
       event.preventDefault();
+      return;
+    }
+    if (desktopEasterEggAvailable() && firstPersonArmed && event.key.toLowerCase() === "y") {
+      event.preventDefault();
+      enterFirstPersonMode();
       return;
     }
     if (desktopEasterEggAvailable() && easterArmed && event.key.toLowerCase() === "s") {
@@ -4250,6 +4651,14 @@
     };
 
     const performDirectionMove = () => {
+      if (firstPersonMode) {
+        if (button.dataset.dir === "up" || button.dataset.dir === "down") {
+          stepFirstPerson(button.dataset.dir === "up" ? 1 : -1, true);
+        } else {
+          turnFirstPerson(button.dataset.dir === "left" ? -1 : 1);
+        }
+        return;
+      }
       move(...buttonDirections[button.dataset.dir], true);
     };
 
@@ -4341,13 +4750,22 @@
     if (document.hidden) pauseMusicForHiddenTab();
     else resumeMusicAfterHiddenTab();
   });
+  firstPersonHotspot?.addEventListener("click", event => {
+    if (!desktopEasterEggAvailable()) return;
+    event.preventDefault();
+    registerFirstPersonClick();
+  });
   autoSolveBtn.addEventListener("click", startAutoplay);
   cancelGuidedBtn?.addEventListener("click", cancelGuidedSolve);
   fullscreenBtn?.addEventListener("click", toggleFullscreen);
   mobileFullscreenBtn?.addEventListener("click", toggleFullscreen);
   document.addEventListener("fullscreenchange", () => { updateFullscreenButton(); scheduleBoardResize(); });
   document.addEventListener("webkitfullscreenchange", () => { updateFullscreenButton(); scheduleBoardResize(); });
-  window.addEventListener("resize", () => { updateFullscreenButton(); scheduleBoardResize(); });
+  window.addEventListener("resize", () => {
+    if (firstPersonMode && !desktopEasterEggAvailable()) exitFirstPersonMode();
+    updateFullscreenButton();
+    scheduleBoardResize();
+  });
   window.addEventListener("orientationchange", () => {
     window.setTimeout(() => { updateFullscreenButton(); scheduleBoardResize(); }, 80);
   });
@@ -4509,6 +4927,7 @@
   pieceLayer.addEventListener("dragstart", event => event.preventDefault());
 
   board.addEventListener("pointerdown", event => {
+    if (firstPersonMode) return;
     ensureAudio();
     const mouseLike = event.pointerType === "mouse" || event.pointerType === "";
     if (mouseLike && event.button === 0 && pointerIsOnCharacter(event)) registerEasterClick();
@@ -4516,6 +4935,7 @@
     board.setPointerCapture?.(event.pointerId);
   });
   board.addEventListener("pointermove", event => {
+    if (firstPersonMode) return;
     if (!swipe || swipe.id !== event.pointerId || swipe.triggered) return;
     const dx = event.clientX - swipe.x;
     const dy = event.clientY - swipe.y;
@@ -4525,6 +4945,7 @@
     else move(0, dy > 0 ? 1 : -1, true);
   });
   board.addEventListener("pointerup", event => {
+    if (firstPersonMode) return;
     if (!swipe || swipe.id !== event.pointerId) return;
     const dx = event.clientX - swipe.x;
     const dy = event.clientY - swipe.y;

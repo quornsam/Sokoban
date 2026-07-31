@@ -4673,3 +4673,74 @@ body.daily-mode .collection i{background:#2f8f5b}
     padding:8px 12px;
   }
 }
+
+
+/* BOXXY v208 — secret desktop first-person view. */
+.first-person-hotspot{
+  display:inline;
+  user-select:none;
+  -webkit-user-select:none;
+}
+@media (hover:hover) and (pointer:fine){
+  .first-person-hotspot{cursor:pointer}
+}
+.first-person-canvas{
+  position:absolute;
+  inset:0;
+  z-index:5000;
+  display:block;
+  width:100%;
+  height:100%;
+  background:#071015;
+  pointer-events:none;
+}
+.first-person-canvas[hidden],.first-person-boom[hidden]{display:none!important}
+.first-person-boom{
+  position:absolute;
+  inset:0;
+  z-index:6000;
+  display:grid;
+  place-items:center;
+  overflow:hidden;
+  color:#fff8e9;
+  background:rgba(245,48,27,.88);
+  text-shadow:7px 7px 0 #171719;
+  font:1000 clamp(54px,12vw,150px)/1 var(--font);
+  letter-spacing:-.055em;
+  pointer-events:none;
+}
+.first-person-boom.is-active{animation:firstPersonBoom .62s cubic-bezier(.2,.85,.25,1) both}
+@keyframes firstPersonBoom{
+  0%{opacity:0;transform:scale(.35) rotate(-4deg);filter:brightness(2.4)}
+  18%{opacity:1;transform:scale(1.18) rotate(1deg);filter:brightness(1.3)}
+  55%{opacity:1;transform:scale(1);filter:brightness(1)}
+  100%{opacity:0;transform:scale(1.9);filter:brightness(1.5)}
+}
+body.first-person-mode .board-wrap{
+  padding:clamp(10px,1.8dvh,18px);
+  background:
+    radial-gradient(circle at 50% 46%,rgba(47,98,109,.26),transparent 55%),
+    linear-gradient(145deg,#152328,#071015 74%);
+}
+body.first-person-mode .board{
+  width:100%!important;
+  height:100%!important;
+  max-width:none!important;
+  max-height:none!important;
+  aspect-ratio:auto!important;
+  background:#071015!important;
+  border:2px solid rgba(214,238,234,.28);
+  box-shadow:0 34px 72px rgba(0,0,0,.62),0 0 0 1px rgba(255,255,255,.04)!important;
+}
+body.first-person-mode .board > .layer,
+body.first-person-mode .board > .celebration{
+  visibility:hidden;
+}
+body.first-person-mode .board::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:5500;
+  pointer-events:none;
+  box-shadow:inset 0 0 90px rgba(0,0,0,.62),inset 0 0 2px rgba(255,255,255,.28);
+}
