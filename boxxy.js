@@ -33,6 +33,7 @@
   });
 })();
 
+/* BOXXY v205 — shorter mobile Daily Complete modal and single-line heading. */
 /* BOXXY v203 — corrected Daily share emoji, copy-text control and coming-soon wording. */
 /* BOXXY v201 — supplied streak-flame artwork with coded day count inside the flame. */
 /* BOXXY v200 — Daily Boxxy schedule, sharing, local-midnight rollover and streak flame. */
@@ -3466,7 +3467,7 @@
     if (finalPackPicker) finalPackPicker.hidden = true;
     if (finalPackStatus) finalPackStatus.textContent = "";
     if (completeKicker) completeKicker.textContent = "DAILY BOXXY";
-    if (completeTitle) completeTitle.innerHTML = "DAILY<br>COMPLETE";
+    if (completeTitle) completeTitle.textContent = "DAILY COMPLETE";
     if (nextBtnLabel) nextBtnLabel.textContent = "BACK TO GAME";
     if (nextBtnIcon) nextBtnIcon.textContent = "←";
     if (collectionName) collectionName.innerHTML = "BOXXY<br>DAILY";
@@ -3804,7 +3805,7 @@
       if (finalPackPicker) finalPackPicker.hidden = true;
       if (finalPackStatus) finalPackStatus.textContent = "";
       if (completeKicker) completeKicker.textContent = `DAILY BOXXY #${Number(dailyPuzzle.sequence) || ""}`;
-      if (completeTitle) completeTitle.innerHTML = "DAILY<br>COMPLETE";
+      if (completeTitle) completeTitle.textContent = "DAILY COMPLETE";
       if (completedPackHeading) completedPackHeading.textContent = formatDailyDate(dailyPuzzle.date, { weekday: true, long: true, year: true });
       if (makerApplySolveBtn) makerApplySolveBtn.hidden = true;
       completeText.textContent = `Completed in ${formatClockDuration(completionSeconds)} and ${moves} ${moves === 1 ? "move" : "moves"}. Your Daily Boxxy streak is now ${calculateDailyStreak()}.`;
