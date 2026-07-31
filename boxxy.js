@@ -33,7 +33,7 @@
   });
 })();
 
-/* BOXXY v208 — secret desktop first-person view, triggered from the final Y in BOXXY. */
+/* BOXXY v209 — smooth first-person movement and opaque walls. */
 /* BOXXY v205 — shorter mobile Daily Complete modal and single-line heading. */
 /* BOXXY v203 — corrected Daily share emoji, copy-text control and coming-soon wording. */
 /* BOXXY v201 — supplied streak-flame artwork with coded day count inside the flame. */
@@ -1596,6 +1596,7 @@
   let firstPersonResetTimer = null;
   let firstPersonRenderFrame = 0;
   let firstPersonBoomTimer = 0;
+  let firstPersonMotion = null;
   let currentAnimation = "idle";
   let thoughtTimer = null;
   let lastThought = "";
@@ -3289,6 +3290,7 @@
   function exitFirstPersonMode() {
     if (!firstPersonMode) return false;
     firstPersonMode = false;
+    firstPersonMotion = null;
     document.body.classList.remove("first-person-mode");
     cancelAnimationFrame(firstPersonRenderFrame);
     firstPersonRenderFrame = 0;
@@ -3305,15 +3307,89 @@
     return true;
   }
 
+  const FIRST_PERSON_STEP_DURATION = 210;
+  const FIRST_PERSON_TURN_DURATION = 240;
+
+  function firstPersonEase(progress) {
+    const t = Math.max(0, Math.min(1, progress));
+    return t < 0.5
+      ? 4 * t * t * t
+      : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  }
+
+  function firstPersonMotionInProgress(now = performance.now()) {
+    if (!firstPersonMotion) return false;
+    if (now >= firstPersonMotion.startedAt + firstPersonMotion.duration) {
+      firstPersonMotion = null;
+      return false;
+    }
+    return true;
+  }
+
   function turnFirstPerson(amount) {
+    if (firstPersonMotionInProgress()) return false;
+    const previousHeading = firstPersonHeading;
     firstPersonHeading = (firstPersonHeading + amount + 4) % 4;
     facing = firstPersonFacingForHeading();
+    firstPersonMotion = {
+      type: "turn",
+      startedAt: performance.now(),
+      duration: FIRST_PERSON_TURN_DURATION,
+      fromX: player[0] + 0.5,
+      fromZ: player[1] + 0.5,
+      toX: player[0] + 0.5,
+      toZ: player[1] + 0.5,
+      fromAngle: previousHeading * Math.PI / 2,
+      toAngle: (previousHeading * Math.PI / 2) + amount * Math.PI / 2,
+      movedBox: null
+    };
     render("idle");
+    return true;
   }
 
   function stepFirstPerson(amount, holdBlocked = false) {
+    if (firstPersonMotionInProgress()) return false;
     const [dx, dy] = firstPersonDirectionVector();
-    move(dx * amount, dy * amount, holdBlocked, false, firstPersonFacingForHeading());
+    const moveX = dx * amount;
+    const moveY = dy * amount;
+    const previousPlayer = [...player];
+    const previousBoxes = copyBoxes(boxes);
+    move(moveX, moveY, holdBlocked, false, firstPersonFacingForHeading());
+    if (player[0] === previousPlayer[0] && player[1] === previousPlayer[1]) return false;
+
+    let movedBox = null;
+    for (const previousBox of previousBoxes) {
+      if (!boxes.some(box => box.x === previousBox.x && box.y === previousBox.y)) {
+        const destination = boxes.find(box =>
+          box.x === previousBox.x + moveX && box.y === previousBox.y + moveY
+        );
+        if (destination) {
+          movedBox = {
+            fromX: previousBox.x,
+            fromZ: previousBox.y,
+            toX: destination.x,
+            toZ: destination.y
+          };
+        }
+        break;
+      }
+    }
+
+    const angle = firstPersonHeading * Math.PI / 2;
+    firstPersonMotion = {
+      type: "step",
+      startedAt: performance.now(),
+      duration: FIRST_PERSON_STEP_DURATION,
+      fromX: previousPlayer[0] + 0.5,
+      fromZ: previousPlayer[1] + 0.5,
+      toX: player[0] + 0.5,
+      toZ: player[1] + 0.5,
+      fromAngle: angle,
+      toAngle: angle,
+      movedBox
+    };
+    scheduleFirstPersonRender();
+    return true;
   }
 
   function clipFirstPersonPolygon(points, near = 0.075) {
@@ -3409,17 +3485,31 @@
     context.fillStyle = ground;
     context.fillRect(0, cssHeight * 0.38, cssWidth, cssHeight * 0.62);
 
-    const angle = firstPersonHeading * Math.PI / 2;
+    const now = performance.now();
+    let angle = firstPersonHeading * Math.PI / 2;
+    let cameraX = player[0] + 0.5;
+    let cameraZ = player[1] + 0.5;
+    let motionProgress = 1;
+    let motionEase = 1;
+    const activeMotion = firstPersonMotionInProgress(now) ? firstPersonMotion : null;
+    if (activeMotion) {
+      motionProgress = Math.max(0, Math.min(1, (now - activeMotion.startedAt) / activeMotion.duration));
+      motionEase = firstPersonEase(motionProgress);
+      cameraX = activeMotion.fromX + (activeMotion.toX - activeMotion.fromX) * motionEase;
+      cameraZ = activeMotion.fromZ + (activeMotion.toZ - activeMotion.fromZ) * motionEase;
+      angle = activeMotion.fromAngle + (activeMotion.toAngle - activeMotion.fromAngle) * motionEase;
+    }
+    const stepBob = activeMotion?.type === "step" ? Math.sin(motionProgress * Math.PI) : 0;
     const view = {
-      cameraX: player[0] + 0.5,
-      cameraZ: player[1] + 0.5,
-      cameraHeight: 0.54,
+      cameraX,
+      cameraZ,
+      cameraHeight: 0.54 + stepBob * 0.018,
       forwardX: Math.sin(angle),
       forwardZ: -Math.cos(angle),
       rightX: Math.cos(angle),
       rightZ: Math.sin(angle),
       centreX: cssWidth / 2,
-      horizon: cssHeight * 0.43,
+      horizon: cssHeight * 0.43 + stepBob * 2.4,
       focal: Math.min(cssWidth * 0.78, cssHeight * 1.28)
     };
 
@@ -3473,9 +3563,9 @@
 
     const faces = [];
     const addCuboid = ({ x0, z0, x1, z1, objectHeight, kind, colour, onGoal = false }) => {
-      const sideFill = kind === "wall" ? "rgba(31,47,53,.49)" : colour;
-      const topFill = kind === "wall" ? "rgba(133,161,161,.44)" : onGoal ? colour : "rgba(255,214,72,.70)";
-      const edge = kind === "wall" ? "rgba(210,239,235,.57)" : "rgba(255,246,205,.86)";
+      const sideFill = kind === "wall" ? "#26383d" : colour;
+      const topFill = kind === "wall" ? "#78908f" : onGoal ? colour : "rgba(255,214,72,.70)";
+      const edge = kind === "wall" ? "#c6dcda" : "rgba(255,246,205,.86)";
       const pushFace = (worldPoints, fill, top = false) => {
         const projected = firstPersonProjectedPolygon(worldPoints, view);
         if (projected) faces.push({ ...projected, fill, edge, kind, top });
@@ -3509,16 +3599,23 @@
       addCuboid({ x0: x + 0.025, z0: z + 0.025, x1: x + 0.975, z1: z + 0.975, objectHeight: 0.98, kind: "wall" });
     }
     boxes.forEach(box => {
+      let renderX = box.x;
+      let renderZ = box.y;
+      const movingBox = activeMotion?.movedBox;
+      if (movingBox && box.x === movingBox.toX && box.y === movingBox.toZ) {
+        renderX = movingBox.fromX + (movingBox.toX - movingBox.fromX) * motionEase;
+        renderZ = movingBox.fromZ + (movingBox.toZ - movingBox.fromZ) * motionEase;
+      }
       const goal = goalAt(box.x, box.y);
       const goalColour = FIRST_PERSON_GOAL_COLOURS[String(goal?.colour || "yellow").toLowerCase()] || "#efbd2c";
       const fill = goal
         ? `${goalColour}b8`
         : "rgba(239,184,37,.68)";
       addCuboid({
-        x0: box.x + 0.14,
-        z0: box.y + 0.14,
-        x1: box.x + 0.86,
-        z1: box.y + 0.86,
+        x0: renderX + 0.14,
+        z0: renderZ + 0.14,
+        x1: renderX + 0.86,
+        z1: renderZ + 0.86,
         objectHeight: 0.72,
         kind: "box",
         colour: fill,
@@ -3529,7 +3626,7 @@
     faces.sort((a, b) => b.depth - a.depth);
     faces.forEach(face => {
       const fade = Math.max(0.28, Math.min(1, 1.18 - face.depth / 20));
-      context.globalAlpha = fade;
+      context.globalAlpha = face.kind === "wall" ? 1 : fade;
       traceFirstPersonPolygon(context, face.points);
       context.fillStyle = face.fill;
       context.fill();
@@ -3566,6 +3663,8 @@
     context.strokeStyle = "rgba(12,21,24,.82)";
     context.lineWidth = 1;
     context.stroke();
+
+    if (activeMotion) scheduleFirstPersonRender();
   }
 
   function scheduleFirstPersonRender() {
