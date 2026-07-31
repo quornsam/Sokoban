@@ -93,7 +93,7 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=205">
+<link rel="stylesheet" href="styles.css?v=207">
 <link rel="stylesheet" href="how-to-play.css?v=154">
 <link rel="preload" as="image" href="assets/board/boxes/box-default-yellow.png">
 <link rel="preload" as="image" href="assets/board/goals/goal-red.png">
@@ -625,13 +625,14 @@
           <h3 id="packBuilderDailyHeading">BOXXY DAILY PUZZLE</h3>
           <span id="dailyPuzzleCount">0 DAYS</span>
         </div>
-        <p>This schedule remains private. Nothing is added to the front end in this release.</p>
+        <p>Edit and export one calendar month at a time. Each file can replace that month directly on the live site.</p>
       </header>
 
       <div class="daily-settings">
-        <label>FIRST PUZZLE DATE<input id="dailyStartDate" type="date"></label>
+        <label>MONTH TO EDIT<select id="dailyMonthSelect" aria-label="Month to edit"></select></label>
+        <label>FIRST DATE IN THIS FILE<input id="dailyStartDate" type="date"></label>
         <div><b>PUBLISH TIME</b><strong>00:00 LOCAL TIME</strong><small id="dailyTimezoneLabel"></small></div>
-        <div class="daily-path"><b>FUTURE DESTINATION</b><code>daily-puzzles/boxxy-daily-puzzles.json</code></div>
+        <div class="daily-path"><b>UPLOAD DESTINATION</b><code id="dailyPublishPath">daily-puzzles/boxxy-daily-puzzles-2026-08.js</code></div>
       </div>
 
       <div id="dailyOrderGrid" class="pack-level-grid pack-order-grid pack-drop-zone daily-order-grid" data-pack-drop-target="daily" aria-label="Daily Puzzle schedule"></div>
@@ -759,10 +760,10 @@
 <button id="legalBtn" class="legal-link" type="button" aria-haspopup="dialog" aria-controls="legalModal">© 2026 SAM CORNWELL · LEGAL</button>
 <audio id="bgMusic" src="assets/audio/cracked-ivory-drift.mp3" preload="auto" autoplay loop playsinline></audio>
 
-<script src="daily-puzzles/boxxy-daily-puzzles.js?v=200"></script>
+<script src="daily-puzzles/boxxy-daily-loader.js?v=207"></script>
 <script src="levels.js?v=200"></script>
-<script src="boxxy.js?v=205"></script>
-<script src="pack-builder.js?v=168"></script>
+<script src="boxxy.js?v=207"></script>
+<script src="pack-builder.js?v=207"></script>
 <script src="how-to-play.js?v=153"></script>
 </body>
 </html>

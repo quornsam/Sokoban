@@ -910,6 +910,9 @@
     return safeLabel.replace(/\s+/, "<br>");
   }
 
+  const DAILY_LAUNCH_DATE = /^\d{4}-\d{2}-\d{2}$/.test(String(window.BOXXY_DAILY_LAUNCH_DATE || ""))
+    ? String(window.BOXXY_DAILY_LAUNCH_DATE)
+    : "2026-08-30";
   const DAILY_SCHEDULE = window.BOXXY_DAILY_SCHEDULE && window.BOXXY_DAILY_SCHEDULE.frontEndEnabled !== false
     ? window.BOXXY_DAILY_SCHEDULE
     : null;
@@ -1015,16 +1018,23 @@
     return completions[key];
   }
 
+  function addDaysToDailyDateKey(dateKey, amount) {
+    const date = parseDateKey(dateKey);
+    if (!date) return "";
+    date.setDate(date.getDate() + Number(amount || 0));
+    return localDateKey(date);
+  }
+
   function calculateDailyStreak(referenceDateKey = activeDailyDateKey()) {
     const completions = readDailyCompletions();
-    const eligible = DAILY_PUZZLES.filter(puzzle => String(puzzle.date) <= String(referenceDateKey));
-    if (!eligible.length) return 0;
-    let index = eligible.length - 1;
-    if (eligible[index]?.date === referenceDateKey && !completions[referenceDateKey]) index--;
+    let cursor = String(referenceDateKey || "");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(cursor)) return 0;
+    if (!completions[cursor]) cursor = addDaysToDailyDateKey(cursor, -1);
     let streak = 0;
-    for (; index >= 0; index--) {
-      if (!completions[String(eligible[index].date)]) break;
+    while (cursor && completions[cursor]) {
       streak++;
+      cursor = addDaysToDailyDateKey(cursor, -1);
+      if (streak >= 100000) break;
     }
     return streak;
   }
@@ -2077,8 +2087,9 @@
     const today = activeDailyDateKey();
     const first = DAILY_PUZZLES[0];
     const last = DAILY_PUZZLES[DAILY_PUZZLES.length - 1];
+    if (today < DAILY_LAUNCH_DATE) return "COMING SOON";
     if (first && today < first.date) return "COMING SOON";
-    if (last && today > last.date) return "MORE SOON";
+    if (!first || (last && today > last.date)) return "MORE SOON";
     return "UNAVAILABLE";
   }
 
@@ -2115,11 +2126,11 @@
     }
     const today = activeDailyDateKey();
     let unavailableLabel = "NOT AVAILABLE TODAY";
-    if (first && today < first.date) {
+    if (today < DAILY_LAUNCH_DATE || (first && today < first.date)) {
       if (dailyInviteText) dailyInviteText.textContent = "Daily Boxxy is coming soon.";
       if (dailyInviteStatus) dailyInviteStatus.textContent = "A NEW PUZZLE EVERY DAY";
       unavailableLabel = "COMING SOON";
-    } else if (last && today > last.date) {
+    } else if (!first || (last && today > last.date)) {
       if (dailyInviteText) dailyInviteText.textContent = "The current Daily Boxxy schedule is complete. More puzzles will be added soon.";
       if (dailyInviteStatus) dailyInviteStatus.textContent = "MORE DAILY PUZZLES COMING SOON";
       unavailableLabel = "MORE COMING SOON";

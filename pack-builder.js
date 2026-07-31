@@ -3,7 +3,7 @@
  * Copyright © 2026 Sam Cornwell. All rights reserved.
  * Personal non-commercial use only. See LICENSE.md.
  */
-/* BOXXY v168 — pack previews, exports and editor hand-off preserve Rainbow Mode and coloured targets. */
+/* BOXXY v207 — monthly Daily Boxxy editing and self-contained live month exports. */
 (() => {
   "use strict";
 
@@ -40,8 +40,10 @@
   const packCopyBtn = document.getElementById("packCopyBtn");
   const packExportBtn = document.getElementById("packExportBtn");
 
+  const dailyMonthSelect = document.getElementById("dailyMonthSelect");
   const dailyStartDate = document.getElementById("dailyStartDate");
   const dailyTimezoneLabel = document.getElementById("dailyTimezoneLabel");
+  const dailyPublishPath = document.getElementById("dailyPublishPath");
   const dailyClearBtn = document.getElementById("dailyClearBtn");
   const dailyCopyBtn = document.getElementById("dailyCopyBtn");
   const dailyExportBtn = document.getElementById("dailyExportBtn");
@@ -50,6 +52,10 @@
   const PACK_DRAFTS_KEY = "boxxy-pack-builder-drafts-v1";
   const ACTIVE_DRAFT_KEY = "boxxy-pack-builder-active-v1";
   const DAILY_DRAFT_KEY = "boxxy-daily-puzzle-draft-v1";
+  const DAILY_MONTHS_KEY = "boxxy-daily-puzzle-months-v2";
+  const DAILY_SEQUENCE_ANCHOR_DATE = "2026-08-30";
+  const DAILY_SEQUENCE_ANCHOR = 1;
+  const DAILY_FIRST_MONTH = "2026-08";
   const MAX_PACK_DRAFTS = 20;
   const VOID = "~";
   const TILE_CHARS = new Set([" ", "#", "@", "$", ".", "*", "+"]);
@@ -60,6 +66,8 @@
   let savedLevels = [];
   let drafts = [];
   let activeDraft = null;
+  let dailyMonthsState = null;
+  let activeDailyMonth = DAILY_FIRST_MONTH;
   let dailyDraft = null;
   let activeTab = "pack";
   let dragPayload = null;
@@ -286,12 +294,14 @@
       });
     });
 
-    dailyDraft?.entries?.forEach(entry => {
-      const record = byId.get(entry.sourceSaveId);
-      if (record && synchroniseEntryFromSavedLevel(entry, record)) {
-        dailyChanged = true;
-        updatedCount += 1;
-      }
+    Object.values(dailyMonthsState?.months || {}).forEach(monthDraft => {
+      monthDraft?.entries?.forEach(entry => {
+        const record = byId.get(entry.sourceSaveId);
+        if (record && synchroniseEntryFromSavedLevel(entry, record)) {
+          dailyChanged = true;
+          updatedCount += 1;
+        }
+      });
     });
 
     return { draftChanged, dailyChanged, updatedCount };
@@ -300,7 +310,7 @@
   function persistLinkedSynchronisation(result) {
     try {
       if (result.draftChanged) localStorage.setItem(PACK_DRAFTS_KEY, JSON.stringify(drafts));
-      if (result.dailyChanged) localStorage.setItem(DAILY_DRAFT_KEY, JSON.stringify(dailyDraft));
+      if (result.dailyChanged && dailyMonthsState) localStorage.setItem(DAILY_MONTHS_KEY, JSON.stringify(dailyMonthsState));
       return true;
     } catch (_) {
       setStatus("The browser could not synchronise updated saved levels with pack drafts.", "error");
@@ -373,35 +383,175 @@
     autosaveTimer = window.setTimeout(() => persistDrafts(false), 240);
   }
 
-  function defaultDailyDraft() {
+  function validMonthKey(value) {
+    return /^\d{4}-\d{2}$/.test(String(value || ""));
+  }
+
+  function monthKeyForDate(dateString) {
+    const match = /^(\d{4}-\d{2})-\d{2}$/.exec(String(dateString || ""));
+    return match ? match[1] : "";
+  }
+
+  function addMonthsToMonthKey(monthKey, amount) {
+    const match = /^(\d{4})-(\d{2})$/.exec(String(monthKey || ""));
+    if (!match) return DAILY_FIRST_MONTH;
+    const date = new Date(Number(match[1]), Number(match[2]) - 1 + Number(amount || 0), 1, 12, 0, 0, 0);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+  }
+
+  function monthLabel(monthKey) {
+    const date = dateAtLocalNoon(`${monthKey}-01`);
+    if (!date) return monthKey;
+    return new Intl.DateTimeFormat("en-GB", { month: "long", year: "numeric" }).format(date).toUpperCase();
+  }
+
+  function defaultDailyMonthKey() {
+    const now = new Date();
+    const todayMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    return todayMonth < DAILY_FIRST_MONTH ? DAILY_FIRST_MONTH : todayMonth;
+  }
+
+  function defaultDailyStartDate(monthKey) {
+    return monthKey === monthKeyForDate(DAILY_SEQUENCE_ANCHOR_DATE)
+      ? DAILY_SEQUENCE_ANCHOR_DATE
+      : `${monthKey}-01`;
+  }
+
+  function defaultDailyDraft(monthKey = defaultDailyMonthKey()) {
+    const safeMonth = validMonthKey(monthKey) ? monthKey : defaultDailyMonthKey();
     return {
-      startDate: tomorrowDateString(),
+      month: safeMonth,
+      startDate: defaultDailyStartDate(safeMonth),
       timezone: localTimezone,
       entries: [],
       updatedAt: Date.now()
     };
   }
 
-  function normaliseDailyDraft(draft) {
+  function normaliseDailyDraft(draft, monthKey) {
+    const safeMonth = validMonthKey(monthKey) ? monthKey : defaultDailyMonthKey();
     const entries = Array.isArray(draft?.entries) ? draft.entries.map(normaliseEntry).filter(Boolean) : [];
+    const proposedStart = String(draft?.startDate || "");
+    const startDate = /^\d{4}-\d{2}-\d{2}$/.test(proposedStart) && monthKeyForDate(proposedStart) === safeMonth
+      ? proposedStart
+      : defaultDailyStartDate(safeMonth);
     return {
-      startDate: /^\d{4}-\d{2}-\d{2}$/.test(String(draft?.startDate || "")) ? draft.startDate : tomorrowDateString(),
+      month: safeMonth,
+      startDate,
       timezone: String(draft?.timezone || localTimezone),
       entries,
       updatedAt: Number(draft?.updatedAt) || Date.now()
     };
   }
 
+  function migrateLegacyDailyDraft(legacyDraft) {
+    if (!legacyDraft || typeof legacyDraft !== "object") {
+      const month = defaultDailyMonthKey();
+      return { version: 2, activeMonth: month, months: { [month]: defaultDailyDraft(month) }, updatedAt: Date.now() };
+    }
+    const fallbackStart = /^\d{4}-\d{2}-\d{2}$/.test(String(legacyDraft?.startDate || ""))
+      ? String(legacyDraft.startDate)
+      : DAILY_SEQUENCE_ANCHOR_DATE;
+    const legacyEntries = Array.isArray(legacyDraft?.entries)
+      ? legacyDraft.entries.map(normaliseEntry).filter(Boolean)
+      : [];
+    const months = {};
+
+    legacyEntries.forEach((entry, index) => {
+      const date = addDaysToDateString(fallbackStart, index);
+      const month = monthKeyForDate(date);
+      if (!months[month]) months[month] = defaultDailyDraft(month);
+      if (!months[month].entries.length) months[month].startDate = date;
+      months[month].entries.push(entry);
+    });
+
+    const fallbackMonth = monthKeyForDate(fallbackStart) || defaultDailyMonthKey();
+    if (!Object.keys(months).length) months[fallbackMonth] = normaliseDailyDraft(legacyDraft, fallbackMonth);
+    return {
+      version: 2,
+      activeMonth: fallbackMonth,
+      months,
+      updatedAt: Date.now()
+    };
+  }
+
+  function readDailyMonthsState() {
+    const stored = safeParse(DAILY_MONTHS_KEY, null);
+    if (stored && stored.version === 2 && stored.months && typeof stored.months === "object") {
+      const months = {};
+      Object.entries(stored.months).forEach(([month, draft]) => {
+        if (validMonthKey(month)) months[month] = normaliseDailyDraft(draft, month);
+      });
+      const activeMonth = validMonthKey(stored.activeMonth) ? stored.activeMonth : Object.keys(months)[0] || defaultDailyMonthKey();
+      if (!months[activeMonth]) months[activeMonth] = defaultDailyDraft(activeMonth);
+      return { version: 2, activeMonth, months, updatedAt: Number(stored.updatedAt) || Date.now() };
+    }
+    return migrateLegacyDailyDraft(safeParse(DAILY_DRAFT_KEY, null));
+  }
+
+  function dailyPublishFilename(monthKey = activeDailyMonth) {
+    return `boxxy-daily-puzzles-${monthKey}.js`;
+  }
+
+  function availableDailyMonthKeys() {
+    const keys = new Set(Object.keys(dailyMonthsState?.months || {}).filter(validMonthKey));
+    const endMonth = addMonthsToMonthKey(defaultDailyMonthKey(), 120);
+    for (let month = DAILY_FIRST_MONTH; month <= endMonth; month = addMonthsToMonthKey(month, 1)) keys.add(month);
+    return [...keys].sort();
+  }
+
+  function renderDailyMonthSelect() {
+    if (!dailyMonthSelect) return;
+    dailyMonthSelect.innerHTML = "";
+    availableDailyMonthKeys().forEach(month => {
+      const option = document.createElement("option");
+      option.value = month;
+      option.textContent = monthLabel(month);
+      option.selected = month === activeDailyMonth;
+      dailyMonthSelect.appendChild(option);
+    });
+  }
+
+  function updateDailyMonthFields() {
+    if (!dailyDraft) return;
+    dailyStartDate.min = `${activeDailyMonth}-01`;
+    const [year, month] = activeDailyMonth.split("-").map(Number);
+    const lastDay = new Date(year, month, 0).getDate();
+    dailyStartDate.max = `${activeDailyMonth}-${String(lastDay).padStart(2, "0")}`;
+    dailyStartDate.value = dailyDraft.startDate;
+    dailyTimezoneLabel.textContent = localTimezone;
+    if (dailyPublishPath) dailyPublishPath.textContent = `daily-puzzles/${dailyPublishFilename()}`;
+  }
+
+  function activateDailyMonth(monthKey, announce = true) {
+    if (!validMonthKey(monthKey)) return;
+    persistDaily(false);
+    activeDailyMonth = monthKey;
+    dailyMonthsState.activeMonth = monthKey;
+    if (!dailyMonthsState.months[monthKey]) dailyMonthsState.months[monthKey] = defaultDailyDraft(monthKey);
+    dailyDraft = dailyMonthsState.months[monthKey];
+    renderDailyMonthSelect();
+    updateDailyMonthFields();
+    renderDailyGrid();
+    persistDaily(false);
+    if (announce) setStatus(`Editing ${monthLabel(monthKey)}. Export creates ${dailyPublishFilename(monthKey)}.`, "success");
+  }
+
   function persistDaily(announce = false) {
-    if (!dailyDraft) return false;
+    if (!dailyDraft || !dailyMonthsState) return false;
     dailyDraft.updatedAt = Date.now();
     dailyDraft.timezone = localTimezone;
+    dailyDraft.month = activeDailyMonth;
+    dailyMonthsState.version = 2;
+    dailyMonthsState.activeMonth = activeDailyMonth;
+    dailyMonthsState.months[activeDailyMonth] = dailyDraft;
+    dailyMonthsState.updatedAt = Date.now();
     try {
-      localStorage.setItem(DAILY_DRAFT_KEY, JSON.stringify(dailyDraft));
-      if (announce) setStatus("Saved the private Daily Puzzle schedule in this browser.", "success");
+      localStorage.setItem(DAILY_MONTHS_KEY, JSON.stringify(dailyMonthsState));
+      if (announce) setStatus(`Saved the ${monthLabel(activeDailyMonth)} Daily Puzzle month in this browser.`, "success");
       return true;
     } catch (_) {
-      setStatus("The browser ran out of local storage while saving the Daily Puzzle schedule.", "error");
+      setStatus("The browser ran out of local storage while saving the Daily Puzzle months.", "error");
       return false;
     }
   }
@@ -445,13 +595,17 @@
       const preferredId = localStorage.getItem(ACTIVE_DRAFT_KEY) || "";
       activeDraft = drafts.find(draft => draft.id === preferredId) || drafts[0];
     }
-    dailyDraft = normaliseDailyDraft(safeParse(DAILY_DRAFT_KEY, defaultDailyDraft()));
+    dailyMonthsState = readDailyMonthsState();
+    activeDailyMonth = dailyMonthsState.activeMonth;
+    dailyDraft = dailyMonthsState.months[activeDailyMonth] || defaultDailyDraft(activeDailyMonth);
+    dailyMonthsState.months[activeDailyMonth] = dailyDraft;
     const synchronised = synchroniseLinkedEntries();
     persistLinkedSynchronisation(synchronised);
     loadDraftIntoFields();
-    dailyStartDate.value = dailyDraft.startDate;
-    dailyTimezoneLabel.textContent = localTimezone;
+    renderDailyMonthSelect();
+    updateDailyMonthFields();
     renderAll();
+    persistDaily(false);
   }
 
   function renderDraftSelect() {
@@ -751,6 +905,20 @@
     return addDaysToDateString(dailyDraft.startDate, index);
   }
 
+  function dateSerial(dateString) {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateString || ""));
+    if (!match) return NaN;
+    return Math.floor(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])) / 86400000);
+  }
+
+  function dailySequenceForDate(dateString) {
+    const serial = dateSerial(dateString);
+    const anchor = dateSerial(DAILY_SEQUENCE_ANCHOR_DATE);
+    return Number.isFinite(serial) && Number.isFinite(anchor)
+      ? DAILY_SEQUENCE_ANCHOR + serial - anchor
+      : DAILY_SEQUENCE_ANCHOR;
+  }
+
   function humanDate(dateString) {
     const date = dateAtLocalNoon(dateString);
     if (!date) return dateString;
@@ -766,7 +934,12 @@
 
     const badge = document.createElement("b");
     badge.className = "pack-order-badge";
-    badge.textContent = target === "daily" ? humanDate(dateForDailyIndex(index)) : String(index + 1).padStart(2, "0");
+    if (target === "daily") {
+      const date = dateForDailyIndex(index);
+      badge.textContent = `#${dailySequenceForDate(date)} · ${humanDate(date)}`;
+    } else {
+      badge.textContent = String(index + 1).padStart(2, "0");
+    }
 
     const canvas = document.createElement("canvas");
     canvas.className = "pack-level-preview";
@@ -939,7 +1112,8 @@
     dailyGrid.innerHTML = "";
     dailyDraft.entries.forEach((entry, index) => dailyGrid.appendChild(createOrderCard(entry, index, "daily")));
     if (!dailyDraft.entries.length) dailyGrid.appendChild(emptyGridMessage("DRAG SAVED LEVELS HERE TO SCHEDULE DAILY PUZZLES"));
-    dailyPuzzleCount.textContent = `${dailyDraft.entries.length} ${dailyDraft.entries.length === 1 ? "DAY" : "DAYS"}`;
+    dailyPuzzleCount.textContent = `${dailyDraft.entries.length} ${dailyDraft.entries.length === 1 ? "DAY" : "DAYS"} · ${monthLabel(activeDailyMonth)}`;
+    updateDailyMonthFields();
   }
 
   function renderAll() {
@@ -948,7 +1122,8 @@
     renderPackGrid();
     renderDailyGrid();
     updatePublishPath();
-    dailyTimezoneLabel.textContent = localTimezone;
+    renderDailyMonthSelect();
+    updateDailyMonthFields();
   }
 
   function setTab(tab) {
@@ -1283,32 +1458,45 @@
   }
 
   function buildDailySchedule() {
-    if (!dailyDraft.entries.length) throw new Error("Add at least one saved level to the Daily Puzzle queue.");
+    if (!dailyDraft.entries.length) throw new Error(`Add at least one saved level to ${monthLabel(activeDailyMonth)}.`);
+    const puzzles = dailyDraft.entries.map((entry, index) => {
+      const date = dateForDailyIndex(index);
+      if (monthKeyForDate(date) !== activeDailyMonth) {
+        throw new Error(`${monthLabel(activeDailyMonth)} has too many puzzles for a file beginning on ${humanDate(dailyDraft.startDate)}.`);
+      }
+      return {
+        sequence: dailySequenceForDate(date),
+        date,
+        publishAtLocal: `${date}T00:00:00`,
+        publishAtUtc: localMidnightIso(date),
+        timezone: localTimezone,
+        name: entry.name,
+        solution: entry.solution,
+        layout: entry.layout.slice(),
+        ...(entry.rainbowMode ? { rainbowMode: true } : {}),
+        ...(Object.keys(entry.goalColours || {}).length ? { goalColours: { ...entry.goalColours } } : {})
+      };
+    });
     return {
-      format: "boxxy-daily-puzzle-schedule",
-      formatVersion: 1,
+      format: "boxxy-daily-puzzle-month",
+      formatVersion: 2,
+      month: activeDailyMonth,
       timezone: localTimezone,
       publishTimeLocal: "00:00",
       startDate: dailyDraft.startDate,
-      intendedPath: "daily-puzzles/boxxy-daily-puzzles.json",
-      frontEndEnabled: false,
+      sequenceAnchorDate: DAILY_SEQUENCE_ANCHOR_DATE,
+      sequenceAnchor: DAILY_SEQUENCE_ANCHOR,
+      intendedPath: `daily-puzzles/${dailyPublishFilename()}`,
+      frontEndEnabled: true,
       generatedAt: new Date().toISOString(),
-      puzzles: dailyDraft.entries.map((entry, index) => {
-        const date = dateForDailyIndex(index);
-        return {
-          sequence: index + 1,
-          date,
-          publishAtLocal: `${date}T00:00:00`,
-          publishAtUtc: localMidnightIso(date),
-          timezone: localTimezone,
-          name: entry.name,
-          solution: entry.solution,
-          layout: entry.layout.slice(),
-          ...(entry.rainbowMode ? { rainbowMode: true } : {}),
-          ...(Object.keys(entry.goalColours || {}).length ? { goalColours: { ...entry.goalColours } } : {})
-        };
-      })
+      puzzles
     };
+  }
+
+  function buildDailyScheduleScript(schedule) {
+    return `/* BOXXY Daily Boxxy month ${schedule.month} — generated by the BOXXY Level Pack Editor. */
+window.BOXXY_DAILY_SCHEDULE = Object.freeze(${JSON.stringify(schedule, null, 2)});
+`;
   }
 
   function downloadText(filename, text, mime) {
@@ -1365,22 +1553,20 @@
     try {
       persistDaily(false);
       const schedule = buildDailySchedule();
-      const first = schedule.puzzles[0].date;
-      const last = schedule.puzzles.at(-1).date;
-      const filename = `boxxy-daily-puzzles-${first}-to-${last}.json`;
-      downloadText(filename, JSON.stringify(schedule, null, 2), "application/json");
-      setStatus(`Exported ${schedule.puzzles.length} Daily Puzzle dates at 00:00 ${localTimezone}.`, "success");
+      const filename = dailyPublishFilename();
+      downloadText(filename, buildDailyScheduleScript(schedule), "text/javascript");
+      setStatus(`Built ${filename}. Upload it to daily-puzzles/ and replace that month’s existing file.`, "success");
     } catch (error) {
-      setStatus(error?.message || "The Daily Puzzle schedule could not be exported.", "error");
+      setStatus(error?.message || "The Daily Puzzle month could not be exported.", "error");
     }
   }
 
   function copyDaily() {
     try {
       const schedule = buildDailySchedule();
-      copyText(JSON.stringify(schedule, null, 2), `Copied the ${schedule.puzzles.length}-day Daily Puzzle schedule.`);
+      copyText(buildDailyScheduleScript(schedule), `Copied the complete ${monthLabel(activeDailyMonth)} live month file.`);
     } catch (error) {
-      setStatus(error?.message || "The Daily Puzzle schedule could not be copied.", "error");
+      setStatus(error?.message || "The Daily Puzzle month could not be copied.", "error");
     }
   }
 
@@ -1498,12 +1684,17 @@
   packCopyBtn.addEventListener("click", copyPack);
   packExportBtn.addEventListener("click", exportPack);
 
+  dailyMonthSelect?.addEventListener("change", () => activateDailyMonth(dailyMonthSelect.value));
+
   dailyStartDate.addEventListener("change", () => {
-    dailyDraft.startDate = /^\d{4}-\d{2}-\d{2}$/.test(dailyStartDate.value) ? dailyStartDate.value : tomorrowDateString();
-    dailyStartDate.value = dailyDraft.startDate;
+    const proposed = String(dailyStartDate.value || "");
+    dailyDraft.startDate = /^\d{4}-\d{2}-\d{2}$/.test(proposed) && monthKeyForDate(proposed) === activeDailyMonth
+      ? proposed
+      : defaultDailyStartDate(activeDailyMonth);
+    updateDailyMonthFields();
     persistDaily(false);
     renderDailyGrid();
-    setStatus(`Daily Puzzle dates now begin on ${humanDate(dailyDraft.startDate)} at 00:00 ${localTimezone}.`, "success");
+    setStatus(`${monthLabel(activeDailyMonth)} now begins on ${humanDate(dailyDraft.startDate)}. Sequence numbers remain anchored to #1 on 30 August 2026.`, "success");
   });
   dailyClearBtn.addEventListener("click", clearDaily);
   dailyCopyBtn.addEventListener("click", copyDaily);
