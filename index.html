@@ -93,7 +93,7 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=213">
+<link rel="stylesheet" href="styles.css?v=214">
 <link rel="stylesheet" href="how-to-play.css?v=154">
 <link rel="preload" as="image" href="assets/board/boxes/box-default-yellow.png">
 <link rel="preload" as="image" href="assets/board/goals/goal-red.png">
@@ -493,7 +493,7 @@
           </div>
           <div class="maker-pack-builder-launch">
             <button id="makerPackBuilderBtn" type="button"><span>LEVEL PACK BUILDER</span><b aria-hidden="true">→</b></button>
-            <small>Arrange saved puzzles into packs or the private Daily Puzzle queue.</small>
+            <small>Arrange saved puzzles into packs or the private Daily Puzzle calendar.</small>
           </div>
         </section>
 
@@ -535,7 +535,7 @@
       <div>
         <span class="complete-kicker">LEVEL MAKER</span>
         <h2 id="makerPackBuilderTitle">PACK BUILDER</h2>
-        <p>Drag saved puzzles into a level pack or into the private Daily Puzzle schedule. Every card shows the puzzle's starting position.</p>
+        <p>Drag saved puzzles into a level pack or onto fixed dates in the private Daily Puzzle calendar. Every card shows the puzzle's starting position.</p>
       </div>
       <button id="makerPackBuilderCloseBtn" class="maker-close" type="button" aria-label="Close pack builder">×</button>
     </header>
@@ -555,7 +555,7 @@
       </div>
     </div>
 
-    <p id="packBuilderStatus" class="pack-builder-status" aria-live="polite">Saved levels can be dragged from the library into either grid.</p>
+    <p id="packBuilderStatus" class="pack-builder-status" aria-live="polite">Drag saved levels into the pack order, or drop them directly onto fixed dates in the Daily calendar.</p>
 
     <section class="pack-builder-library" aria-labelledby="packBuilderLibraryTitle">
       <header>
@@ -627,20 +627,19 @@
           <h3 id="packBuilderDailyHeading">BOXXY DAILY PUZZLE</h3>
           <span id="dailyPuzzleCount">0 DAYS</span>
         </div>
-        <p>Edit and export one calendar month at a time. Each file can replace that month directly on the live site.</p>
+        <p>Edit one calendar month at a time. The dates stay fixed in a Monday–Sunday calendar so each weekday can have its own puzzle style.</p>
       </header>
 
       <div class="daily-settings">
         <label>MONTH TO EDIT<select id="dailyMonthSelect" aria-label="Month to edit"></select></label>
-        <label>FIRST DATE IN THIS FILE<input id="dailyStartDate" type="date"></label>
         <div><b>PUBLISH TIME</b><strong>00:00 LOCAL TIME</strong><small id="dailyTimezoneLabel"></small></div>
         <div class="daily-path"><b>UPLOAD DESTINATION</b><code id="dailyPublishPath">daily-puzzles/boxxy-daily-puzzles-2026-08.js</code></div>
       </div>
 
-      <div id="dailyOrderGrid" class="pack-level-grid pack-order-grid pack-drop-zone daily-order-grid" data-pack-drop-target="daily" aria-label="Daily Puzzle schedule"></div>
+      <div id="dailyOrderGrid" class="daily-calendar-grid" aria-label="Daily Puzzle calendar, Monday to Sunday"></div>
 
       <div class="pack-workspace-actions">
-        <button id="dailyClearBtn" type="button">CLEAR QUEUE</button>
+        <button id="dailyClearBtn" type="button">CLEAR MONTH</button>
         <button id="dailyCopyBtn" type="button">COPY SCHEDULE</button>
         <button id="dailyExportBtn" class="pack-primary-action" type="button">EXPORT DAILY SCHEDULE</button>
       </div>
@@ -765,7 +764,7 @@
 <script src="daily-puzzles/boxxy-daily-loader.js?v=207"></script>
 <script src="levels.js?v=200"></script>
 <script src="boxxy.js?v=213"></script>
-<script src="pack-builder.js?v=207"></script>
+<script src="pack-builder.js?v=214"></script>
 <script src="how-to-play.js?v=153"></script>
 </body>
 </html>

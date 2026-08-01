@@ -3,7 +3,7 @@
  * Copyright © 2026 Sam Cornwell. All rights reserved.
  * Personal non-commercial use only. See LICENSE.md.
  */
-/* BOXXY v207 — monthly Daily Boxxy editing and self-contained live month exports. */
+/* BOXXY v214 — fixed Monday–Sunday Daily Boxxy calendar builder. */
 (() => {
   "use strict";
 
@@ -41,7 +41,6 @@
   const packExportBtn = document.getElementById("packExportBtn");
 
   const dailyMonthSelect = document.getElementById("dailyMonthSelect");
-  const dailyStartDate = document.getElementById("dailyStartDate");
   const dailyTimezoneLabel = document.getElementById("dailyTimezoneLabel");
   const dailyPublishPath = document.getElementById("dailyPublishPath");
   const dailyClearBtn = document.getElementById("dailyClearBtn");
@@ -417,6 +416,52 @@
       : `${monthKey}-01`;
   }
 
+  function daysInDailyMonth(monthKey = activeDailyMonth) {
+    const match = /^(\d{4})-(\d{2})$/.exec(String(monthKey || ""));
+    if (!match) return 31;
+    return new Date(Number(match[1]), Number(match[2]), 0).getDate();
+  }
+
+  function dateForMonthDay(monthKey, day) {
+    const boundedDay = Math.max(1, Math.min(daysInDailyMonth(monthKey), Math.round(Number(day) || 1)));
+    return `${monthKey}-${String(boundedDay).padStart(2, "0")}`;
+  }
+
+  function dateBelongsToMonth(dateString, monthKey) {
+    return /^\d{4}-\d{2}-\d{2}$/.test(String(dateString || "")) && monthKeyForDate(dateString) === monthKey;
+  }
+
+  function dailyDateIsLive(dateString) {
+    return /^\d{4}-\d{2}-\d{2}$/.test(String(dateString || "")) && String(dateString) >= DAILY_SEQUENCE_ANCHOR_DATE;
+  }
+
+  function firstUnusedDailyDate(monthKey, usedDates) {
+    for (let day = 1; day <= daysInDailyMonth(monthKey); day++) {
+      const date = dateForMonthDay(monthKey, day);
+      if (dailyDateIsLive(date) && !usedDates.has(date)) return date;
+    }
+    return "";
+  }
+
+  function normaliseDailyEntries(entries, monthKey, legacyStartDate) {
+    const usedDates = new Set();
+    const startDate = dateBelongsToMonth(legacyStartDate, monthKey) ? legacyStartDate : defaultDailyStartDate(monthKey);
+    const normalised = [];
+    (Array.isArray(entries) ? entries : []).forEach((rawEntry, index) => {
+      const entry = normaliseEntry(rawEntry);
+      if (!entry) return;
+      let date = dateBelongsToMonth(rawEntry?.date, monthKey)
+        ? String(rawEntry.date)
+        : addDaysToDateString(startDate, index);
+      if (!dateBelongsToMonth(date, monthKey) || !dailyDateIsLive(date) || usedDates.has(date)) date = firstUnusedDailyDate(monthKey, usedDates);
+      if (!date) return;
+      entry.date = date;
+      usedDates.add(date);
+      normalised.push(entry);
+    });
+    return normalised.sort((a, b) => a.date.localeCompare(b.date));
+  }
+
   function defaultDailyDraft(monthKey = defaultDailyMonthKey()) {
     const safeMonth = validMonthKey(monthKey) ? monthKey : defaultDailyMonthKey();
     return {
@@ -430,14 +475,14 @@
 
   function normaliseDailyDraft(draft, monthKey) {
     const safeMonth = validMonthKey(monthKey) ? monthKey : defaultDailyMonthKey();
-    const entries = Array.isArray(draft?.entries) ? draft.entries.map(normaliseEntry).filter(Boolean) : [];
     const proposedStart = String(draft?.startDate || "");
-    const startDate = /^\d{4}-\d{2}-\d{2}$/.test(proposedStart) && monthKeyForDate(proposedStart) === safeMonth
+    const startDate = dateBelongsToMonth(proposedStart, safeMonth)
       ? proposedStart
       : defaultDailyStartDate(safeMonth);
+    const entries = normaliseDailyEntries(draft?.entries, safeMonth, startDate);
     return {
       month: safeMonth,
-      startDate,
+      startDate: entries[0]?.date || startDate,
       timezone: String(draft?.timezone || localTimezone),
       entries,
       updatedAt: Number(draft?.updatedAt) || Date.now()
@@ -447,28 +492,29 @@
   function migrateLegacyDailyDraft(legacyDraft) {
     if (!legacyDraft || typeof legacyDraft !== "object") {
       const month = defaultDailyMonthKey();
-      return { version: 2, activeMonth: month, months: { [month]: defaultDailyDraft(month) }, updatedAt: Date.now() };
+      return { version: 3, activeMonth: month, months: { [month]: defaultDailyDraft(month) }, updatedAt: Date.now() };
     }
     const fallbackStart = /^\d{4}-\d{2}-\d{2}$/.test(String(legacyDraft?.startDate || ""))
       ? String(legacyDraft.startDate)
       : DAILY_SEQUENCE_ANCHOR_DATE;
-    const legacyEntries = Array.isArray(legacyDraft?.entries)
-      ? legacyDraft.entries.map(normaliseEntry).filter(Boolean)
-      : [];
+    const legacyEntries = Array.isArray(legacyDraft?.entries) ? legacyDraft.entries : [];
     const months = {};
 
-    legacyEntries.forEach((entry, index) => {
+    legacyEntries.forEach((rawEntry, index) => {
       const date = addDaysToDateString(fallbackStart, index);
       const month = monthKeyForDate(date);
+      const entry = normaliseEntry(rawEntry);
+      if (!month || !entry) return;
       if (!months[month]) months[month] = defaultDailyDraft(month);
-      if (!months[month].entries.length) months[month].startDate = date;
+      entry.date = date;
       months[month].entries.push(entry);
+      months[month].startDate = months[month].entries[0]?.date || date;
     });
 
     const fallbackMonth = monthKeyForDate(fallbackStart) || defaultDailyMonthKey();
     if (!Object.keys(months).length) months[fallbackMonth] = normaliseDailyDraft(legacyDraft, fallbackMonth);
     return {
-      version: 2,
+      version: 3,
       activeMonth: fallbackMonth,
       months,
       updatedAt: Date.now()
@@ -477,14 +523,14 @@
 
   function readDailyMonthsState() {
     const stored = safeParse(DAILY_MONTHS_KEY, null);
-    if (stored && stored.version === 2 && stored.months && typeof stored.months === "object") {
+    if (stored && (stored.version === 2 || stored.version === 3) && stored.months && typeof stored.months === "object") {
       const months = {};
       Object.entries(stored.months).forEach(([month, draft]) => {
         if (validMonthKey(month)) months[month] = normaliseDailyDraft(draft, month);
       });
       const activeMonth = validMonthKey(stored.activeMonth) ? stored.activeMonth : Object.keys(months)[0] || defaultDailyMonthKey();
       if (!months[activeMonth]) months[activeMonth] = defaultDailyDraft(activeMonth);
-      return { version: 2, activeMonth, months, updatedAt: Number(stored.updatedAt) || Date.now() };
+      return { version: 3, activeMonth, months, updatedAt: Number(stored.updatedAt) || Date.now() };
     }
     return migrateLegacyDailyDraft(safeParse(DAILY_DRAFT_KEY, null));
   }
@@ -514,11 +560,6 @@
 
   function updateDailyMonthFields() {
     if (!dailyDraft) return;
-    dailyStartDate.min = `${activeDailyMonth}-01`;
-    const [year, month] = activeDailyMonth.split("-").map(Number);
-    const lastDay = new Date(year, month, 0).getDate();
-    dailyStartDate.max = `${activeDailyMonth}-${String(lastDay).padStart(2, "0")}`;
-    dailyStartDate.value = dailyDraft.startDate;
     dailyTimezoneLabel.textContent = localTimezone;
     if (dailyPublishPath) dailyPublishPath.textContent = `daily-puzzles/${dailyPublishFilename()}`;
   }
@@ -539,10 +580,12 @@
 
   function persistDaily(announce = false) {
     if (!dailyDraft || !dailyMonthsState) return false;
+    dailyDraft.entries = normaliseDailyEntries(dailyDraft.entries, activeDailyMonth, dailyDraft.startDate);
+    dailyDraft.startDate = dailyDraft.entries[0]?.date || defaultDailyStartDate(activeDailyMonth);
     dailyDraft.updatedAt = Date.now();
     dailyDraft.timezone = localTimezone;
     dailyDraft.month = activeDailyMonth;
-    dailyMonthsState.version = 2;
+    dailyMonthsState.version = 3;
     dailyMonthsState.activeMonth = activeDailyMonth;
     dailyMonthsState.months[activeDailyMonth] = dailyDraft;
     dailyMonthsState.updatedAt = Date.now();
@@ -656,7 +699,7 @@
     clearTimeout(confirmationTimer);
     deleteDraftBtn.textContent = "DELETE";
     packClearBtn.textContent = "CLEAR PACK";
-    dailyClearBtn.textContent = "CLEAR QUEUE";
+    dailyClearBtn.textContent = "CLEAR MONTH";
   }
 
   function armTemporaryConfirmation(callback) {
@@ -848,7 +891,7 @@
     card.className = "pack-level-card pack-library-card";
     card.draggable = true;
     card.dataset.sourceId = record.id;
-    card.title = `Drag “${record.name}” into the current ${activeTab === "daily" ? "Daily Puzzle queue" : "level pack"}.`;
+    card.title = `Drag “${record.name}” into the current ${activeTab === "daily" ? "Daily Puzzle calendar" : "level pack"}.`;
 
     const canvas = document.createElement("canvas");
     canvas.className = "pack-level-preview";
@@ -888,7 +931,7 @@
     const add = stopInteractiveDrag(document.createElement("button"));
     add.type = "button";
     add.className = "pack-card-add";
-    add.textContent = activeTab === "daily" ? "ADD TO DAILY" : "ADD TO PACK";
+    add.textContent = activeTab === "daily" ? "ADD TO FIRST EMPTY DAY" : "ADD TO PACK";
     add.addEventListener("click", event => {
       event.stopPropagation();
       addSavedLevel(record.id, activeTab);
@@ -1077,6 +1120,68 @@
     return card;
   }
 
+  function createDailyCalendarCard(entry) {
+    const card = document.createElement("article");
+    card.className = "pack-level-card daily-calendar-card";
+    card.draggable = true;
+    card.dataset.entryId = entry.id;
+    card.dataset.date = entry.date;
+    card.title = `Drag “${entry.name}” onto another date to move it. Dropping onto an occupied date swaps the two puzzles.`;
+
+    const canvas = document.createElement("canvas");
+    canvas.className = "pack-level-preview";
+    canvas.setAttribute("aria-label", `Starting position for ${entry.name}`);
+    drawThumbnail(canvas, entry.layout, entry.goalColours);
+
+    const body = document.createElement("div");
+    body.className = "pack-level-card-body";
+    const title = document.createElement("strong");
+    title.textContent = entry.name;
+
+    const meta = document.createElement("span");
+    const hasSolution = Boolean(cleanSolution(entry.solution));
+    meta.className = `pack-level-meta ${hasSolution ? "is-solved" : "is-unsolved"}`;
+    meta.textContent = `${solvedLabel(entry.solution)} · ${entry.boxes} ${entry.boxes === 1 ? "BOX" : "BOXES"}`;
+
+    const actions = document.createElement("div");
+    actions.className = "daily-calendar-actions";
+
+    const edit = stopInteractiveDrag(document.createElement("button"));
+    edit.type = "button";
+    edit.textContent = "EDIT";
+    edit.title = "Open this puzzle in the Level Maker";
+    edit.addEventListener("click", event => {
+      event.stopPropagation();
+      requestMakerAction("edit", entry);
+    });
+
+    const play = stopInteractiveDrag(document.createElement("button"));
+    play.type = "button";
+    play.textContent = "PLAY";
+    play.title = "Play this puzzle immediately";
+    play.addEventListener("click", event => {
+      event.stopPropagation();
+      requestMakerAction("play", entry);
+    });
+
+    const remove = stopInteractiveDrag(document.createElement("button"));
+    remove.type = "button";
+    remove.textContent = "REMOVE";
+    remove.title = `Remove ${entry.name} from ${humanDate(entry.date)}`;
+    remove.addEventListener("click", event => {
+      event.stopPropagation();
+      removeDailyEntry(entry.id);
+    });
+
+    actions.append(edit, play, remove);
+    body.append(title, meta, actions);
+    card.append(canvas, body);
+
+    card.addEventListener("dragstart", event => beginDrag(event, { source: "daily", entryId: entry.id, date: entry.date }));
+    card.addEventListener("dragend", finishDrag);
+    return card;
+  }
+
   function emptyGridMessage(text) {
     const empty = document.createElement("div");
     empty.className = "pack-grid-empty";
@@ -1110,9 +1215,70 @@
 
   function renderDailyGrid() {
     dailyGrid.innerHTML = "";
-    dailyDraft.entries.forEach((entry, index) => dailyGrid.appendChild(createOrderCard(entry, index, "daily")));
-    if (!dailyDraft.entries.length) dailyGrid.appendChild(emptyGridMessage("DRAG SAVED LEVELS HERE TO SCHEDULE DAILY PUZZLES"));
-    dailyPuzzleCount.textContent = `${dailyDraft.entries.length} ${dailyDraft.entries.length === 1 ? "DAY" : "DAYS"} · ${monthLabel(activeDailyMonth)}`;
+    const weekdayNames = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"];
+    weekdayNames.forEach((name, index) => {
+      const heading = document.createElement("div");
+      heading.className = `daily-calendar-weekday weekday-${index}`;
+      heading.textContent = name;
+      dailyGrid.appendChild(heading);
+    });
+
+    const firstDate = dateAtLocalNoon(`${activeDailyMonth}-01`);
+    const leadingBlanks = firstDate ? (firstDate.getDay() + 6) % 7 : 0;
+    for (let index = 0; index < leadingBlanks; index++) {
+      const blank = document.createElement("div");
+      blank.className = "daily-calendar-blank";
+      blank.setAttribute("aria-hidden", "true");
+      dailyGrid.appendChild(blank);
+    }
+
+    const entriesByDate = new Map(dailyDraft.entries.map(entry => [entry.date, entry]));
+    const totalDays = daysInDailyMonth(activeDailyMonth);
+    for (let day = 1; day <= totalDays; day++) {
+      const date = dateForMonthDay(activeDailyMonth, day);
+      const weekday = (leadingBlanks + day - 1) % 7;
+      const cell = document.createElement("section");
+      const isLiveDate = dailyDateIsLive(date);
+      cell.className = `daily-calendar-day weekday-${weekday}${isLiveDate ? "" : " is-unavailable"}`;
+      if (isLiveDate) cell.dataset.date = date;
+      cell.setAttribute("aria-label", isLiveDate ? `${humanDate(date)} Daily Puzzle slot` : `${humanDate(date)} before Daily Boxxy launch`);
+
+      const head = document.createElement("header");
+      const dateNumber = document.createElement("strong");
+      dateNumber.textContent = String(day);
+      const sequence = document.createElement("span");
+      sequence.textContent = isLiveDate ? `#${dailySequenceForDate(date)}` : "BEFORE LAUNCH";
+      head.append(dateNumber, sequence);
+      cell.appendChild(head);
+
+      const entry = isLiveDate ? entriesByDate.get(date) : null;
+      if (entry) {
+        cell.classList.add("has-puzzle");
+        cell.appendChild(createDailyCalendarCard(entry));
+      } else {
+        const empty = document.createElement("div");
+        empty.className = "daily-calendar-empty";
+        empty.innerHTML = isLiveDate
+          ? "<b>DROP PUZZLE</b><span>00:00 local</span>"
+          : "<b>NOT IN USE</b><span>Daily Boxxy begins 30 August 2026</span>";
+        cell.appendChild(empty);
+      }
+      dailyGrid.appendChild(cell);
+    }
+
+    const usedCells = leadingBlanks + totalDays;
+    const trailingBlanks = (7 - (usedCells % 7)) % 7;
+    for (let index = 0; index < trailingBlanks; index++) {
+      const blank = document.createElement("div");
+      blank.className = "daily-calendar-blank";
+      blank.setAttribute("aria-hidden", "true");
+      dailyGrid.appendChild(blank);
+    }
+
+    const scheduled = dailyDraft.entries.length;
+    let liveDays = 0;
+    for (let day = 1; day <= totalDays; day++) if (dailyDateIsLive(dateForMonthDay(activeDailyMonth, day))) liveDays += 1;
+    dailyPuzzleCount.textContent = `${scheduled} OF ${liveDays} LIVE ${liveDays === 1 ? "DAY" : "DAYS"} · ${monthLabel(activeDailyMonth)}`;
     updateDailyMonthFields();
   }
 
@@ -1162,6 +1328,31 @@
     setStatus(message, "success");
   }
 
+  function firstEmptyDailyDate() {
+    const usedDates = new Set(dailyDraft.entries.map(entry => entry.date));
+    return firstUnusedDailyDate(activeDailyMonth, usedDates);
+  }
+
+  function dailyEntryAtDate(date) {
+    return dailyDraft.entries.find(entry => entry.date === date) || null;
+  }
+
+  function assignDailySnapshot(snapshot, requestedDate) {
+    const date = dateBelongsToMonth(requestedDate, activeDailyMonth) ? requestedDate : firstEmptyDailyDate();
+    if (!date) {
+      setStatus(`${monthLabel(activeDailyMonth)} is full. Remove a puzzle before adding another one.`, "error");
+      return;
+    }
+    const existing = dailyEntryAtDate(date);
+    if (existing) dailyDraft.entries = dailyDraft.entries.filter(entry => entry.id !== existing.id);
+    snapshot.date = date;
+    dailyDraft.entries.push(snapshot);
+    const message = existing
+      ? `Replaced “${existing.name}” with “${snapshot.name}” on ${humanDate(date)}.`
+      : `Scheduled “${snapshot.name}” for ${humanDate(date)}.`;
+    afterTargetMutation("daily", message);
+  }
+
   function addSavedLevel(sourceId, target, insertionIndex = null) {
     const record = savedLevels.find(level => level.id === sourceId);
     if (!record) {
@@ -1170,13 +1361,18 @@
     }
     const snapshot = snapshotSavedLevel(record);
     if (entryAlreadyPresent(target, snapshot)) {
-      setStatus(`“${snapshot.name}” is already in the ${target === "daily" ? "Daily Puzzle queue" : "level pack"}.`, "error");
+      setStatus(`“${snapshot.name}” is already in the ${target === "daily" ? "Daily Puzzle calendar" : "level pack"}.`, "error");
       return;
     }
-    const entries = targetEntries(target);
-    const index = insertionIndex == null ? entries.length : Math.max(0, Math.min(entries.length, insertionIndex));
+    if (target === "daily") {
+      assignDailySnapshot(snapshot, typeof insertionIndex === "string" ? insertionIndex : firstEmptyDailyDate());
+      return;
+    }
+    const entries = activeDraft.entries;
+    const index = insertionIndex == null ? entries.length : Math.max(0, Math.min(entries.length, Number(insertionIndex) || 0));
+    delete snapshot.date;
     entries.splice(index, 0, snapshot);
-    afterTargetMutation(target, `Added “${snapshot.name}” to the ${target === "daily" ? "Daily Puzzle queue" : "level pack"}.`);
+    afterTargetMutation("pack", `Added “${snapshot.name}” to the level pack.`);
   }
 
   function cloneWorkspaceEntry(payload, target, insertionIndex) {
@@ -1188,25 +1384,53 @@
       setStatus(`“${snapshot.name}” is already in that destination.`, "error");
       return;
     }
-    const entries = targetEntries(target);
-    entries.splice(Math.max(0, Math.min(entries.length, insertionIndex)), 0, snapshot);
-    afterTargetMutation(target, `Copied “${snapshot.name}” into the ${target === "daily" ? "Daily Puzzle queue" : "level pack"}.`);
+    if (target === "daily") {
+      assignDailySnapshot(snapshot, typeof insertionIndex === "string" ? insertionIndex : firstEmptyDailyDate());
+      return;
+    }
+    delete snapshot.date;
+    const entries = activeDraft.entries;
+    const index = Math.max(0, Math.min(entries.length, Number(insertionIndex) || 0));
+    entries.splice(index, 0, snapshot);
+    afterTargetMutation("pack", `Copied “${snapshot.name}” into the level pack.`);
+  }
+
+  function moveDailyEntryToDate(payload, targetDate) {
+    if (!dateBelongsToMonth(targetDate, activeDailyMonth)) return;
+    const source = dailyDraft.entries.find(entry => entry.id === payload.entryId);
+    if (!source || source.date === targetDate) return;
+    const sourceDate = source.date;
+    const target = dailyEntryAtDate(targetDate);
+    source.date = targetDate;
+    if (target) target.date = sourceDate;
+    afterTargetMutation("daily", target
+      ? `Swapped “${source.name}” and “${target.name}”.`
+      : `Moved “${source.name}” to ${humanDate(targetDate)}.`);
+  }
+
+  function removeDailyEntry(entryId) {
+    const index = dailyDraft.entries.findIndex(entry => entry.id === entryId);
+    if (index < 0) return;
+    const [removed] = dailyDraft.entries.splice(index, 1);
+    afterTargetMutation("daily", `Removed “${removed.name}” from ${humanDate(removed.date)}.`);
   }
 
   function moveEntry(target, index, delta) {
-    const entries = targetEntries(target);
+    if (target !== "pack") return;
+    const entries = activeDraft.entries;
     const nextIndex = index + delta;
     if (index < 0 || index >= entries.length || nextIndex < 0 || nextIndex >= entries.length) return;
     const [entry] = entries.splice(index, 1);
     entries.splice(nextIndex, 0, entry);
-    afterTargetMutation(target, `Moved “${entry.name}” to position ${nextIndex + 1}.`);
+    afterTargetMutation("pack", `Moved “${entry.name}” to position ${nextIndex + 1}.`);
   }
 
   function removeEntry(target, index) {
-    const entries = targetEntries(target);
+    if (target !== "pack") return;
+    const entries = activeDraft.entries;
     if (index < 0 || index >= entries.length) return;
     const [removed] = entries.splice(index, 1);
-    afterTargetMutation(target, `Removed “${removed.name}” from the ${target === "daily" ? "Daily Puzzle queue" : "level pack"}.`);
+    afterTargetMutation("pack", `Removed “${removed.name}” from the level pack.`);
   }
 
   function beginDrag(event, payload) {
@@ -1279,7 +1503,7 @@
   }
 
   function clearDropMarkers() {
-    document.querySelectorAll(".pack-drop-zone.drag-over,.pack-order-card.drop-before,.pack-order-card.drop-after")
+    document.querySelectorAll(".pack-drop-zone.drag-over,.pack-order-card.drop-before,.pack-order-card.drop-after,.daily-calendar-day.drag-over")
       .forEach(element => element.classList.remove("drag-over", "drop-before", "drop-after"));
     if (dropPlaceholder?.parentNode) dropPlaceholder.remove();
     document.querySelectorAll('.pack-grid-empty[data-drop-hidden="true"]').forEach(empty => {
@@ -1341,6 +1565,38 @@
       } else {
         cloneWorkspaceEntry(payload, target, insertionIndex);
       }
+      dragPayload = null;
+    });
+  }
+
+  function installDailyCalendarDropZone(grid) {
+    grid.addEventListener("dragover", event => {
+      const payload = payloadFromEvent(event);
+      const cell = event.target.closest?.(".daily-calendar-day[data-date]");
+      if (!payload || !cell || !grid.contains(cell)) return;
+      event.preventDefault();
+      document.querySelectorAll(".daily-calendar-day.drag-over").forEach(item => {
+        if (item !== cell) item.classList.remove("drag-over");
+      });
+      cell.classList.add("drag-over");
+      event.dataTransfer.dropEffect = payload.source === "daily" ? "move" : "copy";
+    });
+
+    grid.addEventListener("dragleave", event => {
+      const cell = event.target.closest?.(".daily-calendar-day[data-date]");
+      if (cell && !cell.contains(event.relatedTarget)) cell.classList.remove("drag-over");
+    });
+
+    grid.addEventListener("drop", event => {
+      const payload = payloadFromEvent(event);
+      const cell = event.target.closest?.(".daily-calendar-day[data-date]");
+      if (!payload || !cell || !grid.contains(cell)) return;
+      event.preventDefault();
+      const date = cell.dataset.date;
+      clearDropMarkers();
+      if (payload.source === "library") addSavedLevel(payload.sourceId, "daily", date);
+      else if (payload.source === "daily") moveDailyEntryToDate(payload, date);
+      else cloneWorkspaceEntry(payload, "daily", date);
       dragPayload = null;
     });
   }
@@ -1459,11 +1715,15 @@
 
   function buildDailySchedule() {
     if (!dailyDraft.entries.length) throw new Error(`Add at least one saved level to ${monthLabel(activeDailyMonth)}.`);
-    const puzzles = dailyDraft.entries.map((entry, index) => {
-      const date = dateForDailyIndex(index);
-      if (monthKeyForDate(date) !== activeDailyMonth) {
-        throw new Error(`${monthLabel(activeDailyMonth)} has too many puzzles for a file beginning on ${humanDate(dailyDraft.startDate)}.`);
+    const entries = dailyDraft.entries.slice().sort((a, b) => a.date.localeCompare(b.date));
+    const seenDates = new Set();
+    const puzzles = entries.map(entry => {
+      const date = entry.date;
+      if (!dateBelongsToMonth(date, activeDailyMonth) || !dailyDateIsLive(date)) {
+        throw new Error(`“${entry.name}” is not assigned to a valid date in ${monthLabel(activeDailyMonth)}.`);
       }
+      if (seenDates.has(date)) throw new Error(`More than one puzzle is assigned to ${humanDate(date)}.`);
+      seenDates.add(date);
       return {
         sequence: dailySequenceForDate(date),
         date,
@@ -1483,7 +1743,7 @@
       month: activeDailyMonth,
       timezone: localTimezone,
       publishTimeLocal: "00:00",
-      startDate: dailyDraft.startDate,
+      startDate: entries[0].date,
       sequenceAnchorDate: DAILY_SEQUENCE_ANCHOR_DATE,
       sequenceAnchor: DAILY_SEQUENCE_ANCHOR,
       intendedPath: `daily-puzzles/${dailyPublishFilename()}`,
@@ -1593,7 +1853,7 @@ window.BOXXY_DAILY_SCHEDULE = Object.freeze(${JSON.stringify(schedule, null, 2)}
       resetConfirmations();
       pendingDailyClear = true;
       dailyClearBtn.textContent = "CONFIRM CLEAR";
-      setStatus("Press CONFIRM CLEAR to remove every puzzle from the Daily queue.", "error");
+      setStatus("Press CONFIRM CLEAR to remove every puzzle from this Daily calendar month.", "error");
       armTemporaryConfirmation();
       return;
     }
@@ -1601,7 +1861,7 @@ window.BOXXY_DAILY_SCHEDULE = Object.freeze(${JSON.stringify(schedule, null, 2)}
     resetConfirmations();
     persistDaily(false);
     renderDailyGrid();
-    setStatus("Cleared the private Daily Puzzle queue. Saved Level Maker puzzles were not deleted.", "success");
+    setStatus("Cleared the private Daily Puzzle calendar for this month. Saved Level Maker puzzles were not deleted.", "success");
   }
 
   function openBuilder() {
@@ -1624,7 +1884,7 @@ window.BOXXY_DAILY_SCHEDULE = Object.freeze(${JSON.stringify(schedule, null, 2)}
   }
 
   installDropZone(packGrid, "pack");
-  installDropZone(dailyGrid, "daily");
+  installDailyCalendarDropZone(dailyGrid);
 
   openBtn.addEventListener("click", openBuilder);
   closeBtn.addEventListener("click", closeBuilder);
@@ -1686,16 +1946,6 @@ window.BOXXY_DAILY_SCHEDULE = Object.freeze(${JSON.stringify(schedule, null, 2)}
 
   dailyMonthSelect?.addEventListener("change", () => activateDailyMonth(dailyMonthSelect.value));
 
-  dailyStartDate.addEventListener("change", () => {
-    const proposed = String(dailyStartDate.value || "");
-    dailyDraft.startDate = /^\d{4}-\d{2}-\d{2}$/.test(proposed) && monthKeyForDate(proposed) === activeDailyMonth
-      ? proposed
-      : defaultDailyStartDate(activeDailyMonth);
-    updateDailyMonthFields();
-    persistDaily(false);
-    renderDailyGrid();
-    setStatus(`${monthLabel(activeDailyMonth)} now begins on ${humanDate(dailyDraft.startDate)}. Sequence numbers remain anchored to #1 on 30 August 2026.`, "success");
-  });
   dailyClearBtn.addEventListener("click", clearDaily);
   dailyCopyBtn.addEventListener("click", copyDaily);
   dailyExportBtn.addEventListener("click", exportDaily);
