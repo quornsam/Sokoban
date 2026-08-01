@@ -1519,14 +1519,19 @@ html.ios-standalone .app{
 .complete-card.final-complete .final-pack-option{background:#f7f0e5;color:var(--ink);border:2px solid var(--ink);box-shadow:5px 5px 0 rgba(31,31,31,.24)}
 .complete-card.final-complete .final-pack-option:hover{transform:translate(-2px,-2px);box-shadow:7px 7px 0 rgba(31,31,31,.28)}
 .complete-card.final-complete .final-pack-option:active{transform:translate(2px,2px);box-shadow:2px 2px 0 rgba(31,31,31,.22)}
-.complete-card.final-complete .final-pack-art,
-.complete-card.final-complete .pack-red .final-pack-art,
-.complete-card.final-complete .pack-green .final-pack-art,
-.complete-card.final-complete .pack-blue .final-pack-art,
-.complete-card.final-complete .pack-yellow .final-pack-art,
-.complete-card.final-complete .pack-black .final-pack-art{background:#f7f0e5;color:var(--ink)}
-.complete-card.final-complete .final-pack-art i{background:var(--yellow);border-color:var(--blue)}
-.complete-card.final-complete .final-pack-art b{color:var(--blue)}
+.complete-card.final-complete .final-pack-art.image-art{background:#000;color:#fff}
+.complete-card.final-complete .final-pack-art.image-art picture,
+.complete-card.final-complete .final-pack-art.image-art img{display:block;width:100%;height:100%;opacity:1;visibility:visible}
+.complete-card.final-complete .final-pack-art.image-art img{object-fit:cover;object-position:center}
+.complete-card.final-complete .final-pack-art.image-art .pack-no{left:auto;right:5px;top:auto;bottom:1px;min-width:0;padding:0;border:0;background:transparent;color:#fff;box-shadow:none;opacity:.28;font-size:clamp(16px,2.4vw,27px);line-height:1;text-shadow:0 2px 5px rgba(0,0,0,.92)}
+.complete-card.final-complete .final-pack-art:not(.image-art),
+.complete-card.final-complete .pack-red .final-pack-art:not(.image-art),
+.complete-card.final-complete .pack-green .final-pack-art:not(.image-art),
+.complete-card.final-complete .pack-blue .final-pack-art:not(.image-art),
+.complete-card.final-complete .pack-yellow .final-pack-art:not(.image-art),
+.complete-card.final-complete .pack-black .final-pack-art:not(.image-art){background:#f7f0e5;color:var(--ink)}
+.complete-card.final-complete .final-pack-art:not(.image-art) i{background:var(--yellow);border-color:var(--blue)}
+.complete-card.final-complete .final-pack-art > b:not(.pack-no){color:var(--blue)}
 
 .claim-prize-btn{width:100%;min-height:60px;display:flex;align-items:center;justify-content:center;gap:12px;padding:12px 18px;border:3px solid var(--blue);background:var(--yellow);color:var(--ink);box-shadow:6px 6px 0 var(--blue);font:950 15px/1 var(--font);letter-spacing:.055em;cursor:pointer;transition:transform .12s ease,box-shadow .12s ease}
 .claim-prize-btn[hidden]{display:none!important}
@@ -1592,39 +1597,39 @@ html.ios-standalone .app{
 }
 
 /* Keep the overall cards off-white, but restore each pack's colour panel. */
-.complete-card.final-complete .pack-red .final-pack-art{
+.complete-card.final-complete .pack-red .final-pack-art:not(.image-art){
   background:var(--red);
   color:#fff;
 }
-.complete-card.final-complete .pack-green .final-pack-art{
+.complete-card.final-complete .pack-green .final-pack-art:not(.image-art){
   background:var(--green);
   color:#fff;
 }
-.complete-card.final-complete .pack-blue .final-pack-art{
+.complete-card.final-complete .pack-blue .final-pack-art:not(.image-art){
   background:var(--blue);
   color:#fff;
 }
-.complete-card.final-complete .pack-yellow .final-pack-art{
+.complete-card.final-complete .pack-yellow .final-pack-art:not(.image-art){
   background:var(--yellow);
   color:var(--ink);
 }
-.complete-card.final-complete .pack-purple .final-pack-art{
+.complete-card.final-complete .pack-purple .final-pack-art:not(.image-art){
   background:#8e44ad;
   color:#fff;
 }
-.complete-card.final-complete .pack-teal .final-pack-art{
+.complete-card.final-complete .pack-teal .final-pack-art:not(.image-art){
   background:#00a6b2;
   color:#fff;
 }
-.complete-card.final-complete .pack-black .final-pack-art{
+.complete-card.final-complete .pack-black .final-pack-art:not(.image-art){
   background:var(--ink);
   color:#fff;
 }
-.complete-card.final-complete .final-pack-art i{
+.complete-card.final-complete .final-pack-art:not(.image-art) i{
   background:rgba(255,255,255,.48);
   border-color:var(--ink);
 }
-.complete-card.final-complete .final-pack-art b{
+.complete-card.final-complete .final-pack-art > b:not(.pack-no){
   color:inherit;
 }
 
@@ -1928,7 +1933,7 @@ html.ios-standalone .app{
     border-width:1.5px;
   }
 
-  .complete-card.final-complete .final-pack-art b{
+  .complete-card.final-complete .final-pack-art > b:not(.pack-no){
     right:5px;
     bottom:2px;
     font-size:17px;
@@ -2197,7 +2202,7 @@ html.ios-standalone .app{
     border-width:1.5px;
   }
 
-  .complete-card.final-complete .final-pack-art b{
+  .complete-card.final-complete .final-pack-art > b:not(.pack-no){
     position:absolute;
     inset:0;
     width:100%;
@@ -3296,7 +3301,7 @@ html.touch-ui .level-attire{
     left:-9px;
     top:-9px;
   }
-  .complete-card.final-complete .final-pack-art b{
+  .complete-card.final-complete .final-pack-art > b:not(.pack-no){
     right:6px;
     bottom:2px;
     font-size:20px;
@@ -3535,7 +3540,7 @@ html.touch-ui .level-attire{
     left:-12px;
     top:-13px;
   }
-  .complete-card.final-complete .final-pack-art b{
+  .complete-card.final-complete .final-pack-art > b:not(.pack-no){
     right:8px;
     bottom:4px;
     font-size:28px;
@@ -4751,7 +4756,7 @@ body.first-person-mode .board::after{
   box-shadow:inset 0 0 90px rgba(0,0,0,.62),inset 0 0 2px rgba(255,255,255,.28);
 }
 
-/* BOXXY v210 — adjustable 3D camera. */
+/* BOXXY v213 — continuous pull-back camera; no preliminary tilt. */
 .first-person-camera-control{
   position:absolute;
   top:clamp(10px,1.6vw,18px);

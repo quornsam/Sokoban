@@ -33,7 +33,7 @@
   });
 })();
 
-/* BOXXY v210 — adjustable first-person / overhead camera with full-map zoom. */
+/* BOXXY v213 — opaque 3D floor, slower turns and a continuous pull-back camera. */
 /* BOXXY v205 — shorter mobile Daily Complete modal and single-line heading. */
 /* BOXXY v203 — corrected Daily share emoji, copy-text control and coming-soon wording. */
 /* BOXXY v201 — supplied streak-flame artwork with coded day count inside the flame. */
@@ -3352,20 +3352,20 @@
     const fitSpan = Math.max(forwardSpan, rightSpan / aspect);
     const wholeMapBack = Math.max(4.5, forwardSpan * 0.82 + 3.5);
     const wholeMapHeight = Math.max(6, fitSpan * 1.72 + 4);
-    const zoom = firstPersonEase(firstPersonCameraZoom / 100);
-    const cameraX = playerX + (mapCentreX - forwardX * wholeMapBack - playerX) * zoom;
-    const cameraZ = playerZ + (mapCentreZ - forwardZ * wholeMapBack - playerZ) * zoom;
+
+    // One shared camera progress controls distance, height and downward pitch.
+    // This prevents the view changing its aim before it actually pulls back.
+    const sliderProgress = Math.max(0, Math.min(1, firstPersonCameraZoom / 100));
+    const zoom = sliderProgress * sliderProgress * (3 - 2 * sliderProgress);
+    const wholeMapCameraX = mapCentreX - forwardX * wholeMapBack;
+    const wholeMapCameraZ = mapCentreZ - forwardZ * wholeMapBack;
+    const cameraX = playerX + (wholeMapCameraX - playerX) * zoom;
+    const cameraZ = playerZ + (wholeMapCameraZ - playerZ) * zoom;
     const cameraHeight = playerHeight + (wholeMapHeight - playerHeight) * zoom;
-    const nearTargetDistance = 6;
-    const targetX = playerX + forwardX * nearTargetDistance + (mapCentreX - (playerX + forwardX * nearTargetDistance)) * zoom;
-    const targetZ = playerZ + forwardZ * nearTargetDistance + (mapCentreZ - (playerZ + forwardZ * nearTargetDistance)) * zoom;
-    const targetHeight = playerHeight + (0.12 - playerHeight) * zoom;
-    const horizontalLookDistance = Math.max(0.01,
-      (targetX - cameraX) * forwardX + (targetZ - cameraZ) * forwardZ
-    );
-    const pitch = Math.atan2(cameraHeight - targetHeight, horizontalLookDistance);
+    const wholeMapPitch = Math.atan2(wholeMapHeight - 0.12, wholeMapBack);
+    const pitch = wholeMapPitch * zoom;
     const focal = Math.min(cssWidth * 0.78, cssHeight * 1.28);
-    const centreY = cssHeight * (0.43 + zoom * 0.055) + stepBob * (1 - zoom) * 2.4;
+    const centreY = cssHeight * (0.43 + zoom * 0.01) + stepBob * (1 - zoom) * 2.4;
     return {
       cameraX,
       cameraZ,
@@ -3452,7 +3452,7 @@
   }
 
   const FIRST_PERSON_STEP_DURATION = 210;
-  const FIRST_PERSON_TURN_DURATION = 240;
+  const FIRST_PERSON_TURN_DURATION = 320;
 
   function firstPersonEase(progress) {
     const t = Math.max(0, Math.min(1, progress));
@@ -3672,12 +3672,18 @@
     }
     floorPolygons.sort((a, b) => b.depth - a.depth);
     floorPolygons.forEach(polygon => {
-      const fade = Math.max(0.16, Math.min(1, 1.15 - polygon.depth / 28));
-      context.globalAlpha = fade;
+      const distanceLight = Math.max(0.42, Math.min(1, 1.12 - polygon.depth / 36));
+      const base = (polygon.x + polygon.z) % 2
+        ? [211, 226, 220]
+        : [244, 237, 218];
+      const red = Math.round(base[0] * distanceLight);
+      const green = Math.round(base[1] * distanceLight);
+      const blue = Math.round(base[2] * distanceLight);
+      context.globalAlpha = 1;
       traceFirstPersonPolygon(context, polygon.points);
-      context.fillStyle = (polygon.x + polygon.z) % 2 ? "rgba(211,226,220,.105)" : "rgba(244,237,218,.145)";
+      context.fillStyle = `rgb(${red},${green},${blue})`;
       context.fill();
-      context.strokeStyle = "rgba(220,244,238,.32)";
+      context.strokeStyle = distanceLight > 0.65 ? "rgba(54,72,73,.66)" : "rgba(205,224,219,.38)";
       context.lineWidth = 1;
       context.stroke();
     });
