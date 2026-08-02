@@ -33,6 +33,7 @@
   });
 })();
 
+/* BOXXY v219 — Daily completion now opens either the Level Pack Selector or Boxxy Dailys. */
 /* BOXXY v217 — Daily archive, past-date replay, saved scores and next-puzzle countdown. */
 /* BOXXY v213 — opaque 3D floor, slower turns and a continuous pull-back camera. */
 /* BOXXY v205 — shorter mobile Daily Complete modal and single-line heading. */
@@ -1534,6 +1535,8 @@
   const completeCard = modal?.querySelector(".complete-card");
   const completeSprite = document.getElementById("completeSprite");
   const nextBtn = document.getElementById("nextBtn");
+  const dailyCompletePackBtn = document.getElementById("dailyCompletePackBtn");
+  const dailyCompleteArchiveBtn = document.getElementById("dailyCompleteArchiveBtn");
   const completeCloseBtn = document.getElementById("completeCloseBtn");
   const nextBtnLabel = nextBtn?.querySelector("span");
   const nextBtnIcon = nextBtn?.querySelector("b");
@@ -1919,13 +1922,21 @@
     return pack?.id === PRIMARY_PACK_ID && pack?.levels?.length === 50 && packIsComplete(pack.id);
   }
 
+  function setDailyCompletionChoicesVisible(visible) {
+    const show = Boolean(visible);
+    if (dailyCompletePackBtn) dailyCompletePackBtn.hidden = !show;
+    if (dailyCompleteArchiveBtn) dailyCompleteArchiveBtn.hidden = !show;
+    if (nextBtn) nextBtn.hidden = show;
+  }
+
   function configureFinalCompletionActions(pack = completionPackContext || activePack) {
+    setDailyCompletionChoicesVisible(false);
     if (nextBtn) nextBtn.hidden = true;
     if (claimPrizeBtn) claimPrizeBtn.hidden = !activePackEarnsPrize(pack);
   }
 
   function restoreStandardCompletionActions() {
-    if (nextBtn) nextBtn.hidden = false;
+    setDailyCompletionChoicesVisible(false);
     if (claimPrizeBtn) claimPrizeBtn.hidden = true;
     if (dailySharePanel) dailySharePanel.hidden = true;
     if (dailyShareStatus) dailyShareStatus.textContent = "";
@@ -4441,8 +4452,6 @@
     if (finalPackStatus) finalPackStatus.textContent = "";
     if (completeKicker) completeKicker.textContent = "DAILY BOXXY";
     if (completeTitle) completeTitle.textContent = "DAILY COMPLETE";
-    if (nextBtnLabel) nextBtnLabel.textContent = "BACK TO GAME";
-    if (nextBtnIcon) nextBtnIcon.textContent = "←";
     updatePackCollectionLabels(activePack);
     document.title = `Daily Boxxy #${Number(puzzle.sequence) || ""} — BOXXY`;
     board.style.setProperty("--cols", width);
@@ -4785,8 +4794,7 @@
       if (dailyShareText) dailyShareText.value = buildDailyShareText(dailyPuzzle, { seconds: completionSeconds, moves });
       if (dailySharePanel) dailySharePanel.hidden = false;
       if (dailyShareStatus) dailyShareStatus.textContent = "";
-      if (nextBtnLabel) nextBtnLabel.textContent = "BACK TO GAME";
-      if (nextBtnIcon) nextBtnIcon.textContent = "←";
+      setDailyCompletionChoicesVisible(true);
       updateDailyStreak();
       updateDailyQuotePrompt();
       refreshLevelButtons();
@@ -5422,6 +5430,14 @@
   dailyInviteModal?.addEventListener("click", event => { if (event.target === dailyInviteModal) closeDailyInvite(); });
   dailyShareButton?.addEventListener("click", shareDailyResult);
   dailyCopyButton?.addEventListener("click", copyDailyResult);
+  dailyCompletePackBtn?.addEventListener("click", () => {
+    closeCompleteModal();
+    openPackModal();
+  });
+  dailyCompleteArchiveBtn?.addEventListener("click", () => {
+    closeCompleteModal();
+    openDailyArchive();
+  });
   themeCloseBtn?.addEventListener("click", closeThemeModal);
   themeChoices.forEach(button => button.addEventListener("click", () => { applyTheme(button.dataset.themeChoice); closeThemeModal(); }));
   themeModal?.addEventListener("click", event => { if (event.target === themeModal) closeThemeModal(); });

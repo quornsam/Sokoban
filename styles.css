@@ -3,6 +3,7 @@
  * Copyright © 2026 Sam Cornwell. All rights reserved.
  * Personal non-commercial use only. See LICENSE.md.
  * BOXXY v166: fifteen dedicated box and target sprite colours.
+ * BOXXY v219: Daily completion destination choices.
  * BOXXY v205: shorter mobile Daily Complete modal and single-line heading.
  * BOXXY v203: corrected Daily share emoji, copy-text control and coming-soon wording.
  * BOXXY v202: optically aligned, equally spaced streak and completion badges.
@@ -4615,6 +4616,20 @@ body.maker-editor-fullscreen{overflow:hidden}
 .daily-invite-play:disabled{background:#8e887f;box-shadow:none;cursor:not-allowed}
 
 .complete-card.daily-complete{width:min(900px,92vw)}
+
+.complete-card.daily-complete .complete-actions{
+  width:min(620px,100%);
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px;
+}
+.daily-complete-choice{width:100%;min-width:0}
+.daily-complete-choice[hidden]{display:none!important}
+.daily-complete-pack-choice{background:var(--ink);color:#fff;box-shadow:6px 6px 0 var(--red)}
+.daily-complete-archive-choice{background:var(--green);color:#fff;box-shadow:6px 6px 0 var(--yellow)}
+.daily-complete-archive-choice b{background:#fff;color:var(--green)}
+.daily-complete-archive-choice:hover{box-shadow:8px 8px 0 var(--yellow)}
+.daily-complete-archive-choice:active{box-shadow:2px 2px 0 var(--yellow)}
 .complete-card.daily-complete .complete-copy{overflow:auto}
 .daily-share-panel{max-width:620px;margin:2px 0 18px;padding:13px;border:2px solid var(--ink);background:#fff9ee;box-shadow:5px 5px 0 rgba(47,143,91,.24);text-align:left}
 .daily-share-panel[hidden]{display:none!important}
@@ -4645,6 +4660,7 @@ body.maker-editor-fullscreen{overflow:hidden}
   .daily-invite-play{grid-row:1}
   .daily-invite-later{grid-row:2}
   .complete-card.daily-complete{width:min(550px,calc(100vw - 16px))}
+  .complete-card.daily-complete .complete-actions{grid-template-columns:1fr}
   .complete-card.daily-complete .complete-art{
     height:clamp(82px,15dvh,120px);
     min-height:0;
@@ -4726,10 +4742,12 @@ body.maker-editor-fullscreen{overflow:hidden}
     min-height:38px;
     padding:6px 9px;
   }
+  .complete-card.daily-complete .complete-actions{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
   .complete-card.daily-complete .complete-primary{
     min-height:42px;
-    min-width:170px;
-    padding:8px 12px;
+    min-width:0;
+    padding:8px 10px;
+    font-size:8px;
   }
 }
 

@@ -26,6 +26,7 @@
 <link rel="preload" as="image" href="assets/ui/boxxy-splash.png" fetchpriority="high">
 <script>
   /* BOXXY v196 — reliable first-load splash and startup loading gate. */
+  /* BOXXY v219 — Daily completion now offers Level Pack Selector or Boxxy Dailys. */
   /* BOXXY v218 — exact Daily dates in navigation and removal of the Minimum stat. */
   /* BOXXY v217 — Daily archive, past-date replay, saved scores and next-puzzle countdown. */
   /* BOXXY v205 — shorter mobile Daily Complete modal and single-line heading. */
@@ -379,6 +380,8 @@
       <div class="complete-actions">
         <button id="makerApplySolveBtn" class="complete-secondary" type="button" hidden>APPLY SOLVE</button>
         <button id="claimPrizeBtn" class="claim-prize-btn" type="button" hidden><span>CLAIM YOUR PRIZE!</span><b aria-hidden="true">★</b></button>
+        <button id="dailyCompletePackBtn" class="complete-primary daily-complete-choice daily-complete-pack-choice" type="button" hidden><span>LEVEL PACK SELECTOR</span><b aria-hidden="true">→</b></button>
+        <button id="dailyCompleteArchiveBtn" class="complete-primary daily-complete-choice daily-complete-archive-choice" type="button" hidden><span>DAILY BOXXYS</span><b aria-hidden="true">→</b></button>
         <button id="nextBtn" class="complete-primary"><span>NEXT LEVEL</span><b aria-hidden="true">→</b></button>
       </div>
     </div>
