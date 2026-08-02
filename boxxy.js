@@ -1474,7 +1474,6 @@
   const movesEl = document.getElementById("moves");
   const pushesEl = document.getElementById("pushes");
   const bestEl = document.getElementById("best");
-  const minimumEl = document.getElementById("minimum");
   const timeEl = document.getElementById("time");
   const levelCount = document.getElementById("levelCount");
   const creditTitle = document.getElementById("creditTitle");
@@ -2151,7 +2150,9 @@
   function dailyAvailabilityLabel(puzzle = dailyPuzzleForToday()) {
     if (puzzle) {
       if (dailyCompletion(puzzle.date)) return "COMPLETED";
-      return DAILY_DATE_OVERRIDE ? "TEST DATE" : "TODAY";
+      return DAILY_DATE_OVERRIDE
+        ? formatDailyDate(puzzle.date, { long: false }).toUpperCase()
+        : "TODAY";
     }
     const today = activeDailyDateKey();
     const first = DAILY_PUZZLES[0];
@@ -2169,7 +2170,12 @@
     const show = Boolean(puzzle && !dailyMode && !dailyCompletion(puzzle.date) && !dismissed && !makerTesting && !sharedPuzzleMode);
     dailyQuotePrompt.hidden = !show;
     instruction.classList.toggle("daily-prompt-active", show);
-    if (dailyQuoteMeta && puzzle) dailyQuoteMeta.textContent = DAILY_DATE_OVERRIDE ? `#${Number(puzzle.sequence) || ""} · TEST` : `#${Number(puzzle.sequence) || ""} · TODAY`;
+    if (dailyQuoteMeta && puzzle) {
+      const reference = DAILY_DATE_OVERRIDE
+        ? formatDailyDate(puzzle.date, { long: false }).toUpperCase()
+        : "TODAY";
+      dailyQuoteMeta.textContent = `#${Number(puzzle.sequence) || ""} · ${reference}`;
+    }
   }
 
   function closeDailyInvite() {
@@ -2410,8 +2416,10 @@
     }
     if (dailyArchiveCountdownDate) {
       const nextDateKey = localDateKey(target || now);
-      const testing = DAILY_DATE_OVERRIDE ? ` · TESTING ${formatDailyDate(activeDailyDateKey(), { long: true, year: true }).toUpperCase()}` : "";
-      dailyArchiveCountdownDate.textContent = `${formatDailyDate(nextDateKey, { weekday: true, long: true, year: true }).toUpperCase()}${testing}`;
+      const viewing = DAILY_DATE_OVERRIDE
+        ? ` · VIEWING ${formatDailyDate(activeDailyDateKey(), { weekday: true, long: true, year: true }).toUpperCase()}`
+        : "";
+      dailyArchiveCountdownDate.textContent = `${formatDailyDate(nextDateKey, { weekday: true, long: true, year: true }).toUpperCase()}${viewing}`;
     }
   }
 
@@ -2574,9 +2582,11 @@
     name.className = "final-pack-name";
     name.append(document.createTextNode("BOXXY DAILYS"));
     const meta = document.createElement("small");
-    meta.textContent = available.length
-      ? `${completedCount} COMPLETED · ${available.length} AVAILABLE · MOST RECENT FIRST`
-      : "ONE NEW PUZZLE EVERY DAY";
+    meta.textContent = DAILY_DATE_OVERRIDE
+      ? `VIEWING ${formatDailyDate(activeDailyDateKey(), { weekday: true, long: true, year: true }).toUpperCase()}`
+      : available.length
+        ? `${completedCount} COMPLETED · ${available.length} AVAILABLE · MOST RECENT FIRST`
+        : "ONE NEW PUZZLE EVERY DAY";
     name.appendChild(meta);
     button.append(art, name);
     button.title = "Open today’s Daily Boxxy and every earlier available date.";
@@ -4240,7 +4250,6 @@
 
     movesEl.textContent = moves;
     pushesEl.textContent = pushes;
-    minimumEl.textContent = (makerTesting || sharedPuzzleMode || dailyMode) ? "—" : (levelData.minimum ?? "—");
     levelCount.textContent = sharedPuzzleMode ? "SHARED" : makerTesting ? "MAKER" : dailyMode ? `DAILY #${Number(dailyPuzzle?.sequence) || ""}` : `${levelIndex + 1} / ${LEVELS.length}`;
     const best = (makerTesting || sharedPuzzleMode) ? null : dailyMode ? dailyBestMoves(dailyPuzzle) : readBest(levelData);
     bestEl.textContent = best || "—";
