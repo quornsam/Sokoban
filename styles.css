@@ -904,7 +904,7 @@ body.maker-testing .level-picker{display:none!important}
 @media(max-width:1120px){.maker-generator-options{grid-template-columns:1fr 1fr}.maker-generator-options .maker-check-option:last-child{grid-column:1/-1}}
 @media(max-width:560px){.complete-actions{display:grid;grid-template-columns:1fr}.complete-secondary,.complete-primary{width:100%;min-width:0}}
 
-/* BOXXY v215 — Level Pack Builder library filters, columns and vertical resizing. */
+/* BOXXY v216 — fixed Saved Level Library grid sizing and exact column selection. */
 .maker-pack-builder-launch{display:grid;grid-template-columns:minmax(0,1fr);gap:4px;margin-top:7px;padding-top:7px;border-top:1px solid #b6aa98}
 .maker-pack-builder-launch button{min-height:34px;padding:0 10px;border:2px solid var(--ink);background:var(--yellow);display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:9px;font-weight:1000;letter-spacing:.075em;box-shadow:3px 3px 0 var(--ink)}
 .maker-pack-builder-launch button:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
@@ -949,8 +949,9 @@ body.maker-testing .level-picker{display:none!important}
 .pack-workspace-heading p{margin:0;max-width:520px;text-align:right;color:#665d52;font-size:8px;line-height:1.3;font-weight:760}
 
 .pack-level-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;align-items:start}
-.pack-library-grid{height:238px;min-height:170px;max-height:none;overflow:auto;resize:vertical;padding:2px 13px 9px 2px;align-content:start;border-bottom:1px solid #b8ac9b;scrollbar-gutter:stable}
-.pack-library-grid.is-expanded{height:540px}
+.pack-library-viewport{height:238px;min-height:170px;max-height:none;overflow:auto;resize:vertical;padding:2px 13px 9px 2px;border-bottom:1px solid #b8ac9b;scrollbar-gutter:stable}
+.pack-library-viewport.is-expanded{height:540px}
+.pack-library-grid{width:100%;align-content:start;grid-auto-flow:row;grid-auto-rows:max-content}
 .pack-library-resize-hint{display:block;margin-top:4px;color:#71675b;text-align:right;font-size:6px;font-weight:850;letter-spacing:.045em}
 .pack-order-grid{min-height:226px;padding:8px;border:2px dashed #8f8475;background:#ded4c5;align-content:start}
 .pack-drop-zone.drag-over{border-color:var(--blue);background:#d8e1ed;box-shadow:inset 0 0 0 3px rgba(32,83,154,.16)}
@@ -1054,8 +1055,8 @@ body.pack-builder-open{overflow:hidden}
   .pack-library-controls>input{grid-column:1/-1}
   .pack-workspace-heading p{text-align:left}
   .pack-level-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .pack-library-grid{height:360px;min-height:220px;resize:none}
-  .pack-library-grid.is-expanded{height:620px}
+  .pack-library-viewport{height:360px;min-height:220px;resize:none}
+  .pack-library-viewport.is-expanded{height:620px}
   .pack-metadata-grid,.daily-settings{grid-template-columns:1fr}
   .pack-description-field{grid-column:auto}
   .pack-workspace-actions{grid-template-columns:1fr}

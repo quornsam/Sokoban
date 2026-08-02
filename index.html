@@ -93,7 +93,7 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=215">
+<link rel="stylesheet" href="styles.css?v=216">
 <link rel="stylesheet" href="how-to-play.css?v=154">
 <link rel="preload" as="image" href="assets/board/boxes/box-default-yellow.png">
 <link rel="preload" as="image" href="assets/board/goals/goal-red.png">
@@ -584,7 +584,9 @@
           <button id="packLibraryExpandBtn" class="pack-library-expand" type="button" aria-expanded="false">EXPAND ↓</button>
         </div>
       </header>
-      <div id="packLibraryGrid" class="pack-level-grid pack-library-grid" aria-label="Saved levels available to add"></div>
+      <div id="packLibraryViewport" class="pack-library-viewport">
+        <div id="packLibraryGrid" class="pack-level-grid pack-library-grid" aria-label="Saved levels available to add"></div>
+      </div>
       <small class="pack-library-resize-hint">Drag the lower-right edge to resize the library vertically.</small>
     </section>
 
@@ -784,7 +786,7 @@
 <script src="daily-puzzles/boxxy-daily-loader.js?v=207"></script>
 <script src="levels.js?v=200"></script>
 <script src="boxxy.js?v=213"></script>
-<script src="pack-builder.js?v=215"></script>
+<script src="pack-builder.js?v=216"></script>
 <script src="how-to-play.js?v=153"></script>
 </body>
 </html>

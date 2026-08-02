@@ -3,7 +3,7 @@
  * Copyright © 2026 Sam Cornwell. All rights reserved.
  * Personal non-commercial use only. See LICENSE.md.
  */
-/* BOXXY v215 — library usage states, filtering, columns and vertical expansion. */
+/* BOXXY v216 — fixed library grid rows and exact column selection. */
 (() => {
   "use strict";
 
@@ -21,6 +21,7 @@
   const dailyWorkspace = document.getElementById("packBuilderDailyWorkspace");
   const statusEl = document.getElementById("packBuilderStatus");
 
+  const libraryViewport = document.getElementById("packLibraryViewport");
   const libraryGrid = document.getElementById("packLibraryGrid");
   const librarySearch = document.getElementById("packLibrarySearch");
   const libraryCount = document.getElementById("packLibraryCount");
@@ -216,20 +217,14 @@
     }
   }
 
-  function responsiveLibraryColumns() {
-    const requested = clampLibraryColumns(libraryView.columns);
-    if (window.innerWidth <= 760) return Math.min(requested, 2);
-    if (window.innerWidth <= 1040) return Math.min(requested, 4);
-    if (window.innerWidth <= 1320) return Math.min(requested, 5);
-    return requested;
-  }
-
   function applyLibraryView() {
     if (libraryColumnsSelect) libraryColumnsSelect.value = String(clampLibraryColumns(libraryView.columns));
     if (libraryHideUsed) libraryHideUsed.checked = libraryView.hideUsed;
     if (libraryGrid) {
-      libraryGrid.style.gridTemplateColumns = `repeat(${responsiveLibraryColumns()}, minmax(0, 1fr))`;
-      libraryGrid.classList.toggle("is-expanded", libraryView.expanded);
+      libraryGrid.style.gridTemplateColumns = `repeat(${clampLibraryColumns(libraryView.columns)}, minmax(0, 1fr))`;
+    }
+    if (libraryViewport) {
+      libraryViewport.classList.toggle("is-expanded", libraryView.expanded);
     }
     if (libraryExpandBtn) {
       libraryExpandBtn.setAttribute("aria-expanded", libraryView.expanded ? "true" : "false");
@@ -2046,11 +2041,10 @@ window.BOXXY_DAILY_SCHEDULE = Object.freeze(${JSON.stringify(schedule, null, 2)}
   });
   libraryExpandBtn?.addEventListener("click", () => {
     libraryView.expanded = !libraryView.expanded;
-    libraryGrid.style.height = "";
+    if (libraryViewport) libraryViewport.style.height = "";
     persistLibraryView();
     applyLibraryView();
   });
-  window.addEventListener("resize", applyLibraryView, { passive: true });
   packClearBtn.addEventListener("click", clearPack);
   packCopyBtn.addEventListener("click", copyPack);
   packExportBtn.addEventListener("click", exportPack);
