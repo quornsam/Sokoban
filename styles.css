@@ -78,6 +78,9 @@ button{font:inherit;color:inherit;cursor:pointer}
 .complete-card p{margin:0 0 25px;max-width:30ch;font-size:15px;line-height:1.42;font-weight:720}
 
 .complete-actions{display:flex;align-items:flex-start;flex-wrap:wrap;gap:12px}
+.completion-action-set[hidden]{display:none!important}
+.standard-completion-actions{display:flex;align-items:flex-start;flex-wrap:wrap;gap:12px;min-width:0}
+.daily-completion-actions{width:min(620px,100%);display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 .complete-secondary{min-height:58px;padding:12px 16px;border:2px solid var(--ink);background:var(--yellow);color:var(--ink);font-weight:950;letter-spacing:.08em;box-shadow:5px 5px 0 var(--blue)}
 .complete-secondary:hover{transform:translate(-2px,-2px);box-shadow:7px 7px 0 var(--blue)}
 .complete-secondary:active{transform:translate(3px,3px);box-shadow:2px 2px 0 var(--blue)}
@@ -903,7 +906,7 @@ body.maker-testing .level-picker{display:none!important}
 
 /* v133 inherited level-maker additions */
 @media(max-width:1120px){.maker-generator-options{grid-template-columns:1fr 1fr}.maker-generator-options .maker-check-option:last-child{grid-column:1/-1}}
-@media(max-width:560px){.complete-actions{display:grid;grid-template-columns:1fr}.complete-secondary,.complete-primary{width:100%;min-width:0}}
+@media(max-width:560px){.complete-actions{display:grid;grid-template-columns:1fr}.standard-completion-actions{width:100%}.complete-secondary,.complete-primary{width:100%;min-width:0}}
 
 /* BOXXY v216 — fixed Saved Level Library grid sizing and exact column selection. */
 .maker-pack-builder-launch{display:grid;grid-template-columns:minmax(0,1fr);gap:4px;margin-top:7px;padding-top:7px;border-top:1px solid #b6aa98}
@@ -4617,14 +4620,8 @@ body.maker-editor-fullscreen{overflow:hidden}
 
 .complete-card.daily-complete{width:min(900px,92vw)}
 
-.complete-card.daily-complete .complete-actions{
-  width:min(620px,100%);
-  display:grid;
-  grid-template-columns:repeat(2,minmax(0,1fr));
-  gap:12px;
-}
+.complete-card.daily-complete .complete-actions{width:min(620px,100%)}
 .daily-complete-choice{width:100%;min-width:0}
-.daily-complete-choice[hidden]{display:none!important}
 .daily-complete-pack-choice{background:var(--ink);color:#fff;box-shadow:6px 6px 0 var(--red)}
 .daily-complete-archive-choice{background:var(--green);color:#fff;box-shadow:6px 6px 0 var(--yellow)}
 .daily-complete-archive-choice b{background:#fff;color:var(--green)}
@@ -4660,7 +4657,7 @@ body.maker-editor-fullscreen{overflow:hidden}
   .daily-invite-play{grid-row:1}
   .daily-invite-later{grid-row:2}
   .complete-card.daily-complete{width:min(550px,calc(100vw - 16px))}
-  .complete-card.daily-complete .complete-actions{grid-template-columns:1fr}
+  .daily-completion-actions{grid-template-columns:1fr}
   .complete-card.daily-complete .complete-art{
     height:clamp(82px,15dvh,120px);
     min-height:0;
@@ -4742,7 +4739,7 @@ body.maker-editor-fullscreen{overflow:hidden}
     min-height:38px;
     padding:6px 9px;
   }
-  .complete-card.daily-complete .complete-actions{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .daily-completion-actions{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
   .complete-card.daily-complete .complete-primary{
     min-height:42px;
     min-width:0;
