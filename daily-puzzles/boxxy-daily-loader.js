@@ -1,4 +1,4 @@
-/* BOXXY v207 — loads the Daily Boxxy month file that matches today or ?dailyDate=. */
+/* BOXXY v217 — loads the current Daily month and every earlier month needed by the playable archive. */
 (() => {
   "use strict";
 
@@ -10,6 +10,19 @@
     const day = String(date.getDate()).padStart(2, "0");
     return `${year}-${month}-${day}`;
   };
+  const monthRange = (startMonth, endMonth) => {
+    const matchStart = /^(\d{4})-(\d{2})$/.exec(startMonth);
+    const matchEnd = /^(\d{4})-(\d{2})$/.exec(endMonth);
+    if (!matchStart || !matchEnd) return [];
+    const cursor = new Date(Number(matchStart[1]), Number(matchStart[2]) - 1, 1, 12);
+    const end = new Date(Number(matchEnd[1]), Number(matchEnd[2]) - 1, 1, 12);
+    const months = [];
+    while (cursor <= end && months.length < 1200) {
+      months.push(`${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}`);
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+    return months;
+  };
 
   let requestedDate = "";
   try {
@@ -19,9 +32,18 @@
 
   const today = localDateKey();
   const targetDate = requestedDate || (today < launchDate ? launchDate : today);
-  const monthKey = targetDate.slice(0, 7);
+  const targetMonth = targetDate.slice(0, 7);
+  const months = monthRange(launchDate.slice(0, 7), targetMonth);
 
   window.BOXXY_DAILY_LAUNCH_DATE = launchDate;
-  window.BOXXY_DAILY_MONTH_KEY = monthKey;
-  document.write(`<script src="daily-puzzles/boxxy-daily-puzzles-${monthKey}.js"><\/script>`);
+  window.BOXXY_DAILY_MONTH_KEY = targetMonth;
+  window.BOXXY_DAILY_SCHEDULES = [];
+
+  months.forEach(monthKey => {
+    document.write('<script>window.BOXXY_DAILY_SCHEDULE=null;<\/script>');
+    document.write(`<script src="daily-puzzles/boxxy-daily-puzzles-${monthKey}.js"><\/script>`);
+    document.write(`<script>(function(){var schedule=window.BOXXY_DAILY_SCHEDULE;if(schedule&&schedule.frontEndEnabled!==false&&window.BOXXY_DAILY_SCHEDULES){window.BOXXY_DAILY_SCHEDULES.push(schedule);}})();<\/script>`);
+  });
+
+  document.write(`<script>(function(){var schedules=Array.isArray(window.BOXXY_DAILY_SCHEDULES)?window.BOXXY_DAILY_SCHEDULES:[];window.BOXXY_DAILY_SCHEDULES=Object.freeze(schedules.slice());window.BOXXY_DAILY_SCHEDULE=schedules.find(function(schedule){return String(schedule&&schedule.month||"")==="${targetMonth}";})||schedules[schedules.length-1]||null;})();<\/script>`);
 })();

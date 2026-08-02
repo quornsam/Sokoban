@@ -26,6 +26,7 @@
 <link rel="preload" as="image" href="assets/ui/boxxy-splash.png" fetchpriority="high">
 <script>
   /* BOXXY v196 — reliable first-load splash and startup loading gate. */
+  /* BOXXY v217 — Daily archive, past-date replay, saved scores and next-puzzle countdown. */
   /* BOXXY v205 — shorter mobile Daily Complete modal and single-line heading. */
   /* BOXXY v203 — corrected Daily share emoji, copy-text control and coming-soon wording. */
   /* BOXXY v202 — optically aligned, equally spaced streak and completion badges. */
@@ -93,7 +94,7 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=216">
+<link rel="stylesheet" href="styles.css?v=217">
 <link rel="stylesheet" href="how-to-play.css?v=154">
 <link rel="preload" as="image" href="assets/board/boxes/box-default-yellow.png">
 <link rel="preload" as="image" href="assets/board/goals/goal-red.png">
@@ -298,12 +299,34 @@
       <div>
         <span class="complete-kicker" data-pack-context-label>BOXXY ORIGINALS</span>
         <h2 id="packModalTitle">PUZZLE PACKS</h2>
-        <p>BOXXY Original and Microban are always available. Complete either 50-level pack to unlock the additional collections. Progress is stored separately for each pack.</p>
+        <p>Choose BOXXY Dailys or a puzzle pack. BOXXY Original and Microban are always available; complete either 50-level pack to unlock the additional collections.</p>
       </div>
       <button id="packCloseBtn" class="pack-close" type="button" aria-label="Close puzzle packs">×</button>
     </header>
     <div id="packGrid" class="pack-grid" aria-label="Available puzzle packs"></div>
     <p class="pack-license-note">Uploaded collections retain their original titles, authorship and non-commercial distribution terms.</p>
+  </section>
+</div>
+
+<div id="dailyArchiveModal" class="modal daily-archive-modal" hidden>
+  <section class="daily-archive-card" role="dialog" aria-modal="true" aria-labelledby="dailyArchiveTitle">
+    <header class="daily-archive-head">
+      <div>
+        <span class="complete-kicker">BOXXY DAILYS</span>
+        <h2 id="dailyArchiveTitle">DAILY PUZZLES</h2>
+        <p>Play today’s puzzle or return to an earlier date. Future puzzles remain hidden until their local release time.</p>
+      </div>
+      <button id="dailyArchiveCloseBtn" class="daily-archive-close" type="button" aria-label="Close Daily Puzzles">×</button>
+    </header>
+    <div class="daily-archive-summary-row">
+      <p id="dailyArchiveSummary" class="daily-archive-summary">YOUR DAILY HISTORY</p>
+      <div class="daily-archive-countdown" aria-live="polite">
+        <span id="dailyArchiveCountdownLabel">NEXT DAILY IN</span>
+        <strong id="dailyArchiveCountdown">--:--:--</strong>
+        <small id="dailyArchiveCountdownDate"></small>
+      </div>
+    </div>
+    <div id="dailyArchiveMonths" class="daily-archive-months" aria-label="Available Daily Boxxy puzzles"></div>
   </section>
 </div>
 
@@ -783,9 +806,9 @@
 <button id="legalBtn" class="legal-link" type="button" aria-haspopup="dialog" aria-controls="legalModal">© 2026 SAM CORNWELL · LEGAL</button>
 <audio id="bgMusic" src="assets/audio/cracked-ivory-drift.mp3" preload="auto" autoplay loop playsinline></audio>
 
-<script src="daily-puzzles/boxxy-daily-loader.js?v=207"></script>
+<script src="daily-puzzles/boxxy-daily-loader.js?v=217"></script>
 <script src="levels.js?v=200"></script>
-<script src="boxxy.js?v=213"></script>
+<script src="boxxy.js?v=217"></script>
 <script src="pack-builder.js?v=216"></script>
 <script src="how-to-play.js?v=153"></script>
 </body>
