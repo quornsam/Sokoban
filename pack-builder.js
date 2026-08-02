@@ -3,7 +3,7 @@
  * Copyright © 2026 Sam Cornwell. All rights reserved.
  * Personal non-commercial use only. See LICENSE.md.
  */
-/* BOXXY v214 — fixed Monday–Sunday Daily Boxxy calendar builder. */
+/* BOXXY v215 — library usage states, filtering, columns and vertical expansion. */
 (() => {
   "use strict";
 
@@ -24,6 +24,9 @@
   const libraryGrid = document.getElementById("packLibraryGrid");
   const librarySearch = document.getElementById("packLibrarySearch");
   const libraryCount = document.getElementById("packLibraryCount");
+  const libraryColumnsSelect = document.getElementById("packLibraryColumnsSelect");
+  const libraryHideUsed = document.getElementById("packLibraryHideUsed");
+  const libraryExpandBtn = document.getElementById("packLibraryExpandBtn");
   const packGrid = document.getElementById("packOrderGrid");
   const dailyGrid = document.getElementById("dailyOrderGrid");
   const packLevelCount = document.getElementById("packLevelCount");
@@ -52,6 +55,7 @@
   const ACTIVE_DRAFT_KEY = "boxxy-pack-builder-active-v1";
   const DAILY_DRAFT_KEY = "boxxy-daily-puzzle-draft-v1";
   const DAILY_MONTHS_KEY = "boxxy-daily-puzzle-months-v2";
+  const LIBRARY_VIEW_KEY = "boxxy-pack-builder-library-view-v1";
   const DAILY_SEQUENCE_ANCHOR_DATE = "2026-08-30";
   const DAILY_SEQUENCE_ANCHOR = 1;
   const DAILY_FIRST_MONTH = "2026-08";
@@ -77,6 +81,7 @@
   let pendingPackClear = false;
   let pendingDailyClear = false;
   let confirmationTimer = 0;
+  let libraryView = { columns: 6, hideUsed: false, expanded: false };
 
   function newId(prefix = "item") {
     if (globalThis.crypto?.randomUUID) return `${prefix}-${globalThis.crypto.randomUUID()}`;
@@ -185,6 +190,51 @@
 
   function clampPackColumns(value) {
     return Math.max(1, Math.min(8, Math.round(Number(value) || 6)));
+  }
+
+  function clampLibraryColumns(value) {
+    return Math.max(1, Math.min(8, Math.round(Number(value) || 6)));
+  }
+
+  function normaliseLibraryView(value) {
+    return {
+      columns: clampLibraryColumns(value?.columns),
+      hideUsed: value?.hideUsed === true,
+      expanded: value?.expanded === true
+    };
+  }
+
+  function readLibraryView() {
+    return normaliseLibraryView(safeParse(LIBRARY_VIEW_KEY, null));
+  }
+
+  function persistLibraryView() {
+    try {
+      localStorage.setItem(LIBRARY_VIEW_KEY, JSON.stringify(libraryView));
+    } catch (_) {
+      // View preferences are optional; the builder remains usable without them.
+    }
+  }
+
+  function responsiveLibraryColumns() {
+    const requested = clampLibraryColumns(libraryView.columns);
+    if (window.innerWidth <= 760) return Math.min(requested, 2);
+    if (window.innerWidth <= 1040) return Math.min(requested, 4);
+    if (window.innerWidth <= 1320) return Math.min(requested, 5);
+    return requested;
+  }
+
+  function applyLibraryView() {
+    if (libraryColumnsSelect) libraryColumnsSelect.value = String(clampLibraryColumns(libraryView.columns));
+    if (libraryHideUsed) libraryHideUsed.checked = libraryView.hideUsed;
+    if (libraryGrid) {
+      libraryGrid.style.gridTemplateColumns = `repeat(${responsiveLibraryColumns()}, minmax(0, 1fr))`;
+      libraryGrid.classList.toggle("is-expanded", libraryView.expanded);
+    }
+    if (libraryExpandBtn) {
+      libraryExpandBtn.setAttribute("aria-expanded", libraryView.expanded ? "true" : "false");
+      libraryExpandBtn.textContent = libraryView.expanded ? "COLLAPSE ↑" : "EXPAND ↓";
+    }
   }
 
   function effectiveEntryAuthor(entry) {
@@ -574,6 +624,7 @@
     renderDailyMonthSelect();
     updateDailyMonthFields();
     renderDailyGrid();
+    renderLibrary();
     persistDaily(false);
     if (announce) setStatus(`Editing ${monthLabel(monthKey)}. Export creates ${dailyPublishFilename(monthKey)}.`, "success");
   }
@@ -629,6 +680,8 @@
 
   function initialiseState() {
     savedLevels = readSavedLevels();
+    libraryView = readLibraryView();
+    applyLibraryView();
     drafts = readDrafts();
     if (!drafts.length) {
       drafts = [defaultDraft()];
@@ -886,12 +939,33 @@
     else persistDrafts(false);
   }
 
-  function createLibraryCard(record) {
+  function recordMatchesEntry(record, entry) {
+    if (record?.id && entry?.sourceSaveId) return record.id === entry.sourceSaveId;
+    return String(record?.name || "") === String(entry?.name || "")
+      && normaliseLayout(record?.layout).join("\n") === normaliseLayout(entry?.layout).join("\n");
+  }
+
+  function recordUsage(record) {
+    const entries = activeTab === "daily" ? dailyDraft?.entries || [] : activeDraft?.entries || [];
+    return entries.some(entry => recordMatchesEntry(record, entry));
+  }
+
+  function createLibraryCard(record, isUsed = recordUsage(record)) {
     const card = document.createElement("article");
     card.className = "pack-level-card pack-library-card";
-    card.draggable = true;
+    card.classList.toggle("is-used", isUsed);
+    card.draggable = !isUsed;
     card.dataset.sourceId = record.id;
-    card.title = `Drag “${record.name}” into the current ${activeTab === "daily" ? "Daily Puzzle calendar" : "level pack"}.`;
+    card.title = isUsed
+      ? `“${record.name}” is already in the current ${activeTab === "daily" ? "Daily Puzzle month" : "level pack"}.`
+      : `Drag “${record.name}” into the current ${activeTab === "daily" ? "Daily Puzzle calendar" : "level pack"}.`;
+
+    if (isUsed) {
+      const usedBadge = document.createElement("b");
+      usedBadge.className = "pack-library-used-badge";
+      usedBadge.textContent = activeTab === "daily" ? "IN CURRENT MONTH" : "IN CURRENT PACK";
+      card.appendChild(usedBadge);
+    }
 
     const canvas = document.createElement("canvas");
     canvas.className = "pack-level-preview";
@@ -931,16 +1005,21 @@
     const add = stopInteractiveDrag(document.createElement("button"));
     add.type = "button";
     add.className = "pack-card-add";
-    add.textContent = activeTab === "daily" ? "ADD TO FIRST EMPTY DAY" : "ADD TO PACK";
+    add.disabled = isUsed;
+    add.textContent = isUsed
+      ? (activeTab === "daily" ? "ALREADY IN THIS MONTH" : "ALREADY IN THIS PACK")
+      : (activeTab === "daily" ? "ADD TO FIRST EMPTY DAY" : "ADD TO PACK");
     add.addEventListener("click", event => {
       event.stopPropagation();
-      addSavedLevel(record.id, activeTab);
+      if (!isUsed) addSavedLevel(record.id, activeTab);
     });
     body.append(title, meta, directActions, add);
     card.append(canvas, body);
 
-    card.addEventListener("dragstart", event => beginDrag(event, { source: "library", sourceId: record.id }));
-    card.addEventListener("dragend", finishDrag);
+    if (!isUsed) {
+      card.addEventListener("dragstart", event => beginDrag(event, { source: "library", sourceId: record.id }));
+      card.addEventListener("dragend", finishDrag);
+    }
     return card;
   }
 
@@ -1190,19 +1269,31 @@
   }
 
   function renderLibrary() {
+    applyLibraryView();
     const query = librarySearch.value.trim().toLocaleLowerCase("en-GB");
-    const matches = query
+    const searched = query
       ? savedLevels.filter(record => record.name.toLocaleLowerCase("en-GB").includes(query))
-      : savedLevels;
+      : savedLevels.slice();
+    const usage = new Map(searched.map(record => [record.id, recordUsage(record)]));
+    const usedCount = savedLevels.reduce((count, record) => count + (recordUsage(record) ? 1 : 0), 0);
+    const matches = libraryView.hideUsed
+      ? searched.filter(record => !usage.get(record.id))
+      : searched;
     libraryGrid.innerHTML = "";
     if (!matches.length) {
-      libraryGrid.appendChild(emptyGridMessage(savedLevels.length ? "No saved level matches that search." : "Save levels in the Level Maker before building a pack."));
+      let message = "Save levels in the Level Maker before building a pack.";
+      if (savedLevels.length && query) message = libraryView.hideUsed
+        ? "No unused saved level matches that search."
+        : "No saved level matches that search.";
+      else if (savedLevels.length && libraryView.hideUsed) message = `Every saved level is already in the current ${activeTab === "daily" ? "Daily Puzzle month" : "level pack"}.`;
+      libraryGrid.appendChild(emptyGridMessage(message));
     } else {
       const fragment = document.createDocumentFragment();
-      matches.forEach(record => fragment.appendChild(createLibraryCard(record)));
+      matches.forEach(record => fragment.appendChild(createLibraryCard(record, usage.get(record.id))));
       libraryGrid.appendChild(fragment);
     }
-    libraryCount.textContent = `${matches.length} OF ${savedLevels.length} SAVED ${savedLevels.length === 1 ? "LEVEL" : "LEVELS"}`;
+    const targetLabel = activeTab === "daily" ? "IN MONTH" : "IN PACK";
+    libraryCount.textContent = `${matches.length} SHOWN · ${usedCount} ${targetLabel} · ${savedLevels.length} SAVED`;
   }
 
   function renderPackGrid() {
@@ -1325,6 +1416,7 @@
       persistDrafts(false);
       renderPackGrid();
     }
+    renderLibrary();
     setStatus(message, "success");
   }
 
@@ -1844,6 +1936,7 @@ window.BOXXY_DAILY_SCHEDULE = Object.freeze(${JSON.stringify(schedule, null, 2)}
     resetConfirmations();
     persistDrafts(false);
     renderPackGrid();
+    renderLibrary();
     setStatus("Cleared the level pack order. Saved Level Maker puzzles were not deleted.", "success");
   }
 
@@ -1861,6 +1954,7 @@ window.BOXXY_DAILY_SCHEDULE = Object.freeze(${JSON.stringify(schedule, null, 2)}
     resetConfirmations();
     persistDaily(false);
     renderDailyGrid();
+    renderLibrary();
     setStatus("Cleared the private Daily Puzzle calendar for this month. Saved Level Maker puzzles were not deleted.", "success");
   }
 
@@ -1940,6 +2034,23 @@ window.BOXXY_DAILY_SCHEDULE = Object.freeze(${JSON.stringify(schedule, null, 2)}
   });
 
   librarySearch.addEventListener("input", renderLibrary);
+  libraryColumnsSelect?.addEventListener("change", () => {
+    libraryView.columns = clampLibraryColumns(libraryColumnsSelect.value);
+    persistLibraryView();
+    applyLibraryView();
+  });
+  libraryHideUsed?.addEventListener("change", () => {
+    libraryView.hideUsed = libraryHideUsed.checked;
+    persistLibraryView();
+    renderLibrary();
+  });
+  libraryExpandBtn?.addEventListener("click", () => {
+    libraryView.expanded = !libraryView.expanded;
+    libraryGrid.style.height = "";
+    persistLibraryView();
+    applyLibraryView();
+  });
+  window.addEventListener("resize", applyLibraryView, { passive: true });
   packClearBtn.addEventListener("click", clearPack);
   packCopyBtn.addEventListener("click", copyPack);
   packExportBtn.addEventListener("click", exportPack);

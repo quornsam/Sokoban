@@ -904,7 +904,7 @@ body.maker-testing .level-picker{display:none!important}
 @media(max-width:1120px){.maker-generator-options{grid-template-columns:1fr 1fr}.maker-generator-options .maker-check-option:last-child{grid-column:1/-1}}
 @media(max-width:560px){.complete-actions{display:grid;grid-template-columns:1fr}.complete-secondary,.complete-primary{width:100%;min-width:0}}
 
-/* BOXXY v214 — Level Pack Builder with fixed Monday–Sunday Daily calendar. */
+/* BOXXY v215 — Level Pack Builder library filters, columns and vertical resizing. */
 .maker-pack-builder-launch{display:grid;grid-template-columns:minmax(0,1fr);gap:4px;margin-top:7px;padding-top:7px;border-top:1px solid #b6aa98}
 .maker-pack-builder-launch button{min-height:34px;padding:0 10px;border:2px solid var(--ink);background:var(--yellow);display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:9px;font-weight:1000;letter-spacing:.075em;box-shadow:3px 3px 0 var(--ink)}
 .maker-pack-builder-launch button:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
@@ -936,16 +936,30 @@ body.maker-testing .level-picker{display:none!important}
 .pack-builder-library,.pack-builder-workspace{margin-top:9px;padding:10px;border:2px solid var(--ink);background:#eee5d8}
 .pack-builder-library>header,.pack-workspace-heading{display:flex;align-items:end;justify-content:space-between;gap:14px;margin-bottom:8px}
 .pack-builder-library h3,.pack-workspace-heading h3{margin:0;font-size:11px;line-height:1;letter-spacing:.12em}
-.pack-builder-library header span,.pack-workspace-heading span{display:block;margin-top:4px;color:#665d52;font-size:8px;font-weight:950;letter-spacing:.08em}
-.pack-builder-library header input{width:min(320px,38vw);height:33px;padding:0 9px;border:1px solid var(--ink);background:#fff9ef;color:var(--ink);font-size:9px;font-weight:850}
+.pack-builder-library header>div:first-child span,.pack-workspace-heading span{display:block;margin-top:4px;color:#665d52;font-size:8px;font-weight:950;letter-spacing:.08em}
+.pack-library-controls{display:grid;grid-template-columns:minmax(190px,1fr) 84px auto auto;align-items:end;gap:6px;flex:1 1 auto;max-width:760px}
+.pack-library-controls>input{width:100%;height:33px;padding:0 9px;border:1px solid var(--ink);background:#fff9ef;color:var(--ink);font-size:9px;font-weight:850}
+.pack-library-columns{display:grid;grid-template-rows:auto 33px;gap:3px;color:#514a42;font-size:6.5px;font-weight:1000;letter-spacing:.075em}
+.pack-library-columns select{width:100%;height:33px;padding:0 6px;border:1px solid var(--ink);background:#fff9ef;color:var(--ink);font-family:inherit;font-size:9px;font-weight:900}
+.pack-library-hide-used{height:33px;display:flex;align-items:center;justify-content:center;gap:6px;padding:0 9px;border:1px solid var(--ink);background:#fff8ed;cursor:pointer;white-space:nowrap}
+.pack-library-hide-used input{width:14px;height:14px;margin:0;accent-color:var(--blue)}
+.pack-library-hide-used span{margin:0!important;color:var(--ink)!important;font-size:7px!important;font-weight:1000!important;letter-spacing:.055em!important}
+.pack-library-expand{height:33px;padding:0 10px;border:1px solid var(--ink);background:var(--yellow);color:var(--ink);font-size:7px;font-weight:1000;letter-spacing:.045em;white-space:nowrap}
+.pack-library-expand[aria-expanded="true"]{background:var(--blue);color:#fff}
 .pack-workspace-heading p{margin:0;max-width:520px;text-align:right;color:#665d52;font-size:8px;line-height:1.3;font-weight:760}
 
 .pack-level-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;align-items:start}
-.pack-library-grid{max-height:238px;overflow:auto;padding:2px 3px 5px 2px}
+.pack-library-grid{height:238px;min-height:170px;max-height:none;overflow:auto;resize:vertical;padding:2px 13px 9px 2px;align-content:start;border-bottom:1px solid #b8ac9b;scrollbar-gutter:stable}
+.pack-library-grid.is-expanded{height:540px}
+.pack-library-resize-hint{display:block;margin-top:4px;color:#71675b;text-align:right;font-size:6px;font-weight:850;letter-spacing:.045em}
 .pack-order-grid{min-height:226px;padding:8px;border:2px dashed #8f8475;background:#ded4c5;align-content:start}
 .pack-drop-zone.drag-over{border-color:var(--blue);background:#d8e1ed;box-shadow:inset 0 0 0 3px rgba(32,83,154,.16)}
 .pack-level-card{position:relative;min-width:0;overflow:hidden;border:2px solid var(--ink);background:#fff8ed;box-shadow:3px 3px 0 rgba(23,23,25,.24);cursor:grab;user-select:none}
 .pack-level-card.dragging{opacity:.18;cursor:grabbing;transform:scale(.975)}
+.pack-library-card.is-used{filter:grayscale(.88);opacity:.46;cursor:default;background:#d5d0c7;box-shadow:1px 1px 0 rgba(23,23,25,.2)}
+.pack-library-card.is-used:hover{opacity:.58}
+.pack-library-card.is-used .pack-card-add{background:#cbc6bc;color:#5d5750;cursor:not-allowed}
+.pack-library-used-badge{position:absolute;z-index:9;right:5px;top:5px;max-width:calc(100% - 10px);padding:4px 6px;border:1px solid var(--ink);background:var(--ink);color:#fff;font-size:6.2px;line-height:1;font-weight:1000;letter-spacing:.055em;box-shadow:2px 2px 0 rgba(23,23,25,.28);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pack-level-preview{display:block;width:100%;height:auto;aspect-ratio:300/190;border-bottom:1px solid var(--ink);background:#d7ccbc}
 .pack-level-card-body{padding:7px}
 .pack-level-card-body>strong{display:-webkit-box;min-height:2.15em;overflow:hidden;-webkit-box-orient:vertical;-webkit-line-clamp:2;font-size:9px;line-height:1.08;font-weight:1000}
@@ -1036,10 +1050,12 @@ body.pack-builder-open{overflow:hidden}
   .pack-builder-draft-controls label{grid-column:1/-1}
   .pack-builder-draft-controls button{min-height:34px}
   .pack-builder-library>header,.pack-workspace-heading{align-items:stretch;flex-direction:column}
-  .pack-builder-library header input{width:100%}
+  .pack-library-controls{grid-template-columns:1fr 82px auto;max-width:none}
+  .pack-library-controls>input{grid-column:1/-1}
   .pack-workspace-heading p{text-align:left}
   .pack-level-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .pack-library-grid{max-height:360px}
+  .pack-library-grid{height:360px;min-height:220px;resize:none}
+  .pack-library-grid.is-expanded{height:620px}
   .pack-metadata-grid,.daily-settings{grid-template-columns:1fr}
   .pack-description-field{grid-column:auto}
   .pack-workspace-actions{grid-template-columns:1fr}
