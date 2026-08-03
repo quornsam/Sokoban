@@ -6,7 +6,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: 222,
+  version: 223,
   lastUpdated: "2026-08-03"
 });
 /* Stored solver routes are kept separate from the authored pack data. */
@@ -39,6 +39,7 @@ window.BOXXY_RELEASE = Object.freeze({
   });
 })();
 
+/* BOXXY v223 — Daily share floor uses the white large square emoji. */
 /* BOXXY v222 — legal release information now comes from BOXXY_RELEASE. */
 /* BOXXY v221 — Daily streaks are awarded only by the current Daily puzzle. */
 /* BOXXY v217 — Daily archive, past-date replay, saved scores and next-puzzle countdown. */
@@ -4408,7 +4409,7 @@ window.BOXXY_RELEASE = Object.freeze({
     if (!source.length) return "";
     const width = Math.max(...source.map(row => row.length));
     const emoji = {
-      " ": "◻️",
+      " ": "⬜️",
       "#": "⬛️",
       "$": "🟨",
       ".": "⭕️",
@@ -4417,7 +4418,7 @@ window.BOXXY_RELEASE = Object.freeze({
       "+": "🧍‍♂️"
     };
     return source
-      .map(row => row.padEnd(width, " ").split("").map(cell => emoji[cell] || "◻️").join(""))
+      .map(row => row.padEnd(width, " ").split("").map(cell => emoji[cell] || "⬜️").join(""))
       .join("\n");
   }
 
