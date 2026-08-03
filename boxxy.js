@@ -3,6 +3,12 @@
  * Copyright © 2026 Sam Cornwell. All rights reserved.
  * Personal non-commercial use only. See LICENSE.md.
  */
+/* Single source of truth for the public release information.
+   Update only this object when a new BOXXY version is published. */
+window.BOXXY_RELEASE = Object.freeze({
+  version: 222,
+  lastUpdated: "2026-08-03"
+});
 /* Stored solver routes are kept separate from the authored pack data. */
 (() => {
   "use strict";
@@ -33,6 +39,7 @@
   });
 })();
 
+/* BOXXY v222 — legal release information now comes from BOXXY_RELEASE. */
 /* BOXXY v221 — Daily streaks are awarded only by the current Daily puzzle. */
 /* BOXXY v217 — Daily archive, past-date replay, saved scores and next-puzzle countdown. */
 /* BOXXY v213 — opaque 3D floor, slower turns and a continuous pull-back camera. */
@@ -1653,6 +1660,8 @@
   const legalBtn = document.getElementById("legalBtn");
   const legalModal = document.getElementById("legalModal");
   const legalCloseBtn = document.getElementById("legalCloseBtn");
+  const legalVersion = document.getElementById("legalVersion");
+  const legalLastUpdated = document.getElementById("legalLastUpdated");
   const autoSolveBtn = document.getElementById("autoSolveBtn");
   const cancelGuidedBtn = document.getElementById("cancelGuidedBtn");
   const instruction = document.querySelector(".instruction");
@@ -1748,7 +1757,6 @@
 
   /* BOXXY v175 — deliberately limited, anonymous gameplay analytics.
      No puzzle layouts, typed names, email addresses or editor content are sent. */
-  const BOXXY_ANALYTICS_VERSION = 200;
 
   function boxxyAnalyticsOrientation() {
     const type = String(window.screen?.orientation?.type || "");
@@ -1793,7 +1801,7 @@
     try {
       const payload = {
         game: "BOXXY",
-        game_version: BOXXY_ANALYTICS_VERSION,
+        game_version: Number(window.BOXXY_RELEASE?.version || 0),
         orientation: boxxyAnalyticsOrientation(),
         input_mode: boxxyAnalyticsInputMode(),
         ...properties
@@ -2189,8 +2197,32 @@
     zenNextBtn.hidden = !Boolean(visible);
   }
 
+  function formatReleaseDate(isoDate) {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(isoDate || ""));
+    if (!match) return "—";
+    return `${Number(match[3])}.${Number(match[2])}.${match[1]}`;
+  }
+
+  function renderReleaseMetadata() {
+    const release = window.BOXXY_RELEASE || {};
+    const version = Number(release.version);
+    const isoDate = String(release.lastUpdated || "");
+
+    if (legalVersion) {
+      legalVersion.textContent = Number.isFinite(version) && version > 0
+        ? String(Math.trunc(version))
+        : "—";
+    }
+    if (legalLastUpdated) {
+      legalLastUpdated.textContent = formatReleaseDate(isoDate);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) legalLastUpdated.dateTime = isoDate;
+      else legalLastUpdated.removeAttribute("datetime");
+    }
+  }
+
   function openLegalModal() {
     if (!legalModal) return;
+    renderReleaseMetadata();
     legalModal.hidden = false;
     requestAnimationFrame(() => legalCloseBtn?.focus());
   }
@@ -5691,6 +5723,7 @@
     isMakerTesting() { return makerTesting; }
   };
 
+  renderReleaseMetadata();
   applyTheme(currentTheme, false);
   loadLevelProgress();
   updateDailyStreak();

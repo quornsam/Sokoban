@@ -26,6 +26,7 @@
 <link rel="preload" as="image" href="assets/ui/boxxy-splash.png" fetchpriority="high">
 <script>
   /* BOXXY v196 — reliable first-load splash and startup loading gate. */
+  /* BOXXY v222 — legal release information is populated from boxxy.js. */
   /* BOXXY v220 — Daily and standard completion actions are structurally separate. */
   /* BOXXY v218 — exact Daily dates in navigation and removal of the Minimum stat. */
   /* BOXXY v217 — Daily archive, past-date replay, saved scores and next-puzzle countdown. */
@@ -804,7 +805,7 @@
       <section class="legal-section legal-contact">
         <h3>Contact</h3>
         <p>For legal, privacy, copyright or permission enquiries, email <a href="mailto:archedroof+boxxy@gmail.com">archedroof+boxxy@gmail.com</a>.</p>
-        <p class="legal-version">BOXXY VERSION 200</p>
+        <p class="legal-version">BOXXY VERSION <span id="legalVersion">—</span> · LAST UPDATED <time id="legalLastUpdated">—</time></p>
       </section>
     </div>
   </section>
@@ -815,7 +816,7 @@
 
 <script src="daily-puzzles/boxxy-daily-loader.js?v=217"></script>
 <script src="levels.js?v=200"></script>
-<script src="boxxy.js?v=218"></script>
+<script src="boxxy.js?v=222"></script>
 <script src="pack-builder.js?v=216"></script>
 <script src="how-to-play.js?v=153"></script>
 </body>
