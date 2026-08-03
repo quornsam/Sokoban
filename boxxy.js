@@ -33,7 +33,7 @@
   });
 })();
 
-/* BOXXY v220 — Daily and standard completion actions use separate UI states. */
+/* BOXXY v221 — Daily streaks are awarded only by the current Daily puzzle. */
 /* BOXXY v217 — Daily archive, past-date replay, saved scores and next-puzzle countdown. */
 /* BOXXY v213 — opaque 3D floor, slower turns and a continuous pull-back camera. */
 /* BOXXY v205 — shorter mobile Daily Complete modal and single-line heading. */
@@ -957,6 +957,8 @@
   })();
   const DAILY_PUZZLE_BY_DATE = new Map(DAILY_PUZZLES.map(puzzle => [String(puzzle.date), puzzle]));
   const DAILY_COMPLETIONS_KEY = "boxxy-daily-completions-v1";
+  const DAILY_STREAK_KEY = "boxxy-daily-streak-v1";
+  const DAILY_TEST_STREAK_KEY = "boxxy-daily-streak-test-v1";
   const DAILY_INVITE_SEEN_PREFIX = "boxxy-daily-invite-seen-";
   const DAILY_QUOTE_DISMISSED_PREFIX = "boxxy-daily-quote-dismissed-";
   const DAILY_DATE_OVERRIDE = (() => {
@@ -1058,18 +1060,86 @@
     return localDateKey(date);
   }
 
-  function calculateDailyStreak(referenceDateKey = activeDailyDateKey()) {
-    const completions = readDailyCompletions();
-    let cursor = String(referenceDateKey || "");
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(cursor)) return 0;
-    if (!completions[cursor]) cursor = addDaysToDailyDateKey(cursor, -1);
-    let streak = 0;
-    while (cursor && completions[cursor]) {
-      streak++;
-      cursor = addDaysToDailyDateKey(cursor, -1);
-      if (streak >= 100000) break;
+  function dailyStreakStorageKey() {
+    return DAILY_DATE_OVERRIDE ? DAILY_TEST_STREAK_KEY : DAILY_STREAK_KEY;
+  }
+
+  function readDailyStreakState() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(dailyStreakStorageKey()) || "null");
+      const rawCount = Number(parsed?.count);
+      const count = Number.isFinite(rawCount) ? Math.max(0, Math.trunc(rawCount)) : 0;
+      const lastQualifiedDate = /^\d{4}-\d{2}-\d{2}$/.test(String(parsed?.lastQualifiedDate || ""))
+        ? String(parsed.lastQualifiedDate)
+        : "";
+
+      if (!count || !lastQualifiedDate) {
+        return { count: 0, lastQualifiedDate: "" };
+      }
+
+      return { count, lastQualifiedDate };
+    } catch (_) {
+      return { count: 0, lastQualifiedDate: "" };
     }
-    return streak;
+  }
+
+  function writeDailyStreakState(state) {
+    try {
+      localStorage.setItem(dailyStreakStorageKey(), JSON.stringify({
+        count: Math.max(0, Math.trunc(Number(state.count) || 0)),
+        lastQualifiedDate: String(state.lastQualifiedDate || "")
+      }));
+    } catch (_) {}
+  }
+
+  function currentDailyStreak(referenceDateKey = activeDailyDateKey()) {
+    const referenceDate = String(referenceDateKey || "");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(referenceDate)) return 0;
+
+    const state = readDailyStreakState();
+    if (!state.lastQualifiedDate || state.count < 1) return 0;
+
+    if (state.lastQualifiedDate === referenceDate) return state.count;
+    if (addDaysToDailyDateKey(state.lastQualifiedDate, 1) === referenceDate) return state.count;
+    return 0;
+  }
+
+  function awardDailyStreakForCompletion(completedDateKey) {
+    const completedDate = String(completedDateKey || "");
+    const currentDate = activeDailyDateKey();
+
+    if (completedDate !== currentDate) {
+      return {
+        count: currentDailyStreak(currentDate),
+        changed: false,
+        reason: "historical"
+      };
+    }
+
+    const state = readDailyStreakState();
+
+    if (state.lastQualifiedDate === currentDate) {
+      return {
+        count: state.count,
+        changed: false,
+        reason: "already-qualified"
+      };
+    }
+
+    const yesterday = addDaysToDailyDateKey(currentDate, -1);
+    const continued = state.lastQualifiedDate === yesterday;
+    const nextState = {
+      count: continued ? state.count + 1 : 1,
+      lastQualifiedDate: currentDate
+    };
+
+    writeDailyStreakState(nextState);
+
+    return {
+      count: nextState.count,
+      changed: true,
+      reason: continued ? "continued" : "started"
+    };
   }
 
   function dailyStreakTier(streak) {
@@ -2149,7 +2219,7 @@
 
   function updateDailyStreak() {
     if (!dailyStreak) return;
-    const streak = calculateDailyStreak();
+    const streak = currentDailyStreak();
     const tier = dailyStreakTier(streak);
     dailyStreak.dataset.tier = tier;
     dailyStreak.dataset.digits = String(Math.min(5, String(streak).length));
@@ -4779,6 +4849,7 @@
         seconds: completionSeconds,
         completedAt: Date.now()
       });
+      const streakResult = awardDailyStreakForCompletion(dailyPuzzle.date);
       completeMode = "daily";
       completionPackContext = null;
       hidePackCompletionStats();
@@ -4791,7 +4862,15 @@
       if (completeTitle) completeTitle.textContent = "DAILY COMPLETE";
       if (completedPackHeading) completedPackHeading.textContent = formatDailyDate(dailyPuzzle.date, { weekday: true, long: true, year: true });
       if (makerApplySolveBtn) makerApplySolveBtn.hidden = true;
-      completeText.textContent = `Completed in ${formatClockDuration(completionSeconds)} and ${moves} ${moves === 1 ? "move" : "moves"}. Your Daily Boxxy streak is now ${calculateDailyStreak()}.`;
+      let streakMessage;
+      if (streakResult.changed) {
+        streakMessage = `Your Daily Boxxy streak is now ${streakResult.count}.`;
+      } else if (String(dailyPuzzle.date) === activeDailyDateKey()) {
+        streakMessage = `Your Daily Boxxy streak remains ${streakResult.count}.`;
+      } else {
+        streakMessage = `Historical Daily Boxxys do not change your streak. Your current streak is ${streakResult.count}.`;
+      }
+      completeText.textContent = `Completed in ${formatClockDuration(completionSeconds)} and ${moves} ${moves === 1 ? "move" : "moves"}. ${streakMessage}`;
       if (dailyShareText) dailyShareText.value = buildDailyShareText(dailyPuzzle, { seconds: completionSeconds, moves });
       if (dailySharePanel) dailySharePanel.hidden = false;
       if (dailyShareStatus) dailyShareStatus.textContent = "";
@@ -4804,7 +4883,8 @@
         moves: Number(moves),
         pushes: Number(pushes),
         duration_seconds: completionSeconds,
-        streak_days: calculateDailyStreak()
+        streak_days: streakResult.count,
+        streak_incremented: streakResult.changed
       }));
     } else if (sharedPuzzleMode) {
       completeMode = "shared";
