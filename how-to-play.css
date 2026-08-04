@@ -844,7 +844,16 @@ body.how-to-play-open{overflow:hidden}
 .tutorial-board.bump{animation:none!important;transform:none!important}
 .tutorial-box.is-moving{animation:none!important}
 .tutorial-final-crate{aspect-ratio:1/1!important;overflow:visible}
-.tutorial-final-crate .tutorial-board-art-box{position:absolute;inset:0!important;width:100%!important;height:100%!important;aspect-ratio:1/1;background-size:300% 100%}
+.tutorial-final-crate .tutorial-board-art-box{
+  position:absolute;
+  inset:0!important;
+  width:100%!important;
+  height:100%!important;
+  aspect-ratio:1/1;
+  background-size:contain;
+  background-position:center;
+  background-repeat:no-repeat;
+}
 
 
 /* BOXXY v151 — tutorial opens only from ?, centred NEXT, compact six-button pad. */

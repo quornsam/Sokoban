@@ -6,7 +6,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: 224,
+  version: 225,
   lastUpdated: "2026-08-04"
 });
 /* Stored solver routes are kept separate from the authored pack data. */
@@ -39,6 +39,7 @@ window.BOXXY_RELEASE = Object.freeze({
   });
 })();
 
+/* BOXXY v225 — final tutorial crate preserves its square proportions. */
 /* BOXXY v224 — tutorial crate and target use individual board assets. */
 /* BOXXY v223 — Daily share floor uses the white large square emoji. */
 /* BOXXY v222 — legal release information now comes from BOXXY_RELEASE. */
