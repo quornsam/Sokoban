@@ -1,6 +1,6 @@
 /*
- * BOXXY v149b — playable How to Play tutorial.
- * Uses BOXXY's board atlas and current CharacterStyler, but keeps tutorial
+ * BOXXY v224 — playable How to Play tutorial.
+ * Uses BOXXY's individual board artwork and current CharacterStyler, but keeps tutorial
  * state completely separate from the live game and saved progress.
  */
 
@@ -205,13 +205,14 @@
 }
 .tutorial-board-art{
   display:block;
-  background-image:url("assets/board/board-atlas.png");
   background-repeat:no-repeat;
-  background-size:300% 100%;
+  background-position:center;
+  background-size:100% 100%;
 }
 .tutorial-goal{overflow:visible}
 .tutorial-board-art-goal{
   position:absolute;
+  background-image:url("assets/board/goals/goal-red.png");
   left:-3.5%;
   bottom:-1%;
   width:107%;
@@ -258,8 +259,8 @@
   width:100%;
   height:73.25%;
 }
-.tutorial-box-yellow{background-position:50% 0}
-.tutorial-box-red{background-position:100% 0}
+.tutorial-box-yellow{background-image:url("assets/board/boxes/box-default-yellow.png")}
+.tutorial-box-red{background-image:url("assets/board/boxes/box-red.png")}
 .tutorial-box.on-goal{filter:drop-shadow(0 0 8px rgba(229,179,42,.48))}
 .tutorial-box.is-moving{animation:tutorialBoxPush .19s ease}
 @keyframes tutorialBoxPush{50%{transform:translate(-50%,-102%)}}
