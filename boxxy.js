@@ -6,7 +6,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: 225,
+  version: 226,
   lastUpdated: "2026-08-04"
 });
 /* Stored solver routes are kept separate from the authored pack data. */
@@ -39,6 +39,7 @@ window.BOXXY_RELEASE = Object.freeze({
   });
 })();
 
+/* BOXXY v226 — reliable board artwork loading and tap-away level chooser dismissal. */
 /* BOXXY v225 — final tutorial crate preserves its square proportions. */
 /* BOXXY v224 — tutorial crate and target use individual board assets. */
 /* BOXXY v223 — Daily share floor uses the white large square emoji. */
@@ -58,6 +59,7 @@ window.BOXXY_RELEASE = Object.freeze({
 (() => {
   "use strict";
   const DEFAULT = "red";
+  const BOARD_ASSET_REVISION = "226";
   const ORDER = Object.freeze([
     "red", "blue", "green", "purple", "light-blue",
     "teal", "black", "grey", "burgundy", "brown",
@@ -109,9 +111,16 @@ window.BOXXY_RELEASE = Object.freeze({
     return result;
   }
 
+  function versionedBoardAssetPath(path) {
+    const separator = String(path).includes("?") ? "&" : "?";
+    return `${path}${separator}v=${encodeURIComponent(BOARD_ASSET_REVISION)}`;
+  }
+
   function spritePath(type, colour) {
     const clean = normalise(colour);
-    return `assets/board/${type === "goal" ? "goals/goal" : "boxes/box"}-${clean}.png`;
+    return versionedBoardAssetPath(
+      `assets/board/${type === "goal" ? "goals/goal" : "boxes/box"}-${clean}.png`
+    );
   }
 
   function style(element, value) {
@@ -146,8 +155,8 @@ window.BOXXY_RELEASE = Object.freeze({
   // all-colours preload delayed first paint on fresh mobile browsers.
   window.BoxxyColourSpritesReady = Promise.resolve([]);
   window.BoxxyGoalColours = Object.freeze({
-    DEFAULT, ORDER, PALETTE, normalise, normaliseMap, style,
-    spritePath, decodeTextChar, isTextCode, encodeTextCell
+    DEFAULT, BOARD_ASSET_REVISION, ORDER, PALETTE, normalise, normaliseMap, style,
+    spritePath, versionedBoardAssetPath, decodeTextChar, isTextCode, encodeTextCell
   });
 })();
 
@@ -2933,26 +2942,140 @@ window.BOXXY_RELEASE = Object.freeze({
     });
   }
 
-  function loadStartupImage(src) {
+  const boardAssetLoads = new Map();
+  const boardAssetResults = new Map();
+
+  function defaultBoxAssetPath() {
+    const path = "assets/board/boxes/box-default-yellow.png";
+    return GOAL_COLOURS?.versionedBoardAssetPath?.(path)
+      || `${path}?v=${encodeURIComponent(GOAL_COLOURS?.BOARD_ASSET_REVISION || "226")}`;
+  }
+
+  function boardAssetPath(type, colour = "red") {
+    if (type === "box" && colour === "default-yellow") return defaultBoxAssetPath();
+    return GOAL_COLOURS?.spritePath?.(type, colour)
+      || `assets/board/${type === "goal" ? "goals/goal" : "boxes/box"}-${colour}.png?v=226`;
+  }
+
+  function boardAssetRetryUrl(src, attempt) {
+    const separator = String(src).includes("?") ? "&" : "?";
+    return `${src}${separator}retry=${attempt}-${Date.now()}`;
+  }
+
+  function loadBoardImageOnce(src, timeoutMs = 5000) {
     return new Promise(resolve => {
       const image = new Image();
-      image.decoding = "async";
-      image.onload = image.onerror = () => {
-        const decoded = image.naturalWidth > 0 && typeof image.decode === "function"
-          ? image.decode().catch(() => {})
-          : Promise.resolve();
-        decoded.finally(resolve);
+      let settled = false;
+      let timer = 0;
+
+      const finish = async success => {
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(timer);
+        image.onload = null;
+        image.onerror = null;
+
+        let decoded = Boolean(success && image.naturalWidth > 0);
+        if (decoded && typeof image.decode === "function") {
+          try { await image.decode(); }
+          catch (_) { decoded = false; }
+        }
+        resolve({ ok: decoded, url: src });
       };
+
+      image.decoding = "async";
+      image.onload = () => finish(true);
+      image.onerror = () => finish(false);
+      timer = window.setTimeout(() => finish(false), timeoutMs);
       image.src = src;
+      if (image.complete) queueMicrotask(() => finish(image.naturalWidth > 0));
+    });
+  }
+
+  function ensureBoardAsset(src) {
+    const canonical = String(src || "");
+    if (!canonical) return Promise.resolve({ ok: false, url: canonical });
+    if (boardAssetLoads.has(canonical)) return boardAssetLoads.get(canonical);
+
+    const promise = (async () => {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const requestUrl = attempt === 0 ? canonical : boardAssetRetryUrl(canonical, attempt);
+        const result = await loadBoardImageOnce(requestUrl);
+        if (result.ok) {
+          const success = { ok: true, url: requestUrl };
+          boardAssetResults.set(canonical, success);
+          return success;
+        }
+      }
+      const failure = { ok: false, url: canonical };
+      boardAssetResults.set(canonical, failure);
+      return failure;
+    })();
+
+    boardAssetLoads.set(canonical, promise);
+    return promise;
+  }
+
+  function boardAssetFallback(type, colour = "red") {
+    const normalised = colour === "default-yellow"
+      ? "yellow"
+      : (GOAL_COLOURS?.normalise?.(colour) || "red");
+    const hex = normalised === "yellow"
+      ? "#f2c121"
+      : (GOAL_COLOURS?.PALETTE?.[normalised]?.hex || "#ec2826");
+
+    if (type === "goal") {
+      return `radial-gradient(ellipse at center, ${hex} 0 34%, #fff 35% 42%, rgba(20,20,20,.82) 43% 47%, transparent 48%)`;
+    }
+
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 74"><rect x="5" y="4" width="90" height="65" rx="5" fill="${hex}" stroke="#211b14" stroke-width="5"/><path d="M10 10 90 63M90 10 10 63" stroke="#211b14" stroke-width="7" opacity=".72"/><path d="M9 9h82v12H9z" fill="#fff" opacity=".18"/></svg>`;
+    return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+  }
+
+  function applyBoardArtwork(element, type, colour = "red") {
+    if (!element) return;
+    const canonical = boardAssetPath(type, colour);
+    const token = `${type}:${colour}:${canonical}`;
+    const paint = result => {
+      if (element.dataset.boardAssetToken !== token) return;
+      element.style.backgroundImage = result.ok
+        ? `url("${result.url}")`
+        : boardAssetFallback(type, colour);
+      element.dataset.boardAssetReady = "true";
+      element.dataset.boardAssetFallback = result.ok ? "false" : "true";
+    };
+
+    element.dataset.boardAssetToken = token;
+    element.dataset.boardAssetReady = "false";
+    element.style.backgroundImage = boardAssetFallback(type, colour);
+
+    const known = boardAssetResults.get(canonical);
+    if (known) paint(known);
+    else ensureBoardAsset(canonical).then(paint);
+  }
+
+  function refreshBoardArtwork() {
+    goalLayer?.querySelectorAll?.(".goal").forEach(goal => {
+      applyBoardArtwork(
+        goal.querySelector(".board-art-goal"),
+        "goal",
+        goal.dataset.goalColour || "red"
+      );
+    });
+    pieceLayer?.querySelectorAll?.(".piece.box").forEach(box => {
+      const colour = box.classList.contains("on-goal")
+        ? (box.dataset.goalColour || "red")
+        : "default-yellow";
+      applyBoardArtwork(box.querySelector(".board-art-box"), "box", colour);
     });
   }
 
   function currentBoardAssetPaths() {
-    const paths = new Set(["assets/board/boxes/box-default-yellow.png"]);
+    const paths = new Set([defaultBoxAssetPath()]);
     for (const goal of goals) {
       const colour = GOAL_COLOURS?.normalise?.(goal.colour) || "red";
-      paths.add(GOAL_COLOURS?.spritePath?.("goal", colour) || `assets/board/goals/goal-${colour}.png`);
-      paths.add(GOAL_COLOURS?.spritePath?.("box", colour) || `assets/board/boxes/box-${colour}.png`);
+      paths.add(boardAssetPath("goal", colour));
+      paths.add(boardAssetPath("box", colour));
     }
     return [...paths];
   }
@@ -2975,8 +3098,21 @@ window.BOXXY_RELEASE = Object.freeze({
           pieceLayer?.querySelectorAll?.(".box").length === expectedBoxes &&
           playerImage
         );
+        const boardArtwork = [
+          ...(goalLayer?.querySelectorAll?.(".board-art-goal") || []),
+          ...(pieceLayer?.querySelectorAll?.(".board-art-box") || [])
+        ];
+        const boardArtworkReady = Boolean(
+          boardArtwork.length === expectedGoals + expectedBoxes
+          && boardArtwork.every(art => art.dataset.boardAssetReady === "true")
+        );
         const playerVisible = Boolean(playerImage?.complete && playerImage.naturalWidth > 0);
-        const fullyReady = Boolean(boardPopulated && playerVisible && playerImage.dataset.characterReady === "true");
+        const fullyReady = Boolean(
+          boardPopulated
+          && boardArtworkReady
+          && playerVisible
+          && playerImage.dataset.characterReady === "true"
+        );
         const size = rect ? `${Math.round(rect.width)}x${Math.round(rect.height)}` : "";
         stableFrames = fullyReady && size === lastSize ? stableFrames + 1 : 0;
         lastSize = size;
@@ -2985,7 +3121,7 @@ window.BOXXY_RELEASE = Object.freeze({
           return;
         }
         const elapsed = performance.now() - started;
-        if (elapsed > 20000 && boardPopulated && playerVisible) {
+        if (elapsed > 20000 && boardPopulated && boardArtworkReady && playerVisible) {
           waitForImage(playerImage).finally(resolve);
           return;
         }
@@ -3006,7 +3142,8 @@ window.BOXXY_RELEASE = Object.freeze({
     await waitForImage(splashImage);
     if (splashImage?.naturalWidth > 0) splashScreen.classList.add("logo-ready");
     setSplashProgress(28, "PREPARING PUZZLE…");
-    await Promise.all(currentBoardAssetPaths().map(loadStartupImage));
+    await Promise.all(currentBoardAssetPaths().map(ensureBoardAsset));
+    refreshBoardArtwork();
     setSplashProgress(58, "LOADING CHARACTER…");
     await Promise.resolve(window.CharacterStyler?.ready);
     setSplashProgress(82, "BUILDING BOARD…");
@@ -4314,6 +4451,7 @@ window.BOXXY_RELEASE = Object.freeze({
       art.className = "board-art board-art-goal";
       art.setAttribute("aria-hidden", "true");
       cell.appendChild(art);
+      applyBoardArtwork(art, "goal", goal.colour);
       goalLayer.appendChild(cell);
     });
   }
@@ -4345,6 +4483,7 @@ window.BOXXY_RELEASE = Object.freeze({
       art.className = "board-art board-art-box";
       art.setAttribute("aria-hidden", "true");
       piece.appendChild(art);
+      applyBoardArtwork(art, "box", goal ? goal.colour : "default-yellow");
       pieceLayer.appendChild(piece);
     });
 
@@ -5569,6 +5708,16 @@ window.BOXXY_RELEASE = Object.freeze({
     else closeLevelPicker();
   });
   levelCloseBtn?.addEventListener("click", closeLevelPicker);
+  document.addEventListener("pointerdown", event => {
+    if (!levelPicker || levelPicker.hidden) return;
+    const path = typeof event.composedPath === "function" ? event.composedPath() : [];
+    const insidePicker = path.includes(levelPicker) || levelPicker.contains(event.target);
+    const onLevelButton = path.includes(levelBtn) || levelBtn.contains(event.target);
+    if (insidePicker || onLevelButton) return;
+    closeLevelPicker();
+    event.preventDefault();
+    event.stopPropagation();
+  }, { capture: true });
   levelResetBtn?.addEventListener("click", openResetConfirm);
   collectionCompleteStar?.addEventListener("click", showCollectionCongratulations);
   resetCancelBtn?.addEventListener("click", closeResetConfirm);
