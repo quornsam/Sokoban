@@ -2,6 +2,7 @@
  * BOXXY — Pushbox Puzzle
  * Copyright © 2026 Sam Cornwell. All rights reserved.
  * Personal non-commercial use only. See LICENSE.md.
+ * BOXXY v227: prevent accidental iPhone/iPad text, icon and image selection while preserving editable fields.
  * BOXXY v166: fifteen dedicated box and target sprite colours.
  * BOXXY v219: Daily completion destination choices.
  * BOXXY v205: shorter mobile Daily Complete modal and single-line heading.
@@ -18,6 +19,54 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--paper);color:var(--ink)}
 body{font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;overscroll-behavior:none;touch-action:manipulation;background:radial-gradient(circle at 25% 10%,rgba(255,255,255,.42),transparent 38%),linear-gradient(180deg,#f4ecdf,#e7dac6)}
+
+/* BOXXY v227 — prevent accidental selection/callouts on touch devices.
+   Editable controls and copyable links are deliberately restored below. */
+html.touch-ui .app,
+html.touch-ui .app *,
+html.touch-ui .modal,
+html.touch-ui .modal *,
+html.touch-ui .splash-screen,
+html.touch-ui .splash-screen *,
+html.touch-ui .legal-link,
+html.touch-ui .maker-return,
+html.touch-ui .zen-next-btn{
+  -webkit-user-select:none;
+  user-select:none;
+  -webkit-touch-callout:none;
+}
+html.touch-ui .app img,
+html.touch-ui .modal img,
+html.touch-ui .splash-screen img{
+  -webkit-user-drag:none;
+}
+html.touch-ui .app input,
+html.touch-ui .app textarea,
+html.touch-ui .app select,
+html.touch-ui .app [contenteditable="true"],
+html.touch-ui .app a[href],
+html.touch-ui .modal input,
+html.touch-ui .modal textarea,
+html.touch-ui .modal select,
+html.touch-ui .modal [contenteditable="true"],
+html.touch-ui .modal a[href]{
+  -webkit-user-select:auto;
+  user-select:auto;
+  -webkit-touch-callout:default;
+}
+html.touch-ui .app textarea,
+html.touch-ui .app input[type="text"],
+html.touch-ui .app input[type="search"],
+html.touch-ui .app input[type="number"],
+html.touch-ui .app [contenteditable="true"],
+html.touch-ui .modal textarea,
+html.touch-ui .modal input[type="text"],
+html.touch-ui .modal input[type="search"],
+html.touch-ui .modal input[type="number"],
+html.touch-ui .modal [contenteditable="true"]{
+  -webkit-user-select:text;
+  user-select:text;
+}
 button{font:inherit;color:inherit;cursor:pointer}
 .app{width:min(1600px,100%);height:100dvh;min-height:0;margin:auto;display:grid;grid-template-columns:minmax(0,1fr) clamp(310px,24vw,360px);overflow:hidden;background:rgba(248,242,232,.88);border-inline:1px solid var(--line)}
 .play-area{min-width:0;min-height:0;overflow:hidden;display:grid;grid-template-rows:clamp(92px,14dvh,132px) minmax(0,1fr) clamp(52px,8dvh,76px)}
