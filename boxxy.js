@@ -6,7 +6,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: 229,
+  version: 230,
   lastUpdated: "2026-08-05"
 });
 /* Stored solver routes are kept separate from the authored pack data. */
@@ -39,6 +39,7 @@ window.BOXXY_RELEASE = Object.freeze({
   });
 })();
 
+/* BOXXY v230 — compact generated level thumbnails and denser Daily archive. */
 /* BOXXY v229 — holding Undo now repeats, matching held direction controls. */
 /* BOXXY v228 — Google Search discovery and presentation metadata added in index.html. */
 /* BOXXY v227 — touch interfaces no longer select game text, icons or artwork. */
@@ -1018,7 +1019,7 @@ window.BOXXY_RELEASE = Object.freeze({
     if (!date) return String(dateKey || "");
     try {
       return new Intl.DateTimeFormat("en-GB", {
-        weekday: options.weekday ? "long" : undefined,
+        weekday: options.weekday ? (options.compact ? "short" : "long") : undefined,
         day: "numeric",
         month: options.long ? "long" : "short",
         year: options.year ? "numeric" : undefined
@@ -1540,6 +1541,149 @@ window.BOXXY_RELEASE = Object.freeze({
     return Math.max(0, Math.min(Math.max(0, pack.levels.length - 1), Number(raw) || 0));
   }
 
+  function readPackLevelProgress(pack = activePack) {
+    const levels = Array.isArray(pack?.levels) ? pack.levels : [];
+    const completed = new Set();
+    const assisted = new Set();
+    const packId = String(pack?.id || "");
+    const currentIndex = storedLevelIndexForPack(pack);
+
+    try {
+      const currentRaw = localStorage.getItem(packStorageKeyFor(packId, "completed"));
+      const legacyRaw = packId === "microban" ? localStorage.getItem("boxxy-completed-levels-v1") : null;
+      const saved = JSON.parse(currentRaw ?? legacyRaw ?? "[]");
+      if (Array.isArray(saved)) saved.forEach(value => {
+        const index = Number(value);
+        if (Number.isInteger(index) && index >= 0 && index < levels.length) completed.add(index);
+      });
+    } catch (_) {}
+
+    try {
+      const saved = JSON.parse(localStorage.getItem(packStorageKeyFor(packId, "assisted")) ?? "[]");
+      if (Array.isArray(saved)) saved.forEach(value => {
+        const index = Number(value);
+        if (Number.isInteger(index) && index >= 0 && index < levels.length) assisted.add(index);
+      });
+    } catch (_) {}
+
+    if (packId === "microban") {
+      levels.forEach((level, index) => {
+        try {
+          if (localStorage.getItem(`push-bauhaus-v22-best-${level.sourceNumber}`)) completed.add(index);
+        } catch (_) {}
+      });
+    }
+
+    for (const index of [...assisted]) if (!completed.has(index)) assisted.delete(index);
+    let storedProgress = 0;
+    try {
+      const currentRaw = localStorage.getItem(packStorageKeyFor(packId, "progress"));
+      const legacyRaw = packId === "microban" ? localStorage.getItem("boxxy-level-progress-v1") : null;
+      const parsed = Number(currentRaw ?? legacyRaw);
+      if (Number.isFinite(parsed)) storedProgress = parsed;
+    } catch (_) {}
+    const furthestCompleted = completed.size ? Math.max(...completed) + 1 : 0;
+    const highestUnlocked = Math.min(
+      Math.max(0, levels.length - 1),
+      Math.max(0, storedProgress, furthestCompleted, currentIndex)
+    );
+    return { completed, assisted, currentIndex, highestUnlocked };
+  }
+
+  function drawLevelThumbnail(canvas, level) {
+    if (!canvas || !Array.isArray(level?.layout) || !level.layout.length) return;
+    const rows = level.layout.map(row => String(row));
+    const width = Math.max(1, ...rows.map(row => row.length));
+    const height = Math.max(1, rows.length);
+    const grid = rows.map(row => row.padEnd(width, " ").split(""));
+    const structural = (char) => char === "#" || ".$@*+".includes(char) || GOAL_COLOURS?.isTextCode?.(char);
+    let minX = width - 1, maxX = 0, minY = height - 1, maxY = 0, found = false;
+    grid.forEach((row, y) => row.forEach((char, x) => {
+      if (!structural(char)) return;
+      found = true;
+      minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+      minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+    }));
+    if (!found) { minX = 0; minY = 0; maxX = width - 1; maxY = height - 1; }
+    minX = Math.max(0, minX - 1); minY = Math.max(0, minY - 1);
+    maxX = Math.min(width - 1, maxX + 1); maxY = Math.min(height - 1, maxY + 1);
+
+    const viewWidth = Math.max(1, maxX - minX + 1);
+    const viewHeight = Math.max(1, maxY - minY + 1);
+    const context = canvas.getContext("2d");
+    if (!context) return;
+    const pixelRatio = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    const cssWidth = 160;
+    const cssHeight = 104;
+    canvas.width = Math.round(cssWidth * pixelRatio);
+    canvas.height = Math.round(cssHeight * pixelRatio);
+    context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    context.clearRect(0, 0, cssWidth, cssHeight);
+    context.fillStyle = "#d8cdbd";
+    context.fillRect(0, 0, cssWidth, cssHeight);
+
+    const margin = 5;
+    const cell = Math.max(2, Math.min((cssWidth - margin * 2) / viewWidth, (cssHeight - margin * 2) / viewHeight));
+    const boardWidth = cell * viewWidth;
+    const boardHeight = cell * viewHeight;
+    const offsetX = (cssWidth - boardWidth) / 2;
+    const offsetY = (cssHeight - boardHeight) / 2;
+    const goalMap = level.goalColours && typeof level.goalColours === "object" ? level.goalColours : {};
+
+    for (let y = minY; y <= maxY; y++) {
+      for (let x = minX; x <= maxX; x++) {
+        const raw = grid[y]?.[x] || " ";
+        const decoded = GOAL_COLOURS?.decodeTextChar?.(raw);
+        const char = decoded?.cell || raw;
+        const colourName = GOAL_COLOURS?.normalise?.(decoded?.colour || goalMap[`${x},${y}`]) || "red";
+        const colour = GOAL_COLOURS?.PALETTE?.[colourName]?.hex || "#ec2826";
+        const dx = offsetX + (x - minX) * cell;
+        const dy = offsetY + (y - minY) * cell;
+        const isWall = char === "#";
+        const isGoal = ".*+".includes(char);
+        const isBox = "$*".includes(char);
+        const isPlayer = "@+".includes(char);
+        const isFloor = isWall || isGoal || isBox || isPlayer || raw === " ";
+        if (!isFloor) continue;
+
+        context.fillStyle = isWall ? "#242426" : "#f3e8d7";
+        context.fillRect(dx, dy, Math.ceil(cell), Math.ceil(cell));
+        if (isWall) {
+          context.fillStyle = "rgba(255,255,255,.08)";
+          context.fillRect(dx, dy, Math.ceil(cell), Math.max(1, cell * .13));
+          continue;
+        }
+        context.strokeStyle = "rgba(80,63,42,.13)";
+        context.lineWidth = Math.max(.45, cell * .035);
+        context.strokeRect(dx + .25, dy + .25, Math.max(0, cell - .5), Math.max(0, cell - .5));
+        if (isGoal) {
+          context.beginPath();
+          context.arc(dx + cell / 2, dy + cell / 2, Math.max(1.3, cell * .29), 0, Math.PI * 2);
+          context.strokeStyle = colour;
+          context.lineWidth = Math.max(1, cell * .14);
+          context.stroke();
+        }
+        if (isBox) {
+          const inset = Math.max(1, cell * .12);
+          context.fillStyle = isGoal ? colour : "#efbd25";
+          context.fillRect(dx + inset, dy + inset, Math.max(1, cell - inset * 2), Math.max(1, cell - inset * 2));
+          context.strokeStyle = "rgba(55,38,18,.72)";
+          context.lineWidth = Math.max(.8, cell * .07);
+          context.strokeRect(dx + inset, dy + inset, Math.max(1, cell - inset * 2), Math.max(1, cell - inset * 2));
+        }
+        if (isPlayer) {
+          context.beginPath();
+          context.arc(dx + cell / 2, dy + cell / 2, Math.max(1.4, cell * .28), 0, Math.PI * 2);
+          context.fillStyle = "#20539a";
+          context.fill();
+          context.strokeStyle = "#f7efe4";
+          context.lineWidth = Math.max(.7, cell * .07);
+          context.stroke();
+        }
+      }
+    }
+  }
+
   function readBest(level) {
     const value = localStorage.getItem(currentBestStorageKey(level));
     if (value != null) return value;
@@ -1579,6 +1723,7 @@ window.BOXXY_RELEASE = Object.freeze({
   const bgMusic = document.getElementById("bgMusic");
   const levelBtn = document.getElementById("levelBtn");
   const levelPicker = document.getElementById("levelPicker");
+  const levelPickerTitle = document.getElementById("levelPickerTitle");
   const levelButtons = document.getElementById("levelButtons");
   const levelCloseBtn = document.getElementById("levelCloseBtn");
   const levelResetBtn = document.getElementById("levelResetBtn");
@@ -2470,7 +2615,7 @@ window.BOXXY_RELEASE = Object.freeze({
         const sequence = document.createElement("strong");
         sequence.textContent = `DAILY #${Number(puzzle.sequence) || ""}`;
         const date = document.createElement("span");
-        date.textContent = formatDailyDate(puzzle.date, { weekday: true, long: true });
+        date.textContent = formatDailyDate(puzzle.date, { weekday: true, compact: true });
         cardHead.append(sequence, date);
 
         const stats = document.createElement("div");
@@ -2666,9 +2811,17 @@ window.BOXXY_RELEASE = Object.freeze({
     sfx.finish();
   }
 
-  function openLevelPicker() {
+  let levelPickerPack = activePack;
+
+  function openLevelPicker(pack = activePack) {
+    levelPickerPack = pack && Array.isArray(pack.levels) ? pack : activePack;
+    buildLevelButtons(levelPickerPack);
     updateCollectionCompleteStar();
+    const browsingActivePack = levelPickerPack.id === activePack.id;
+    if (levelResetBtn) levelResetBtn.hidden = !browsingActivePack;
+    if (collectionCompleteStar && !browsingActivePack) collectionCompleteStar.hidden = true;
     levelPicker.hidden = false;
+    requestAnimationFrame(() => levelButtons?.querySelector("button.current:not(:disabled), button:not(:disabled)")?.focus?.({ preventScroll: true }));
   }
 
   function closeLevelPicker() {
@@ -2777,7 +2930,7 @@ window.BOXXY_RELEASE = Object.freeze({
     button.title = isLocked
       ? "To unlock this pack, you must complete BOXXY Originals or Microban."
       : (pack.description || pack.displayName || pack.title);
-    button.addEventListener("click", () => switchPack(pack.id));
+    button.addEventListener("click", () => openPackLevelPicker(pack.id));
     return button;
   }
 
@@ -2797,6 +2950,50 @@ window.BOXXY_RELEASE = Object.freeze({
       });
       if (finalPackMoreBtn) finalPackMoreBtn.hidden = PACKS.length <= 4;
     }
+  }
+
+  function openPackLevelPicker(packId) {
+    const pack = PACK_BY_ID.get(packId);
+    if (!pack || packIsLocked(pack)) return;
+    closePackModal();
+    if (modal && !modal.hidden) closeCompleteModal();
+    openLevelPicker(pack);
+  }
+
+  function activatePackLevel(packId, chosenLevelIndex) {
+    const nextPack = PACK_BY_ID.get(packId);
+    if (!nextPack || !Array.isArray(nextPack.levels) || !nextPack.levels.length || packIsLocked(nextPack)) return;
+    const snapshot = readPackLevelProgress(nextPack);
+    const chosen = Math.max(0, Math.min(nextPack.levels.length - 1, Number(chosenLevelIndex) || 0));
+    if (chosen > snapshot.highestUnlocked) return;
+
+    if (nextPack.id !== activePack.id) {
+      captureBoxxyAnalytics("pack_selected", {
+        from_pack_id: String(activePack?.id || ""),
+        from_pack_name: String(activePack?.displayName || activePack?.title || ""),
+        from_level_number: Number(levelIndex) + 1,
+        to_pack_id: String(nextPack.id || ""),
+        to_pack_name: String(nextPack.displayName || nextPack.title || ""),
+        to_level_count: Number(nextPack.levels.length || 0)
+      });
+      localStorage.setItem(currentLevelStorageKey(), String(levelIndex));
+      activePack = nextPack;
+      LEVELS = nextPack.levels;
+      localStorage.setItem(ACTIVE_PACK_STORAGE_KEY, activePack.id);
+      levelIndex = storedLevelIndexForPack(activePack);
+      completedLevels = new Set();
+      assistedLevels = new Set();
+      highestUnlockedLevel = 0;
+      loadLevelProgress();
+      buildPackSelectors();
+    }
+
+    levelPickerPack = activePack;
+    closePackModal();
+    closeLevelPicker();
+    if (modal) modal.hidden = true;
+    restoreStandardCompletionActions();
+    loadLevel(chosen);
   }
 
   function switchPack(packId) {
@@ -2869,14 +3066,18 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   function refreshLevelButtons() {
+    const pickerPack = PACK_BY_ID.get(levelButtons?.dataset?.packId) || levelPickerPack || activePack;
+    const snapshot = pickerPack.id === activePack.id
+      ? { completed: completedLevels, assisted: assistedLevels, currentIndex: levelIndex, highestUnlocked: highestUnlockedLevel }
+      : readPackLevelProgress(pickerPack);
     const todayPuzzle = dailyPuzzleForToday();
     const dailyButton = levelButtons?.querySelector?.("[data-daily-level]");
     if (dailyButton) {
       const available = Boolean(todayPuzzle);
       const complete = Boolean(todayPuzzle && dailyCompletion(todayPuzzle.date));
       const status = dailyButton.querySelector("span");
-      dailyButton.classList.toggle("current", dailyMode);
-      dailyButton.classList.toggle("completed", complete && !dailyMode);
+      dailyButton.classList.toggle("current", dailyMode && pickerPack.id === activePack.id);
+      dailyButton.classList.toggle("completed", complete && !(dailyMode && pickerPack.id === activePack.id));
       dailyButton.disabled = !available;
       dailyButton.setAttribute("aria-disabled", String(!available));
       dailyButton.title = available
@@ -2887,10 +3088,10 @@ window.BOXXY_RELEASE = Object.freeze({
 
     [...levelButtons.querySelectorAll("button[data-level-index]")].forEach(button => {
       const index = Number(button.dataset.levelIndex);
-      const isCurrent = !dailyMode && index === levelIndex;
-      const isCompleted = completedLevels.has(index);
-      const isAssisted = assistedLevels.has(index);
-      const isLocked = index > highestUnlockedLevel;
+      const isCurrent = index === snapshot.currentIndex;
+      const isCompleted = snapshot.completed.has(index);
+      const isAssisted = snapshot.assisted.has(index);
+      const isLocked = index > snapshot.highestUnlocked;
       button.classList.toggle("current", isCurrent);
       button.classList.toggle("completed", isCompleted && !isCurrent && !isAssisted);
       button.classList.toggle("assisted", isAssisted && !isCurrent);
@@ -2899,7 +3100,13 @@ window.BOXXY_RELEASE = Object.freeze({
       button.setAttribute("aria-disabled", String(isLocked));
       button.title = isLocked
         ? `Complete level ${index} to unlock level ${index + 1}`
-        : `${activePack.displayName}: ${index + 1}. ${LEVELS[index].name}`;
+        : `${pickerPack.displayName}: ${index + 1}. ${pickerPack.levels[index].name}`;
+      renderLevelPickerButton(button, pickerPack, pickerPack.levels[index], index, {
+        current: isCurrent,
+        completed: isCompleted,
+        assisted: isAssisted,
+        locked: isLocked
+      });
     });
     updateCollectionCompleteStar();
     updateDailyQuotePrompt();
@@ -5297,8 +5504,46 @@ window.BOXXY_RELEASE = Object.freeze({
     scheduleIdle();
   }
 
-  function buildLevelButtons() {
+  function renderLevelPickerButton(button, pack, level, index, state) {
+    const showPreview = state.completed || state.current;
+    button.replaceChildren();
+    button.classList.toggle("has-thumbnail", showPreview);
+    if (showPreview) {
+      const art = document.createElement("span");
+      art.className = "level-thumb-art";
+      const canvas = document.createElement("canvas");
+      canvas.className = "level-thumb-canvas";
+      canvas.setAttribute("aria-hidden", "true");
+      art.appendChild(canvas);
+      const badge = document.createElement("span");
+      badge.className = "level-thumb-number";
+      badge.textContent = String(index + 1);
+      art.appendChild(badge);
+      const status = document.createElement("span");
+      status.className = "level-thumb-status";
+      status.textContent = state.current ? "CURRENT" : state.assisted ? "ASSISTED" : "COMPLETE";
+      button.append(art, status);
+      drawLevelThumbnail(canvas, level);
+      return;
+    }
+
+    const number = document.createElement("strong");
+    number.className = "level-locked-number";
+    number.textContent = String(index + 1);
+    const label = document.createElement("span");
+    label.className = "level-locked-label";
+    label.textContent = state.locked ? "LOCKED" : "AVAILABLE";
+    button.append(number, label);
+  }
+
+  function buildLevelButtons(pack = levelPickerPack || activePack) {
+    if (!levelButtons) return;
+    levelPickerPack = pack && Array.isArray(pack.levels) ? pack : activePack;
+    const pickerPack = levelPickerPack;
+    levelButtons.dataset.packId = pickerPack.id;
     levelButtons.innerHTML = "";
+    if (levelPickerTitle) levelPickerTitle.textContent = `${String(pickerPack.displayName || pickerPack.title || "CHOOSE").toUpperCase()} LEVELS`;
+
     const dailyButton = document.createElement("button");
     dailyButton.type = "button";
     dailyButton.className = "daily-level-option";
@@ -5315,16 +5560,13 @@ window.BOXXY_RELEASE = Object.freeze({
     });
     levelButtons.appendChild(dailyButton);
 
-    LEVELS.forEach((level, index) => {
+    pickerPack.levels.forEach((level, index) => {
       const button = document.createElement("button");
       button.type = "button";
+      button.className = "level-thumbnail-card";
       button.dataset.levelIndex = String(index);
-      button.textContent = index + 1;
-      button.addEventListener("click", () => {
-        if (index > highestUnlockedLevel) return;
-        closeLevelPicker();
-        loadLevel(index);
-      });
+      button.dataset.packId = pickerPack.id;
+      button.addEventListener("click", () => activatePackLevel(pickerPack.id, index));
       levelButtons.appendChild(button);
     });
     refreshLevelButtons();
