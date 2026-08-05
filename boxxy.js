@@ -6,7 +6,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: 228,
+  version: 229,
   lastUpdated: "2026-08-05"
 });
 /* Stored solver routes are kept separate from the authored pack data. */
@@ -39,6 +39,7 @@ window.BOXXY_RELEASE = Object.freeze({
   });
 })();
 
+/* BOXXY v229 — holding Undo now repeats, matching held direction controls. */
 /* BOXXY v228 — Google Search discovery and presentation metadata added in index.html. */
 /* BOXXY v227 — touch interfaces no longer select game text, icons or artwork. */
 /* BOXXY v226 — reliable board artwork loading and tap-away level chooser dismissal. */
@@ -5634,7 +5635,62 @@ window.BOXXY_RELEASE = Object.freeze({
     window.setTimeout(() => { updateFullscreenButton(); scheduleBoardResize(); }, 80);
   });
 
-  undoBtn.addEventListener("click", undo);
+  {
+    let activePointerId = null;
+    let repeatDelay = 0;
+    let repeatTimer = 0;
+
+    const stopUndoRepeat = () => {
+      window.clearTimeout(repeatDelay);
+      window.clearInterval(repeatTimer);
+      repeatDelay = 0;
+      repeatTimer = 0;
+    };
+
+    const performUndo = () => {
+      if (autoplayRunning || !history.length || completed) {
+        stopUndoRepeat();
+        return;
+      }
+      undo();
+    };
+
+    undoBtn.addEventListener("pointerdown", event => {
+      event.preventDefault();
+      if (activePointerId !== null || undoBtn.disabled) return;
+      activePointerId = event.pointerId;
+
+      ensureAudio();
+      undoBtn.setPointerCapture?.(event.pointerId);
+      performUndo();
+
+      // Match held direction controls: pause briefly, then repeat while held.
+      repeatDelay = window.setTimeout(() => {
+        repeatTimer = window.setInterval(performUndo, 105);
+      }, 330);
+    });
+
+    const releaseUndoButton = event => {
+      if (activePointerId !== null &&
+          event?.pointerId !== undefined &&
+          event.pointerId !== activePointerId) return;
+      stopUndoRepeat();
+      activePointerId = null;
+    };
+
+    undoBtn.addEventListener("pointerup", releaseUndoButton);
+    undoBtn.addEventListener("pointercancel", releaseUndoButton);
+    undoBtn.addEventListener("lostpointercapture", releaseUndoButton);
+    undoBtn.addEventListener("pointerleave", event => {
+      if (event.pointerType === "mouse") releaseUndoButton(event);
+    });
+
+    // Pointer presses undo on pointerdown; keyboard/assistive activation still uses click.
+    undoBtn.addEventListener("click", event => {
+      event.preventDefault();
+      if (event.detail === 0) undo();
+    });
+  }
   savePositionBtn?.addEventListener("click", saveOrRestorePosition);
   restartBtn.addEventListener("click", () => {
     if (makerTesting || sharedPuzzleMode) restartMakerTest();
