@@ -6,8 +6,8 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: 227,
-  lastUpdated: "2026-08-04"
+  version: 228,
+  lastUpdated: "2026-08-05"
 });
 /* Stored solver routes are kept separate from the authored pack data. */
 (() => {
@@ -39,6 +39,7 @@ window.BOXXY_RELEASE = Object.freeze({
   });
 })();
 
+/* BOXXY v228 — Google Search discovery and presentation metadata added in index.html. */
 /* BOXXY v227 — touch interfaces no longer select game text, icons or artwork. */
 /* BOXXY v226 — reliable board artwork loading and tap-away level chooser dismissal. */
 /* BOXXY v225 — final tutorial crate preserves its square proportions. */
