@@ -6,7 +6,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: 231,
+  version: 232,
   lastUpdated: "2026-08-06"
 });
 /* Stored solver routes are kept separate from the authored pack data. */
@@ -39,6 +39,7 @@ window.BOXXY_RELEASE = Object.freeze({
   });
 })();
 
+/* BOXXY v232 — level thumbnails prioritise moves, use the progression-current level and keep time tied to the best move score. */
 /* BOXXY v231 — level thumbnails show pushes and completion time. */
 /* BOXXY v230 — compact generated level thumbnails and denser Daily archive. */
 /* BOXXY v229 — holding Undo now repeats, matching held direction controls. */
@@ -1222,8 +1223,14 @@ window.BOXXY_RELEASE = Object.freeze({
       guided: Boolean(result.guided),
       completedAt: Number(result.completedAt) || Date.now()
     };
-    const previous = data.levels[key];
+    const level = Array.isArray(pack.levels) ? pack.levels[index] : null;
+    const officialBestMoves = bestMovesForPack(pack, level);
 
+    /* Pushes and time only belong to the official best-move score. A slower
+       replay must never replace, or lend its time to, the best result. */
+    if (officialBestMoves != null && attempt.moves !== officialBestMoves) return false;
+
+    const previous = data.levels[key];
     if (!previous || typeof previous !== "object") {
       data.levels[key] = attempt;
       writePackCompletionStats(pack.id, data);
@@ -1231,12 +1238,21 @@ window.BOXXY_RELEASE = Object.freeze({
     }
 
     const previousMoves = Math.max(0, Number(previous.moves) || 0);
-    if (attempt.moves > previousMoves) return false;
-
-    if (attempt.moves < previousMoves) {
-      data.levels[key] = attempt;
-      writePackCompletionStats(pack.id, data);
-      return true;
+    if (officialBestMoves != null) {
+      /* Replace an older or guided record that does not belong to the current
+         official best. This also repairs legacy records as they are replayed. */
+      if (previousMoves !== officialBestMoves) {
+        data.levels[key] = attempt;
+        writePackCompletionStats(pack.id, data);
+        return true;
+      }
+    } else {
+      if (attempt.moves > previousMoves) return false;
+      if (attempt.moves < previousMoves) {
+        data.levels[key] = attempt;
+        writePackCompletionStats(pack.id, data);
+        return true;
+      }
     }
 
     let changed = false;
@@ -1284,26 +1300,29 @@ window.BOXXY_RELEASE = Object.freeze({
 
     pack.levels.forEach((level, index) => {
       const record = data.levels[String(index)];
-      if (record && typeof record === "object") {
-        recordedLevels++;
-        if (Number.isFinite(Number(record.moves))) {
-          moves += Math.max(0, Number(record.moves));
-          moveLevels++;
-        }
-        if (Number.isFinite(Number(record.pushes))) {
-          pushes += Math.max(0, Number(record.pushes));
-          pushLevels++;
-        }
-        if (Number.isFinite(Number(record.seconds))) {
-          seconds += Math.max(0, Number(record.seconds));
-          timeLevels++;
-        }
-        return;
-      }
-      const best = bestMovesForPack(pack, level);
-      if (best != null) {
-        moves += Math.max(0, best);
+      const recordedMoves = record && typeof record === "object" && Number.isFinite(Number(record.moves))
+        ? Math.max(0, Number(record.moves))
+        : null;
+      const officialBestMoves = bestMovesForPack(pack, level);
+      const effectiveMoves = officialBestMoves != null ? Math.max(0, officialBestMoves) : recordedMoves;
+
+      if (record && typeof record === "object") recordedLevels++;
+      if (effectiveMoves != null) {
+        moves += effectiveMoves;
         moveLevels++;
+      }
+
+      /* A level's pushes and time count only when that stored attempt has the
+         same move score as the official best. This keeps the pack time as the
+         aggregate time attached to each level's best-move result. */
+      if (!record || typeof record !== "object" || recordedMoves == null || recordedMoves !== effectiveMoves) return;
+      if (Number.isFinite(Number(record.pushes))) {
+        pushes += Math.max(0, Number(record.pushes));
+        pushLevels++;
+      }
+      if (Number.isFinite(Number(record.seconds))) {
+        seconds += Math.max(0, Number(record.seconds));
+        timeLevels++;
       }
     });
 
@@ -3066,12 +3085,33 @@ window.BOXXY_RELEASE = Object.freeze({
     loadLevel(0);
   }
 
+  function progressionCurrentLevelIndex(snapshot, levelCount) {
+    if (!snapshot || !Number.isInteger(levelCount) || levelCount <= 0) return -1;
+    const highestAccessible = Math.min(levelCount - 1, Math.max(0, Number(snapshot.highestUnlocked) || 0));
+    for (let index = highestAccessible; index >= 0; index--) {
+      if (!snapshot.completed.has(index)) return index;
+    }
+    return -1;
+  }
+
+  function thumbnailCompletionStats(pack, level, storedRecord) {
+    const officialBestMoves = bestMovesForPack(pack, level);
+    if (storedRecord && typeof storedRecord === "object") {
+      const recordedMoves = Number(storedRecord.moves);
+      if (officialBestMoves == null || (Number.isFinite(recordedMoves) && recordedMoves === officialBestMoves)) {
+        return storedRecord;
+      }
+    }
+    return officialBestMoves != null ? { moves: officialBestMoves } : null;
+  }
+
   function refreshLevelButtons() {
     const pickerPack = PACK_BY_ID.get(levelButtons?.dataset?.packId) || levelPickerPack || activePack;
     const snapshot = pickerPack.id === activePack.id
       ? { completed: completedLevels, assisted: assistedLevels, currentIndex: levelIndex, highestUnlocked: highestUnlockedLevel }
       : readPackLevelProgress(pickerPack);
     const completionStats = readPackCompletionStats(pickerPack.id).levels || {};
+    const progressionCurrentIndex = progressionCurrentLevelIndex(snapshot, pickerPack.levels.length);
     const todayPuzzle = dailyPuzzleForToday();
     const dailyButton = levelButtons?.querySelector?.("[data-daily-level]");
     if (dailyButton) {
@@ -3090,7 +3130,7 @@ window.BOXXY_RELEASE = Object.freeze({
 
     [...levelButtons.querySelectorAll("button[data-level-index]")].forEach(button => {
       const index = Number(button.dataset.levelIndex);
-      const isCurrent = index === snapshot.currentIndex;
+      const isCurrent = index === progressionCurrentIndex;
       const isCompleted = snapshot.completed.has(index);
       const isAssisted = snapshot.assisted.has(index);
       const isLocked = index > snapshot.highestUnlocked;
@@ -3103,9 +3143,13 @@ window.BOXXY_RELEASE = Object.freeze({
       button.title = isLocked
         ? `Complete level ${index} to unlock level ${index + 1}`
         : `${pickerPack.displayName}: ${index + 1}. ${pickerPack.levels[index].name}`;
-      const storedStats = completionStats[String(index)] || null;
-      const liveStats = isCurrent && pickerPack.id === activePack.id && !dailyMode && !isCompleted
-        ? { pushes, seconds: elapsedLevelSeconds() }
+      const storedStats = thumbnailCompletionStats(
+        pickerPack,
+        pickerPack.levels[index],
+        completionStats[String(index)] || null
+      );
+      const liveStats = isCurrent && index === levelIndex && pickerPack.id === activePack.id && !dailyMode && !isCompleted
+        ? { moves, seconds: elapsedLevelSeconds() }
         : null;
       renderLevelPickerButton(button, pickerPack, pickerPack.levels[index], index, {
         current: isCurrent,
@@ -5543,14 +5587,14 @@ window.BOXXY_RELEASE = Object.freeze({
       const stats = document.createElement("span");
       stats.className = "level-thumb-stats";
 
-      const pushesStat = document.createElement("span");
-      const pushesLabel = document.createElement("small");
-      pushesLabel.textContent = "PUSHES";
-      const pushesValue = document.createElement("strong");
-      pushesValue.textContent = record && Number.isFinite(Number(record.pushes))
-        ? String(Math.max(0, Math.round(Number(record.pushes))))
+      const movesStat = document.createElement("span");
+      const movesLabel = document.createElement("small");
+      movesLabel.textContent = "MOVES";
+      const movesValue = document.createElement("strong");
+      movesValue.textContent = record && Number.isFinite(Number(record.moves))
+        ? String(Math.max(0, Math.round(Number(record.moves))))
         : "—";
-      pushesStat.append(pushesLabel, pushesValue);
+      movesStat.append(movesLabel, movesValue);
 
       const timeStat = document.createElement("span");
       const timeLabel = document.createElement("small");
@@ -5561,7 +5605,7 @@ window.BOXXY_RELEASE = Object.freeze({
         : "—";
       timeStat.append(timeLabel, timeValue);
 
-      stats.append(pushesStat, timeStat);
+      stats.append(movesStat, timeStat);
       button.append(art, stats);
       drawLevelThumbnail(canvas, level);
       return;
