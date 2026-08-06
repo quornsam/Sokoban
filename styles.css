@@ -5382,3 +5382,88 @@ body.first-person-mode .board::after{
   .daily-archive-date-actions{padding:3px;gap:2px}
   .daily-archive-date-actions button{min-height:23px;font-size:5px}
 }
+
+/* BOXXY v231 — compact pushes and time beneath completed/current level previews. */
+.level-thumb-state{
+  position:absolute;
+  right:3px;
+  top:3px;
+  max-width:calc(100% - 30px);
+  padding:3px 4px;
+  overflow:hidden;
+  border:1px solid var(--ink);
+  background:rgba(255,250,242,.94);
+  color:var(--ink);
+  box-shadow:1px 1px 0 rgba(23,23,25,.18);
+  font-size:5.8px;
+  font-weight:1000;
+  line-height:1;
+  letter-spacing:.055em;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.level-thumb-stats{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  min-height:22px;
+  border:1px solid rgba(23,23,25,.28);
+  background:#fffaf2;
+}
+.level-thumb-stats>span{
+  min-width:0;
+  padding:3px 2px 2px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+}
+.level-thumb-stats>span+span{border-left:1px solid rgba(23,23,25,.22)}
+.level-thumb-stats small{
+  display:block;
+  max-width:100%;
+  overflow:hidden;
+  color:#6c645a;
+  font-size:4.6px;
+  font-weight:1000;
+  line-height:1;
+  letter-spacing:.06em;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.level-thumb-stats strong{
+  display:block;
+  max-width:100%;
+  margin-top:2px;
+  overflow:hidden;
+  color:var(--ink);
+  font-size:8px;
+  font-weight:1000;
+  line-height:1;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.level-picker #levelButtons button.level-thumbnail-card.completed .level-thumb-stats{
+  background:#f1f8f2;
+  border-color:rgba(47,143,91,.42);
+}
+.level-picker #levelButtons button.level-thumbnail-card.assisted .level-thumb-stats{
+  background:#fff8d9;
+  border-color:rgba(209,163,23,.45);
+}
+.level-picker #levelButtons button.level-thumbnail-card.current .level-thumb-state{
+  background:var(--red);
+  color:#fff;
+  border-color:var(--red);
+}
+.level-picker #levelButtons button.level-thumbnail-card.assisted .level-thumb-state{
+  background:#e5b32a;
+  color:var(--ink);
+  border-color:#a67c00;
+}
+@media(max-width:620px){
+  .level-thumb-state{font-size:5.2px}
+  .level-thumb-stats{min-height:21px}
+  .level-thumb-stats small{font-size:4.3px}
+  .level-thumb-stats strong{font-size:7.5px}
+}

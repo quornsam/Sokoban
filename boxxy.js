@@ -6,8 +6,8 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: 230,
-  lastUpdated: "2026-08-05"
+  version: 231,
+  lastUpdated: "2026-08-06"
 });
 /* Stored solver routes are kept separate from the authored pack data. */
 (() => {
@@ -39,6 +39,7 @@ window.BOXXY_RELEASE = Object.freeze({
   });
 })();
 
+/* BOXXY v231 — level thumbnails show pushes and completion time. */
 /* BOXXY v230 — compact generated level thumbnails and denser Daily archive. */
 /* BOXXY v229 — holding Undo now repeats, matching held direction controls. */
 /* BOXXY v228 — Google Search discovery and presentation metadata added in index.html. */
@@ -3070,6 +3071,7 @@ window.BOXXY_RELEASE = Object.freeze({
     const snapshot = pickerPack.id === activePack.id
       ? { completed: completedLevels, assisted: assistedLevels, currentIndex: levelIndex, highestUnlocked: highestUnlockedLevel }
       : readPackLevelProgress(pickerPack);
+    const completionStats = readPackCompletionStats(pickerPack.id).levels || {};
     const todayPuzzle = dailyPuzzleForToday();
     const dailyButton = levelButtons?.querySelector?.("[data-daily-level]");
     if (dailyButton) {
@@ -3101,11 +3103,17 @@ window.BOXXY_RELEASE = Object.freeze({
       button.title = isLocked
         ? `Complete level ${index} to unlock level ${index + 1}`
         : `${pickerPack.displayName}: ${index + 1}. ${pickerPack.levels[index].name}`;
+      const storedStats = completionStats[String(index)] || null;
+      const liveStats = isCurrent && pickerPack.id === activePack.id && !dailyMode && !isCompleted
+        ? { pushes, seconds: elapsedLevelSeconds() }
+        : null;
       renderLevelPickerButton(button, pickerPack, pickerPack.levels[index], index, {
         current: isCurrent,
         completed: isCompleted,
         assisted: isAssisted,
-        locked: isLocked
+        locked: isLocked,
+        stats: storedStats,
+        liveStats
       });
     });
     updateCollectionCompleteStar();
@@ -5519,10 +5527,42 @@ window.BOXXY_RELEASE = Object.freeze({
       badge.className = "level-thumb-number";
       badge.textContent = String(index + 1);
       art.appendChild(badge);
-      const status = document.createElement("span");
-      status.className = "level-thumb-status";
-      status.textContent = state.current ? "CURRENT" : state.assisted ? "ASSISTED" : "COMPLETE";
-      button.append(art, status);
+
+      if (state.current || state.assisted) {
+        const stateBadge = document.createElement("span");
+        stateBadge.className = "level-thumb-state";
+        stateBadge.textContent = state.current ? "CURRENT" : "ASSISTED";
+        art.appendChild(stateBadge);
+      }
+
+      const record = state.completed && state.stats && typeof state.stats === "object"
+        ? state.stats
+        : state.current && state.liveStats && typeof state.liveStats === "object"
+          ? state.liveStats
+          : null;
+      const stats = document.createElement("span");
+      stats.className = "level-thumb-stats";
+
+      const pushesStat = document.createElement("span");
+      const pushesLabel = document.createElement("small");
+      pushesLabel.textContent = "PUSHES";
+      const pushesValue = document.createElement("strong");
+      pushesValue.textContent = record && Number.isFinite(Number(record.pushes))
+        ? String(Math.max(0, Math.round(Number(record.pushes))))
+        : "—";
+      pushesStat.append(pushesLabel, pushesValue);
+
+      const timeStat = document.createElement("span");
+      const timeLabel = document.createElement("small");
+      timeLabel.textContent = "TIME";
+      const timeValue = document.createElement("strong");
+      timeValue.textContent = record && Number.isFinite(Number(record.seconds))
+        ? formatClockDuration(Math.max(0, Number(record.seconds)))
+        : "—";
+      timeStat.append(timeLabel, timeValue);
+
+      stats.append(pushesStat, timeStat);
+      button.append(art, stats);
       drawLevelThumbnail(canvas, level);
       return;
     }
