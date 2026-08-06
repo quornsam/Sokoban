@@ -2,6 +2,7 @@
  * BOXXY — Pushbox Puzzle
  * Copyright © 2026 Sam Cornwell. All rights reserved.
  * Personal non-commercial use only. See LICENSE.md.
+ * BOXXY v233: secret click-to-move mouse support and box destination planning.
  * BOXXY v227: prevent accidental iPhone/iPad text, icon and image selection while preserving editable fields.
  * BOXXY v166: fifteen dedicated box and target sprite colours.
  * BOXXY v219: Daily completion destination choices.
@@ -5466,4 +5467,114 @@ body.first-person-mode .board::after{
   .level-thumb-stats{min-height:21px}
   .level-thumb-stats small{font-size:4.3px}
   .level-thumb-stats strong{font-size:7.5px}
+}
+
+
+/* BOXXY v233 — secret click-to-move mouse support. */
+.mouse-support-hotspot{
+  display:inline;
+  color:inherit;
+  margin:0;
+  font:inherit;
+  line-height:inherit;
+  letter-spacing:inherit;
+  user-select:none;
+  -webkit-user-select:none;
+}
+@media (hover:hover) and (pointer:fine){
+  .mouse-support-hotspot{cursor:pointer}
+  body.mouse-support-enabled .board{cursor:crosshair}
+  body.mouse-support-busy .board{cursor:progress}
+}
+.mouse-support-layer{
+  z-index:2500;
+  overflow:hidden;
+  pointer-events:none;
+}
+.mouse-support-layer[hidden]{display:none!important}
+.mouse-support-cell{
+  position:absolute;
+  left:calc(var(--x) * 100% / var(--cols));
+  top:calc(var(--y) * 100% / var(--rows));
+  width:calc(100% / var(--cols));
+  height:calc(100% / var(--rows));
+  display:grid;
+  place-items:center;
+  pointer-events:none;
+}
+.mouse-support-selected::before{
+  content:"";
+  position:absolute;
+  inset:8%;
+  border:clamp(2px,.35vw,4px) solid var(--blue);
+  box-shadow:0 0 0 3px rgba(247,240,229,.86),0 0 18px rgba(32,83,154,.55);
+  animation:mouseSupportSelectedPulse .9s ease-in-out infinite alternate;
+}
+.mouse-support-destination::before{
+  content:"";
+  width:44%;
+  height:44%;
+  min-width:9px;
+  min-height:9px;
+  max-width:28px;
+  max-height:28px;
+  border-radius:50%;
+  border:2px solid #fffaf2;
+  background:var(--blue);
+  box-shadow:0 0 0 2px var(--ink),0 5px 12px rgba(23,23,25,.28);
+  animation:mouseSupportDestinationPulse .78s ease-in-out infinite alternate;
+}
+.mouse-support-destination.is-goal::before{background:var(--red)}
+@keyframes mouseSupportDestinationPulse{from{transform:scale(.82)}to{transform:scale(1.08)}}
+@keyframes mouseSupportSelectedPulse{from{opacity:.62}to{opacity:1}}
+.mouse-support-modal{background:rgba(21,21,21,.52);backdrop-filter:blur(6px)}
+.mouse-support-card{
+  width:min(520px,90vw);
+  padding:clamp(22px,4vw,34px);
+  text-align:left;
+  border:3px solid var(--ink);
+  box-shadow:12px 12px 0 rgba(23,23,25,.24),0 28px 64px rgba(23,23,25,.32);
+}
+.mouse-support-kicker{
+  display:block;
+  color:var(--red);
+  font-size:10px;
+  font-weight:1000;
+  letter-spacing:.16em;
+}
+.mouse-support-card h2{
+  margin:8px 0 18px;
+  font-size:clamp(38px,8vw,64px);
+  line-height:.82;
+  letter-spacing:-.035em;
+}
+.mouse-support-copy{
+  display:grid;
+  gap:10px;
+  margin:0 0 22px;
+}
+.mouse-support-copy p{
+  margin:0;
+  color:#51483e;
+  font-size:13px;
+  line-height:1.42;
+}
+.mouse-support-copy strong{color:var(--ink)}
+.mouse-support-actions{display:flex;justify-content:flex-end;gap:10px}
+.mouse-support-actions button{
+  min-height:44px;
+  padding:11px 16px;
+  border:2px solid var(--ink);
+  font-size:10px;
+  font-weight:1000;
+  letter-spacing:.06em;
+}
+.mouse-support-cancel{background:#ece4d7!important;color:var(--ink)!important}
+.mouse-support-enable{background:var(--blue)!important;color:#fff!important}
+@media(max-width:560px){
+  .mouse-support-card{width:92vw;padding:20px}
+  .mouse-support-card h2{font-size:40px}
+  .mouse-support-copy p{font-size:12px}
+  .mouse-support-actions{display:grid;grid-template-columns:1fr}
+  .mouse-support-actions button{width:100%}
 }

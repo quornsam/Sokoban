@@ -6,7 +6,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: 232,
+  version: 233,
   lastUpdated: "2026-08-06"
 });
 /* Stored solver routes are kept separate from the authored pack data. */
@@ -39,6 +39,7 @@ window.BOXXY_RELEASE = Object.freeze({
   });
 })();
 
+/* BOXXY v233 — secret click-to-move mouse support with reachable box destinations. */
 /* BOXXY v232 — level thumbnails prioritise moves, use the progression-current level and keep time tied to the best move score. */
 /* BOXXY v231 — level thumbnails show pushes and completion time. */
 /* BOXXY v230 — compact generated level thumbnails and denser Daily archive. */
@@ -1727,6 +1728,7 @@ window.BOXXY_RELEASE = Object.freeze({
   const voidLayer = document.getElementById("voidLayer");
   const wallLayer = document.getElementById("wallLayer");
   const goalLayer = document.getElementById("goalLayer");
+  const mouseSupportLayer = document.getElementById("mouseSupportLayer");
   const pieceLayer = document.getElementById("pieceLayer");
   const movesEl = document.getElementById("moves");
   const pushesEl = document.getElementById("pushes");
@@ -1813,6 +1815,10 @@ window.BOXXY_RELEASE = Object.freeze({
   const celebration = document.getElementById("celebration");
   const board = document.getElementById("board");
   const boardWrap = document.querySelector(".board-wrap");
+  const mouseSupportHotspot = document.getElementById("mouseSupportHotspot");
+  const mouseSupportModal = document.getElementById("mouseSupportModal");
+  const mouseSupportCancelBtn = document.getElementById("mouseSupportCancelBtn");
+  const mouseSupportEnableBtn = document.getElementById("mouseSupportEnableBtn");
   const firstPersonHotspot = document.getElementById("firstPersonHotspot");
   const firstPersonCanvas = document.getElementById("firstPersonCanvas");
   const firstPersonBoom = document.getElementById("firstPersonBoom");
@@ -1907,6 +1913,16 @@ window.BOXXY_RELEASE = Object.freeze({
   let easterClickCount = 0;
   let easterArmed = false;
   let easterResetTimer = null;
+  let mouseSupportClickCount = 0;
+  let mouseSupportArmed = false;
+  let mouseSupportResetTimer = null;
+  let mouseSupportEnabled = false;
+  let mouseSupportBusy = false;
+  let mouseSupportExecutingStep = false;
+  let mouseSupportRouteTimer = null;
+  let mouseSupportSelectedBoxIndex = -1;
+  let mouseSupportPlans = new Map();
+  let mouseSupportIgnoreClickUntil = 0;
   let firstPersonMode = false;
   let firstPersonHeading = 2;
   let firstPersonClickCount = 0;
@@ -4201,6 +4217,7 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   function enterFirstPersonMode() {
+    resetMouseSupportInteraction();
     if (firstPersonMode || !desktopEasterEggAvailable() || autoplayRunning) return false;
     firstPersonMode = true;
     firstPersonHeading = firstPersonHeadingForFacing(facing);
@@ -4895,6 +4912,7 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   function loadDailyPuzzle(puzzle = dailyPuzzleForToday(), preserveBackground = false) {
+    resetMouseSupportInteraction();
     if (!puzzle || !Array.isArray(puzzle.layout) || !puzzle.layout.length) {
       showDailyInvite(true);
       return false;
@@ -4986,6 +5004,7 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   function loadLevel(index, preserveAutoplay = false, preserveBackground = false) {
+    resetMouseSupportInteraction();
     dailyMode = false;
     dailyPuzzle = null;
     document.body.classList.remove("daily-mode");
@@ -5073,6 +5092,7 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   function loadMakerTest(layoutRows, attachedSolution = "", options = {}) {
+    resetMouseSupportInteraction();
     try {
       const shared = Boolean(options.shared);
       const fallbackName = shared ? "Shared Puzzle" : "Custom Test";
@@ -5206,6 +5226,8 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   function move(dx, dy, holdBlocked = false, fromAutoplay = false, facingOverride = "") {
+    if (mouseSupportBusy && !mouseSupportExecutingStep) stopMouseSupportRoute();
+    if (!mouseSupportExecutingStep && mouseSupportSelectedBoxIndex >= 0) clearMouseSupportOverlay();
     if (completed || (autoplayRunning && !fromAutoplay)) return;
     ensureAudio();
     clearTimeout(animTimer);
@@ -5542,6 +5564,8 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   function undo() {
+    if (mouseSupportBusy) stopMouseSupportRoute();
+    clearMouseSupportOverlay();
     if (autoplayRunning || !history.length || completed) return;
     blockedPushHeld = false;
     clearTimeout(animTimer);
@@ -5656,6 +5680,322 @@ window.BOXXY_RELEASE = Object.freeze({
     refreshLevelButtons();
   }
 
+  const MOUSE_SUPPORT_DIRECTIONS = Object.freeze([
+    Object.freeze({ dx: 0, dy: -1, code: "U" }),
+    Object.freeze({ dx: -1, dy: 0, code: "L" }),
+    Object.freeze({ dx: 1, dy: 0, code: "R" }),
+    Object.freeze({ dx: 0, dy: 1, code: "D" })
+  ]);
+  const MOUSE_SUPPORT_STEP_MS = 68;
+  const MOUSE_SUPPORT_MAX_STATES = 6000;
+
+  function resetMouseSupportEasterEgg() {
+    mouseSupportClickCount = 0;
+    mouseSupportArmed = false;
+    clearTimeout(mouseSupportResetTimer);
+    mouseSupportResetTimer = null;
+  }
+
+  function registerMouseSupportClick() {
+    if (!desktopEasterEggAvailable() || firstPersonMode) return;
+    mouseSupportClickCount += 1;
+    clearTimeout(mouseSupportResetTimer);
+    mouseSupportResetTimer = setTimeout(resetMouseSupportEasterEgg, 10000);
+    if (mouseSupportClickCount >= 5) mouseSupportArmed = true;
+  }
+
+  function closeMouseSupportModal() {
+    if (mouseSupportModal) mouseSupportModal.hidden = true;
+    board?.focus?.({ preventScroll: true });
+  }
+
+  function openMouseSupportModal() {
+    if (!desktopEasterEggAvailable() || !mouseSupportModal) return;
+    resetMouseSupportEasterEgg();
+    mouseSupportModal.hidden = false;
+    mouseSupportEnableBtn?.focus?.({ preventScroll: true });
+  }
+
+  function clearMouseSupportOverlay() {
+    mouseSupportSelectedBoxIndex = -1;
+    mouseSupportPlans = new Map();
+    if (mouseSupportLayer) {
+      mouseSupportLayer.replaceChildren();
+      mouseSupportLayer.hidden = true;
+    }
+  }
+
+  function stopMouseSupportRoute({ quiet = true } = {}) {
+    clearTimeout(mouseSupportRouteTimer);
+    mouseSupportRouteTimer = null;
+    const wasBusy = mouseSupportBusy;
+    mouseSupportBusy = false;
+    mouseSupportExecutingStep = false;
+    document.body.classList.remove("mouse-support-busy");
+    if (wasBusy && !quiet) showCharacterThought("Mouse route stopped. Continue normally or click another square.", true);
+  }
+
+  function resetMouseSupportInteraction() {
+    stopMouseSupportRoute();
+    clearMouseSupportOverlay();
+  }
+
+  function enableMouseSupport() {
+    if (!desktopEasterEggAvailable()) return;
+    mouseSupportEnabled = true;
+    document.body.classList.add("mouse-support-enabled");
+    closeMouseSupportModal();
+    showCharacterThought("Mouse support enabled. Click a square to walk, or click a box to see its destinations.", true);
+  }
+
+  function mouseSupportBlockedSet(excludedBoxIndex = -1, selectedBoxPosition = null) {
+    const blockedCells = new Set();
+    boxes.forEach((box, index) => {
+      if (index !== excludedBoxIndex) blockedCells.add(key(box.x, box.y));
+    });
+    if (selectedBoxPosition) blockedCells.add(key(selectedBoxPosition.x, selectedBoxPosition.y));
+    return blockedCells;
+  }
+
+  function mouseSupportWalkingRoute(start, target, blockedCells = new Set()) {
+    const [startX, startY] = start;
+    const [targetX, targetY] = target;
+    const startKey = key(startX, startY);
+    const targetKey = key(targetX, targetY);
+    if (!floor.has(startKey) || !floor.has(targetKey) || blockedCells.has(targetKey)) return null;
+    if (startKey === targetKey) return "";
+
+    const queue = [[startX, startY]];
+    const previous = new Map([[startKey, null]]);
+    let head = 0;
+    while (head < queue.length) {
+      const [x, y] = queue[head++];
+      for (const direction of MOUSE_SUPPORT_DIRECTIONS) {
+        const nx = x + direction.dx;
+        const ny = y + direction.dy;
+        const nextKey = key(nx, ny);
+        if (previous.has(nextKey) || !floor.has(nextKey) || blockedCells.has(nextKey)) continue;
+        previous.set(nextKey, { previousKey: key(x, y), code: direction.code });
+        if (nextKey === targetKey) {
+          const route = [];
+          let cursor = targetKey;
+          while (cursor !== startKey) {
+            const step = previous.get(cursor);
+            if (!step) return null;
+            route.push(step.code);
+            cursor = step.previousKey;
+          }
+          return route.reverse().join("");
+        }
+        queue.push([nx, ny]);
+      }
+    }
+    return null;
+  }
+
+  function mouseSupportBoxDestinationPlans(selectedIndex) {
+    const selected = boxes[selectedIndex];
+    if (!selected) return new Map();
+    const fixedBoxes = mouseSupportBlockedSet(selectedIndex);
+    const initialState = {
+      boxX: selected.x,
+      boxY: selected.y,
+      playerX: player[0],
+      playerY: player[1],
+      route: "",
+      pushes: 0
+    };
+    const queue = [initialState];
+    const visited = new Set([`${selected.x},${selected.y}|${player[0]},${player[1]}`]);
+    const plans = new Map();
+    let head = 0;
+
+    while (head < queue.length && visited.size <= MOUSE_SUPPORT_MAX_STATES) {
+      const state = queue[head++];
+      for (const direction of MOUSE_SUPPORT_DIRECTIONS) {
+        const destinationX = state.boxX + direction.dx;
+        const destinationY = state.boxY + direction.dy;
+        const behindX = state.boxX - direction.dx;
+        const behindY = state.boxY - direction.dy;
+        const destinationKey = key(destinationX, destinationY);
+        const behindKey = key(behindX, behindY);
+        if (!floor.has(destinationKey) || fixedBoxes.has(destinationKey)) continue;
+        if (!floor.has(behindKey) || fixedBoxes.has(behindKey)) continue;
+
+        const walkingBlocks = new Set(fixedBoxes);
+        walkingBlocks.add(key(state.boxX, state.boxY));
+        const walkingRoute = mouseSupportWalkingRoute(
+          [state.playerX, state.playerY],
+          [behindX, behindY],
+          walkingBlocks
+        );
+        if (walkingRoute === null) continue;
+
+        const route = `${state.route}${walkingRoute}${direction.code}`;
+        const nextState = {
+          boxX: destinationX,
+          boxY: destinationY,
+          playerX: state.boxX,
+          playerY: state.boxY,
+          route,
+          pushes: state.pushes + 1
+        };
+        const stateKey = `${nextState.boxX},${nextState.boxY}|${nextState.playerX},${nextState.playerY}`;
+        if (visited.has(stateKey)) continue;
+        visited.add(stateKey);
+        queue.push(nextState);
+
+        const existing = plans.get(destinationKey);
+        if (!existing || nextState.pushes < existing.pushes ||
+            (nextState.pushes === existing.pushes && route.length < existing.route.length)) {
+          plans.set(destinationKey, { route, pushes: nextState.pushes });
+        }
+      }
+    }
+    return plans;
+  }
+
+  function renderMouseSupportOverlay() {
+    if (!mouseSupportLayer) return;
+    mouseSupportLayer.replaceChildren();
+    if (!mouseSupportEnabled || mouseSupportSelectedBoxIndex < 0) {
+      mouseSupportLayer.hidden = true;
+      return;
+    }
+    const selected = boxes[mouseSupportSelectedBoxIndex];
+    if (!selected) {
+      clearMouseSupportOverlay();
+      return;
+    }
+
+    const selectedMarker = document.createElement("span");
+    selectedMarker.className = "mouse-support-cell mouse-support-selected";
+    selectedMarker.style.cssText = posStyle(selected.x, selected.y, 0);
+    mouseSupportLayer.appendChild(selectedMarker);
+
+    for (const [destinationKey, plan] of mouseSupportPlans) {
+      const [x, y] = destinationKey.split(",").map(Number);
+      const marker = document.createElement("span");
+      marker.className = `mouse-support-cell mouse-support-destination${isGoal(x, y) ? " is-goal" : ""}`;
+      marker.style.cssText = posStyle(x, y, 0);
+      marker.dataset.pushes = String(plan.pushes || 1);
+      mouseSupportLayer.appendChild(marker);
+    }
+    mouseSupportLayer.hidden = false;
+  }
+
+  function selectMouseSupportBox(index) {
+    stopMouseSupportRoute();
+    mouseSupportSelectedBoxIndex = index;
+    mouseSupportPlans = mouseSupportBoxDestinationPlans(index);
+    renderMouseSupportOverlay();
+    if (mouseSupportPlans.size) {
+      showCharacterThought("Click a highlighted square to move this box there.", true);
+    } else {
+      showCharacterThought("I cannot reach a legal pushing position for that box.", true);
+    }
+  }
+
+  function boardCellFromPointer(event) {
+    if (!board || !width || !height) return null;
+    const rect = board.getBoundingClientRect();
+    if (!rect.width || !rect.height) return null;
+    const relativeX = event.clientX - rect.left;
+    const relativeY = event.clientY - rect.top;
+    if (relativeX < 0 || relativeY < 0 || relativeX >= rect.width || relativeY >= rect.height) return null;
+    return [
+      Math.max(0, Math.min(width - 1, Math.floor(relativeX / rect.width * width))),
+      Math.max(0, Math.min(height - 1, Math.floor(relativeY / rect.height * height)))
+    ];
+  }
+
+  function runMouseSupportRoute(route, description = "Walking there.") {
+    const cleanRoute = String(route || "").replace(/[^UDLR]/gi, "").toUpperCase();
+    if (!cleanRoute || completed || autoplayRunning || firstPersonMode) return false;
+    stopMouseSupportRoute();
+    clearMouseSupportOverlay();
+    mouseSupportBusy = true;
+    document.body.classList.add("mouse-support-busy");
+    showCharacterThought(description, true);
+    let stepIndex = 0;
+
+    const playNext = () => {
+      if (!mouseSupportBusy) return;
+      if (completed || autoplayRunning || firstPersonMode || stepIndex >= cleanRoute.length) {
+        stopMouseSupportRoute();
+        return;
+      }
+      const delta = CODE_TO_DELTA[cleanRoute[stepIndex++]];
+      if (!delta) {
+        mouseSupportRouteTimer = setTimeout(playNext, 0);
+        return;
+      }
+      const beforeMoves = moves;
+      mouseSupportExecutingStep = true;
+      try {
+        move(delta[0], delta[1], false, true);
+      } finally {
+        mouseSupportExecutingStep = false;
+      }
+      if (moves === beforeMoves) {
+        stopMouseSupportRoute();
+        showCharacterThought("That route is no longer clear. Choose another square.", true);
+        return;
+      }
+      if (completed || stepIndex >= cleanRoute.length) {
+        stopMouseSupportRoute();
+        return;
+      }
+      mouseSupportRouteTimer = setTimeout(playNext, MOUSE_SUPPORT_STEP_MS);
+    };
+
+    mouseSupportRouteTimer = setTimeout(playNext, 24);
+    return true;
+  }
+
+  function handleMouseSupportBoardClick(event) {
+    if (!mouseSupportEnabled || !desktopEasterEggAvailable() || firstPersonMode || autoplayRunning || completed) return;
+    if (event.button !== 0 || Date.now() < mouseSupportIgnoreClickUntil) return;
+    const cell = boardCellFromPointer(event);
+    if (!cell) return;
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (mouseSupportBusy) {
+      stopMouseSupportRoute({ quiet: false });
+      return;
+    }
+
+    const [x, y] = cell;
+    const cellKey = key(x, y);
+    if (!floor.has(cellKey)) {
+      clearMouseSupportOverlay();
+      showCharacterThought("That square is outside the puzzle floor.", true);
+      return;
+    }
+
+    const clickedBoxIndex = boxIndex(x, y);
+    if (clickedBoxIndex >= 0) {
+      selectMouseSupportBox(clickedBoxIndex);
+      return;
+    }
+
+    const boxPlan = mouseSupportPlans.get(cellKey);
+    if (mouseSupportSelectedBoxIndex >= 0 && boxPlan?.route) {
+      runMouseSupportRoute(boxPlan.route, `Moving the box there in ${boxPlan.pushes} ${boxPlan.pushes === 1 ? "push" : "pushes"}.`);
+      return;
+    }
+
+    clearMouseSupportOverlay();
+    const route = mouseSupportWalkingRoute(player, [x, y], mouseSupportBlockedSet());
+    if (route === null) {
+      showCharacterThought("I cannot walk to that square from here.", true);
+      return;
+    }
+    if (!route) return;
+    runMouseSupportRoute(route, "Taking the shortest clear route.");
+  }
+
   function desktopEasterEggAvailable() {
     return window.matchMedia("(hover: hover) and (pointer: fine)").matches;
   }
@@ -5685,6 +6025,7 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   function startAutoplay() {
+    resetMouseSupportInteraction();
     if (dailyMode) {
       if (thoughtText) thoughtText.textContent = "Guided solve is unavailable for the Daily Boxxy.";
       resetEasterEgg();
@@ -5759,6 +6100,13 @@ window.BOXXY_RELEASE = Object.freeze({
   document.addEventListener("keydown", event => {
     if (levelMakerModal && !levelMakerModal.hidden) return;
     if (window.CharacterStyler?.isOpen) return;
+    if (mouseSupportModal && !mouseSupportModal.hidden) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeMouseSupportModal();
+      }
+      return;
+    }
     if (autoplayRunning && event.key === "Escape") {
       event.preventDefault();
       cancelGuidedSolve();
@@ -5782,6 +6130,11 @@ window.BOXXY_RELEASE = Object.freeze({
         stepFirstPerson(event.key === "ArrowUp" ? 1 : -1, true);
         return;
       }
+    }
+    if (desktopEasterEggAvailable() && mouseSupportArmed && event.key.toLowerCase() === "o") {
+      event.preventDefault();
+      openMouseSupportModal();
+      return;
     }
     if (checkKonamiCode(event.key)) {
       event.preventDefault();
@@ -5941,6 +6294,16 @@ window.BOXXY_RELEASE = Object.freeze({
     if (document.hidden) pauseMusicForHiddenTab();
     else resumeMusicAfterHiddenTab();
   });
+  mouseSupportHotspot?.addEventListener("click", event => {
+    if (!desktopEasterEggAvailable()) return;
+    event.preventDefault();
+    registerMouseSupportClick();
+  });
+  mouseSupportCancelBtn?.addEventListener("click", closeMouseSupportModal);
+  mouseSupportEnableBtn?.addEventListener("click", enableMouseSupport);
+  mouseSupportModal?.addEventListener("click", event => {
+    if (event.target === mouseSupportModal) closeMouseSupportModal();
+  });
   firstPersonHotspot?.addEventListener("click", event => {
     if (!desktopEasterEggAvailable()) return;
     event.preventDefault();
@@ -5954,6 +6317,11 @@ window.BOXXY_RELEASE = Object.freeze({
   document.addEventListener("webkitfullscreenchange", () => { updateFullscreenButton(); scheduleBoardResize(); });
   window.addEventListener("resize", () => {
     if (firstPersonMode && !desktopEasterEggAvailable()) exitFirstPersonMode();
+    if (mouseSupportEnabled && !desktopEasterEggAvailable()) {
+      mouseSupportEnabled = false;
+      document.body.classList.remove("mouse-support-enabled");
+      resetMouseSupportInteraction();
+    }
     updateFullscreenButton();
     scheduleBoardResize();
   });
@@ -6194,7 +6562,7 @@ window.BOXXY_RELEASE = Object.freeze({
     if (firstPersonMode) return;
     ensureAudio();
     const mouseLike = event.pointerType === "mouse" || event.pointerType === "";
-    if (mouseLike && event.button === 0 && pointerIsOnCharacter(event)) registerEasterClick();
+    if (!mouseSupportEnabled && mouseLike && event.button === 0 && pointerIsOnCharacter(event)) registerEasterClick();
     swipe = { x: event.clientX, y: event.clientY, id: event.pointerId, triggered: false };
     board.setPointerCapture?.(event.pointerId);
   });
@@ -6205,6 +6573,7 @@ window.BOXXY_RELEASE = Object.freeze({
     const dy = event.clientY - swipe.y;
     if (Math.max(Math.abs(dx), Math.abs(dy)) < 22) return;
     swipe.triggered = true;
+    mouseSupportIgnoreClickUntil = Date.now() + 260;
     if (Math.abs(dx) > Math.abs(dy)) move(dx > 0 ? 1 : -1, 0, true);
     else move(0, dy > 0 ? 1 : -1, true);
   });
@@ -6216,11 +6585,13 @@ window.BOXXY_RELEASE = Object.freeze({
     const triggered = swipe.triggered;
     swipe = null;
     if (!triggered && Math.max(Math.abs(dx), Math.abs(dy)) >= 22) {
+      mouseSupportIgnoreClickUntil = Date.now() + 260;
       if (Math.abs(dx) > Math.abs(dy)) move(dx > 0 ? 1 : -1, 0, false);
       else move(0, dy > 0 ? 1 : -1, false);
     }
     releaseBlockedPush();
   });
+  board.addEventListener("click", handleMouseSupportBoardClick);
   board.addEventListener("pointercancel", () => { swipe = null; releaseBlockedPush(); });
   board.addEventListener("lostpointercapture", () => { swipe = null; releaseBlockedPush(); });
 
