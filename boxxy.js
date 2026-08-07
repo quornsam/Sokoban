@@ -6,7 +6,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: 235,
+  version: 236,
   lastUpdated: "2026-08-07"
 });
 /* Stored solver routes are kept separate from the authored pack data. */
@@ -39,6 +39,7 @@ window.BOXXY_RELEASE = Object.freeze({
   });
 })();
 
+/* BOXXY v236 — Level Maker imports hyphens as explicit floor tiles and private puzzle URLs support grids up to 64×64. */
 /* BOXXY v235 — Level Maker supports grids up to 100×100; large grids fit the workshop and unsupported solver sizes are blocked cleanly. */
 /* BOXXY v234 — saved positions rebuild their full Undo history when resumed. */
 /* BOXXY v233 — secret click-to-move mouse support with reachable box destinations. */
@@ -322,7 +323,7 @@ window.BOXXY_RELEASE = Object.freeze({
 (() => {
   "use strict";
 
-  const MAX_SIZE = 36;
+  const MAX_SIZE = 64;
   const ALLOWED = /^[ #@$.+*]*$/;
 
   function bytesToBase64Url(bytes) {
@@ -6813,7 +6814,7 @@ window.BOXXY_RELEASE = Object.freeze({
   const GENERATOR_MIN_SIZE = 5;
   const MAX_SIZE = 100;
   const SOLVER_MAX_SIZE = 64;
-  const SHARE_MAX_SIZE = 36;
+  const SHARE_MAX_SIZE = 64;
   const MAX_GENERATOR_BOXES = 12;
   const VOID = "~";
   const GOAL_COLOURS = window.BoxxyGoalColours;
@@ -7789,7 +7790,7 @@ window.BOXXY_RELEASE = Object.freeze({
       throw new Error("This level uses Rainbow Mode colour letters. Turn Rainbow Mode on before importing it.");
     }
     const invalid = [...new Set(cleaned.join("").split("").filter(ch =>
-      !" #@$.+*".includes(ch) && !(rainbowMode && GOAL_COLOURS?.isTextCode?.(ch))
+      !" -#@$.+*".includes(ch) && !(rainbowMode && GOAL_COLOURS?.isTextCode?.(ch))
     ))];
     if (invalid.length) throw new Error(`Unsupported character${invalid.length === 1 ? "" : "s"}: ${invalid.join(" ")}`);
 
@@ -7809,7 +7810,10 @@ window.BOXXY_RELEASE = Object.freeze({
         const sourceChar = cleaned[y]?.[x] ?? " ";
         const decoded = rainbowMode ? GOAL_COLOURS?.decodeTextChar?.(sourceChar) : null;
         const ch = decoded?.cell || classified.chars[y]?.[x] || " ";
-        const value = ch === " " && classified.outside.has(`${x},${y}`) ? VOID : ch;
+        // Some Sokoban tools use a hyphen as an explicit floor marker. Unlike a
+        // literal space, it must remain floor even when it touches the map edge.
+        const normalisedChar = ch === "-" ? " " : ch;
+        const value = normalisedChar === " " && classified.outside.has(`${x},${y}`) ? VOID : normalisedChar;
         const index = indexOf(x, y);
         cells[index] = VALID.has(value) ? value : VOID;
         if (cellHasGoal(cells[index])) {
