@@ -6,8 +6,8 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: 233,
-  lastUpdated: "2026-08-06"
+  version: 234,
+  lastUpdated: "2026-08-07"
 });
 /* Stored solver routes are kept separate from the authored pack data. */
 (() => {
@@ -39,6 +39,7 @@ window.BOXXY_RELEASE = Object.freeze({
   });
 })();
 
+/* BOXXY v234 — saved positions rebuild their full Undo history when resumed. */
 /* BOXXY v233 — secret click-to-move mouse support with reachable box destinations. */
 /* BOXXY v232 — level thumbnails prioritise moves, use the progression-current level and keep time tied to the best move score. */
 /* BOXXY v231 — level thumbnails show pushes and completion time. */
@@ -1489,6 +1490,79 @@ window.BOXXY_RELEASE = Object.freeze({
     return true;
   }
 
+  // A checkpoint already stores the complete successful move route. Rebuild the
+  // in-memory snapshots from that route so RESUME keeps the full Undo chain
+  // without bloating localStorage by saving every board state separately.
+  function checkpointUndoHistory(checkpoint) {
+    const route = String(checkpoint?.route || "").replace(/[^UDLR]/gi, "").toUpperCase();
+    if (!route) return [];
+
+    let parsed;
+    try {
+      parsed = parseLayout(levelData.layout, levelData.goalColours);
+    } catch (_) {
+      return null;
+    }
+
+    let simPlayer = [...parsed.player];
+    let simBoxes = parsed.boxes.map(([x, y]) => ({ x, y, moving: false }));
+    let simMoves = 0;
+    let simPushes = 0;
+    let simFacing = "front";
+    let simRoute = "";
+    const rebuilt = [];
+    const simBoxIndex = (x, y) => simBoxes.findIndex(box => box.x === x && box.y === y);
+
+    for (const code of route) {
+      const delta = CODE_TO_DELTA[code];
+      if (!delta) return null;
+      const [dx, dy] = delta;
+      const nx = simPlayer[0] + dx;
+      const ny = simPlayer[1] + dy;
+      if (!parsed.floor.has(key(nx, ny))) return null;
+
+      const index = simBoxIndex(nx, ny);
+      if (index >= 0) {
+        const bx = nx + dx;
+        const by = ny + dy;
+        if (!parsed.floor.has(key(bx, by)) || simBoxIndex(bx, by) >= 0) return null;
+      }
+
+      rebuilt.push({
+        player: [...simPlayer],
+        boxes: copyBoxes(simBoxes),
+        moves: simMoves,
+        pushes: simPushes,
+        facing: simFacing,
+        route: simRoute
+      });
+
+      simBoxes.forEach(box => { box.moving = false; });
+      if (index >= 0) {
+        simBoxes[index].x = nx + dx;
+        simBoxes[index].y = ny + dy;
+        simPushes++;
+      }
+      simPlayer = [nx, ny];
+      simMoves++;
+      simFacing = DELTA_TO_FACING(dx, dy);
+      simRoute += code;
+    }
+
+    const finalBoxes = simBoxes.map(box => `${box.x},${box.y}`).sort().join(";");
+    const savedBoxes = checkpoint.boxes.map(box => `${Number(box.x)},${Number(box.y)}`).sort().join(";");
+    const savedPlayer = checkpoint.player.map(Number);
+    if (simMoves !== Math.max(0, Number(checkpoint.moves) || 0)
+      || simPushes !== Math.max(0, Number(checkpoint.pushes) || 0)
+      || simPlayer[0] !== savedPlayer[0]
+      || simPlayer[1] !== savedPlayer[1]
+      || finalBoxes !== savedBoxes) {
+      return null;
+    }
+
+    return rebuilt;
+  }
+
   function restoreCheckpoint() {
     if (!checkpointIsValid(currentCheckpoint)) {
       localStorage.removeItem(currentCheckpointStorageKey());
@@ -1506,14 +1580,17 @@ window.BOXXY_RELEASE = Object.freeze({
     pushes = Math.max(0, Number(currentCheckpoint.pushes) || 0);
     facing = ["front", "back", "left", "right"].includes(currentCheckpoint.facing) ? currentCheckpoint.facing : "front";
     playedRoute = String(currentCheckpoint.route || "").replace(/[^UDLR]/gi, "").toUpperCase();
-    history = [];
+    const restoredHistory = checkpointUndoHistory(currentCheckpoint);
+    history = Array.isArray(restoredHistory) ? restoredHistory : [];
     completed = false;
     modal.hidden = true;
     startedAt = Date.now() - Math.max(0, Number(currentCheckpoint.elapsedMs) || 0);
     render("idle");
     updateTime();
     scheduleIdle();
-    if (thoughtText) thoughtText.textContent = "Saved position restored.";
+    if (thoughtText) thoughtText.textContent = restoredHistory === null
+      ? "Saved position restored. Undo history was unavailable for this save."
+      : "Saved position restored. Undo is available for all saved moves.";
   }
 
   function saveOrRestorePosition() {
