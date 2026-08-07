@@ -6,7 +6,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: 234,
+  version: 235,
   lastUpdated: "2026-08-07"
 });
 /* Stored solver routes are kept separate from the authored pack data. */
@@ -39,6 +39,7 @@ window.BOXXY_RELEASE = Object.freeze({
   });
 })();
 
+/* BOXXY v235 — Level Maker supports grids up to 100×100; large grids fit the workshop and unsupported solver sizes are blocked cleanly. */
 /* BOXXY v234 — saved positions rebuild their full Undo history when resumed. */
 /* BOXXY v233 — secret click-to-move mouse support with reachable box destinations. */
 /* BOXXY v232 — level thumbnails prioritise moves, use the progression-current level and keep time tied to the best move score. */
@@ -6810,7 +6811,9 @@ window.BOXXY_RELEASE = Object.freeze({
 
   const MIN_SIZE = 3;
   const GENERATOR_MIN_SIZE = 5;
-  const MAX_SIZE = 36;
+  const MAX_SIZE = 100;
+  const SOLVER_MAX_SIZE = 64;
+  const SHARE_MAX_SIZE = 36;
   const MAX_GENERATOR_BOXES = 12;
   const VOID = "~";
   const GOAL_COLOURS = window.BoxxyGoalColours;
@@ -6901,7 +6904,7 @@ window.BOXXY_RELEASE = Object.freeze({
     const availableHeight = Math.max(1, gridShell.clientHeight - verticalPadding - 4);
     const maximum = window.matchMedia("(max-width: 620px)").matches ? 44 : 56;
     const fitted = Math.floor(Math.min(availableWidth / cols, availableHeight / rows, maximum));
-    const cellSize = Math.max(9, fitted);
+    const cellSize = Math.max(2, fitted);
     gridEl.style.setProperty("--maker-cell", `${cellSize}px`);
   }
 
@@ -7325,6 +7328,13 @@ window.BOXXY_RELEASE = Object.freeze({
       return;
     }
     if (solverRunning) return;
+
+    const solverHeight = validation.rows.length;
+    const solverWidth = Math.max(1, ...validation.rows.map(row => row.length));
+    if (solverWidth > SOLVER_MAX_SIZE || solverHeight > SOLVER_MAX_SIZE) {
+      setSolverStatus(`The Level Maker supports up to ${MAX_SIZE} × ${MAX_SIZE}, but the external Rust/WASM solver is limited to ${SOLVER_MAX_SIZE} × ${SOLVER_MAX_SIZE}. This ${solverWidth} × ${solverHeight} puzzle can still be edited, saved and test-played.`, "error");
+      return;
+    }
 
     const levelText = validation.rows.join("\n");
     const alreadySolved = verifySolverRoute(levelText, "");
@@ -9252,6 +9262,12 @@ window.BOXXY_RELEASE = Object.freeze({
     const validation = validate();
     if (!validation.ok) {
       setStatus(validation.error, "error");
+      return;
+    }
+    const shareHeight = validation.rows.length;
+    const shareWidth = Math.max(1, ...validation.rows.map(row => row.length));
+    if (shareWidth > SHARE_MAX_SIZE || shareHeight > SHARE_MAX_SIZE) {
+      setStatus(`Large editor maps can be saved and test-played, but private URL sharing remains limited to ${SHARE_MAX_SIZE} × ${SHARE_MAX_SIZE}.`, "error");
       return;
     }
     if (!window.BoxxyShareCodec?.buildUrl) {
