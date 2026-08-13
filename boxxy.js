@@ -6,8 +6,8 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: 236,
-  lastUpdated: "2026-08-07"
+  version: 237,
+  lastUpdated: "2026-08-13"
 });
 /* Stored solver routes are kept separate from the authored pack data. */
 (() => {
@@ -39,6 +39,7 @@ window.BOXXY_RELEASE = Object.freeze({
   });
 })();
 
+/* BOXXY v237 — Alphabet Soup adds 27 authored levels with supplied walkthrough solutions and dedicated pack artwork. */
 /* BOXXY v236 — Level Maker imports hyphens as explicit floor tiles and private puzzle URLs support grids up to 64×64. */
 /* BOXXY v235 — Level Maker supports grids up to 100×100; large grids fit the workshop and unsupported solver sizes are blocked cleanly. */
 /* BOXXY v234 — saved positions rebuild their full Undo history when resumed. */
@@ -913,7 +914,8 @@ window.BOXXY_RELEASE = Object.freeze({
     chessboards: "Small Chessboards",
     haikemono: "Haikemono",
     jigsaw: "The Jigsaw",
-    exponentially: "Exponentially"
+    exponentially: "Exponentially",
+    "alphabet-soup": "Alphabet Soup"
   });
   const PACK_COLLECTION_HEADER_HTML = Object.freeze({
     "boxxy-original-puzzle-pack-of-50-levels": "BOXXY<br>ORIGINALS",
@@ -922,7 +924,8 @@ window.BOXXY_RELEASE = Object.freeze({
     chessboards: "SMALL<br>CHESSBOARDS",
     haikemono: "HAIKEMONO",
     jigsaw: "THE JIGSAW",
-    exponentially: "EXPONENTIALLY"
+    exponentially: "EXPONENTIALLY",
+    "alphabet-soup": "ALPHABET<br>SOUP"
   });
   const PACK_ARTWORK = Object.freeze({
     "boxxy-original-puzzle-pack-of-50-levels": {
@@ -939,6 +942,11 @@ window.BOXXY_RELEASE = Object.freeze({
       desktop: "assets/pack-art/exponentially-source.webp",
       mobile: "assets/pack-art/exponentially-mobile.webp",
       alt: "Indi screaming among a huge number of boxes"
+    },
+    "alphabet-soup": {
+      desktop: "assets/pack-art/alphabet-soup-banner.webp",
+      mobile: "assets/pack-art/alphabet-soup-mobile.webp",
+      alt: "Indi studying wooden crates arranged as the letters A, B and C"
     }
   });
 
