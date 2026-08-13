@@ -6,7 +6,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: 237,
+  version: 238,
   lastUpdated: "2026-08-13"
 });
 /* Stored solver routes are kept separate from the authored pack data. */
@@ -2363,19 +2363,33 @@ window.BOXXY_RELEASE = Object.freeze({
   ]);
   const PACK_STAR_SVG = '<svg viewBox="0 0 100 100" aria-hidden="true" focusable="false"><path d="M50 6 62.7 34.2 93.5 37.5 70.5 58.3 77 88.5 50 73 23 88.5 29.5 58.3 6.5 37.5 37.3 34.2Z"/></svg>';
   const PACK_JIGSAW_SVG = '<svg viewBox="0 0 100 100" aria-hidden="true" focusable="false"><path d="M8 26H34C34 14 40 6 50 6S66 14 66 26H82V38C82 42 84 44 88 44C94 44 98 48 98 54S94 66 88 66C84 66 82 68 82 72V90H64C64 78 58 72 50 72S36 78 36 90H8V64C20 64 28 58 28 50S20 36 8 36Z"/></svg>';
+  const PACK_ALPHABET_SOUP_SVG = '<svg viewBox="0 0 100 100" aria-hidden="true" focusable="false"><path fill-rule="evenodd" d="M50 6 87 94H68L60 75H40L32 94H13L50 6ZM50 31 43 56H57L50 31ZM35 62H65V74H35V62Z"/></svg>';
   const lastPackAwardMessage = { star: -1, jigsaw: -1 };
 
   function packRewardKind(pack) {
-    return pack?.id === JIGSAW_PACK_ID ? "jigsaw" : "star";
+    if (pack?.id === JIGSAW_PACK_ID) return "jigsaw";
+    if (pack?.id === "alphabet-soup") return "alphabet";
+    return "star";
   }
 
   function packRewardSvg(pack) {
-    return packRewardKind(pack) === "jigsaw" ? PACK_JIGSAW_SVG : PACK_STAR_SVG;
+    const kind = packRewardKind(pack);
+    if (kind === "jigsaw") return PACK_JIGSAW_SVG;
+    if (kind === "alphabet") return PACK_ALPHABET_SOUP_SVG;
+    return PACK_STAR_SVG;
   }
 
   function nextPackAwardMessage(pack) {
     const kind = packRewardKind(pack);
-    const messages = kind === "jigsaw" ? PACK_JIGSAW_AWARD_MESSAGES : PACK_STAR_AWARD_MESSAGES;
+    const messages = kind === "jigsaw"
+      ? PACK_JIGSAW_AWARD_MESSAGES
+      : kind === "alphabet"
+        ? [
+            packName => `A letter A has been added to your badge collection for completing “${packName}”. Find it beside BOXXY at the top of your screen, you box-pusher extraordinaire.`,
+            packName => `You completed “${packName}” and earned its A badge. It is waiting beside BOXXY at the top of your screen, you word-loving warehouse wizard.`,
+            packName => `“${packName}” is complete. Its A badge now sits beside BOXXY at the top of your screen, you alphabet-shifting champion.`
+          ]
+        : PACK_STAR_AWARD_MESSAGES;
     let index = Math.floor(Math.random() * messages.length);
     if (messages.length > 1 && index === lastPackAwardMessage[kind]) {
       index = (index + 1 + Math.floor(Math.random() * (messages.length - 1))) % messages.length;
@@ -2390,7 +2404,7 @@ window.BOXXY_RELEASE = Object.freeze({
     const kind = packRewardKind(pack);
     packStarAward.hidden = false;
     packStarAward.dataset.rewardType = kind;
-    packStarAward.setAttribute("aria-label", kind === "jigsaw" ? "Pack completion jigsaw puzzle piece awarded" : "Pack completion star awarded");
+    packStarAward.setAttribute("aria-label", kind === "jigsaw" ? "Pack completion jigsaw puzzle piece awarded" : kind === "alphabet" ? "Pack completion A badge awarded" : "Pack completion star awarded");
     if (packStarAwardIcon) {
       packStarAwardIcon.innerHTML = packRewardSvg(pack);
       packStarAwardIcon.style.setProperty("--pack-star-colour", packAccentColour(pack));
