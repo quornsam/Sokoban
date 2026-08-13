@@ -6,7 +6,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: 239,
+  version: 240,
   lastUpdated: "2026-08-13"
 });
 /* Stored solver routes are kept separate from the authored pack data. */
