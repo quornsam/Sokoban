@@ -6,7 +6,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: 244,
+  version: 246,
   lastUpdated: "2026-08-14"
 });
 /* Stored solver routes are kept separate from the authored pack data. */
@@ -3079,14 +3079,23 @@ window.BOXXY_RELEASE = Object.freeze({
       art.append(shape, number);
     }
 
+    let desktopMedal = null;
+    let mobileMedal = null;
     if (!compact && packIsComplete(pack.id)) {
-      const medal = document.createElement("span");
+      button.classList.add("has-pack-medal");
       const rewardKind = packRewardKind(pack);
-      medal.className = `pack-selector-medal pack-selector-medal-${rewardKind}`;
-      medal.setAttribute("aria-hidden", "true");
-      medal.style.setProperty("--pack-star-colour", packAccentColour(pack));
-      medal.innerHTML = packRewardSvg(pack);
-      art.appendChild(medal);
+      desktopMedal = document.createElement("span");
+      desktopMedal.className = `pack-selector-medal pack-selector-medal-desktop pack-selector-medal-${rewardKind}`;
+      desktopMedal.setAttribute("aria-hidden", "true");
+      desktopMedal.style.setProperty("--pack-star-colour", packAccentColour(pack));
+      desktopMedal.innerHTML = packRewardSvg(pack);
+      art.appendChild(desktopMedal);
+
+      mobileMedal = document.createElement("span");
+      mobileMedal.className = `pack-selector-medal pack-selector-medal-mobile pack-selector-medal-${rewardKind}`;
+      mobileMedal.setAttribute("aria-hidden", "true");
+      mobileMedal.style.setProperty("--pack-star-colour", packAccentColour(pack));
+      mobileMedal.innerHTML = packRewardSvg(pack);
     }
 
     const name = document.createElement("span");
@@ -3095,6 +3104,7 @@ window.BOXXY_RELEASE = Object.freeze({
     const meta = document.createElement("small");
     meta.textContent = `${pack.levels.length} LEVELS · ${String(pack.author || "").toUpperCase()}`;
     name.appendChild(meta);
+    if (mobileMedal) name.appendChild(mobileMedal);
     if (isLocked) {
       const lockText = document.createElement("em");
       lockText.className = "pack-lock-label";

@@ -672,7 +672,7 @@ body.maker-testing .level-picker{display:none!important}
 .final-pack-heading strong{font-size:11px;line-height:1.1;letter-spacing:.12em;font-weight:950}
 .final-pack-heading span{font-size:10px;line-height:1.2;font-weight:760;color:#5d564d;text-align:right}
 .final-pack-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
-.final-pack-option{min-width:0;padding:0;border:2px solid var(--ink);background:#f7f0e5;color:var(--ink);box-shadow:3px 3px 0 var(--ink);cursor:pointer;text-align:left;transition:transform .12s ease,box-shadow .12s ease}
+.final-pack-option{position:relative;min-width:0;padding:0;border:2px solid var(--ink);background:#f7f0e5;color:var(--ink);box-shadow:3px 3px 0 var(--ink);cursor:pointer;text-align:left;transition:transform .12s ease,box-shadow .12s ease}
 .final-pack-option:hover{transform:translate(-2px,-2px);box-shadow:5px 5px 0 var(--ink)}
 .final-pack-option:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
 .final-pack-art{position:relative;display:block;height:62px;overflow:hidden;border-bottom:2px solid var(--ink);background:#ddd}
@@ -736,7 +736,7 @@ body.maker-testing .level-picker{display:none!important}
 .pack-head p{margin:9px 0 0;max-width:620px;color:#61574b;font-size:12px;line-height:1.4}
 .pack-close{flex:none;width:44px;height:44px;border:2px solid var(--ink);background:var(--red);color:#fff;font-size:30px;line-height:1;font-weight:950}
 .pack-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px;margin-top:18px}
-.pack-option{min-width:0;padding:0;border:2px solid var(--ink);background:#f7f0e5;color:var(--ink);box-shadow:5px 5px 0 var(--ink);cursor:pointer;text-align:left;transition:transform .12s ease,box-shadow .12s ease}
+.pack-option{position:relative;min-width:0;padding:0;border:2px solid var(--ink);background:#f7f0e5;color:var(--ink);box-shadow:5px 5px 0 var(--ink);cursor:pointer;text-align:left;transition:transform .12s ease,box-shadow .12s ease}
 .pack-option:hover{transform:translate(-2px,-2px);box-shadow:7px 7px 0 var(--ink)}
 .pack-option:active{transform:translate(3px,3px);box-shadow:2px 2px 0 var(--ink)}
 .pack-option.active{outline:5px solid var(--yellow);outline-offset:3px}
@@ -5586,7 +5586,7 @@ body.first-person-mode .board::after{
   .mouse-support-actions button{width:100%}
 }
 
-/* BOXXY v244 — clearer pack selector, Daily streak prompt and earned pack medals. */
+/* BOXXY v246 — mobile pack medals anchored inside the text panel. */
 .pack-selector-medal{
   position:absolute;
   z-index:5;
@@ -5612,6 +5612,7 @@ body.first-person-mode .board::after{
   stroke-linejoin:round;
   paint-order:stroke fill;
 }
+.pack-selector-medal-mobile{display:none}
 .final-pack-art.image-art .pack-selector-medal img{
   width:100%;
   height:100%;
@@ -5643,11 +5644,17 @@ body.first-person-mode .board::after{
 .daily-pack-prompt-mobile{display:none}
 
 @media(max-width:620px){
-  .pack-selector-medal{
-    right:6px;
-    top:6px;
+  .pack-selector-medal-desktop{display:none}
+  .pack-selector-medal-mobile{
+    display:grid;
+    right:7px;
+    top:7px;
     width:37px;
     height:37px;
+  }
+  .pack-option.has-pack-medal .final-pack-name{
+    position:relative;
+    padding-right:48px;
   }
   .pack-selector-medal svg{filter:drop-shadow(1px 2px 0 rgba(23,23,25,.34))}
   .daily-pack-prompt-art{display:none}
