@@ -6,8 +6,8 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: 240,
-  lastUpdated: "2026-08-13"
+  version: 241,
+  lastUpdated: "2026-08-14"
 });
 /* Stored solver routes are kept separate from the authored pack data. */
 (() => {
@@ -39,6 +39,7 @@ window.BOXXY_RELEASE = Object.freeze({
   });
 })();
 
+/* BOXXY v241 — Daily archive cards show map thumbnails for every available current/past puzzle. */
 /* BOXXY v237 — Alphabet Soup adds 27 authored levels with supplied walkthrough solutions and dedicated pack artwork. */
 /* BOXXY v236 — Level Maker imports hyphens as explicit floor tiles and private puzzle URLs support grids up to 64×64. */
 /* BOXXY v235 — Level Maker supports grids up to 100×100; large grids fit the workshop and unsupported solver sizes are blocked cleanly. */
@@ -2756,6 +2757,22 @@ window.BOXXY_RELEASE = Object.freeze({
         date.textContent = formatDailyDate(puzzle.date, { weekday: true, compact: true });
         cardHead.append(sequence, date);
 
+        /* Use the exact same compact board renderer as the ordinary level-picker
+           thumbnails. Never expose the map of a genuinely future Daily puzzle;
+           this remains true even when the private dailyDate URL override is used. */
+        const previewAllowed = String(puzzle.date) <= localDateKey();
+        let preview = null;
+        if (previewAllowed) {
+          preview = document.createElement("div");
+          preview.className = "level-thumb-art daily-archive-date-art";
+          const previewCanvas = document.createElement("canvas");
+          previewCanvas.className = "level-thumb-canvas daily-archive-date-canvas";
+          previewCanvas.setAttribute("aria-hidden", "true");
+          preview.appendChild(previewCanvas);
+          drawLevelThumbnail(previewCanvas, puzzle);
+          card.classList.add("has-map-thumbnail");
+        }
+
         const stats = document.createElement("div");
         stats.className = "daily-archive-date-stats";
         if (result) {
@@ -2791,7 +2808,9 @@ window.BOXXY_RELEASE = Object.freeze({
           actions.prepend(share);
         }
 
-        card.append(cardHead, stats, actions);
+        card.appendChild(cardHead);
+        if (preview) card.appendChild(preview);
+        card.append(stats, actions);
         grid.appendChild(card);
       });
 

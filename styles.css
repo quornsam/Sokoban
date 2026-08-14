@@ -5109,6 +5109,13 @@ body.first-person-mode .board::after{
   box-shadow:4px 4px 0 rgba(47,143,91,.38);
 }
 .daily-archive-date-card.today{outline:4px solid var(--yellow);outline-offset:2px}
+.daily-archive-date-card.has-map-thumbnail{grid-template-rows:auto auto 1fr auto}
+.daily-archive-date-art.level-thumb-art{
+  border:0;
+  border-bottom:1px solid rgba(23,23,25,.32);
+  background:#d8cdbd;
+}
+.daily-archive-date-canvas{display:block;width:100%;height:100%}
 .daily-archive-date-head{
   padding:11px 12px 9px;
   border-bottom:1px solid rgba(23,23,25,.32);
