@@ -5585,3 +5585,85 @@ body.first-person-mode .board::after{
   .mouse-support-actions{display:grid;grid-template-columns:1fr}
   .mouse-support-actions button{width:100%}
 }
+
+/* BOXXY v244 — clearer pack selector, Daily streak prompt and earned pack medals. */
+.pack-selector-medal{
+  position:absolute;
+  z-index:5;
+  right:10px;
+  top:10px;
+  width:52px;
+  height:52px;
+  display:grid;
+  place-items:center;
+  pointer-events:none;
+}
+.pack-selector-medal svg,
+.pack-selector-medal img{
+  display:block;
+  width:100%;
+  height:100%;
+}
+.pack-selector-medal svg{overflow:visible;filter:drop-shadow(2px 3px 0 rgba(23,23,25,.34))}
+.pack-selector-medal path{
+  fill:var(--pack-star-colour,var(--red));
+  stroke:#f2c121;
+  stroke-width:9;
+  stroke-linejoin:round;
+  paint-order:stroke fill;
+}
+.final-pack-art.image-art .pack-selector-medal img{
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  object-position:center;
+  filter:drop-shadow(2px 3px 0 rgba(23,23,25,.18));
+}
+
+.daily-pack-option .daily-pack-art{position:relative}
+.daily-pack-prompt{
+  letter-spacing:0;
+  text-transform:none;
+}
+.daily-pack-prompt-art{
+  position:absolute;
+  z-index:2;
+  left:122px;
+  right:26px;
+  top:50%;
+  transform:translateY(-50%);
+  color:#fff;
+  text-align:center;
+  font-size:clamp(13px,1.55vw,18px);
+  line-height:1.18;
+  font-weight:900;
+  text-wrap:balance;
+  text-shadow:0 1px 1px rgba(0,0,0,.16);
+}
+.daily-pack-prompt-mobile{display:none}
+
+@media(max-width:620px){
+  .pack-selector-medal{
+    right:6px;
+    top:6px;
+    width:37px;
+    height:37px;
+  }
+  .pack-selector-medal svg{filter:drop-shadow(1px 2px 0 rgba(23,23,25,.34))}
+  .daily-pack-prompt-art{display:none}
+  .daily-pack-prompt-mobile{
+    display:block;
+    margin:4px 0 2px;
+    color:var(--ink);
+    font-size:9px;
+    line-height:1.25;
+    font-weight:850;
+  }
+  .daily-pack-option .final-pack-name small{margin-top:3px;font-size:7.5px;line-height:1.25}
+}
+
+@media(max-width:620px){
+  .daily-pack-option{min-height:92px}
+  .daily-pack-option .daily-pack-art{height:92px}
+  .daily-pack-option .daily-pack-calendar{top:20px}
+}

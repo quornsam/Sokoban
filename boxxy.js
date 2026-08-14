@@ -6,7 +6,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: 243,
+  version: 244,
   lastUpdated: "2026-08-14"
 });
 /* Stored solver routes are kept separate from the authored pack data. */
@@ -3012,13 +3012,22 @@ window.BOXXY_RELEASE = Object.freeze({
     const calendar = document.createElement("i");
     calendar.className = "daily-pack-calendar";
     calendar.setAttribute("aria-hidden", "true");
-    const number = document.createElement("b");
-    number.textContent = String(available.length).padStart(2, "0");
-    art.append(calendar, number);
+    const streak = currentDailyStreak();
+    const promptText = streak > 0
+      ? `Go on, see if you can complete today’s to add to your ${streak} day streak.`
+      : "Play today’s Boxxy Daily to start your streak.";
+    const artPrompt = document.createElement("strong");
+    artPrompt.className = "daily-pack-prompt daily-pack-prompt-art";
+    artPrompt.textContent = promptText;
+    art.append(calendar, artPrompt);
 
     const name = document.createElement("span");
     name.className = "final-pack-name";
     name.append(document.createTextNode("BOXXY DAILYS"));
+    const mobilePrompt = document.createElement("strong");
+    mobilePrompt.className = "daily-pack-prompt daily-pack-prompt-mobile";
+    mobilePrompt.textContent = promptText;
+    name.appendChild(mobilePrompt);
     const meta = document.createElement("small");
     meta.textContent = DAILY_DATE_OVERRIDE
       ? `VIEWING ${formatDailyDate(activeDailyDateKey(), { weekday: true, long: true, year: true }).toUpperCase()}`
@@ -3068,6 +3077,16 @@ window.BOXXY_RELEASE = Object.freeze({
     } else {
       const shape = document.createElement("i");
       art.append(shape, number);
+    }
+
+    if (!compact && packIsComplete(pack.id)) {
+      const medal = document.createElement("span");
+      const rewardKind = packRewardKind(pack);
+      medal.className = `pack-selector-medal pack-selector-medal-${rewardKind}`;
+      medal.setAttribute("aria-hidden", "true");
+      medal.style.setProperty("--pack-star-colour", packAccentColour(pack));
+      medal.innerHTML = packRewardSvg(pack);
+      art.appendChild(medal);
     }
 
     const name = document.createElement("span");
