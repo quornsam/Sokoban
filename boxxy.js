@@ -6,7 +6,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: 242,
+  version: 243,
   lastUpdated: "2026-08-14"
 });
 /* Stored solver routes are kept separate from the authored pack data. */
@@ -911,9 +911,6 @@ window.BOXXY_RELEASE = Object.freeze({
   const PACK_COLLECTION_LABELS = Object.freeze({
     "boxxy-original-puzzle-pack-of-50-levels": "Boxxy Originals",
     microban: "Microban",
-    chrysalis: "Chrysalis Variations",
-    chessboards: "Small Chessboards",
-    haikemono: "Haikemono",
     jigsaw: "The Jigsaw",
     exponentially: "Exponentially",
     "alphabet-soup": "Alphabet Soup"
@@ -921,9 +918,6 @@ window.BOXXY_RELEASE = Object.freeze({
   const PACK_COLLECTION_HEADER_HTML = Object.freeze({
     "boxxy-original-puzzle-pack-of-50-levels": "BOXXY<br>ORIGINALS",
     microban: "MICROBAN",
-    chrysalis: "CHRYSALIS<br>VARIATIONS",
-    chessboards: "SMALL<br>CHESSBOARDS",
-    haikemono: "HAIKEMONO",
     jigsaw: "THE JIGSAW",
     exponentially: "EXPONENTIALLY",
     "alphabet-soup": "ALPHABET<br>SOUP"
@@ -933,6 +927,11 @@ window.BOXXY_RELEASE = Object.freeze({
       desktop: "assets/pack-art/boxxy-originals-banner.webp",
       mobile: "assets/pack-art/boxxy-originals-mobile.webp",
       alt: "Indi sitting on a crate and scratching his head"
+    },
+    microban: {
+      desktop: "assets/pack-art/microban-banner.webp",
+      mobile: "assets/pack-art/microban-mobile.webp",
+      alt: "Indi studying a compact Microban puzzle with three wooden crates"
     },
     jigsaw: {
       desktop: "assets/pack-art/the-jigsaw-banner.webp",
