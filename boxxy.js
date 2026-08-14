@@ -6,7 +6,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: 241,
+  version: 242,
   lastUpdated: "2026-08-14"
 });
 /* Stored solver routes are kept separate from the authored pack data. */
@@ -2760,7 +2760,7 @@ window.BOXXY_RELEASE = Object.freeze({
         /* Use the exact same compact board renderer as the ordinary level-picker
            thumbnails. Never expose the map of a genuinely future Daily puzzle;
            this remains true even when the private dailyDate URL override is used. */
-        const previewAllowed = String(puzzle.date) <= localDateKey();
+        const previewAllowed = String(puzzle.date) <= activeDailyDateKey();
         let preview = null;
         if (previewAllowed) {
           preview = document.createElement("div");
