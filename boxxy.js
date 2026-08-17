@@ -6,8 +6,8 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: 247,
-  lastUpdated: "2026-08-14"
+  version: 248,
+  lastUpdated: "2026-08-17"
 });
 /* Stored solver routes are kept separate from the authored pack data. */
 (() => {
@@ -1592,6 +1592,7 @@ window.BOXXY_RELEASE = Object.freeze({
     playedRoute = String(currentCheckpoint.route || "").replace(/[^UDLR]/gi, "").toUpperCase();
     const restoredHistory = checkpointUndoHistory(currentCheckpoint);
     history = Array.isArray(restoredHistory) ? restoredHistory : [];
+    redoHistory = [];
     completed = false;
     modal.hidden = true;
     startedAt = Date.now() - Math.max(0, Number(currentCheckpoint.elapsedMs) || 0);
@@ -1961,6 +1962,7 @@ window.BOXXY_RELEASE = Object.freeze({
   let moves = 0;
   let pushes = 0;
   let history = [];
+  let redoHistory = [];
   let facing = "front";
   let completed = false;
   let makerTesting = false;
@@ -5115,6 +5117,7 @@ window.BOXXY_RELEASE = Object.freeze({
     moves = 0;
     pushes = 0;
     history = [];
+    redoHistory = [];
     facing = "front";
     completed = false;
     currentCheckpoint = null;
@@ -5197,6 +5200,7 @@ window.BOXXY_RELEASE = Object.freeze({
     moves = 0;
     pushes = 0;
     history = [];
+    redoHistory = [];
     facing = "front";
     completed = false;
     currentCheckpoint = readCurrentCheckpoint();
@@ -5294,6 +5298,7 @@ window.BOXXY_RELEASE = Object.freeze({
       moves = 0;
       pushes = 0;
       history = [];
+      redoHistory = [];
       facing = "front";
       completed = false;
       currentCheckpoint = null;
@@ -5408,6 +5413,7 @@ window.BOXXY_RELEASE = Object.freeze({
         return;
       }
       blockedPushHeld = false;
+      redoHistory = [];
       history.push(snapshot());
       boxes.forEach(box => { box.moving = false; });
       boxes[index].x = bx;
@@ -5422,6 +5428,7 @@ window.BOXXY_RELEASE = Object.freeze({
       render("pushing");
     } else {
       blockedPushHeld = false;
+      redoHistory = [];
       history.push(snapshot());
       boxes.forEach(box => { box.moving = false; });
       player = [nx, ny];
@@ -5718,9 +5725,30 @@ window.BOXXY_RELEASE = Object.freeze({
     if (autoplayRunning || !history.length || completed) return;
     blockedPushHeld = false;
     clearTimeout(animTimer);
+    redoHistory.push(snapshot());
     const state = history.pop();
-    player = state.player;
-    boxes = state.boxes;
+    player = [...state.player];
+    boxes = copyBoxes(state.boxes);
+    boxes.forEach(box => { box.moving = false; });
+    moves = state.moves;
+    pushes = state.pushes;
+    facing = state.facing;
+    playedRoute = String(state.route || "");
+    render("idle");
+    scheduleIdle();
+  }
+
+  function redo() {
+    if (mouseSupportBusy) stopMouseSupportRoute();
+    clearMouseSupportOverlay();
+    if (autoplayRunning || !redoHistory.length || completed) return;
+    blockedPushHeld = false;
+    clearTimeout(animTimer);
+    history.push(snapshot());
+    const state = redoHistory.pop();
+    player = [...state.player];
+    boxes = copyBoxes(state.boxes);
+    boxes.forEach(box => { box.moving = false; });
     moves = state.moves;
     pushes = state.pushes;
     facing = state.facing;
@@ -6300,16 +6328,23 @@ window.BOXXY_RELEASE = Object.freeze({
       autoSolveBtn.click();
       return;
     }
+    const shortcutTarget = event.target instanceof Element
+      && event.target.closest("input, textarea, select, [contenteditable='true']");
     if (directionMap[event.key]) {
       event.preventDefault();
       if (event.repeat && blockedPushHeld) return;
       move(...directionMap[event.key], true);
-    } else if (event.key === "z" || event.key === "Z") {
+    } else if ((event.key === "z" || event.key === "Z" || event.key === "u" || event.key === "U") && !shortcutTarget) {
       event.preventDefault();
-      undo();
-    } else if (event.key === "r" || event.key === "R") {
+      if (!event.repeat) undo();
+    } else if (event.key === "Shift" && !shortcutTarget) {
       event.preventDefault();
+      if (!event.repeat) redo();
+    } else if ((event.key === "r" || event.key === "R") && !shortcutTarget) {
+      event.preventDefault();
+      if (event.repeat) return;
       if (makerTesting || sharedPuzzleMode) restartMakerTest();
+      else if (dailyMode && dailyPuzzle) loadDailyPuzzle(dailyPuzzle, true);
       else {
         captureBoxxyAnalytics("level_restarted", currentLevelAnalytics({
           restart_method: "keyboard",
@@ -6691,13 +6726,22 @@ window.BOXXY_RELEASE = Object.freeze({
     }
   });
 
-  /* BOXXY v247 — keep keyboard-only play flowing through completion screens. */
+  /* BOXXY v248 — keyboard-only completion controls. */
   document.addEventListener("keydown", event => {
-    if (!modal || modal.hidden || completeMode !== "normal" || levelIndex >= LEVELS.length - 1) return;
-    if (event.key !== "Enter" && event.key !== " " && event.key !== "Spacebar") return;
+    if (!modal || modal.hidden) return;
     if (event.ctrlKey || event.metaKey || event.altKey) return;
     const target = event.target;
-    if (target instanceof Element && target.closest("button, a, input, textarea, select, [contenteditable='true']")) return;
+    if (target instanceof Element && target.closest("input, textarea, select, [contenteditable='true']")) return;
+
+    if (event.key === "x" || event.key === "X") {
+      event.preventDefault();
+      if (!event.repeat) completeCloseBtn?.click();
+      return;
+    }
+
+    if (completeMode !== "normal" || levelIndex >= LEVELS.length - 1) return;
+    if (event.key !== "Enter" && event.key !== " " && event.key !== "Spacebar") return;
+    if (target instanceof Element && target.closest("button, a")) return;
     event.preventDefault();
     if (event.repeat) return;
     nextBtn.click();
