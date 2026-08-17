@@ -6,7 +6,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: 248,
+  version: 249,
   lastUpdated: "2026-08-17"
 });
 /* Stored solver routes are kept separate from the authored pack data. */
@@ -2031,6 +2031,10 @@ window.BOXXY_RELEASE = Object.freeze({
   let thoughtReady = false;
   let audioUnlocked = false;
   let konamiIndex = 0;
+  let konamiShowcaseActive = false;
+  let konamiMusic = null;
+  let konamiResumeBackgroundMusic = false;
+  let konamiPreviousSoundOn = null;
   let phoneZenActivatedKonamiMotion = false;
   let backgroundDecorBuilt = false;
   let backgroundFadeTimer = null;
@@ -3647,6 +3651,33 @@ window.BOXXY_RELEASE = Object.freeze({
     "Present me remains unconvinced.", "I have made worse decisions near heavier furniture.", "I am putting this on my CV.", "The boxes can buy lunch."
   ];
   const KONAMI_SEQUENCE = ["ArrowUp", "ArrowUp", "ArrowDown", "ArrowDown", "ArrowLeft", "ArrowRight", "ArrowLeft", "ArrowRight", "a", "b", "Enter"];
+  const KONAMI_SHOWCASE_LAYOUT = Object.freeze([
+    '############',
+    '#          #',
+    '#        @ #',
+    '#          #',
+    '#          #',
+    '#$  c      #',
+    '# $ c $ $ $#',
+    '#$ $c$ $ $ #',
+    '# $ c $ $ $#',
+    '#$ $ $ $ $ #',
+    '# $ $ $ $ $#',
+    '#$ $ $ $ $ #',
+    '# $ $ $ $ $#',
+    '#$ $ $ $ $ #',
+    '# $ $ $ $ $#',
+    '# r  $ $ $ #',
+    '#rrp oyy$ p#',
+    '#rpp oyyrpp#',
+    '#bbp oorrgp#',
+    '#byy yyrpgg#',
+    '#byy yypppg#',
+    '############',
+  ]);
+  const KONAMI_SHOWCASE_SOLUTION = 'llllldddddddDlDurrDrUrUrUdldDulllldlDururrrrdrDrDrDDDuuulululullluulUUUUUluRRRRRRllllddddddrUUUUUluRRRlllldddddlUUUluRRRRRRRlllldddddddlUUUUUUUluRRRRllldddddddlUUUUruulldRRRRRRRllllldddddddlUUUUUUUUrrdddddddrrrdrdrdrdddldlluluLrdrdrruLLrrruuulululuururUUddldldllluuruuuruuuurrrrddddLLLLLdlUUUluRRlddddddddrrrdrdrdrdddDDDuuuuuululululllllddlDDDDDDDuuuuuuurururrrrurDrUUUUddldldllluuruuuuuuurrrrrddddLLLLLulDDDDDldRRRRlllllddldddrrdrrdrrrrruuuuluUddrdddlluLddllullulluuurururrrdDuullllddldddrrdrrdrrrrruuuuluurDDDDDllldllullulluuururRRRllDurrdRDDDrdrrDDuulluluuuluulllllDDDDDDDDuuuuuururrrrururrrDDDDDDuuuuuullldllluulllDDDDDDDuuururrrrururrrddddddDDuuuuuuuuluurDDDDDDDDDuuuuuuuuuluurDDDDDDDDDDuuuuuullldlddrdddrddllluuuRldddrrruulUdLulDrrrddllllulullDDuuuuuruuuuuulDDDDDDDDDuuuuuuuuuUUUddddddddddddrrdrdrrrruululUUUluluuruuurrrrdddldldLLLdlUUUUUUUUrdddddddrrddddldLLuRRdrUUUUluluuruuurrrrdddldldLLLulDldRRRurDDDDrdLLulDDldRRluurruuuulllllddddDuRRurDDDldRRuluurruuuuulluuuuuuuuulllDDDDDDDDDDDDDDuRRRRlllluururrrrddDrdLLulDDDDldRRRdrUUruuululuuuururruuuulldLLulDDDDDldRRurDDDDrdLLulDDldRuurruuuuulluurDDldRurDDDDrdLLulDDDDldRRuluuuullluurDDldRRurDDDldRuuurruuuuururrrddddddLLLLLLLdlUUUUUUUluRRdrrdrruLLLdlUUluRurrdddrdddrDDuuluururrrddddddllLLLLLdlUUUUUUUUUUUUrrrrrrdrrddddddlddLLdlUUUUruLdlUUUUUUruLdlUrddddddrdddrdrDDDDrdLuuuuululuuuUUluurrdLLuuuuulDDDrrrrdrdddlLdlluurDDDDDDDrdLLulDDDDDldRRuluuuurruuuuuuuuurDDrdLulDDDDDDldRRurDDDDrdLuuuuuurDrdLLLLLulDDDDldRuuuurruuuuuuuuuuuuluullDDDDDDDDDrdLulDDDDldRRurDDDDDldRuuuuuulluuuuuuuuuuluRRurDrdLLulDDDDDDDDDDDldRurDDDDDruuuurruuuuururruuuLLulDDDDDDDDDldRRurDDDDDrdLruuuuuruuuuuuuulLLulDDDDDDDDrdLLLulDDDDuuuuluuurrdLulDDDldRurDDDuuuluurDDldRRRRRurDDDDDuuuuuulululldRurDDDldRRurDDDDuuuuulullDDrdLLulDDruruuLulDDDuuuuuuuuuuuuuulDDDDDDDDDDDDDDDDDDuuuurrruuuuuuuuuuuuuurDDDDDDDDDDDDDldRRurDDDuuuululuurDDDDrdLLLLLulDDDDuuurrrrrrruuuLLLLLLulDDDDDDuurrrruuuuuuuuuuuuuurDDDDDDDDDDDDDldRurDDruruuuuuuuuuuuLLLLLLLulDDDDDDDDDDDDDurrrrrrruuuuLLLLLLulDDDDDrrrrruuuuuurDDDDDldRurDDDDDuuuuruuuuuuuuuuuuuullDDDDDDDDDDDDDldRurDDDDuuuruuuuuuuuuuuuLLLLLLLulDDDDDDDDDDDDrrrrrruuuuurDDDDDDDDuuruuuuuuuuuuuuuulDDDDDDDDDDDDDDD';
+  const KONAMI_SHOWCASE_STEP_MS = 75;
+  const KONAMI_SHOWCASE_MUSIC = "assets/audio/tetris-piano.m4a";
 
 
   function mulberry32(seed) {
@@ -3877,8 +3908,99 @@ window.BOXXY_RELEASE = Object.freeze({
     }
     if (konamiIndex < KONAMI_SEQUENCE.length) return false;
     konamiIndex = 0;
+    if (desktopEasterEggAvailable()) startKonamiShowcase();
+    return true;
+  }
+
+  function decodeKonamiShowcaseLayout() {
+    const goalColours = {};
+    const rows = KONAMI_SHOWCASE_LAYOUT.map((row, y) => [...row].map((char, x) => {
+      const decoded = GOAL_COLOURS?.decodeTextChar?.(char);
+      if (!decoded) return char;
+      goalColours[`${x},${y}`] = decoded.colour;
+      return decoded.cell;
+    }).join(""));
+    return { rows, goalColours };
+  }
+
+  function stopKonamiMusic() {
+    if (konamiMusic) {
+      try { konamiMusic.pause(); } catch (_) {}
+      try { konamiMusic.currentTime = 0; } catch (_) {}
+    }
+    const resume = konamiResumeBackgroundMusic;
+    konamiResumeBackgroundMusic = false;
+    if (konamiPreviousSoundOn !== null) {
+      soundOn = konamiPreviousSoundOn;
+      konamiPreviousSoundOn = null;
+    }
+    if (resume && musicOn) startBackgroundMusic();
+  }
+
+  async function startKonamiMusic() {
+    if (!konamiMusic) {
+      konamiMusic = new Audio(KONAMI_SHOWCASE_MUSIC);
+      konamiMusic.preload = "auto";
+      konamiMusic.loop = true;
+      konamiMusic.volume = 0.28;
+    }
+    konamiResumeBackgroundMusic = Boolean(musicOn && bgMusic && !bgMusic.paused);
+    if (bgMusic) bgMusic.pause();
+    try { konamiMusic.currentTime = 0; } catch (_) {}
+    try { await konamiMusic.play(); } catch (_) {}
+  }
+
+  function runKonamiShowcaseSolution() {
+    const solution = KONAMI_SHOWCASE_SOLUTION.replace(/[^udlrUDLR]/g, "");
+    stopAutoplay();
+    autoplayRunning = true;
+    guidedSolveUsed = true;
+    konamiPreviousSoundOn = soundOn;
+    soundOn = false;
+    document.body.classList.add("autoplaying");
+    if (cancelGuidedBtn) cancelGuidedBtn.hidden = false;
+    startKonamiMusic();
+    let step = 0;
+
+    const playNext = () => {
+      if (!autoplayRunning || !konamiShowcaseActive) return;
+      if (step >= solution.length) {
+        stopAutoplay();
+        return;
+      }
+      const code = solution[step++].toUpperCase();
+      const delta = CODE_TO_DELTA[code];
+      if (delta) move(delta[0], delta[1], false, true);
+      if (completed || step >= solution.length) {
+        stopAutoplay();
+        return;
+      }
+      autoplayTimer = setTimeout(playNext, KONAMI_SHOWCASE_STEP_MS);
+    };
+
+    autoplayTimer = setTimeout(playNext, 250);
+  }
+
+  function startKonamiShowcase() {
+    if (!desktopEasterEggAvailable()) return false;
+    const decoded = decodeKonamiShowcaseLayout();
+    konamiShowcaseActive = true;
     document.body.classList.add("konami-background");
-    showCharacterThought("Oh. The background has come alive. That seems perfectly normal.", false);
+    const loaded = loadMakerTest(decoded.rows, KONAMI_SHOWCASE_SOLUTION, {
+      shared: true,
+      name: "Konami",
+      goalColours: decoded.goalColours
+    });
+    if (!loaded?.ok) {
+      konamiShowcaseActive = false;
+      return false;
+    }
+    if (collectionBtn) collectionBtn.disabled = false;
+    if (collectionName) collectionName.innerHTML = "KONAMI";
+    if (creditTitle) creditTitle.textContent = "KONAMI";
+    if (creditSub) creditSub.textContent = `${width}×${height} · ${boxes.length} BOXES · SECRET LEVEL`;
+    if (thoughtText) thoughtText.textContent = "Right. Apparently we are doing this now.";
+    runKonamiShowcaseSolution();
     return true;
   }
 
@@ -5063,6 +5185,7 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   function loadDailyPuzzle(puzzle = dailyPuzzleForToday(), preserveBackground = false) {
+    if (konamiShowcaseActive) { konamiShowcaseActive = false; stopKonamiMusic(); }
     resetMouseSupportInteraction();
     if (!puzzle || !Array.isArray(puzzle.layout) || !puzzle.layout.length) {
       showDailyInvite(true);
@@ -5156,6 +5279,7 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   function loadLevel(index, preserveAutoplay = false, preserveBackground = false) {
+    if (konamiShowcaseActive && !preserveAutoplay) { konamiShowcaseActive = false; stopKonamiMusic(); }
     resetMouseSupportInteraction();
     dailyMode = false;
     dailyPuzzle = null;
@@ -5507,10 +5631,12 @@ window.BOXXY_RELEASE = Object.freeze({
       restoreStandardCompletionActions();
       if (finalPackPicker) finalPackPicker.hidden = true;
       if (finalPackStatus) finalPackStatus.textContent = "";
-      if (completeKicker) completeKicker.textContent = "PRIVATE PUZZLE";
+      if (completeKicker) completeKicker.textContent = konamiShowcaseActive ? "SECRET LEVEL" : "PRIVATE PUZZLE";
       if (completeTitle) completeTitle.innerHTML = "PUZZLE<br>CLEARED";
       if (makerApplySolveBtn) makerApplySolveBtn.hidden = true;
-      completeText.textContent = `${sharedPuzzleName || "Shared puzzle"} solved in ${moves} ${moves === 1 ? "move" : "moves"} and ${pushes} ${pushes === 1 ? "push" : "pushes"}.`;
+      completeText.textContent = konamiShowcaseActive
+        ? `Konami solved in ${moves} moves and ${pushes} pushes.`
+        : `${sharedPuzzleName || "Shared puzzle"} solved in ${moves} ${moves === 1 ? "move" : "moves"} and ${pushes} ${pushes === 1 ? "push" : "pushes"}.`;
       if (nextBtnLabel) nextBtnLabel.textContent = "PLAY AGAIN";
       if (nextBtnIcon) nextBtnIcon.textContent = "↻";
     } else if (makerTesting) {
@@ -6190,6 +6316,7 @@ window.BOXXY_RELEASE = Object.freeze({
     autoplayRunning = false;
     document.body.classList.remove("autoplaying");
     if (cancelGuidedBtn) cancelGuidedBtn.hidden = true;
+    if (konamiPreviousSoundOn !== null || konamiResumeBackgroundMusic || (konamiMusic && !konamiMusic.paused)) stopKonamiMusic();
   }
 
   function cancelGuidedSolve() {
@@ -6705,7 +6832,8 @@ window.BOXXY_RELEASE = Object.freeze({
     switch (completeMode) {
       case "shared":
         modal.hidden = true;
-        restartMakerTest();
+        if (konamiShowcaseActive) startKonamiShowcase();
+        else restartMakerTest();
         return;
       case "maker":
         modal.hidden = true;
