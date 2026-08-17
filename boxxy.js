@@ -6,7 +6,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: 246,
+  version: 247,
   lastUpdated: "2026-08-14"
 });
 /* Stored solver routes are kept separate from the authored pack data. */
@@ -6689,6 +6689,18 @@ window.BOXXY_RELEASE = Object.freeze({
       default:
         return;
     }
+  });
+
+  /* BOXXY v247 — keep keyboard-only play flowing through completion screens. */
+  document.addEventListener("keydown", event => {
+    if (!modal || modal.hidden || completeMode !== "normal" || levelIndex >= LEVELS.length - 1) return;
+    if (event.key !== "Enter" && event.key !== " " && event.key !== "Spacebar") return;
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
+    const target = event.target;
+    if (target instanceof Element && target.closest("button, a, input, textarea, select, [contenteditable='true']")) return;
+    event.preventDefault();
+    if (event.repeat) return;
+    nextBtn.click();
   });
 
   document.addEventListener("keydown", event => {
