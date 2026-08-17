@@ -159,7 +159,7 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=249">
+<link rel="stylesheet" href="styles.css?v=250">
 <link rel="stylesheet" href="how-to-play.css?v=225">
 <link rel="preload" as="image" href="assets/board/boxes/box-default-yellow.png?v=226">
 <link rel="preload" as="image" href="assets/board/goals/goal-red.png?v=226">
@@ -505,6 +505,7 @@
         <p>Draw a Sokoban level, paste an existing one, then test it on the main board.</p>
       </div>
       <div class="maker-head-actions">
+        <button id="makerContactBtn" class="maker-contact" type="button" aria-haspopup="dialog" aria-controls="makerContactModal"><b>CONTACT US</b></button>
         <button id="makerFullscreenBtn" class="maker-fullscreen" type="button" aria-label="Enter full screen" aria-pressed="false" title="Enter full screen"><span aria-hidden="true">⛶</span><b>FULL SCREEN</b></button>
         <button id="makerCloseBtn" class="maker-close" type="button" aria-label="Close level maker">×</button>
       </div>
@@ -634,6 +635,37 @@
           <button id="makerTestBtn" class="maker-test" type="button">TEST LEVEL <b aria-hidden="true">→</b></button>
         </div>
       </aside>
+    </div>
+
+    <div id="makerContactModal" class="maker-contact-overlay" hidden>
+      <section class="maker-contact-card" role="dialog" aria-modal="true" aria-labelledby="makerContactTitle">
+        <header class="maker-contact-head">
+          <div>
+            <span class="complete-kicker">SECRET WORKSHOP</span>
+            <h2 id="makerContactTitle">CONTACT US</h2>
+          </div>
+          <button id="makerContactCloseBtn" class="maker-close" type="button" aria-label="Close contact form">×</button>
+        </header>
+        <form id="makerContactForm" class="maker-contact-form" novalidate>
+          <label>NAME
+            <input id="makerContactName" name="name" type="text" maxlength="80" autocomplete="name" required>
+          </label>
+          <label>EMAIL ADDRESS
+            <input id="makerContactEmail" name="email" type="email" maxlength="254" autocomplete="email" required>
+          </label>
+          <label>COMMENT
+            <textarea id="makerContactComment" name="comment" maxlength="2000" rows="7" required></textarea>
+          </label>
+          <label class="maker-contact-trap" aria-hidden="true">WEBSITE
+            <input id="makerContactWebsite" name="website" type="text" tabindex="-1" autocomplete="off">
+          </label>
+          <p id="makerContactStatus" class="maker-contact-status" aria-live="polite"></p>
+          <div class="maker-contact-actions">
+            <button id="makerContactCancelBtn" type="button">CANCEL</button>
+            <button id="makerContactSendBtn" class="maker-contact-send" type="submit">SEND MESSAGE</button>
+          </div>
+        </form>
+      </section>
     </div>
   </section>
 </div>
@@ -873,7 +905,7 @@
         <p>PostHog is configured in cookieless mode. It does not store BOXXY analytics identifiers in cookies, local storage or session storage. It estimates visitors using a privacy-preserving hash calculated on PostHog's servers. BOXXY does not send puzzle layouts, puzzle links, typed puzzle names, email addresses or other entered text. URL query strings and fragments are removed before analytics events are sent.</p>
         <p>Your game progress and settings remain stored locally by your browser on your own device and are not sent as analytics. Clearing browser data, changing browser or changing device may remove that information. BOXXY cannot see it, transfer it or restore it for you.</p>
         <p>PostHog receives the ordinary technical information needed to deliver and measure a web request, such as browser and device information, page path and referrer. BOXXY asks PostHog to respect supported Do Not Track signals. You can read <a href="https://posthog.com/privacy" target="_blank" rel="noopener">PostHog's privacy information</a>.</p>
-        <p>If you contact BOXXY by email or make a prize claim, the information you choose to send will be used to deal with that message or claim.</p>
+        <p>If you use the Contact Us form, your name, email address and comment are sent through Cloudflare Email Service to the BOXXY contact mailbox and are used only to deal with your message. The same applies to information you choose to send by email or as part of a prize claim.</p>
       </section>
 
       <section class="legal-section">
@@ -899,8 +931,8 @@
 <audio id="bgMusic" src="assets/audio/cracked-ivory-drift.mp3" preload="auto" autoplay loop playsinline></audio>
 
 <script src="daily-puzzles/boxxy-daily-loader.js?v=217"></script>
-<script src="levels.js?v=249"></script>
-<script src="boxxy.js?v=249"></script>
+<script src="levels.js?v=250"></script>
+<script src="boxxy.js?v=250"></script>
 <script src="pack-builder.js?v=216"></script>
 <script src="how-to-play.js?v=153"></script>
 </body>

@@ -6,7 +6,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: 249,
+  version: 250,
   lastUpdated: "2026-08-17"
 });
 /* Stored solver routes are kept separate from the authored pack data. */
@@ -9796,3 +9796,118 @@ window.BOXXY_RELEASE = Object.freeze({
   renderSavedLevels();
   populateExistingPacks();
 })();
+
+/* BOXXY v250 — private Workshop contact form using a same-origin Pages Function. */
+(() => {
+  "use strict";
+
+  const openBtn = document.getElementById("makerContactBtn");
+  const modal = document.getElementById("makerContactModal");
+  const closeBtn = document.getElementById("makerContactCloseBtn");
+  const cancelBtn = document.getElementById("makerContactCancelBtn");
+  const form = document.getElementById("makerContactForm");
+  const nameInput = document.getElementById("makerContactName");
+  const emailInput = document.getElementById("makerContactEmail");
+  const commentInput = document.getElementById("makerContactComment");
+  const websiteInput = document.getElementById("makerContactWebsite");
+  const sendBtn = document.getElementById("makerContactSendBtn");
+  const status = document.getElementById("makerContactStatus");
+
+  if (!openBtn || !modal || !form) return;
+
+  let sending = false;
+
+  function setStatus(message = "", kind = "") {
+    if (!status) return;
+    status.textContent = message;
+    status.dataset.kind = kind;
+  }
+
+  function openContact() {
+    modal.hidden = false;
+    setStatus("");
+    window.setTimeout(() => nameInput?.focus(), 0);
+  }
+
+  function closeContact() {
+    if (sending) return;
+    modal.hidden = true;
+    setStatus("");
+    openBtn.focus();
+  }
+
+  openBtn.addEventListener("click", openContact);
+  closeBtn?.addEventListener("click", closeContact);
+  cancelBtn?.addEventListener("click", closeContact);
+  modal.addEventListener("click", event => {
+    if (event.target === modal) closeContact();
+  });
+
+  document.addEventListener("keydown", event => {
+    if (modal.hidden || event.key !== "Escape") return;
+    event.preventDefault();
+    event.stopPropagation();
+    closeContact();
+  }, true);
+
+  form.addEventListener("submit", async event => {
+    event.preventDefault();
+    if (sending) return;
+
+    const name = String(nameInput?.value || "").trim();
+    const email = String(emailInput?.value || "").trim();
+    const comment = String(commentInput?.value || "").trim();
+
+    if (!name || !email || !comment) {
+      setStatus("Please complete your name, email address and comment.", "error");
+      form.reportValidity?.();
+      return;
+    }
+    if (!emailInput?.checkValidity?.()) {
+      setStatus("Please enter a valid email address.", "error");
+      emailInput?.focus();
+      return;
+    }
+
+    sending = true;
+    if (sendBtn) {
+      sendBtn.disabled = true;
+      sendBtn.textContent = "SENDING…";
+    }
+    setStatus("Sending…", "working");
+
+    try {
+      const response = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Accept": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({
+          name,
+          email,
+          comment,
+          website: String(websiteInput?.value || ""),
+          version: Number(window.BOXXY_RELEASE?.version || 0)
+        })
+      });
+
+      let payload = null;
+      try { payload = await response.json(); } catch (_) {}
+      if (!response.ok || !payload?.ok) {
+        throw new Error(payload?.error || "The message could not be sent.");
+      }
+
+      form.reset();
+      setStatus("Message sent. Thank you.", "success");
+    } catch (error) {
+      console.error("BOXXY contact form error", error);
+      setStatus(error?.message || "The message could not be sent. Please try again.", "error");
+    } finally {
+      sending = false;
+      if (sendBtn) {
+        sendBtn.disabled = false;
+        sendBtn.textContent = "SEND MESSAGE";
+      }
+    }
+  });
+})();
+

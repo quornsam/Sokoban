@@ -5674,3 +5674,119 @@ body.first-person-mode .board::after{
   .daily-pack-option .daily-pack-art{height:92px}
   .daily-pack-option .daily-pack-calendar{top:20px}
 }
+
+/* BOXXY v250 — Secret Workshop contact form. */
+.maker-contact{
+  min-height:36px;
+  padding:0 11px;
+  border:2px solid var(--ink);
+  background:var(--yellow);
+  color:var(--ink);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:8px;
+  font-weight:950;
+  letter-spacing:.07em;
+  white-space:nowrap;
+}
+.maker-contact:active{transform:translate(2px,2px)}
+.maker-contact-overlay{
+  position:fixed;
+  inset:0;
+  z-index:1000;
+  display:grid;
+  place-items:center;
+  padding:18px;
+  background:rgba(20,20,22,.72);
+  backdrop-filter:blur(2px);
+}
+.maker-contact-overlay[hidden]{display:none!important}
+.maker-contact-card{
+  width:min(520px,94vw);
+  max-height:min(760px,94dvh);
+  overflow:auto;
+  padding:22px;
+  border:3px solid var(--ink);
+  background:#f7f0e5;
+  color:var(--ink);
+  box-shadow:9px 9px 0 rgba(23,23,25,.42);
+}
+.maker-contact-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:18px;
+  padding-bottom:13px;
+  margin-bottom:15px;
+  border-bottom:2px solid var(--ink);
+}
+.maker-contact-head h2{
+  margin:4px 0 0;
+  font-size:clamp(31px,7vw,48px);
+  line-height:.9;
+  letter-spacing:-.05em;
+}
+.maker-contact-form{display:grid;gap:12px}
+.maker-contact-form label{
+  display:grid;
+  gap:5px;
+  font-size:8px;
+  font-weight:1000;
+  letter-spacing:.12em;
+}
+.maker-contact-form input,
+.maker-contact-form textarea{
+  width:100%;
+  border:2px solid var(--ink);
+  border-radius:0;
+  background:#fffaf2;
+  color:var(--ink);
+  font:700 14px/1.35 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  outline:none;
+}
+.maker-contact-form input{height:43px;padding:8px 10px}
+.maker-contact-form textarea{min-height:150px;padding:10px;resize:vertical}
+.maker-contact-form input:focus,
+.maker-contact-form textarea:focus{box-shadow:0 0 0 3px var(--yellow)}
+.maker-contact-trap{
+  position:absolute!important;
+  width:1px!important;
+  height:1px!important;
+  overflow:hidden!important;
+  clip:rect(0 0 0 0)!important;
+  white-space:nowrap!important;
+}
+.maker-contact-status{
+  min-height:18px;
+  margin:0;
+  font-size:10px;
+  line-height:1.35;
+  font-weight:850;
+}
+.maker-contact-status[data-kind="error"]{color:#a92921}
+.maker-contact-status[data-kind="success"]{color:#23734b}
+.maker-contact-actions{
+  display:grid;
+  grid-template-columns:1fr 1.4fr;
+  gap:9px;
+}
+.maker-contact-actions button{
+  min-height:44px;
+  border:2px solid var(--ink);
+  font-size:9px;
+  font-weight:1000;
+  letter-spacing:.08em;
+}
+.maker-contact-actions button:first-child{background:#e7dfd3;color:var(--ink)}
+.maker-contact-send{background:var(--blue);color:#fff}
+.maker-contact-send:disabled{opacity:.58;cursor:wait}
+@media(max-width:760px){
+  .maker-contact{min-height:34px;padding:0 7px;font-size:7px;letter-spacing:.04em}
+  .maker-contact-card{padding:16px;box-shadow:5px 5px 0 rgba(23,23,25,.42)}
+  .maker-contact-head{margin-bottom:12px;padding-bottom:10px}
+  .maker-contact-head h2{font-size:36px}
+  .maker-contact-form input{height:40px}
+  .maker-contact-form textarea{min-height:130px}
+}
+
