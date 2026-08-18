@@ -6,8 +6,8 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: 251,
-  lastUpdated: "2026-08-17"
+  version: 252,
+  lastUpdated: "2026-08-18"
 });
 /* Stored solver routes are kept separate from the authored pack data. */
 (() => {
@@ -3676,8 +3676,8 @@ window.BOXXY_RELEASE = Object.freeze({
     '############',
   ]);
   const KONAMI_SHOWCASE_SOLUTION = 'llllldddddddDlDurrDrUrUrUdldDulllldlDururrrrdrDrDrDDDuuulululullluulUUUUUluRRRRRRllllddddddrUUUUUluRRRlllldddddlUUUluRRRRRRRlllldddddddlUUUUUUUluRRRRllldddddddlUUUUruulldRRRRRRRllllldddddddlUUUUUUUUrrdddddddrrrdrdrdrdddldlluluLrdrdrruLLrrruuulululuururUUddldldllluuruuuruuuurrrrddddLLLLLdlUUUluRRlddddddddrrrdrdrdrdddDDDuuuuuululululllllddlDDDDDDDuuuuuuurururrrrurDrUUUUddldldllluuruuuuuuurrrrrddddLLLLLulDDDDDldRRRRlllllddldddrrdrrdrrrrruuuuluUddrdddlluLddllullulluuurururrrdDuullllddldddrrdrrdrrrrruuuuluurDDDDDllldllullulluuururRRRllDurrdRDDDrdrrDDuulluluuuluulllllDDDDDDDDuuuuuururrrrururrrDDDDDDuuuuuullldllluulllDDDDDDDuuururrrrururrrddddddDDuuuuuuuuluurDDDDDDDDDuuuuuuuuuluurDDDDDDDDDDuuuuuullldlddrdddrddllluuuRldddrrruulUdLulDrrrddllllulullDDuuuuuruuuuuulDDDDDDDDDuuuuuuuuuUUUddddddddddddrrdrdrrrruululUUUluluuruuurrrrdddldldLLLdlUUUUUUUUrdddddddrrddddldLLuRRdrUUUUluluuruuurrrrdddldldLLLulDldRRRurDDDDrdLLulDDldRRluurruuuulllllddddDuRRurDDDldRRuluurruuuuulluuuuuuuuulllDDDDDDDDDDDDDDuRRRRlllluururrrrddDrdLLulDDDDldRRRdrUUruuululuuuururruuuulldLLulDDDDDldRRurDDDDrdLLulDDldRuurruuuuulluurDDldRurDDDDrdLLulDDDDldRRuluuuullluurDDldRRurDDDldRuuurruuuuururrrddddddLLLLLLLdlUUUUUUUluRRdrrdrruLLLdlUUluRurrdddrdddrDDuuluururrrddddddllLLLLLdlUUUUUUUUUUUUrrrrrrdrrddddddlddLLdlUUUUruLdlUUUUUUruLdlUrddddddrdddrdrDDDDrdLuuuuululuuuUUluurrdLLuuuuulDDDrrrrdrdddlLdlluurDDDDDDDrdLLulDDDDDldRRuluuuurruuuuuuuuurDDrdLulDDDDDDldRRurDDDDrdLuuuuuurDrdLLLLLulDDDDldRuuuurruuuuuuuuuuuuluullDDDDDDDDDrdLulDDDDldRRurDDDDDldRuuuuuulluuuuuuuuuuluRRurDrdLLulDDDDDDDDDDDldRurDDDDDruuuurruuuuururruuuLLulDDDDDDDDDldRRurDDDDDrdLruuuuuruuuuuuuulLLulDDDDDDDDrdLLLulDDDDuuuuluuurrdLulDDDldRurDDDuuuluurDDldRRRRRurDDDDDuuuuuulululldRurDDDldRRurDDDDuuuuulullDDrdLLulDDruruuLulDDDuuuuuuuuuuuuuulDDDDDDDDDDDDDDDDDDuuuurrruuuuuuuuuuuuuurDDDDDDDDDDDDDldRRurDDDuuuululuurDDDDrdLLLLLulDDDDuuurrrrrrruuuLLLLLLulDDDDDDuurrrruuuuuuuuuuuuuurDDDDDDDDDDDDDldRurDDruruuuuuuuuuuuLLLLLLLulDDDDDDDDDDDDDurrrrrrruuuuLLLLLLulDDDDDrrrrruuuuuurDDDDDldRurDDDDDuuuuruuuuuuuuuuuuuullDDDDDDDDDDDDDldRurDDDDuuuruuuuuuuuuuuuLLLLLLLulDDDDDDDDDDDDrrrrrruuuuurDDDDDDDDuuruuuuuuuuuuuuuulDDDDDDDDDDDDDDD';
-  const KONAMI_SHOWCASE_STEP_MS = 75;
-  const KONAMI_SHOWCASE_MUSIC = "assets/audio/tetris-piano.m4a";
+  const KONAMI_SHOWCASE_STEP_MS = 220;
+  const KONAMI_SHOWCASE_MUSIC = "assets/audio/tetris-piano.mp3";
 
 
   function mulberry32(seed) {
@@ -3978,7 +3978,7 @@ window.BOXXY_RELEASE = Object.freeze({
       autoplayTimer = setTimeout(playNext, KONAMI_SHOWCASE_STEP_MS);
     };
 
-    autoplayTimer = setTimeout(playNext, 250);
+    autoplayTimer = setTimeout(playNext, 320);
   }
 
   function startKonamiShowcase() {
