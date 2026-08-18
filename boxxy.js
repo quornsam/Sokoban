@@ -6,7 +6,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: 258,
+  version: 260,
   lastUpdated: "2026-08-18"
 });
 /* Stored solver routes are kept separate from the authored pack data. */
@@ -2007,11 +2007,19 @@ window.BOXXY_RELEASE = Object.freeze({
   let blockedPushHeld = false;
   let soundOn = localStorage.getItem("boxxy-sound-v1") !== "off";
   let musicOn = localStorage.getItem("push-bauhaus-music") !== "off";
+  const MUSIC_PLAY_ALL_ID = "all";
   const BOXXY_MUSIC_TRACKS = Object.freeze({
     ivory: { label: "Cracked Ivory Drift", src: "assets/audio/cracked-ivory-drift.mp3" },
+    starry: { label: "Starry Night Lullaby", src: "assets/audio/Starry-Night-Lullaby-281KB.mp3" },
+    fading: { label: "Fading into Gold", src: "assets/audio/Fading-into-Gold-296KB.mp3" },
+    velvet: { label: "Velvet Static", src: "assets/audio/Velvet-Static-296KB.mp3" },
     tetris: { label: "Tetris Piano", src: "assets/audio/Tetris-Piano-293KB.mp3" }
   });
-  let selectedMusicTrackId = BOXXY_MUSIC_TRACKS[localStorage.getItem("boxxy-music-track-v1")] ? localStorage.getItem("boxxy-music-track-v1") : "ivory";
+  const storedMusicTrackId = localStorage.getItem("boxxy-music-track-v1");
+  let selectedMusicTrackId = storedMusicTrackId === MUSIC_PLAY_ALL_ID || BOXXY_MUSIC_TRACKS[storedMusicTrackId]
+    ? storedMusicTrackId
+    : "ivory";
+  let musicPlayAllIndex = 0;
   const BOXXY_SPEED_FACTORS = Object.freeze({ slow: 1.4, normal: 1, fast: 0.68 });
   let boxxySpeed = BOXXY_SPEED_FACTORS[localStorage.getItem("boxxy-speed-v1")] ? localStorage.getItem("boxxy-speed-v1") : "normal";
   let musicPausedForHiddenTab = false;
@@ -4317,20 +4325,33 @@ window.BOXXY_RELEASE = Object.freeze({
     soundBtn.setAttribute("aria-pressed", String(soundOn));
   }
 
+  function musicTrackIds() {
+    return Object.keys(BOXXY_MUSIC_TRACKS);
+  }
+
   function currentMusicTrack() {
+    if (selectedMusicTrackId === MUSIC_PLAY_ALL_ID) {
+      const ids = musicTrackIds();
+      if (!ids.length) return BOXXY_MUSIC_TRACKS.ivory;
+      musicPlayAllIndex = ((musicPlayAllIndex % ids.length) + ids.length) % ids.length;
+      return BOXXY_MUSIC_TRACKS[ids[musicPlayAllIndex]];
+    }
     return BOXXY_MUSIC_TRACKS[selectedMusicTrackId] || BOXXY_MUSIC_TRACKS.ivory;
   }
 
-  function applySelectedMusicTrack(playAfter = false) {
+  function applySelectedMusicTrack(playAfter = false, restart = false) {
     const track = currentMusicTrack();
     if (settingsMusicTrack) settingsMusicTrack.value = selectedMusicTrackId;
     if (!bgMusic || !track) return;
-    bgMusic.loop = true;
+    bgMusic.loop = selectedMusicTrackId !== MUSIC_PLAY_ALL_ID;
     const currentAttr = String(bgMusic.getAttribute("src") || "");
-    if (currentAttr !== track.src) {
+    if (currentAttr !== track.src || restart) {
       try { bgMusic.pause(); } catch (_) {}
       bgMusic.setAttribute("src", track.src);
       try { bgMusic.load(); } catch (_) {}
+      if (restart) {
+        try { bgMusic.currentTime = 0; } catch (_) {}
+      }
     }
     if (playAfter && musicOn) startBackgroundMusic();
   }
@@ -4404,7 +4425,7 @@ window.BOXXY_RELEASE = Object.freeze({
 
   async function startBackgroundMusic() {
     if (!bgMusic || !musicOn) return;
-    bgMusic.loop = true;
+    bgMusic.loop = selectedMusicTrackId !== MUSIC_PLAY_ALL_ID;
     bgMusic.volume = 0.10;
     try {
       await bgMusic.play();
@@ -4417,11 +4438,17 @@ window.BOXXY_RELEASE = Object.freeze({
     if (bgMusic) bgMusic.pause();
   }
 
-  /* Sandbox v256: keep the selected background track looping continuously.
-     The loop property is the primary mechanism; ended is a defensive fallback
-     for browsers that occasionally fail to honour it after a source change. */
+  /* Sandbox v260: individual tracks loop continuously. PLAY ALL advances
+     through the hard-coded playlist and wraps back to the first track. */
   bgMusic?.addEventListener("ended", () => {
     if (!musicOn || konamiShowcaseActive || musicPausedForHiddenTab) return;
+    if (selectedMusicTrackId === MUSIC_PLAY_ALL_ID) {
+      const ids = musicTrackIds();
+      if (!ids.length) return;
+      musicPlayAllIndex = (musicPlayAllIndex + 1) % ids.length;
+      applySelectedMusicTrack(true, true);
+      return;
+    }
     try { bgMusic.currentTime = 0; } catch (_) {}
     startBackgroundMusic();
   });
@@ -6936,9 +6963,10 @@ window.BOXXY_RELEASE = Object.freeze({
   });
   settingsMusicTrack?.addEventListener("change", event => {
     const next = String(event.currentTarget.value || "ivory");
-    selectedMusicTrackId = BOXXY_MUSIC_TRACKS[next] ? next : "ivory";
+    selectedMusicTrackId = next === MUSIC_PLAY_ALL_ID || BOXXY_MUSIC_TRACKS[next] ? next : "ivory";
+    if (selectedMusicTrackId === MUSIC_PLAY_ALL_ID) musicPlayAllIndex = 0;
     localStorage.setItem("boxxy-music-track-v1", selectedMusicTrackId);
-    applySelectedMusicTrack(true);
+    applySelectedMusicTrack(true, true);
   });
   settingsSpeedSelect?.addEventListener("change", event => applyBoxxySpeed(String(event.currentTarget.value || "normal"), true));
   settingsMouseToggle?.addEventListener("click", () => setSettingsMouseSupport(!mouseSupportEnabled));
@@ -7159,7 +7187,7 @@ window.BOXXY_RELEASE = Object.freeze({
   applySelectedMusicTrack(false);
   updateMusicButton();
   if (bgMusic) {
-    bgMusic.loop = true;
+    bgMusic.loop = selectedMusicTrackId !== MUSIC_PLAY_ALL_ID;
     bgMusic.volume = 0.10;
     if (!musicOn) bgMusic.pause();
     else startBackgroundMusic();
