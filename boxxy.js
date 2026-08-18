@@ -6,7 +6,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: 253,
+  version: 254,
   lastUpdated: "2026-08-18"
 });
 /* Stored solver routes are kept separate from the authored pack data. */
@@ -4290,6 +4290,7 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   function retryMusicAfterInteraction(event) {
+    if (konamiShowcaseActive) return;
     if (event?.target?.closest?.("#musicBtn")) return;
     if (musicOn && bgMusic?.paused) startBackgroundMusic();
   }
@@ -6723,11 +6724,13 @@ window.BOXXY_RELEASE = Object.freeze({
     }
   });
   soundBtn.addEventListener("click", () => {
+    if (konamiShowcaseActive) return;
     soundOn = !soundOn;
     soundBtn.querySelector("b").textContent = soundOn ? "SOUND ON" : "SOUND OFF";
     if (soundOn) unlockSoundEffects();
   });
   musicBtn?.addEventListener("click", () => {
+    if (konamiShowcaseActive) return;
     musicOn = !musicOn;
     localStorage.setItem("push-bauhaus-music", musicOn ? "on" : "off");
     updateMusicButton();
