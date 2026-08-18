@@ -6,7 +6,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: 250,
+  version: 251,
   lastUpdated: "2026-08-17"
 });
 /* Stored solver routes are kept separate from the authored pack data. */
@@ -5755,7 +5755,7 @@ window.BOXXY_RELEASE = Object.freeze({
         }
         completeText.textContent = solvedWithWalkthrough
           ? `${summary} This level is now counted as completed, and its button will appear in yellow.`
-          : `${summary}${learnedRoute ? " Your route has been saved as this level's guided solve." : ""}`;
+          : summary;
         if (nextBtnLabel) nextBtnLabel.textContent = "NEXT LEVEL";
         if (nextBtnIcon) nextBtnIcon.textContent = "→";
       }
