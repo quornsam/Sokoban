@@ -159,7 +159,7 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=254">
+<link rel="stylesheet" href="styles.css?v=255">
 <link rel="stylesheet" href="how-to-play.css?v=225">
 <link rel="preload" as="image" href="assets/board/boxes/box-default-yellow.png?v=226">
 <link rel="preload" as="image" href="assets/board/goals/goal-red.png?v=226">
@@ -275,8 +275,7 @@
     </section>
 
     <section class="bottom-actions">
-      <button id="soundBtn" class="action small"><span>◖))</span><b>SOUND ON</b></button>
-      <button id="musicBtn" class="action small" aria-pressed="true"><span>♫</span><b>MUSIC ON</b></button>
+      <button id="settingsBtn" class="action small settings-action" type="button" aria-haspopup="dialog" aria-controls="settingsModal" aria-expanded="false"><span>⚙</span><b>SETTINGS</b></button>
       <button id="levelBtn" class="action small"><span>☰</span><b>LEVEL</b></button>
       <button id="fullscreenBtn" class="action small fullscreen-action"><span>⛶</span><b>FULL SCREEN</b></button>
     </section>
@@ -372,6 +371,80 @@
       <button id="mouseSupportCancelBtn" class="mouse-support-cancel" type="button">NOT NOW</button>
       <button id="mouseSupportEnableBtn" class="mouse-support-enable" type="button">ENABLE MOUSE SUPPORT</button>
     </div>
+  </section>
+</div>
+
+<div id="settingsModal" class="modal settings-modal" hidden>
+  <section class="settings-card" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <header class="settings-head">
+      <div>
+        <span class="complete-kicker">BOXXY</span>
+        <h2 id="settingsTitle">SETTINGS</h2>
+      </div>
+      <button id="settingsCloseBtn" class="settings-close" type="button" aria-label="Close settings">×</button>
+    </header>
+
+    <div id="settingsMainView" class="settings-main-view">
+      <div class="settings-grid">
+        <section class="settings-panel settings-audio-panel">
+          <h3>AUDIO</h3>
+          <div class="settings-toggle-pair">
+            <button id="soundBtn" class="settings-toggle" type="button" aria-pressed="true"><span>◖))</span><b>SOUND ON</b></button>
+            <button id="musicBtn" class="settings-toggle" type="button" aria-pressed="true"><span>♫</span><b>MUSIC ON</b></button>
+          </div>
+          <label class="settings-field" for="settingsMusicTrack">
+            <span>MUSIC</span>
+            <select id="settingsMusicTrack">
+              <option value="ivory">CRACKED IVORY DRIFT</option>
+              <option value="tetris">TETRIS PIANO · TEST</option>
+            </select>
+          </label>
+        </section>
+
+        <section class="settings-panel settings-play-panel">
+          <h3>PLAY</h3>
+          <label class="settings-field" for="settingsSpeedSelect">
+            <span>BOXXY SPEED</span>
+            <select id="settingsSpeedSelect">
+              <option value="slow">RELAXED</option>
+              <option value="normal">NORMAL</option>
+              <option value="fast">QUICK</option>
+            </select>
+          </label>
+          <div id="settingsMouseRow" class="settings-option-row desktop-settings-only">
+            <div><strong>MOUSE CONTROL</strong><small>Click squares and boxes to move Boxxy.</small></div>
+            <button id="settingsMouseToggle" class="settings-mini-toggle" type="button" aria-pressed="false">OFF</button>
+          </div>
+        </section>
+
+        <section id="settingsControlsPanel" class="settings-panel desktop-settings-only">
+          <h3>CONTROLS</h3>
+          <p>View the keyboard shortcuts available while playing on a computer.</p>
+          <button id="settingsKeyboardBtn" class="settings-link-button" type="button"><span>⌨</span><b>KEYBOARD CONTROLS</b><i>→</i></button>
+        </section>
+
+        <section class="settings-panel settings-help-panel">
+          <h3>HELP</h3>
+          <p>Found a bug, have a puzzle question, or just want to get in touch?</p>
+          <button id="settingsContactBtn" class="settings-link-button settings-contact-link" type="button"><span>✉</span><b>CONTACT BOXXY</b><i>→</i></button>
+        </section>
+      </div>
+    </div>
+
+    <div id="settingsKeyboardView" class="settings-keyboard-view" hidden>
+      <button id="settingsKeyboardBackBtn" class="settings-back" type="button">← SETTINGS</button>
+      <h3>KEYBOARD CONTROLS</h3>
+      <div class="settings-key-list">
+        <div><span>MOVE</span><strong>ARROW KEYS / WASD</strong></div>
+        <div><span>UNDO</span><strong>U / Z</strong></div>
+        <div><span>REDO</span><strong>SHIFT</strong></div>
+        <div><span>RESTART</span><strong>R</strong></div>
+        <div><span>NEXT LEVEL</span><strong>ENTER / SPACE</strong></div>
+        <div><span>CLOSE FINISH SCREEN</span><strong>X</strong></div>
+      </div>
+    </div>
+
+    <footer class="settings-footer"><span>Changes are saved on this device.</span></footer>
   </section>
 </div>
 
@@ -931,8 +1004,8 @@
 <audio id="bgMusic" src="assets/audio/cracked-ivory-drift.mp3" preload="auto" autoplay loop playsinline></audio>
 
 <script src="daily-puzzles/boxxy-daily-loader.js?v=217"></script>
-<script src="levels.js?v=254"></script>
-<script src="boxxy.js?v=254"></script>
+<script src="levels.js?v=255"></script>
+<script src="boxxy.js?v=255"></script>
 <script src="pack-builder.js?v=216"></script>
 <script src="how-to-play.js?v=153"></script>
 </body>
