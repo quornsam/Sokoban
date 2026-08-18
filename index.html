@@ -159,7 +159,7 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=256">
+<link rel="stylesheet" href="styles.css?v=257">
 <link rel="stylesheet" href="how-to-play.css?v=225">
 <link rel="preload" as="image" href="assets/board/boxes/box-default-yellow.png?v=226">
 <link rel="preload" as="image" href="assets/board/goals/goal-red.png?v=226">
@@ -298,11 +298,13 @@
             </svg>
             <span>ATTIRE</span>
           </button>
-          <button id="levelResetBtn" class="level-reset" type="button">RESET</button>
           <button id="levelCloseBtn" class="level-close" type="button" aria-label="Close level chooser"><span aria-hidden="true">×</span></button>
         </div>
       </div>
       <div id="levelButtons"></div>
+      <div class="level-picker-footer">
+        <button id="levelResetBtn" class="level-reset" type="button">RESET</button>
+      </div>
     </section>
 
     <div class="palette" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
@@ -1004,8 +1006,8 @@
 <audio id="bgMusic" src="assets/audio/cracked-ivory-drift.mp3" preload="auto" autoplay loop playsinline></audio>
 
 <script src="daily-puzzles/boxxy-daily-loader.js?v=217"></script>
-<script src="levels.js?v=256"></script>
-<script src="boxxy.js?v=256"></script>
+<script src="levels.js?v=257"></script>
+<script src="boxxy.js?v=257"></script>
 <script src="pack-builder.js?v=216"></script>
 <script src="how-to-play.js?v=153"></script>
 </body>

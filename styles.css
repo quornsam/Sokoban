@@ -5945,3 +5945,65 @@ body[data-boxxy-speed="fast"] .piece.player.pushing :is(img,canvas),body[data-bo
   .bottom-actions .action.small{width:38px;max-width:38px}
   .level-picker{width:calc(100vw - 30px)}
 }
+
+
+/* BOXXY v257 SANDBOX — level picker close at top, RESET at bottom. */
+.level-picker-footer{
+  display:flex;
+  justify-content:flex-end;
+  margin-top:10px;
+  padding-top:9px;
+  border-top:2px solid var(--ink);
+}
+.level-picker-footer .level-reset{
+  min-width:92px;
+  height:34px;
+  padding:0 14px;
+  border:2px solid var(--ink);
+  background:#ece4d7;
+  color:var(--ink);
+  box-shadow:2px 2px 0 var(--ink);
+}
+
+@media(max-width:760px){
+  /* Header: title | completion medal | attire | close. */
+  .level-picker-head{
+    grid-template-columns:minmax(0,1fr) auto auto auto;
+  }
+  .level-picker-tools{
+    grid-column:3 / 5;
+    display:contents;
+  }
+  .level-attire{grid-column:3}
+  .level-close{
+    grid-column:4;
+    position:static;
+    right:auto;
+    top:auto;
+    transform:none;
+    width:36px;
+    height:36px;
+    flex:0 0 36px;
+  }
+  .level-picker-footer{
+    margin-top:8px;
+    padding-top:8px;
+  }
+  .level-picker-footer .level-reset{
+    width:100%;
+    height:38px;
+    min-height:38px;
+    font-size:10px;
+    letter-spacing:.08em;
+  }
+  /* Reserve space for the new footer so the level grid remains scrollable. */
+  .level-picker #levelButtons{
+    max-height:calc(78dvh - 112px);
+  }
+}
+
+@media(max-width:380px){
+  .level-picker-head{
+    grid-template-columns:minmax(0,1fr) 31px auto 36px;
+  }
+}
