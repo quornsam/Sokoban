@@ -6,7 +6,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: 260,
+  version: 261,
   lastUpdated: "2026-08-18"
 });
 /* Stored solver routes are kept separate from the authored pack data. */
@@ -4438,7 +4438,7 @@ window.BOXXY_RELEASE = Object.freeze({
     if (bgMusic) bgMusic.pause();
   }
 
-  /* Sandbox v260: individual tracks loop continuously. PLAY ALL advances
+  /* Sandbox v261: individual tracks loop continuously. PLAY ALL advances
      through the hard-coded playlist and wraps back to the first track. */
   bgMusic?.addEventListener("ended", () => {
     if (!musicOn || konamiShowcaseActive || musicPausedForHiddenTab) return;
@@ -7189,8 +7189,9 @@ window.BOXXY_RELEASE = Object.freeze({
   if (bgMusic) {
     bgMusic.loop = selectedMusicTrackId !== MUSIC_PLAY_ALL_ID;
     bgMusic.volume = 0.10;
-    if (!musicOn) bgMusic.pause();
-    else startBackgroundMusic();
+    // Do not start music during page load. It is deliberately unlocked and
+    // started only by the user's first key press or pointer interaction.
+    bgMusic.pause();
   }
   document.addEventListener("pointerdown", unlockSoundEffects, { capture: true });
   document.addEventListener("touchstart", unlockSoundEffects, { capture: true, passive: true });
