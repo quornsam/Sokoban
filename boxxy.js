@@ -6,7 +6,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: 255,
+  version: 256,
   lastUpdated: "2026-08-18"
 });
 /* Stored solver routes are kept separate from the authored pack data. */
@@ -4325,6 +4325,7 @@ window.BOXXY_RELEASE = Object.freeze({
     const track = currentMusicTrack();
     if (settingsMusicTrack) settingsMusicTrack.value = selectedMusicTrackId;
     if (!bgMusic || !track) return;
+    bgMusic.loop = true;
     const currentAttr = String(bgMusic.getAttribute("src") || "");
     if (currentAttr !== track.src) {
       try { bgMusic.pause(); } catch (_) {}
@@ -4403,6 +4404,7 @@ window.BOXXY_RELEASE = Object.freeze({
 
   async function startBackgroundMusic() {
     if (!bgMusic || !musicOn) return;
+    bgMusic.loop = true;
     bgMusic.volume = 0.10;
     try {
       await bgMusic.play();
@@ -4414,6 +4416,15 @@ window.BOXXY_RELEASE = Object.freeze({
   function pauseBackgroundMusic() {
     if (bgMusic) bgMusic.pause();
   }
+
+  /* Sandbox v256: keep the selected background track looping continuously.
+     The loop property is the primary mechanism; ended is a defensive fallback
+     for browsers that occasionally fail to honour it after a source change. */
+  bgMusic?.addEventListener("ended", () => {
+    if (!musicOn || konamiShowcaseActive || musicPausedForHiddenTab) return;
+    try { bgMusic.currentTime = 0; } catch (_) {}
+    startBackgroundMusic();
+  });
 
   function retryMusicAfterInteraction(event) {
     if (konamiShowcaseActive) return;
@@ -7109,6 +7120,7 @@ window.BOXXY_RELEASE = Object.freeze({
   applySelectedMusicTrack(false);
   updateMusicButton();
   if (bgMusic) {
+    bgMusic.loop = true;
     bgMusic.volume = 0.10;
     if (!musicOn) bgMusic.pause();
     else startBackgroundMusic();

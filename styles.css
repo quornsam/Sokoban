@@ -5869,3 +5869,79 @@ body[data-boxxy-speed="fast"] .piece.player.pushing :is(img,canvas),body[data-bo
   .settings-main-view{padding:9px}.settings-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.settings-panel{padding:10px}
   .settings-toggle{min-height:46px}.settings-panel p{display:none}.settings-footer{padding:6px}
 }
+
+
+/* BOXXY v256 SANDBOX — safer phone controls and an easier-to-dismiss level picker. */
+@media (max-width:760px) and (pointer:coarse){
+  /* Keep the action columns narrow and hard against the outer edges. */
+  .side-panel{
+    grid-template-columns:44px minmax(0,1fr) 44px;
+  }
+  .top-actions{
+    padding:6px 2px 6px 0;
+    gap:3px;
+  }
+  .bottom-actions{
+    padding:6px 0 6px 2px;
+    gap:3px;
+  }
+  .top-actions .action,
+  .bottom-actions .action,
+  .bottom-actions .action.small{
+    width:42px;
+    max-width:42px;
+    justify-self:stretch;
+    padding-inline:0;
+  }
+  .top-actions .action span,
+  .bottom-actions .action span,
+  .bottom-actions .action.small span{
+    font-size:20px;
+  }
+  .top-actions .action b,
+  .bottom-actions .action b,
+  .bottom-actions .action.small b{
+    padding-inline:0;
+    font-size:6px;
+    line-height:.92;
+    letter-spacing:-.01em;
+  }
+
+  /* Leave a useful tap-to-close gutter around the level chooser. */
+  .level-picker{
+    width:calc(100vw - 40px);
+    max-height:calc(100dvh - 28px);
+    padding:10px;
+  }
+  .level-picker-head{
+    min-height:38px;
+    align-items:center;
+  }
+  .level-picker-tools{
+    align-items:center;
+  }
+  .level-close{
+    width:36px;
+    height:36px;
+    flex:0 0 36px;
+    border:2px solid var(--ink);
+    background:var(--red);
+    color:#fff;
+    box-shadow:2px 2px 0 var(--ink);
+  }
+  .level-close span{
+    font-size:28px;
+    line-height:1;
+    transform:translateY(-1px);
+  }
+  .level-reset{height:34px}
+  .level-attire{height:34px}
+}
+
+@media (max-width:360px) and (pointer:coarse){
+  .side-panel{grid-template-columns:40px minmax(0,1fr) 40px}
+  .top-actions .action,
+  .bottom-actions .action,
+  .bottom-actions .action.small{width:38px;max-width:38px}
+  .level-picker{width:calc(100vw - 30px)}
+}
