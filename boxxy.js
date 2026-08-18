@@ -4438,7 +4438,7 @@ window.BOXXY_RELEASE = Object.freeze({
     if (bgMusic) bgMusic.pause();
   }
 
-  /* Sandbox v261: individual tracks loop continuously. PLAY ALL advances
+  /* Individual tracks loop continuously. PLAY ALL advances
      through the hard-coded playlist and wraps back to the first track. */
   bgMusic?.addEventListener("ended", () => {
     if (!musicOn || konamiShowcaseActive || musicPausedForHiddenTab) return;

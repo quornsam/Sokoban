@@ -5792,7 +5792,7 @@ body.first-person-mode .board::after{
 
 
 
-/* BOXXY v255 SANDBOX — unified settings panel. */
+/* BOXXY v255 — unified settings panel. */
 .settings-action span{font-size:22px!important;line-height:1}
 .settings-modal{z-index:9500;padding:18px}
 .settings-card{
@@ -5874,7 +5874,7 @@ body[data-boxxy-speed="fast"] .piece.player.pushing :is(img,canvas),body[data-bo
 }
 
 
-/* BOXXY v256 SANDBOX — safer phone controls and an easier-to-dismiss level picker. */
+/* BOXXY v256 — safer phone controls and an easier-to-dismiss level picker. */
 @media (max-width:760px) and (pointer:coarse){
   /* Keep the action columns narrow and hard against the outer edges. */
   .side-panel{
@@ -5950,7 +5950,7 @@ body[data-boxxy-speed="fast"] .piece.player.pushing :is(img,canvas),body[data-bo
 }
 
 
-/* BOXXY v258 SANDBOX — compact level reset; gameplay speed affects normal movement. */
+/* BOXXY v258 — compact level reset; gameplay speed affects normal movement. */
 .level-picker-footer{
   display:flex;
   justify-content:flex-end;
