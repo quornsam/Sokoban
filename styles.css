@@ -85,11 +85,11 @@ button{font:inherit;color:inherit;cursor:pointer}
 .board-art{display:block;background-repeat:no-repeat;background-position:center bottom;background-size:contain}
 .goal .board-art-goal{position:absolute;left:-3.5%;bottom:-1%;width:107%;height:107%;background-image:var(--goal-sprite);transform:scaleY(.86);transform-origin:50% 100%;opacity:.96}
 .piece{position:absolute;left:calc((var(--x) + .5) * 100% / var(--cols));top:calc((var(--y) + 1) * 100% / var(--rows));z-index:var(--z);pointer-events:none;overflow:visible}
-.piece.box{width:calc(104% / var(--cols));height:calc(142% / var(--rows));transform:translate(-50%,-100%);transition:left .17s cubic-bezier(.2,.82,.32,1),top .17s cubic-bezier(.2,.82,.32,1),transform .17s ease;display:grid;place-items:end center}
+.piece.box{width:calc(104% / var(--cols));height:calc(142% / var(--rows));transform:translate(-50%,-100%);transition:left var(--boxxy-step-transition,.17s) cubic-bezier(.2,.82,.32,1),top var(--boxxy-step-transition,.17s) cubic-bezier(.2,.82,.32,1),transform var(--boxxy-step-transition,.17s) ease;display:grid;place-items:end center}
 .piece.box::before{content:"";position:absolute;left:50%;bottom:2%;width:64%;height:13%;transform:translateX(-42%);border-radius:50%;background:rgba(48,34,18,.32);filter:blur(4px);box-shadow:7px 5px 7px rgba(48,34,18,.16);z-index:0}
 .piece.box .board-art-box{position:absolute;left:0;bottom:0;z-index:1;width:100%;height:73.25%;background-image:url("assets/board/boxes/box-default-yellow.png")}
 .piece.box.on-goal .board-art-box{background-image:var(--box-sprite)}
-.piece.player{width:calc(207% / var(--cols));height:0;transform:translateX(-50%);transition:left .17s cubic-bezier(.2,.82,.32,1),top .17s cubic-bezier(.2,.82,.32,1);display:block;overflow:visible;z-index:99999!important;pointer-events:auto}
+.piece.player{width:calc(207% / var(--cols));height:0;transform:translateX(-50%);transition:left var(--boxxy-step-transition,.17s) cubic-bezier(.2,.82,.32,1),top var(--boxxy-step-transition,.17s) cubic-bezier(.2,.82,.32,1);display:block;overflow:visible;z-index:99999!important;pointer-events:auto}
 .piece.player::before{content:"";position:absolute;left:50%;bottom:3px;width:30%;height:8px;transform:translateX(-38%);border-radius:50%;background:rgba(48,34,18,.34);filter:blur(3px);box-shadow:6px 4px 6px rgba(48,34,18,.14);z-index:0}
 .piece.player img{position:absolute;left:50%;bottom:0;z-index:1;display:block;width:100%;height:auto;max-width:none;max-height:none;object-fit:contain;overflow:visible;clip-path:none;transform:translateX(-50%);transform-origin:50% 100%;filter:none}
 .piece.player.pushing.facing-left,.piece.player.pushing.facing-right,.piece.player.pushing.facing-front,.piece.player.pushing.facing-back{width:calc(207% / var(--cols))}
@@ -5837,6 +5837,9 @@ body.first-person-mode .board::after{
 .settings-key-list span{color:#71685e;font-size:8px;font-weight:850;letter-spacing:.1em}.settings-key-list strong{font-size:11px;letter-spacing:.04em}
 .settings-footer{padding:10px 18px;border-top:2px solid var(--ink);background:#efe6d9;text-align:center;color:#6b6257;font-size:8px;font-weight:800;letter-spacing:.04em}
 body.settings-touch-device .desktop-settings-only{display:none!important}
+body{--boxxy-step-transition:.17s}
+body[data-boxxy-speed="slow"]{--boxxy-step-transition:.25s}
+body[data-boxxy-speed="fast"]{--boxxy-step-transition:.11s}
 body[data-boxxy-speed="slow"] .piece.player.walking :is(img,canvas){animation-duration:.25s!important}
 body[data-boxxy-speed="slow"] .piece.player.pushing :is(img,canvas),body[data-boxxy-speed="slow"] .piece.box.pushing{animation-duration:.28s!important}
 body[data-boxxy-speed="fast"] .piece.player.walking :is(img,canvas){animation-duration:.11s!important}
@@ -5947,7 +5950,7 @@ body[data-boxxy-speed="fast"] .piece.player.pushing :is(img,canvas),body[data-bo
 }
 
 
-/* BOXXY v257 SANDBOX — level picker close at top, RESET at bottom. */
+/* BOXXY v258 SANDBOX — compact level reset; gameplay speed affects normal movement. */
 .level-picker-footer{
   display:flex;
   justify-content:flex-end;
@@ -5990,11 +5993,13 @@ body[data-boxxy-speed="fast"] .piece.player.pushing :is(img,canvas),body[data-bo
     padding-top:8px;
   }
   .level-picker-footer .level-reset{
-    width:100%;
-    height:38px;
-    min-height:38px;
-    font-size:10px;
-    letter-spacing:.08em;
+    width:auto;
+    min-width:78px;
+    height:30px;
+    min-height:30px;
+    padding:0 11px;
+    font-size:9px;
+    letter-spacing:.07em;
   }
   /* Reserve space for the new footer so the level grid remains scrollable. */
   .level-picker #levelButtons{

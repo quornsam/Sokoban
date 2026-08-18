@@ -6,7 +6,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: 257,
+  version: 258,
   lastUpdated: "2026-08-18"
 });
 /* Stored solver routes are kept separate from the authored pack data. */
@@ -5669,7 +5669,7 @@ window.BOXXY_RELEASE = Object.freeze({
       sfx.bump();
       render("pushing");
       scheduleIdle();
-      if (!holdBlocked) animTimer = setTimeout(() => render("idle"), 180);
+      if (!holdBlocked) animTimer = setTimeout(() => render("idle"), scaledBoxxyDelay(180));
       return;
     }
 
@@ -5683,7 +5683,7 @@ window.BOXXY_RELEASE = Object.freeze({
         sfx.bump();
         render("pushing");
         scheduleIdle();
-        if (!holdBlocked) animTimer = setTimeout(() => render("idle"), 180);
+        if (!holdBlocked) animTimer = setTimeout(() => render("idle"), scaledBoxxyDelay(180));
         return;
       }
       blockedPushHeld = false;
@@ -5714,7 +5714,7 @@ window.BOXXY_RELEASE = Object.freeze({
 
     playedRoute += DELTA_TO_CODE(dx, dy);
     scheduleIdle();
-    animTimer = setTimeout(() => render("idle"), 180);
+    animTimer = setTimeout(() => render("idle"), scaledBoxxyDelay(180));
     if (solved()) finish();
   }
 
@@ -6550,6 +6550,36 @@ window.BOXXY_RELEASE = Object.freeze({
     ArrowRight: [1, 0], d: [1, 0], D: [1, 0]
   };
 
+  let keyboardMoveRepeatDelay = 0;
+  let keyboardMoveRepeatTimer = 0;
+  let keyboardMoveRepeatKey = "";
+
+  function clearKeyboardMoveRepeat() {
+    window.clearTimeout(keyboardMoveRepeatDelay);
+    window.clearInterval(keyboardMoveRepeatTimer);
+    keyboardMoveRepeatDelay = 0;
+    keyboardMoveRepeatTimer = 0;
+    keyboardMoveRepeatKey = "";
+  }
+
+  function startKeyboardMove(directionKey, delta) {
+    clearKeyboardMoveRepeat();
+    keyboardMoveRepeatKey = directionKey;
+    move(...delta, true);
+    if (blockedPushHeld) return;
+
+    keyboardMoveRepeatDelay = window.setTimeout(() => {
+      const repeatMove = () => {
+        if (blockedPushHeld || completed || autoplayRunning) {
+          clearKeyboardMoveRepeat();
+          return;
+        }
+        move(...delta, true);
+      };
+      keyboardMoveRepeatTimer = window.setInterval(repeatMove, scaledBoxxyDelay(105));
+    }, scaledBoxxyDelay(330));
+  }
+
   document.addEventListener("keydown", event => {
     if (settingsModal && !settingsModal.hidden) {
       if (event.key === "Escape") {
@@ -6615,8 +6645,10 @@ window.BOXXY_RELEASE = Object.freeze({
       && event.target.closest("input, textarea, select, [contenteditable='true']");
     if (directionMap[event.key]) {
       event.preventDefault();
-      if (event.repeat && blockedPushHeld) return;
-      move(...directionMap[event.key], true);
+      /* Browser/OS key-repeat timing is deliberately ignored here. BOXXY runs
+         its own repeat timer so the Settings speed applies to ordinary play. */
+      if (event.repeat) return;
+      startKeyboardMove(event.code || event.key, directionMap[event.key]);
     } else if ((event.key === "z" || event.key === "Z" || event.key === "u" || event.key === "U") && !shortcutTarget) {
       event.preventDefault();
       if (!event.repeat) undo();
@@ -6641,9 +6673,16 @@ window.BOXXY_RELEASE = Object.freeze({
   });
 
   document.addEventListener("keyup", event => {
-    if (directionMap[event.key]) releaseBlockedPush();
+    if (!directionMap[event.key]) return;
+    if (!keyboardMoveRepeatKey || keyboardMoveRepeatKey === (event.code || event.key)) {
+      clearKeyboardMoveRepeat();
+      releaseBlockedPush();
+    }
   });
-  window.addEventListener("blur", releaseBlockedPush);
+  window.addEventListener("blur", () => {
+    clearKeyboardMoveRepeat();
+    releaseBlockedPush();
+  });
 
   const buttonDirections = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
   document.querySelectorAll("[data-dir]").forEach(button => {
@@ -6679,10 +6718,10 @@ window.BOXXY_RELEASE = Object.freeze({
       button.setPointerCapture?.(event.pointerId);
       performDirectionMove();
 
-      // Match keyboard behaviour: pause briefly, then repeat while held.
+      // Use the same speed setting as keyboard movement and guided solves.
       repeatDelay = window.setTimeout(() => {
-        repeatTimer = window.setInterval(performDirectionMove, 105);
-      }, 330);
+        repeatTimer = window.setInterval(performDirectionMove, scaledBoxxyDelay(105));
+      }, scaledBoxxyDelay(330));
     });
 
     const releaseDirectionButton = event => {
