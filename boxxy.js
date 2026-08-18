@@ -6,7 +6,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: 254,
+  version: 261,
   lastUpdated: "2026-08-18"
 });
 /* Stored solver routes are kept separate from the authored pack data. */
@@ -1831,6 +1831,19 @@ window.BOXXY_RELEASE = Object.freeze({
   const soundBtn = document.getElementById("soundBtn");
   const musicBtn = document.getElementById("musicBtn");
   const bgMusic = document.getElementById("bgMusic");
+  const settingsBtn = document.getElementById("settingsBtn");
+  const settingsModal = document.getElementById("settingsModal");
+  const settingsCloseBtn = document.getElementById("settingsCloseBtn");
+  const settingsMainView = document.getElementById("settingsMainView");
+  const settingsKeyboardView = document.getElementById("settingsKeyboardView");
+  const settingsKeyboardBtn = document.getElementById("settingsKeyboardBtn");
+  const settingsKeyboardBackBtn = document.getElementById("settingsKeyboardBackBtn");
+  const settingsMusicTrack = document.getElementById("settingsMusicTrack");
+  const settingsSpeedSelect = document.getElementById("settingsSpeedSelect");
+  const settingsMouseRow = document.getElementById("settingsMouseRow");
+  const settingsMouseToggle = document.getElementById("settingsMouseToggle");
+  const settingsControlsPanel = document.getElementById("settingsControlsPanel");
+  const settingsContactBtn = document.getElementById("settingsContactBtn");
   const levelBtn = document.getElementById("levelBtn");
   const levelPicker = document.getElementById("levelPicker");
   const levelPickerTitle = document.getElementById("levelPickerTitle");
@@ -1992,8 +2005,23 @@ window.BOXXY_RELEASE = Object.freeze({
     });
   }
   let blockedPushHeld = false;
-  let soundOn = true;
+  let soundOn = localStorage.getItem("boxxy-sound-v1") !== "off";
   let musicOn = localStorage.getItem("push-bauhaus-music") !== "off";
+  const MUSIC_PLAY_ALL_ID = "all";
+  const BOXXY_MUSIC_TRACKS = Object.freeze({
+    ivory: { label: "Cracked Ivory Drift", src: "assets/audio/cracked-ivory-drift.mp3" },
+    starry: { label: "Starry Night Lullaby", src: "assets/audio/Starry-Night-Lullaby-281KB.mp3" },
+    fading: { label: "Fading into Gold", src: "assets/audio/Fading-into-Gold-296KB.mp3" },
+    velvet: { label: "Velvet Static", src: "assets/audio/Velvet-Static-296KB.mp3" },
+    tetris: { label: "Tetris Piano", src: "assets/audio/Tetris-Piano-293KB.mp3" }
+  });
+  const storedMusicTrackId = localStorage.getItem("boxxy-music-track-v1");
+  let selectedMusicTrackId = storedMusicTrackId === MUSIC_PLAY_ALL_ID || BOXXY_MUSIC_TRACKS[storedMusicTrackId]
+    ? storedMusicTrackId
+    : "ivory";
+  let musicPlayAllIndex = 0;
+  const BOXXY_SPEED_FACTORS = Object.freeze({ slow: 1.4, normal: 1, fast: 0.68 });
+  let boxxySpeed = BOXXY_SPEED_FACTORS[localStorage.getItem("boxxy-speed-v1")] ? localStorage.getItem("boxxy-speed-v1") : "normal";
   let musicPausedForHiddenTab = false;
   let audioCtx = null;
   let autoplayRunning = false;
@@ -2005,7 +2033,7 @@ window.BOXXY_RELEASE = Object.freeze({
   let mouseSupportClickCount = 0;
   let mouseSupportArmed = false;
   let mouseSupportResetTimer = null;
-  let mouseSupportEnabled = false;
+  let mouseSupportEnabled = localStorage.getItem("boxxy-mouse-support-v1") === "on";
   let mouseSupportBusy = false;
   let mouseSupportExecutingStep = false;
   let mouseSupportRouteTimer = null;
@@ -4266,6 +4294,126 @@ window.BOXXY_RELEASE = Object.freeze({
     }
   }
 
+  function settingsTouchDevice() {
+    const ua = String(navigator.userAgent || "");
+    const iOS = /iPad|iPhone|iPod/i.test(ua) || (navigator.platform === "MacIntel" && (navigator.maxTouchPoints || 0) > 1);
+    const android = /Android/i.test(ua);
+    const mobile = /Mobile/i.test(ua) && !/Windows/i.test(ua);
+    return iOS || android || mobile;
+  }
+
+  function updateSettingsDeviceAvailability() {
+    const touchDevice = settingsTouchDevice();
+    document.body.classList.toggle("settings-touch-device", touchDevice);
+    if (settingsMouseRow) settingsMouseRow.hidden = touchDevice;
+    if (settingsControlsPanel) settingsControlsPanel.hidden = touchDevice;
+    if (touchDevice && mouseSupportEnabled) {
+      mouseSupportEnabled = false;
+      localStorage.setItem("boxxy-mouse-support-v1", "off");
+      resetMouseSupportInteraction();
+      document.body.classList.remove("mouse-support-enabled");
+    }
+    updateSettingsMouseButton();
+  }
+
+  function updateSoundButton() {
+    if (!soundBtn) return;
+    const label = soundBtn.querySelector("b");
+    const icon = soundBtn.querySelector("span");
+    if (label) label.textContent = soundOn ? "SOUND ON" : "SOUND OFF";
+    if (icon) icon.textContent = soundOn ? "◖))" : "◖";
+    soundBtn.setAttribute("aria-pressed", String(soundOn));
+  }
+
+  function musicTrackIds() {
+    return Object.keys(BOXXY_MUSIC_TRACKS);
+  }
+
+  function currentMusicTrack() {
+    if (selectedMusicTrackId === MUSIC_PLAY_ALL_ID) {
+      const ids = musicTrackIds();
+      if (!ids.length) return BOXXY_MUSIC_TRACKS.ivory;
+      musicPlayAllIndex = ((musicPlayAllIndex % ids.length) + ids.length) % ids.length;
+      return BOXXY_MUSIC_TRACKS[ids[musicPlayAllIndex]];
+    }
+    return BOXXY_MUSIC_TRACKS[selectedMusicTrackId] || BOXXY_MUSIC_TRACKS.ivory;
+  }
+
+  function applySelectedMusicTrack(playAfter = false, restart = false) {
+    const track = currentMusicTrack();
+    if (settingsMusicTrack) settingsMusicTrack.value = selectedMusicTrackId;
+    if (!bgMusic || !track) return;
+    bgMusic.loop = selectedMusicTrackId !== MUSIC_PLAY_ALL_ID;
+    const currentAttr = String(bgMusic.getAttribute("src") || "");
+    if (currentAttr !== track.src || restart) {
+      try { bgMusic.pause(); } catch (_) {}
+      bgMusic.setAttribute("src", track.src);
+      try { bgMusic.load(); } catch (_) {}
+      if (restart) {
+        try { bgMusic.currentTime = 0; } catch (_) {}
+      }
+    }
+    if (playAfter && musicOn) startBackgroundMusic();
+  }
+
+  function boxxySpeedFactor() {
+    return BOXXY_SPEED_FACTORS[boxxySpeed] || 1;
+  }
+
+  function scaledBoxxyDelay(milliseconds) {
+    return Math.max(28, Math.round(Number(milliseconds || 0) * boxxySpeedFactor()));
+  }
+
+  function applyBoxxySpeed(value, persist = true) {
+    boxxySpeed = BOXXY_SPEED_FACTORS[value] ? value : "normal";
+    document.body.dataset.boxxySpeed = boxxySpeed;
+    if (settingsSpeedSelect) settingsSpeedSelect.value = boxxySpeed;
+    if (persist) localStorage.setItem("boxxy-speed-v1", boxxySpeed);
+  }
+
+  function updateSettingsMouseButton() {
+    if (!settingsMouseToggle) return;
+    const available = !settingsTouchDevice() && desktopEasterEggAvailable();
+    settingsMouseToggle.disabled = !available;
+    settingsMouseToggle.setAttribute("aria-pressed", String(available && mouseSupportEnabled));
+    settingsMouseToggle.textContent = available && mouseSupportEnabled ? "ON" : "OFF";
+  }
+
+  function setSettingsMouseSupport(enabled) {
+    if (settingsTouchDevice() || !desktopEasterEggAvailable()) return;
+    mouseSupportEnabled = Boolean(enabled);
+    localStorage.setItem("boxxy-mouse-support-v1", mouseSupportEnabled ? "on" : "off");
+    document.body.classList.toggle("mouse-support-enabled", mouseSupportEnabled);
+    if (!mouseSupportEnabled) resetMouseSupportInteraction();
+    updateSettingsMouseButton();
+  }
+
+  function showSettingsMainView() {
+    if (settingsMainView) settingsMainView.hidden = false;
+    if (settingsKeyboardView) settingsKeyboardView.hidden = true;
+  }
+
+  function openSettings() {
+    if (!settingsModal) return;
+    updateSettingsDeviceAvailability();
+    updateSoundButton();
+    updateMusicButton();
+    applySelectedMusicTrack(false);
+    applyBoxxySpeed(boxxySpeed, false);
+    showSettingsMainView();
+    settingsModal.hidden = false;
+    settingsBtn?.setAttribute("aria-expanded", "true");
+    requestAnimationFrame(() => settingsCloseBtn?.focus?.({ preventScroll: true }));
+  }
+
+  function closeSettings() {
+    if (!settingsModal) return;
+    settingsModal.hidden = true;
+    showSettingsMainView();
+    settingsBtn?.setAttribute("aria-expanded", "false");
+    settingsBtn?.focus?.({ preventScroll: true });
+  }
+
   function updateMusicButton() {
     if (!musicBtn) return;
     const label = musicBtn.querySelector("b");
@@ -4277,6 +4425,7 @@ window.BOXXY_RELEASE = Object.freeze({
 
   async function startBackgroundMusic() {
     if (!bgMusic || !musicOn) return;
+    bgMusic.loop = selectedMusicTrackId !== MUSIC_PLAY_ALL_ID;
     bgMusic.volume = 0.10;
     try {
       await bgMusic.play();
@@ -4288,6 +4437,21 @@ window.BOXXY_RELEASE = Object.freeze({
   function pauseBackgroundMusic() {
     if (bgMusic) bgMusic.pause();
   }
+
+  /* Individual tracks loop continuously. PLAY ALL advances
+     through the hard-coded playlist and wraps back to the first track. */
+  bgMusic?.addEventListener("ended", () => {
+    if (!musicOn || konamiShowcaseActive || musicPausedForHiddenTab) return;
+    if (selectedMusicTrackId === MUSIC_PLAY_ALL_ID) {
+      const ids = musicTrackIds();
+      if (!ids.length) return;
+      musicPlayAllIndex = (musicPlayAllIndex + 1) % ids.length;
+      applySelectedMusicTrack(true, true);
+      return;
+    }
+    try { bgMusic.currentTime = 0; } catch (_) {}
+    startBackgroundMusic();
+  });
 
   function retryMusicAfterInteraction(event) {
     if (konamiShowcaseActive) return;
@@ -5532,7 +5696,7 @@ window.BOXXY_RELEASE = Object.freeze({
       sfx.bump();
       render("pushing");
       scheduleIdle();
-      if (!holdBlocked) animTimer = setTimeout(() => render("idle"), 180);
+      if (!holdBlocked) animTimer = setTimeout(() => render("idle"), scaledBoxxyDelay(180));
       return;
     }
 
@@ -5546,7 +5710,7 @@ window.BOXXY_RELEASE = Object.freeze({
         sfx.bump();
         render("pushing");
         scheduleIdle();
-        if (!holdBlocked) animTimer = setTimeout(() => render("idle"), 180);
+        if (!holdBlocked) animTimer = setTimeout(() => render("idle"), scaledBoxxyDelay(180));
         return;
       }
       blockedPushHeld = false;
@@ -5577,7 +5741,7 @@ window.BOXXY_RELEASE = Object.freeze({
 
     playedRoute += DELTA_TO_CODE(dx, dy);
     scheduleIdle();
-    animTimer = setTimeout(() => render("idle"), 180);
+    animTimer = setTimeout(() => render("idle"), scaledBoxxyDelay(180));
     if (solved()) finish();
   }
 
@@ -6057,9 +6221,8 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   function enableMouseSupport() {
-    if (!desktopEasterEggAvailable()) return;
-    mouseSupportEnabled = true;
-    document.body.classList.add("mouse-support-enabled");
+    if (!desktopEasterEggAvailable() || settingsTouchDevice()) return;
+    setSettingsMouseSupport(true);
     closeMouseSupportModal();
     showCharacterThought("Mouse support enabled. Click a square to walk, or click a box to see its destinations.", true);
   }
@@ -6262,7 +6425,7 @@ window.BOXXY_RELEASE = Object.freeze({
         stopMouseSupportRoute();
         return;
       }
-      mouseSupportRouteTimer = setTimeout(playNext, MOUSE_SUPPORT_STEP_MS);
+      mouseSupportRouteTimer = setTimeout(playNext, scaledBoxxyDelay(MOUSE_SUPPORT_STEP_MS));
     };
 
     mouseSupportRouteTimer = setTimeout(playNext, 24);
@@ -6391,7 +6554,7 @@ window.BOXXY_RELEASE = Object.freeze({
         return;
       }
       move(delta[0], delta[1], false, true);
-      autoplayTimer = setTimeout(playNext, 220);
+      autoplayTimer = setTimeout(playNext, scaledBoxxyDelay(220));
     };
 
     autoplayTimer = setTimeout(playNext, 320);
@@ -6414,7 +6577,44 @@ window.BOXXY_RELEASE = Object.freeze({
     ArrowRight: [1, 0], d: [1, 0], D: [1, 0]
   };
 
+  let keyboardMoveRepeatDelay = 0;
+  let keyboardMoveRepeatTimer = 0;
+  let keyboardMoveRepeatKey = "";
+
+  function clearKeyboardMoveRepeat() {
+    window.clearTimeout(keyboardMoveRepeatDelay);
+    window.clearInterval(keyboardMoveRepeatTimer);
+    keyboardMoveRepeatDelay = 0;
+    keyboardMoveRepeatTimer = 0;
+    keyboardMoveRepeatKey = "";
+  }
+
+  function startKeyboardMove(directionKey, delta) {
+    clearKeyboardMoveRepeat();
+    keyboardMoveRepeatKey = directionKey;
+    move(...delta, true);
+    if (blockedPushHeld) return;
+
+    keyboardMoveRepeatDelay = window.setTimeout(() => {
+      const repeatMove = () => {
+        if (blockedPushHeld || completed || autoplayRunning) {
+          clearKeyboardMoveRepeat();
+          return;
+        }
+        move(...delta, true);
+      };
+      keyboardMoveRepeatTimer = window.setInterval(repeatMove, scaledBoxxyDelay(105));
+    }, scaledBoxxyDelay(330));
+  }
+
   document.addEventListener("keydown", event => {
+    if (settingsModal && !settingsModal.hidden) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeSettings();
+      }
+      return;
+    }
     if (levelMakerModal && !levelMakerModal.hidden) return;
     if (window.CharacterStyler?.isOpen) return;
     if (mouseSupportModal && !mouseSupportModal.hidden) {
@@ -6472,8 +6672,10 @@ window.BOXXY_RELEASE = Object.freeze({
       && event.target.closest("input, textarea, select, [contenteditable='true']");
     if (directionMap[event.key]) {
       event.preventDefault();
-      if (event.repeat && blockedPushHeld) return;
-      move(...directionMap[event.key], true);
+      /* Browser/OS key-repeat timing is deliberately ignored here. BOXXY runs
+         its own repeat timer so the Settings speed applies to ordinary play. */
+      if (event.repeat) return;
+      startKeyboardMove(event.code || event.key, directionMap[event.key]);
     } else if ((event.key === "z" || event.key === "Z" || event.key === "u" || event.key === "U") && !shortcutTarget) {
       event.preventDefault();
       if (!event.repeat) undo();
@@ -6498,9 +6700,16 @@ window.BOXXY_RELEASE = Object.freeze({
   });
 
   document.addEventListener("keyup", event => {
-    if (directionMap[event.key]) releaseBlockedPush();
+    if (!directionMap[event.key]) return;
+    if (!keyboardMoveRepeatKey || keyboardMoveRepeatKey === (event.code || event.key)) {
+      clearKeyboardMoveRepeat();
+      releaseBlockedPush();
+    }
   });
-  window.addEventListener("blur", releaseBlockedPush);
+  window.addEventListener("blur", () => {
+    clearKeyboardMoveRepeat();
+    releaseBlockedPush();
+  });
 
   const buttonDirections = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
   document.querySelectorAll("[data-dir]").forEach(button => {
@@ -6536,10 +6745,10 @@ window.BOXXY_RELEASE = Object.freeze({
       button.setPointerCapture?.(event.pointerId);
       performDirectionMove();
 
-      // Match keyboard behaviour: pause briefly, then repeat while held.
+      // Use the same speed setting as keyboard movement and guided solves.
       repeatDelay = window.setTimeout(() => {
-        repeatTimer = window.setInterval(performDirectionMove, 105);
-      }, 330);
+        repeatTimer = window.setInterval(performDirectionMove, scaledBoxxyDelay(105));
+      }, scaledBoxxyDelay(330));
     });
 
     const releaseDirectionButton = event => {
@@ -6612,6 +6821,7 @@ window.BOXXY_RELEASE = Object.freeze({
     requestAnimationFrame(refreshPlayerVisual);
     resetFirstPersonAvatarImages();
   });
+  window.addEventListener("resize", updateSettingsDeviceAvailability);
   window.addEventListener("pageshow", resumeMusicAfterHiddenTab);
   window.addEventListener("pagehide", pauseMusicForHiddenTab);
   document.addEventListener("visibilitychange", () => {
@@ -6723,10 +6933,11 @@ window.BOXXY_RELEASE = Object.freeze({
       loadLevel(levelIndex);
     }
   });
-  soundBtn.addEventListener("click", () => {
+  soundBtn?.addEventListener("click", () => {
     if (konamiShowcaseActive) return;
     soundOn = !soundOn;
-    soundBtn.querySelector("b").textContent = soundOn ? "SOUND ON" : "SOUND OFF";
+    localStorage.setItem("boxxy-sound-v1", soundOn ? "on" : "off");
+    updateSoundButton();
     if (soundOn) unlockSoundEffects();
   });
   musicBtn?.addEventListener("click", () => {
@@ -6737,6 +6948,28 @@ window.BOXXY_RELEASE = Object.freeze({
     if (musicOn) startBackgroundMusic();
     else pauseBackgroundMusic();
   });
+  settingsBtn?.addEventListener("click", openSettings);
+  settingsCloseBtn?.addEventListener("click", closeSettings);
+  settingsModal?.addEventListener("click", event => { if (event.target === settingsModal) closeSettings(); });
+  settingsKeyboardBtn?.addEventListener("click", () => {
+    if (settingsTouchDevice()) return;
+    if (settingsMainView) settingsMainView.hidden = true;
+    if (settingsKeyboardView) settingsKeyboardView.hidden = false;
+    settingsKeyboardBackBtn?.focus?.({ preventScroll: true });
+  });
+  settingsKeyboardBackBtn?.addEventListener("click", () => {
+    showSettingsMainView();
+    settingsKeyboardBtn?.focus?.({ preventScroll: true });
+  });
+  settingsMusicTrack?.addEventListener("change", event => {
+    const next = String(event.currentTarget.value || "ivory");
+    selectedMusicTrackId = next === MUSIC_PLAY_ALL_ID || BOXXY_MUSIC_TRACKS[next] ? next : "ivory";
+    if (selectedMusicTrackId === MUSIC_PLAY_ALL_ID) musicPlayAllIndex = 0;
+    localStorage.setItem("boxxy-music-track-v1", selectedMusicTrackId);
+    applySelectedMusicTrack(true, true);
+  });
+  settingsSpeedSelect?.addEventListener("change", event => applyBoxxySpeed(String(event.currentTarget.value || "normal"), true));
+  settingsMouseToggle?.addEventListener("click", () => setSettingsMouseSupport(!mouseSupportEnabled));
   collectionBtn?.addEventListener("click", openPackModal);
   finalPackMoreBtn?.addEventListener("click", () => {
     closeCompleteModal();
@@ -6948,11 +7181,17 @@ window.BOXXY_RELEASE = Object.freeze({
     boardResizeObserver.observe(boardWrap);
   }
   updateFullscreenButton();
+  updateSettingsDeviceAvailability();
+  updateSoundButton();
+  applyBoxxySpeed(boxxySpeed, false);
+  applySelectedMusicTrack(false);
   updateMusicButton();
   if (bgMusic) {
+    bgMusic.loop = selectedMusicTrackId !== MUSIC_PLAY_ALL_ID;
     bgMusic.volume = 0.10;
-    if (!musicOn) bgMusic.pause();
-    else startBackgroundMusic();
+    // Do not start music during page load. It is deliberately unlocked and
+    // started only by the user's first key press or pointer interaction.
+    bgMusic.pause();
   }
   document.addEventListener("pointerdown", unlockSoundEffects, { capture: true });
   document.addEventListener("touchstart", unlockSoundEffects, { capture: true, passive: true });
@@ -9817,6 +10056,7 @@ window.BOXXY_RELEASE = Object.freeze({
   "use strict";
 
   const openBtn = document.getElementById("makerContactBtn");
+  const settingsOpenBtn = document.getElementById("settingsContactBtn");
   const modal = document.getElementById("makerContactModal");
   const closeBtn = document.getElementById("makerContactCloseBtn");
   const cancelBtn = document.getElementById("makerContactCancelBtn");
@@ -9828,9 +10068,11 @@ window.BOXXY_RELEASE = Object.freeze({
   const sendBtn = document.getElementById("makerContactSendBtn");
   const status = document.getElementById("makerContactStatus");
 
-  if (!openBtn || !modal || !form) return;
+  if (!modal || !form || (!openBtn && !settingsOpenBtn)) return;
+  if (modal.parentElement !== document.body) document.body.appendChild(modal);
 
   let sending = false;
+  let lastOpener = openBtn || settingsOpenBtn;
 
   function setStatus(message = "", kind = "") {
     if (!status) return;
@@ -9838,7 +10080,8 @@ window.BOXXY_RELEASE = Object.freeze({
     status.dataset.kind = kind;
   }
 
-  function openContact() {
+  function openContact(event) {
+    lastOpener = event?.currentTarget || openBtn || settingsOpenBtn;
     modal.hidden = false;
     setStatus("");
     window.setTimeout(() => nameInput?.focus(), 0);
@@ -9848,10 +10091,11 @@ window.BOXXY_RELEASE = Object.freeze({
     if (sending) return;
     modal.hidden = true;
     setStatus("");
-    openBtn.focus();
+    lastOpener?.focus?.({ preventScroll: true });
   }
 
-  openBtn.addEventListener("click", openContact);
+  openBtn?.addEventListener("click", openContact);
+  settingsOpenBtn?.addEventListener("click", openContact);
   closeBtn?.addEventListener("click", closeContact);
   cancelBtn?.addEventListener("click", closeContact);
   modal.addEventListener("click", event => {
