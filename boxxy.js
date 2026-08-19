@@ -6,7 +6,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: 262,
+  version: 263,
   lastUpdated: "2026-08-19"
 });
 /* Stored solver routes are kept separate from the authored pack data. */
@@ -39,7 +39,6 @@ window.BOXXY_RELEASE = Object.freeze({
   });
 })();
 
-/* BOXXY v262 — mobile Zen Mode swipe gestures work across the full screen, including the direction pad. */
 /* BOXXY v241 — Daily archive cards show map thumbnails for every available current/past puzzle. */
 /* BOXXY v237 — Alphabet Soup adds 27 authored levels with supplied walkthrough solutions and dedicated pack artwork. */
 /* BOXXY v236 — Level Maker imports hyphens as explicit floor tiles and private puzzle URLs support grids up to 64×64. */
@@ -4078,6 +4077,15 @@ window.BOXXY_RELEASE = Object.freeze({
     return pointerType === "touch" || pointerType === "pen";
   }
 
+  const ZEN_SCREEN_SWIPE_THRESHOLD = 22;
+  const ZEN_CONTROL_INTENT_DELAY_MS = 80;
+
+  function zenSwipeMove(dx, dy, animate = true) {
+    mouseSupportIgnoreClickUntil = Date.now() + 260;
+    if (Math.abs(dx) > Math.abs(dy)) move(dx > 0 ? 1 : -1, 0, animate);
+    else move(0, dy > 0 ? 1 : -1, animate);
+  }
+
   function setPhoneZenMode(active) {
     const enabled = Boolean(active && phoneFullscreenLayout());
     document.documentElement.classList.toggle("phone-zen-mode", enabled);
@@ -6723,12 +6731,19 @@ window.BOXXY_RELEASE = Object.freeze({
     let activePointerId = null;
     let repeatDelay = 0;
     let repeatTimer = 0;
+    let zenIntentTimer = 0;
+    let zenPress = null;
 
     const stopRepeat = () => {
       window.clearTimeout(repeatDelay);
       window.clearInterval(repeatTimer);
       repeatDelay = 0;
       repeatTimer = 0;
+    };
+
+    const clearZenIntent = () => {
+      window.clearTimeout(zenIntentTimer);
+      zenIntentTimer = 0;
     };
 
     const performDirectionMove = () => {
@@ -6743,26 +6758,74 @@ window.BOXXY_RELEASE = Object.freeze({
       move(...buttonDirections[button.dataset.dir], true);
     };
 
+    const beginHeldDirection = () => {
+      if (!zenPress || zenPress.swiped || zenPress.holdCommitted || activePointerId === null) return;
+      zenPress.holdCommitted = true;
+      performDirectionMove();
+
+      // Preserve the original hold cadence: first repeat is due at the same
+      // point after pointer-down as before, despite the brief swipe/tap intent window.
+      const elapsed = Math.max(0, performance.now() - zenPress.downAt);
+      const remaining = Math.max(0, scaledBoxxyDelay(330) - elapsed);
+      repeatDelay = window.setTimeout(() => {
+        repeatTimer = window.setInterval(performDirectionMove, scaledBoxxyDelay(105));
+      }, remaining);
+    };
+
     button.addEventListener("pointerdown", event => {
-      if (phoneZenTouchPointer(event)) return;
       event.preventDefault();
       if (activePointerId !== null) return;
       activePointerId = event.pointerId;
 
       ensureAudio();
       button.setPointerCapture?.(event.pointerId);
-      performDirectionMove();
 
-      // Use the same speed setting as keyboard movement and guided solves.
+      if (phoneZenTouchPointer(event)) {
+        zenPress = {
+          id: event.pointerId,
+          x: event.clientX,
+          y: event.clientY,
+          downAt: performance.now(),
+          swiped: false,
+          holdCommitted: false
+        };
+        zenIntentTimer = window.setTimeout(beginHeldDirection, ZEN_CONTROL_INTENT_DELAY_MS);
+        return;
+      }
+
+      // Outside mobile Zen Mode this is the original BOXXY direction-button behaviour.
+      performDirectionMove();
       repeatDelay = window.setTimeout(() => {
         repeatTimer = window.setInterval(performDirectionMove, scaledBoxxyDelay(105));
       }, scaledBoxxyDelay(330));
     });
 
+    button.addEventListener("pointermove", event => {
+      if (!zenPress || zenPress.id !== event.pointerId || zenPress.swiped || zenPress.holdCommitted) return;
+      const dx = event.clientX - zenPress.x;
+      const dy = event.clientY - zenPress.y;
+      if (Math.max(Math.abs(dx), Math.abs(dy)) < ZEN_SCREEN_SWIPE_THRESHOLD) return;
+
+      event.preventDefault();
+      clearZenIntent();
+      zenPress.swiped = true;
+      zenSwipeMove(dx, dy, true);
+    }, { passive: false });
+
     const releaseDirectionButton = event => {
       if (activePointerId !== null &&
           event?.pointerId !== undefined &&
           event.pointerId !== activePointerId) return;
+
+      if (zenPress && (!event || event.pointerId === zenPress.id)) {
+        clearZenIntent();
+        if (!zenPress.swiped && !zenPress.holdCommitted && event?.type === "pointerup") {
+          // A short touch is still a normal one-step arrow-button tap.
+          performDirectionMove();
+        }
+        zenPress = null;
+      }
+
       stopRepeat();
       activePointerId = null;
       releaseBlockedPush();
@@ -6778,7 +6841,6 @@ window.BOXXY_RELEASE = Object.freeze({
     // Suppress the synthetic click produced after a touch press.
     button.addEventListener("click", event => event.preventDefault());
   });
-
 
 
   function pointerIsOnCharacter(event) {
@@ -7145,28 +7207,23 @@ window.BOXXY_RELEASE = Object.freeze({
     if (modal && !modal.hidden && completeMode === "final") closeCompleteModal();
   });
 
-  const ZEN_SCREEN_SWIPE_THRESHOLD = 22;
   let zenScreenSwipe = null;
   let zenSuppressedClick = null;
-
-  function zenSwipeMove(dx, dy, animate = true) {
-    mouseSupportIgnoreClickUntil = Date.now() + 260;
-    if (Math.abs(dx) > Math.abs(dy)) move(dx > 0 ? 1 : -1, 0, animate);
-    else move(0, dy > 0 ? 1 : -1, animate);
-  }
 
   document.addEventListener("pointerdown", event => {
     if (!phoneZenTouchPointer(event) || firstPersonMode || completed || autoplayRunning) return;
     if (event.isPrimary === false) return;
 
     const target = event.target instanceof Element ? event.target : null;
-    const directionButton = target?.closest?.("[data-dir]") || null;
+    // Direction controls have their own integrated tap/hold/swipe handler so
+    // they retain BOXXY's original held-button repeat behaviour.
+    if (target?.closest?.("[data-dir]")) return;
+
     zenScreenSwipe = {
       id: event.pointerId,
       x: event.clientX,
       y: event.clientY,
       triggered: false,
-      direction: directionButton?.dataset?.dir || "",
       undo: Boolean(target?.closest?.("#undoBtn"))
     };
     ensureAudio();
@@ -7201,19 +7258,16 @@ window.BOXXY_RELEASE = Object.freeze({
     }
 
     if (swiped) {
-      // Prevent the synthetic click at the end of a swipe from activating a
-      // control such as Restart, Undo, Full Screen or a direction button.
+      // A swipe must not also activate whatever control happened to be under
+      // the finger when it ended.
       zenSuppressedClick = {
         until: Date.now() + 420,
         x: event.clientX,
         y: event.clientY
       };
-    } else if (gesture.direction && buttonDirections[gesture.direction]) {
-      // Direction buttons remain ordinary tap controls in Zen Mode.
-      move(...buttonDirections[gesture.direction], true);
     } else if (gesture.undo && !undoBtn.disabled && !autoplayRunning && history.length && !completed) {
-      // Undo normally acts on pointerdown; in Zen Mode defer it until we know
-      // the gesture was a tap rather than the start of a swipe.
+      // Undo normally acts on pointerdown. In Zen Mode defer it until pointerup
+      // so a swipe that begins over Undo remains a swipe rather than an Undo.
       undo();
     }
 
