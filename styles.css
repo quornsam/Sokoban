@@ -4052,7 +4052,7 @@ body.maker-editor-fullscreen{overflow:hidden}
     position:fixed;
     inset:0;
     margin:0;
-    touch-action:manipulation;
+    touch-action:none;
   }
   body.phone-zen-mode .app{
     position:fixed;

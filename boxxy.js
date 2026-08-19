@@ -6,8 +6,8 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: 261,
-  lastUpdated: "2026-08-18"
+  version: 262,
+  lastUpdated: "2026-08-19"
 });
 /* Stored solver routes are kept separate from the authored pack data. */
 (() => {
@@ -39,6 +39,7 @@ window.BOXXY_RELEASE = Object.freeze({
   });
 })();
 
+/* BOXXY v262 — mobile Zen Mode swipe gestures work across the full screen, including the direction pad. */
 /* BOXXY v241 — Daily archive cards show map thumbnails for every available current/past puzzle. */
 /* BOXXY v237 — Alphabet Soup adds 27 authored levels with supplied walkthrough solutions and dedicated pack artwork. */
 /* BOXXY v236 — Level Maker imports hyphens as explicit floor tiles and private puzzle URLs support grids up to 64×64. */
@@ -4071,6 +4072,12 @@ window.BOXXY_RELEASE = Object.freeze({
     return document.body.classList.contains("phone-zen-mode");
   }
 
+  function phoneZenTouchPointer(event) {
+    if (!phoneZenModeActive()) return false;
+    const pointerType = String(event?.pointerType || "");
+    return pointerType === "touch" || pointerType === "pen";
+  }
+
   function setPhoneZenMode(active) {
     const enabled = Boolean(active && phoneFullscreenLayout());
     document.documentElement.classList.toggle("phone-zen-mode", enabled);
@@ -6737,6 +6744,7 @@ window.BOXXY_RELEASE = Object.freeze({
     };
 
     button.addEventListener("pointerdown", event => {
+      if (phoneZenTouchPointer(event)) return;
       event.preventDefault();
       if (activePointerId !== null) return;
       activePointerId = event.pointerId;
@@ -6884,6 +6892,7 @@ window.BOXXY_RELEASE = Object.freeze({
     };
 
     undoBtn.addEventListener("pointerdown", event => {
+      if (phoneZenTouchPointer(event)) return;
       event.preventDefault();
       if (activePointerId !== null || undoBtn.disabled) return;
       activePointerId = event.pointerId;
@@ -7136,11 +7145,106 @@ window.BOXXY_RELEASE = Object.freeze({
     if (modal && !modal.hidden && completeMode === "final") closeCompleteModal();
   });
 
+  const ZEN_SCREEN_SWIPE_THRESHOLD = 22;
+  let zenScreenSwipe = null;
+  let zenSuppressedClick = null;
+
+  function zenSwipeMove(dx, dy, animate = true) {
+    mouseSupportIgnoreClickUntil = Date.now() + 260;
+    if (Math.abs(dx) > Math.abs(dy)) move(dx > 0 ? 1 : -1, 0, animate);
+    else move(0, dy > 0 ? 1 : -1, animate);
+  }
+
+  document.addEventListener("pointerdown", event => {
+    if (!phoneZenTouchPointer(event) || firstPersonMode || completed || autoplayRunning) return;
+    if (event.isPrimary === false) return;
+
+    const target = event.target instanceof Element ? event.target : null;
+    const directionButton = target?.closest?.("[data-dir]") || null;
+    zenScreenSwipe = {
+      id: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+      triggered: false,
+      direction: directionButton?.dataset?.dir || "",
+      undo: Boolean(target?.closest?.("#undoBtn"))
+    };
+    ensureAudio();
+  }, { capture: true });
+
+  document.addEventListener("pointermove", event => {
+    if (!zenScreenSwipe || zenScreenSwipe.id !== event.pointerId) return;
+    const dx = event.clientX - zenScreenSwipe.x;
+    const dy = event.clientY - zenScreenSwipe.y;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < ZEN_SCREEN_SWIPE_THRESHOLD) return;
+
+    event.preventDefault();
+    if (zenScreenSwipe.triggered) return;
+    zenScreenSwipe.triggered = true;
+    zenSwipeMove(dx, dy, true);
+  }, { capture: true, passive: false });
+
+  document.addEventListener("pointerup", event => {
+    if (!zenScreenSwipe || zenScreenSwipe.id !== event.pointerId) return;
+    const gesture = zenScreenSwipe;
+    zenScreenSwipe = null;
+
+    const dx = event.clientX - gesture.x;
+    const dy = event.clientY - gesture.y;
+    const distance = Math.max(Math.abs(dx), Math.abs(dy));
+    let swiped = gesture.triggered;
+
+    if (!swiped && distance >= ZEN_SCREEN_SWIPE_THRESHOLD) {
+      event.preventDefault();
+      swiped = true;
+      zenSwipeMove(dx, dy, false);
+    }
+
+    if (swiped) {
+      // Prevent the synthetic click at the end of a swipe from activating a
+      // control such as Restart, Undo, Full Screen or a direction button.
+      zenSuppressedClick = {
+        until: Date.now() + 420,
+        x: event.clientX,
+        y: event.clientY
+      };
+    } else if (gesture.direction && buttonDirections[gesture.direction]) {
+      // Direction buttons remain ordinary tap controls in Zen Mode.
+      move(...buttonDirections[gesture.direction], true);
+    } else if (gesture.undo && !undoBtn.disabled && !autoplayRunning && history.length && !completed) {
+      // Undo normally acts on pointerdown; in Zen Mode defer it until we know
+      // the gesture was a tap rather than the start of a swipe.
+      undo();
+    }
+
+    releaseBlockedPush();
+  }, { capture: true, passive: false });
+
+  document.addEventListener("pointercancel", event => {
+    if (!zenScreenSwipe || zenScreenSwipe.id !== event.pointerId) return;
+    zenScreenSwipe = null;
+    releaseBlockedPush();
+  }, { capture: true });
+
+  document.addEventListener("click", event => {
+    if (!zenSuppressedClick) return;
+    if (Date.now() > zenSuppressedClick.until) {
+      zenSuppressedClick = null;
+      return;
+    }
+    const dx = Number(event.clientX || 0) - zenSuppressedClick.x;
+    const dy = Number(event.clientY || 0) - zenSuppressedClick.y;
+    if (Math.hypot(dx, dy) > 48) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    zenSuppressedClick = null;
+  }, true);
+
   let swipe = null;
   pieceLayer.addEventListener("dragstart", event => event.preventDefault());
 
   board.addEventListener("pointerdown", event => {
-    if (firstPersonMode) return;
+    if (firstPersonMode || phoneZenTouchPointer(event)) return;
     ensureAudio();
     const mouseLike = event.pointerType === "mouse" || event.pointerType === "";
     if (!mouseSupportEnabled && mouseLike && event.button === 0 && pointerIsOnCharacter(event)) registerEasterClick();
@@ -7148,7 +7252,7 @@ window.BOXXY_RELEASE = Object.freeze({
     board.setPointerCapture?.(event.pointerId);
   });
   board.addEventListener("pointermove", event => {
-    if (firstPersonMode) return;
+    if (firstPersonMode || phoneZenTouchPointer(event)) return;
     if (!swipe || swipe.id !== event.pointerId || swipe.triggered) return;
     const dx = event.clientX - swipe.x;
     const dy = event.clientY - swipe.y;
@@ -7159,7 +7263,7 @@ window.BOXXY_RELEASE = Object.freeze({
     else move(0, dy > 0 ? 1 : -1, true);
   });
   board.addEventListener("pointerup", event => {
-    if (firstPersonMode) return;
+    if (firstPersonMode || phoneZenTouchPointer(event)) return;
     if (!swipe || swipe.id !== event.pointerId) return;
     const dx = event.clientX - swipe.x;
     const dy = event.clientY - swipe.y;
