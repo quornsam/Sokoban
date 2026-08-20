@@ -6256,7 +6256,7 @@ body[data-boxxy-speed="fast"] .piece.player.pushing :is(img,canvas),body[data-bo
 .account-details[hidden]{display:none!important}
 .account-player-summary{display:grid;grid-template-columns:150px minmax(0,1fr);gap:12px;margin-bottom:12px}
 .account-avatar-card{height:150px;padding:0;border:2px solid var(--ink);background:#f7f0e5;display:flex;align-items:center;justify-content:center;overflow:hidden}
-.account-avatar-card canvas{display:block;width:auto;height:118%;max-width:none;flex:0 0 auto;transform:translateY(-24%);transform-origin:center center}
+.account-avatar-card canvas{display:block;width:auto;height:118%;max-width:none;flex:0 0 auto;transform:translateY(-14%);transform-origin:center center}
 .account-fun-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px;padding:2px;background:var(--ink)}
 .account-fun-grid>div{min-height:73px;padding:10px 11px;background:#f7f0e5;display:flex;flex-direction:column;justify-content:center;gap:5px;min-width:0}
 .account-fun-grid span{color:#71685e;font-size:7px;font-weight:1000;letter-spacing:.09em;line-height:1.15}
@@ -6298,7 +6298,7 @@ body[data-boxxy-speed="fast"] .piece.player.pushing :is(img,canvas),body[data-bo
   .account-form input,.account-delete-form input{height:39px;font-size:10px}
   .account-player-summary{grid-template-columns:1fr;margin-bottom:10px}
   .account-avatar-card{height:150px}
-  .account-avatar-card canvas{width:auto;height:116%;max-width:none;transform:translateY(-24%);transform-origin:center center}
+  .account-avatar-card canvas{width:auto;height:116%;max-width:none;transform:translateY(-14%);transform-origin:center center}
   .account-fun-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .account-fun-grid>div{min-height:62px;padding:9px}
   .account-fun-grid strong{font-size:20px}
@@ -6318,7 +6318,7 @@ body[data-boxxy-speed="fast"] .piece.player.pushing :is(img,canvas),body[data-bo
   .account-primary,.account-small{grid-column:1/-1}
   .account-player-summary{grid-template-columns:118px minmax(0,1fr);gap:8px;margin-bottom:8px}
   .account-avatar-card{height:104px;padding:0}
-  .account-avatar-card canvas{width:auto;height:114%;max-width:none;transform:translateY(-23%);transform-origin:center center}
+  .account-avatar-card canvas{width:auto;height:114%;max-width:none;transform:translateY(-14%);transform-origin:center center}
   .account-fun-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
   .account-fun-grid>div{min-height:52px;padding:7px}
   .account-fun-grid strong{font-size:17px}
