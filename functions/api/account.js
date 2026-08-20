@@ -74,7 +74,6 @@ async function handleRegister(context, body) {
   if (!validEmail(email)) return json({ ok: false, error: "Enter a valid email address." }, 400);
   if (!validPassword(password)) return json({ ok: false, error: "Password must be at least 8 characters." }, 400);
   if (body.termsAccepted !== true) return json({ ok: false, error: "Please accept the account terms and privacy information." }, 400);
-  if (body.ageConfirmed !== true) return json({ ok: false, error: "Please confirm the age/permission statement." }, 400);
 
   const existing = await db.prepare(`
     SELECT id, username, email FROM users

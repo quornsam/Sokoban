@@ -1,4 +1,4 @@
-/* BOXXY v273 — optional first-party accounts and Cloudflare D1 progress sync. */
+/* BOXXY v274 — optional first-party accounts and Cloudflare D1 progress sync. */
 (() => {
   "use strict";
 
@@ -272,7 +272,7 @@
     const loggedIn = Boolean(account);
     entryBtn.classList.toggle("account-entry-logged-in", loggedIn);
     entryBtn.setAttribute("aria-label", loggedIn ? `Logged in as ${account.username}. Open account details.` : "Make or sign in to a BOXXY account");
-    if (entryLabel) entryLabel.textContent = loggedIn ? `LOGGED IN AS ${account.username}` : "MAKE AN ACCOUNT";
+    if (entryLabel) entryLabel.textContent = loggedIn ? `LOGGED IN AS ${account.username}` : "MAKE AN ACCOUNT / SIGN IN";
 
     if (accountGuest) accountGuest.hidden = loggedIn;
     if (details) details.hidden = !loggedIn;
@@ -408,7 +408,6 @@
         username: form.get("username"),
         email: form.get("email"),
         password: form.get("password"),
-        ageConfirmed: form.get("ageConfirmed") === "yes",
         termsAccepted: form.get("termsAccepted") === "yes",
         progress: collectCloudState()
       });

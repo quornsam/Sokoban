@@ -159,7 +159,7 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=273">
+<link rel="stylesheet" href="styles.css?v=274">
 <link rel="stylesheet" href="how-to-play.css?v=225">
 <link rel="preload" as="image" href="assets/board/boxes/box-default-yellow.png?v=226">
 <link rel="preload" as="image" href="assets/board/goals/goal-red.png?v=226">
@@ -387,9 +387,8 @@
     </header>
 
     <div id="settingsMainView" class="settings-main-view">
-      <button id="accountEntryBtn" class="account-entry" type="button" aria-label="Make or sign in to a BOXXY account">
-        <span class="account-entry-mark" aria-hidden="true">B</span>
-        <b id="accountEntryLabel">MAKE AN ACCOUNT</b>
+      <button id="accountEntryBtn" class="account-entry" type="button" aria-label="Make a BOXXY account or sign in">
+        <b id="accountEntryLabel">MAKE AN ACCOUNT / SIGN IN</b>
         <i aria-hidden="true">→</i>
       </button>
       <div class="settings-grid">
@@ -474,7 +473,6 @@
             <label><span>USERNAME</span><input name="username" type="text" minlength="3" maxlength="20" pattern="[A-Za-z0-9_-]+" autocomplete="username" required></label>
             <label><span>EMAIL</span><input name="email" type="email" maxlength="254" autocomplete="email" required></label>
             <label><span>PASSWORD</span><input name="password" type="password" minlength="8" maxlength="128" autocomplete="new-password" required></label>
-            <label class="account-check"><input name="ageConfirmed" type="checkbox" value="yes" required><span>I am 13 or over, or I have permission from a parent/guardian.</span></label>
             <label class="account-check"><input name="termsAccepted" type="checkbox" value="yes" required><span>I agree to the <a href="legal.html" target="_blank" rel="noopener">account and privacy information</a>.</span></label>
             <button id="accountCreateSubmit" class="account-primary" type="submit">MAKE MY ACCOUNT</button>
           </form>
@@ -1164,8 +1162,8 @@
 
 <script src="daily-puzzles/boxxy-daily-loader.js?v=217"></script>
 <script src="levels.js?v=268"></script>
-<script src="boxxy.js?v=273"></script>
-<script src="account.js?v=273"></script>
+<script src="boxxy.js?v=274"></script>
+<script src="account.js?v=274"></script>
 <script src="pack-builder.js?v=216"></script>
 <script src="how-to-play.js?v=153"></script>
 </body>

@@ -1,4 +1,4 @@
--- BOXXY v273 account database (Cloudflare D1)
+-- BOXXY v274 account database (Cloudflare D1)
 PRAGMA foreign_keys = ON;
 
 CREATE TABLE IF NOT EXISTS users (

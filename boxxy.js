@@ -6,10 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: 273,
+  version: 274,
   lastUpdated: "2026-08-20"
 });
-/* BOXXY v273 — optional Cloudflare-backed accounts, MENU navigation and Basement admin. */
+/* BOXXY v274 — optional Cloudflare-backed accounts, MENU navigation and Basement admin. */
 /* Stored solver routes are kept separate from the authored pack data. */
 (() => {
   "use strict";

@@ -6153,7 +6153,7 @@ body[data-boxxy-speed="fast"] .piece.player.pushing :is(img,canvas),body[data-bo
 .maker-image-auto-targets b{font-size:14px;font-weight:950;color:#9d2e27}
 .maker-image-auto-targets small{font-size:5px;font-weight:950;letter-spacing:.03em;color:#6b332f;line-height:1.1;margin-top:2px}
 
-/* BOXXY v273 — MENU, account entry and responsive account panel. */
+/* BOXXY v274 — MENU, account entry and responsive account panel. */
 .settings-action .menu-lines{
   width:22px;
   height:18px;
@@ -6182,25 +6182,14 @@ body[data-boxxy-speed="fast"] .piece.player.pushing :is(img,canvas),body[data-bo
   color:var(--ink);
   box-shadow:4px 4px 0 var(--ink);
   display:grid;
-  grid-template-columns:36px minmax(0,1fr) 24px;
+  grid-template-columns:minmax(0,1fr) 24px;
   align-items:center;
   gap:10px;
   text-align:left;
 }
-.account-entry-mark{
-  width:32px;
-  height:32px;
-  display:grid;
-  place-items:center;
-  border:2px solid var(--ink);
-  background:#fffaf1;
-  font-size:15px;
-  font-weight:1000;
-}
 .account-entry b{font-size:12px;letter-spacing:.08em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .account-entry>i{font-style:normal;font-size:22px;text-align:right}
 .account-entry.account-entry-logged-in{background:var(--green);color:#fff}
-.account-entry.account-entry-logged-in .account-entry-mark{background:#fff;color:var(--ink)}
 .settings-account-view{padding:20px 22px 24px}
 .settings-account-view[hidden]{display:none!important}
 .account-sheet{border:2px solid var(--ink);background:#fffaf1;box-shadow:4px 4px 0 rgba(23,23,25,.13);padding:18px}
@@ -6284,8 +6273,7 @@ body[data-boxxy-speed="fast"] .piece.player.pushing :is(img,canvas),body[data-bo
   .settings-action .menu-lines{width:20px;height:16px}
   .settings-action .menu-lines i{height:2px}
   .level-action>span{font-size:23px!important}
-  .account-entry{min-height:50px;margin-bottom:10px;grid-template-columns:30px minmax(0,1fr) 18px;padding:7px 9px;box-shadow:3px 3px 0 var(--ink)}
-  .account-entry-mark{width:27px;height:27px;font-size:12px}
+  .account-entry{min-height:50px;margin-bottom:10px;grid-template-columns:minmax(0,1fr) 18px;padding:7px 9px;box-shadow:3px 3px 0 var(--ink)}
   .account-entry b{font-size:9px}
   .settings-account-view{padding:12px}
   .account-sheet{padding:12px;box-shadow:3px 3px 0 rgba(23,23,25,.13)}
