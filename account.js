@@ -1,4 +1,4 @@
-/* BOXXY v274 — optional first-party accounts and Cloudflare D1 progress sync. */
+/* BOXXY v275 — optional first-party accounts, cloud sync and account gameplay statistics. */
 (() => {
   "use strict";
 
@@ -6,6 +6,8 @@
   const SYNC_INTERVAL_MS = 30000;
   const ACTIVITY_SYNC_SECONDS = 300;
   const ACCOUNT_MARKER_KEY = "boxxy-account-known-v1";
+  const ALL_TIME_STEPS_KEY = "boxxy-all-time-steps-v1";
+  const ALL_TIME_PUSHES_KEY = "boxxy-all-time-pushes-v1";
   const EXACT_SYNC_KEYS = new Set([
     "boxxy-active-pack-v2",
     "boxxy-additional-packs-unlocked-v1",
@@ -21,7 +23,9 @@
     "push-bauhaus-v29-level",
     "push-bauhaus-v33-level",
     "boxxy-completed-levels-v1",
-    "boxxy-level-progress-v1"
+    "boxxy-level-progress-v1",
+    ALL_TIME_STEPS_KEY,
+    ALL_TIME_PUSHES_KEY
   ]);
 
   const entryBtn = document.getElementById("accountEntryBtn");
@@ -47,6 +51,11 @@
   const joinedValue = document.getElementById("accountJoinedValue");
   const activeValue = document.getElementById("accountActiveValue");
   const syncValue = document.getElementById("accountSyncValue");
+  const levelsValue = document.getElementById("accountLevelsValue");
+  const packsValue = document.getElementById("accountPacksValue");
+  const stepsValue = document.getElementById("accountStepsValue");
+  const pushesValue = document.getElementById("accountPushesValue");
+  const avatarCanvas = document.getElementById("accountAvatarCanvas");
   const accountGuest = document.getElementById("accountGuest");
 
   if (!entryBtn || !accountView) return;
@@ -103,6 +112,66 @@
     } catch (_) {
       return fallback;
     }
+  }
+
+  function completedIndexesForPack(pack) {
+    if (!pack?.id) return [];
+    const current = parseJson(localStorage.getItem(`boxxy-pack-${pack.id}-completed-v1`), []);
+    if (Array.isArray(current) && current.length) return current.map(Number).filter(Number.isInteger);
+    if (pack.id === "microban") {
+      const legacy = parseJson(localStorage.getItem("boxxy-completed-levels-v1"), []);
+      if (Array.isArray(legacy)) return legacy.map(Number).filter(Number.isInteger);
+    }
+    return [];
+  }
+
+  function completedGameStats() {
+    const packs = Array.isArray(window.BOXXY_LEVEL_PACKS) ? window.BOXXY_LEVEL_PACKS : [];
+    let levels = 0;
+    let packsCompleted = 0;
+    packs.forEach(pack => {
+      const completed = new Set(completedIndexesForPack(pack));
+      levels += completed.size;
+      const levelCount = Array.isArray(pack?.levels) ? pack.levels.length : 0;
+      if (levelCount > 0 && completed.size >= levelCount) packsCompleted++;
+    });
+    const daily = parseJson(localStorage.getItem("boxxy-daily-completions-v1"), {});
+    if (daily && typeof daily === "object" && !Array.isArray(daily)) levels += Object.keys(daily).length;
+    return { levels, packsCompleted };
+  }
+
+  function completionHistoryTotals() {
+    const packs = Array.isArray(window.BOXXY_LEVEL_PACKS) ? window.BOXXY_LEVEL_PACKS : [];
+    let steps = 0;
+    let pushes = 0;
+    packs.forEach(pack => {
+      const data = parseJson(localStorage.getItem(`boxxy-pack-${pack.id}-completion-stats-v1`), {});
+      Object.values(data?.levels || {}).forEach(attempt => {
+        if (!attempt || typeof attempt !== "object") return;
+        steps += Math.max(0, Math.trunc(Number(attempt.moves) || 0));
+        pushes += Math.max(0, Math.trunc(Number(attempt.pushes) || 0));
+      });
+    });
+    const daily = parseJson(localStorage.getItem("boxxy-daily-completions-v1"), {});
+    Object.values(daily && typeof daily === "object" && !Array.isArray(daily) ? daily : {}).forEach(attempt => {
+      if (!attempt || typeof attempt !== "object") return;
+      steps += Math.max(0, Math.trunc(Number(attempt.moves) || 0));
+      pushes += Math.max(0, Math.trunc(Number(attempt.pushes) || 0));
+    });
+    return { steps, pushes };
+  }
+
+  function seedLifetimeStats() {
+    try {
+      const seed = completionHistoryTotals();
+      if (localStorage.getItem(ALL_TIME_STEPS_KEY) == null) localStorage.setItem(ALL_TIME_STEPS_KEY, String(seed.steps));
+      if (localStorage.getItem(ALL_TIME_PUSHES_KEY) == null) localStorage.setItem(ALL_TIME_PUSHES_KEY, String(seed.pushes));
+    } catch (_) {}
+  }
+
+  function lifetimeStat(key) {
+    try { return Math.max(0, Math.trunc(Number(localStorage.getItem(key)) || 0)); }
+    catch (_) { return 0; }
   }
 
   function mergeArrays(leftValue, rightValue) {
@@ -214,6 +283,8 @@
         merged[key] = newerCheckpoint(left, right);
       } else if (key === "boxxy-additional-packs-unlocked-v1") {
         merged[key] = (left === "true" || right === "true") ? "true" : left;
+      } else if (key === ALL_TIME_STEPS_KEY || key === ALL_TIME_PUSHES_KEY) {
+        merged[key] = String(Math.max(Number(left) || 0, Number(right) || 0));
       } else if (!localHasProgress) {
         merged[key] = right;
       } else {
@@ -282,6 +353,12 @@
       if (joinedValue) joinedValue.textContent = formatDate(account.createdAt);
       if (activeValue) activeValue.textContent = formatTime((account.totalActiveSeconds || 0) + activeSecondsDelta);
       if (syncValue) syncValue.textContent = account.progressUpdatedAt ? formatDate(account.progressUpdatedAt) : "Waiting";
+      const gameStats = completedGameStats();
+      if (levelsValue) levelsValue.textContent = gameStats.levels.toLocaleString("en-GB");
+      if (packsValue) packsValue.textContent = gameStats.packsCompleted.toLocaleString("en-GB");
+      if (stepsValue) stepsValue.textContent = lifetimeStat(ALL_TIME_STEPS_KEY).toLocaleString("en-GB");
+      if (pushesValue) pushesValue.textContent = lifetimeStat(ALL_TIME_PUSHES_KEY).toLocaleString("en-GB");
+      if (avatarCanvas) window.CharacterStyler?.draw?.(avatarCanvas, "player-front");
     }
     renderMode();
   }
@@ -530,6 +607,7 @@
     if (document.visibilityState === "hidden" && account && activeSecondsDelta >= 30) syncNow(true);
   });
 
+  seedLifetimeStats();
   render();
   initialAccountCheck();
 })();

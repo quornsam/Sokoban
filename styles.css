@@ -5828,6 +5828,8 @@ body.first-person-mode .board::after{
 .settings-link-button{width:100%;min-height:47px;padding:9px 10px;border:2px solid var(--ink);background:#f7f0e5;color:var(--ink);box-shadow:3px 3px 0 var(--ink);display:grid;grid-template-columns:30px minmax(0,1fr) 20px;align-items:center;gap:7px;text-align:left}
 .settings-link-button span{font-size:20px;text-align:center}.settings-link-button b{font-size:9px;letter-spacing:.07em}.settings-link-button i{font-style:normal;font-size:18px;text-align:right}
 .settings-contact-link{background:var(--blue);color:#fff}
+.settings-contact-icon{width:30px;height:24px;display:grid;place-items:center!important;font-size:0!important;line-height:0!important}
+.settings-contact-icon svg{display:block;width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.1;stroke-linecap:square;stroke-linejoin:miter}
 .settings-keyboard-view{padding:20px 22px 24px}
 .settings-keyboard-view[hidden],.settings-main-view[hidden]{display:none!important}
 .settings-back{margin:0 0 18px;padding:8px 10px;border:2px solid var(--ink);background:#f7f0e5;color:var(--ink);box-shadow:2px 2px 0 var(--ink);font-size:9px;font-weight:950;letter-spacing:.08em}
@@ -6153,7 +6155,7 @@ body[data-boxxy-speed="fast"] .piece.player.pushing :is(img,canvas),body[data-bo
 .maker-image-auto-targets b{font-size:14px;font-weight:950;color:#9d2e27}
 .maker-image-auto-targets small{font-size:5px;font-weight:950;letter-spacing:.03em;color:#6b332f;line-height:1.1;margin-top:2px}
 
-/* BOXXY v274 — MENU, account entry and responsive account panel. */
+/* BOXXY v275 — aligned MENU controls plus avatar and bold account statistics. */
 .settings-action .menu-lines{
   width:22px;
   height:18px;
@@ -6171,7 +6173,11 @@ body[data-boxxy-speed="fast"] .piece.player.pushing :is(img,canvas),body[data-bo
   background:currentColor;
   border-radius:1px;
 }
-.level-action>span{font-size:26px!important;line-height:1!important;font-family:Arial,sans-serif;font-weight:400!important}
+.bottom-actions .action.small{display:grid;grid-template-rows:28px auto;align-content:center;justify-items:center;row-gap:2px}
+.bottom-actions .action.small>span{grid-row:1;align-self:center;justify-self:center}
+.bottom-actions .action.small>b{grid-row:2;align-self:center}
+.level-action>span{font-size:23px!important;line-height:1!important;font-family:Arial,sans-serif;font-weight:400!important}
+.fullscreen-action>span{font-size:23px!important;line-height:1!important}
 .account-entry{
   width:100%;
   min-height:58px;
@@ -6248,11 +6254,17 @@ body[data-boxxy-speed="fast"] .piece.player.pushing :is(img,canvas),body[data-bo
 .account-small{grid-column:1/-1;margin:0;color:#6b6257;font-size:8px;line-height:1.45;font-weight:750}
 .account-details{display:block}
 .account-details[hidden]{display:none!important}
-.account-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border:2px solid var(--ink)}
-.account-detail-grid>div{min-height:62px;padding:10px 11px;display:flex;flex-direction:column;justify-content:center;gap:5px;border-right:1px solid var(--ink);border-bottom:1px solid var(--ink);background:#f7f0e5;min-width:0}
-.account-detail-grid>div:nth-child(2n){border-right:0}
-.account-detail-grid>div:last-child{grid-column:1/-1;border-right:0;border-bottom:0}
-.account-detail-grid>div:nth-last-child(2){border-bottom:0}
+.account-player-summary{display:grid;grid-template-columns:150px minmax(0,1fr);gap:12px;margin-bottom:12px}
+.account-avatar-card{min-height:150px;padding:9px;border:2px solid var(--ink);background:var(--yellow);display:grid;grid-template-rows:auto minmax(0,1fr);place-items:center;overflow:hidden}
+.account-avatar-card>span{align-self:start;color:#5f574d;font-size:7px;font-weight:1000;letter-spacing:.1em}
+.account-avatar-card canvas{display:block;width:min(122px,100%);height:auto;align-self:end}
+.account-fun-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px;padding:2px;background:var(--ink)}
+.account-fun-grid>div{min-height:73px;padding:10px 11px;background:#f7f0e5;display:flex;flex-direction:column;justify-content:center;gap:5px;min-width:0}
+.account-fun-grid span{color:#71685e;font-size:7px;font-weight:1000;letter-spacing:.09em;line-height:1.15}
+.account-fun-grid strong{font-size:23px;line-height:1;font-weight:1000;letter-spacing:-.035em;overflow-wrap:anywhere}
+.account-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;padding:1px;border:2px solid var(--ink);background:var(--ink)}
+.account-detail-grid>div{min-height:62px;padding:10px 11px;display:flex;flex-direction:column;justify-content:center;gap:5px;background:#f7f0e5;min-width:0}
+.account-detail-grid>div:last-child{grid-column:1/-1}
 .account-detail-grid span{color:#71685e;font-size:7px;font-weight:900;letter-spacing:.1em}
 .account-detail-grid strong{font-size:11px;overflow-wrap:anywhere}
 .account-details>.account-small{margin:12px 0 0}
@@ -6272,7 +6284,9 @@ body[data-boxxy-speed="fast"] .piece.player.pushing :is(img,canvas),body[data-bo
 @media(max-width:760px){
   .settings-action .menu-lines{width:20px;height:16px}
   .settings-action .menu-lines i{height:2px}
-  .level-action>span{font-size:23px!important}
+  .bottom-actions .action.small{grid-template-rows:25px auto}
+  .level-action>span{font-size:21px!important}
+  .fullscreen-action>span{font-size:21px!important}
   .account-entry{min-height:50px;margin-bottom:10px;grid-template-columns:minmax(0,1fr) 18px;padding:7px 9px;box-shadow:3px 3px 0 var(--ink)}
   .account-entry b{font-size:9px}
   .settings-account-view{padding:12px}
@@ -6283,9 +6297,14 @@ body[data-boxxy-speed="fast"] .piece.player.pushing :is(img,canvas),body[data-bo
   .account-form{grid-template-columns:1fr;gap:9px}
   .account-form>label:first-child,.account-form>label:nth-child(2),.account-form>label:nth-child(3),.account-form .account-check,.account-primary,.account-small{grid-column:1}
   .account-form input,.account-delete-form input{height:39px;font-size:10px}
+  .account-player-summary{grid-template-columns:1fr;margin-bottom:10px}
+  .account-avatar-card{min-height:125px;grid-template-rows:auto 1fr}
+  .account-avatar-card canvas{width:105px}
+  .account-fun-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .account-fun-grid>div{min-height:62px;padding:9px}
+  .account-fun-grid strong{font-size:20px}
   .account-detail-grid{grid-template-columns:1fr}
-  .account-detail-grid>div,.account-detail-grid>div:nth-child(2n),.account-detail-grid>div:nth-last-child(2),.account-detail-grid>div:last-child{grid-column:1;border-right:0;border-bottom:1px solid var(--ink);min-height:52px}
-  .account-detail-grid>div:last-child{border-bottom:0}
+  .account-detail-grid>div,.account-detail-grid>div:last-child{grid-column:1;min-height:52px}
 }
 
 @media(max-height:520px) and (orientation:landscape){
@@ -6298,7 +6317,12 @@ body[data-boxxy-speed="fast"] .piece.player.pushing :is(img,canvas),body[data-bo
   .account-form>label:first-child{grid-column:1}.account-form>label:nth-child(2){grid-column:2}.account-form>label:nth-child(3){grid-column:3}
   .account-form .account-check{grid-column:1/-1}
   .account-primary,.account-small{grid-column:1/-1}
+  .account-player-summary{grid-template-columns:118px minmax(0,1fr);gap:8px;margin-bottom:8px}
+  .account-avatar-card{min-height:104px;padding:6px}
+  .account-avatar-card canvas{width:86px}
+  .account-fun-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .account-fun-grid>div{min-height:52px;padding:7px}
+  .account-fun-grid strong{font-size:17px}
   .account-detail-grid{grid-template-columns:repeat(5,minmax(0,1fr))}
-  .account-detail-grid>div,.account-detail-grid>div:nth-child(2n),.account-detail-grid>div:nth-last-child(2),.account-detail-grid>div:last-child{grid-column:auto;border-right:1px solid var(--ink);border-bottom:0;min-height:52px}
-  .account-detail-grid>div:last-child{border-right:0}
+  .account-detail-grid>div,.account-detail-grid>div:last-child{grid-column:auto;min-height:52px}
 }

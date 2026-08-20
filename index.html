@@ -159,7 +159,7 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=274">
+<link rel="stylesheet" href="styles.css?v=275">
 <link rel="stylesheet" href="how-to-play.css?v=225">
 <link rel="preload" as="image" href="assets/board/boxes/box-default-yellow.png?v=226">
 <link rel="preload" as="image" href="assets/board/goals/goal-red.png?v=226">
@@ -436,7 +436,7 @@
         <section class="settings-panel settings-help-panel">
           <h3>HELP</h3>
           <p>Found a bug, have a puzzle question, or just want to get in touch?</p>
-          <button id="settingsContactBtn" class="settings-link-button settings-contact-link" type="button"><span>✉</span><b>CONTACT BOXXY</b><i>→</i></button>
+          <button id="settingsContactBtn" class="settings-link-button settings-contact-link" type="button"><span class="settings-contact-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><rect x="3" y="5" width="18" height="14" rx="1"/><path d="m4 7 8 6 8-6"/></svg></span><b>CONTACT BOXXY</b><i>→</i></button>
         </section>
       </div>
     </div>
@@ -486,11 +486,23 @@
         </div>
 
         <section id="accountDetails" class="account-details" hidden>
+          <div class="account-player-summary">
+            <div class="account-avatar-card">
+              <span>CURRENT AVATAR</span>
+              <canvas id="accountAvatarCanvas" width="600" height="520" data-character-preview="player-front" aria-label="Your current BOXXY avatar and attire"></canvas>
+            </div>
+            <div class="account-fun-grid" aria-label="Game statistics">
+              <div><span>LEVELS COMPLETED</span><strong id="accountLevelsValue">0</strong></div>
+              <div><span>PACKS COMPLETED</span><strong id="accountPacksValue">0</strong></div>
+              <div><span>ALL-TIME STEPS</span><strong id="accountStepsValue">0</strong></div>
+              <div><span>BOX PUSHES</span><strong id="accountPushesValue">0</strong></div>
+            </div>
+          </div>
           <div class="account-detail-grid">
             <div><span>USERNAME</span><strong id="accountUsernameValue">—</strong></div>
             <div><span>EMAIL</span><strong id="accountEmailValue">—</strong></div>
             <div><span>JOINED</span><strong id="accountJoinedValue">—</strong></div>
-            <div><span>ACTIVE TIME</span><strong id="accountActiveValue">—</strong></div>
+            <div><span>TIME ON SITE</span><strong id="accountActiveValue">—</strong></div>
             <div><span>LAST CLOUD SAVE</span><strong id="accountSyncValue">—</strong></div>
           </div>
           <p class="account-small">Your local game remains playable without an account. While signed in, progress is also copied to BOXXY so it can follow you to another device.</p>
@@ -1162,8 +1174,8 @@
 
 <script src="daily-puzzles/boxxy-daily-loader.js?v=217"></script>
 <script src="levels.js?v=268"></script>
-<script src="boxxy.js?v=274"></script>
-<script src="account.js?v=274"></script>
+<script src="boxxy.js?v=275"></script>
+<script src="account.js?v=275"></script>
 <script src="pack-builder.js?v=216"></script>
 <script src="how-to-play.js?v=153"></script>
 </body>

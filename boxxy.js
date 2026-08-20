@@ -6,10 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: 274,
+  version: 275,
   lastUpdated: "2026-08-20"
 });
-/* BOXXY v274 — optional Cloudflare-backed accounts, MENU navigation and Basement admin. */
+/* BOXXY v275 — tidier MENU controls plus richer account avatar and lifetime gameplay statistics. */
 /* Stored solver routes are kept separate from the authored pack data. */
 (() => {
   "use strict";
@@ -1198,7 +1198,16 @@ window.BOXXY_RELEASE = Object.freeze({
   const UNLOCK_SOURCE_PACK_IDS = new Set([PRIMARY_PACK_ID, MICROBAN_PACK_ID]);
   const ADDITIONAL_PACKS_UNLOCK_KEY = "boxxy-additional-packs-unlocked-v1";
   const ACTIVE_PACK_STORAGE_KEY = "boxxy-active-pack-v2";
+  const ALL_TIME_STEPS_KEY = "boxxy-all-time-steps-v1";
+  const ALL_TIME_PUSHES_KEY = "boxxy-all-time-pushes-v1";
   const packStorageKeyFor = (packId, suffix) => `boxxy-pack-${packId}-${suffix}-v1`;
+
+  function addLifetimeStat(key, amount = 1) {
+    try {
+      const current = Math.max(0, Math.trunc(Number(localStorage.getItem(key)) || 0));
+      localStorage.setItem(key, String(current + Math.max(0, Math.trunc(Number(amount) || 0))));
+    } catch (_) {}
+  }
   const packCompletionStatsKeyFor = packId => packStorageKeyFor(packId, "completion-stats");
   const PACK_ACCENT_COLOURS = Object.freeze({
     red: "#db3b27",
@@ -5741,6 +5750,10 @@ window.BOXXY_RELEASE = Object.freeze({
       player = [nx, ny];
       moves++;
       pushes++;
+      if (!fromAutoplay) {
+        addLifetimeStat(ALL_TIME_STEPS_KEY);
+        addLifetimeStat(ALL_TIME_PUSHES_KEY);
+      }
       facing = facingOverride || attemptedFacing;
       sfx.push();
       if (isGoal(bx, by)) sfx.goal();
@@ -5752,6 +5765,7 @@ window.BOXXY_RELEASE = Object.freeze({
       boxes.forEach(box => { box.moving = false; });
       player = [nx, ny];
       moves++;
+      if (!fromAutoplay) addLifetimeStat(ALL_TIME_STEPS_KEY);
       facing = facingOverride || attemptedFacing;
       sfx.walk();
       render("walking");
