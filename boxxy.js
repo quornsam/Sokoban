@@ -6,8 +6,8 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: 263,
-  lastUpdated: "2026-08-19"
+  version: 272,
+  lastUpdated: "2026-08-20"
 });
 /* Stored solver routes are kept separate from the authored pack data. */
 (() => {
@@ -2027,9 +2027,9 @@ window.BOXXY_RELEASE = Object.freeze({
   let autoplayRunning = false;
   let autoplayTimer = null;
   let guidedSolveUsed = false;
-  let easterClickCount = 0;
-  let easterArmed = false;
-  let easterResetTimer = null;
+  const GUIDED_SOLVE_SECRET = "hiroyuki";
+  let guidedSolveSecretIndex = 0;
+  let guidedSolveSecretTimer = null;
   let mouseSupportClickCount = 0;
   let mouseSupportArmed = false;
   let mouseSupportResetTimer = null;
@@ -5385,7 +5385,7 @@ window.BOXXY_RELEASE = Object.freeze({
     }
     stopAutoplay();
     guidedSolveUsed = false;
-    resetEasterEgg();
+    resetGuidedSolveSecret();
     blockedPushHeld = false;
     clearTimeout(animTimer);
     closeLevelPicker();
@@ -5496,7 +5496,7 @@ window.BOXXY_RELEASE = Object.freeze({
     if (!preserveAutoplay && requestedIndex > highestUnlockedLevel) return;
     if (!preserveAutoplay) stopAutoplay();
     guidedSolveUsed = false;
-    resetEasterEgg();
+    resetGuidedSolveSecret();
     blockedPushHeld = false;
     clearTimeout(animTimer);
     levelIndex = requestedIndex;
@@ -5572,7 +5572,7 @@ window.BOXXY_RELEASE = Object.freeze({
       stopAutoplay();
       guidedSolveUsed = false;
       closeLevelPicker();
-      resetEasterEgg();
+      resetGuidedSolveSecret();
       blockedPushHeld = false;
       clearTimeout(animTimer);
       makerTesting = !shared;
@@ -6494,11 +6494,44 @@ window.BOXXY_RELEASE = Object.freeze({
     return window.matchMedia("(hover: hover) and (pointer: fine)").matches;
   }
 
-  function resetEasterEgg() {
-    easterClickCount = 0;
-    easterArmed = false;
-    clearTimeout(easterResetTimer);
-    easterResetTimer = null;
+  function resetGuidedSolveSecret() {
+    guidedSolveSecretIndex = 0;
+    clearTimeout(guidedSolveSecretTimer);
+    guidedSolveSecretTimer = null;
+  }
+
+  function handleGuidedSolveSecret(event) {
+    if (!desktopEasterEggAvailable() || autoplayRunning || event.repeat || event.metaKey || event.ctrlKey || event.altKey) return false;
+    const target = event.target instanceof Element
+      && event.target.closest("input, textarea, select, [contenteditable='true']");
+    if (target) return false;
+
+    const key = String(event.key || "").toLowerCase();
+    const expected = GUIDED_SOLVE_SECRET[guidedSolveSecretIndex];
+    if (key !== expected) {
+      resetGuidedSolveSecret();
+      if (key === GUIDED_SOLVE_SECRET[0]) {
+        guidedSolveSecretIndex = 1;
+        guidedSolveSecretTimer = window.setTimeout(resetGuidedSolveSecret, 2500);
+      }
+      return false;
+    }
+
+    guidedSolveSecretIndex += 1;
+    clearTimeout(guidedSolveSecretTimer);
+    guidedSolveSecretTimer = window.setTimeout(resetGuidedSolveSecret, 2500);
+
+    // Once the harmless "hi" prefix has been entered, swallow matching
+    // shortcut letters (notably R and U) so the secret does not restart or
+    // undo the puzzle while it is being typed.
+    if (guidedSolveSecretIndex > 2) event.preventDefault();
+
+    if (guidedSolveSecretIndex < GUIDED_SOLVE_SECRET.length) return guidedSolveSecretIndex > 2;
+
+    event.preventDefault();
+    resetGuidedSolveSecret();
+    autoSolveBtn?.click();
+    return true;
   }
 
   function stopAutoplay() {
@@ -6523,7 +6556,7 @@ window.BOXXY_RELEASE = Object.freeze({
     resetMouseSupportInteraction();
     if (dailyMode) {
       if (thoughtText) thoughtText.textContent = "Guided solve is unavailable for the Daily Boxxy.";
-      resetEasterEgg();
+      resetGuidedSolveSecret();
       return;
     }
     if (!desktopEasterEggAvailable() || autoplayRunning) return;
@@ -6533,7 +6566,7 @@ window.BOXXY_RELEASE = Object.freeze({
       if (thoughtText) thoughtText.textContent = testingMaker
         ? "This test puzzle does not have a guided solve attached yet."
         : "No guided solve is available for this puzzle yet.";
-      resetEasterEgg();
+      resetGuidedSolveSecret();
       return;
     }
 
@@ -6677,12 +6710,7 @@ window.BOXXY_RELEASE = Object.freeze({
       enterFirstPersonMode();
       return;
     }
-    if (desktopEasterEggAvailable() && easterArmed && event.key.toLowerCase() === "s") {
-      event.preventDefault();
-      resetEasterEgg();
-      autoSolveBtn.click();
-      return;
-    }
+    if (handleGuidedSolveSecret(event)) return;
     const shortcutTarget = event.target instanceof Element
       && event.target.closest("input, textarea, select, [contenteditable='true']");
     if (directionMap[event.key]) {
@@ -6850,14 +6878,6 @@ window.BOXXY_RELEASE = Object.freeze({
     const rect = visual.getBoundingClientRect();
     return event.clientX >= rect.left && event.clientX <= rect.right &&
       event.clientY >= rect.top && event.clientY <= rect.bottom;
-  }
-
-  function registerEasterClick() {
-    if (!desktopEasterEggAvailable() || autoplayRunning) return;
-    easterClickCount++;
-    clearTimeout(easterResetTimer);
-    easterResetTimer = setTimeout(resetEasterEgg, 10000);
-    if (easterClickCount >= 5) easterArmed = true;
   }
 
   function refreshPlayerVisual() {
@@ -7300,8 +7320,6 @@ window.BOXXY_RELEASE = Object.freeze({
   board.addEventListener("pointerdown", event => {
     if (firstPersonMode || phoneZenTouchPointer(event)) return;
     ensureAudio();
-    const mouseLike = event.pointerType === "mouse" || event.pointerType === "";
-    if (!mouseSupportEnabled && mouseLike && event.button === 0 && pointerIsOnCharacter(event)) registerEasterClick();
     swipe = { x: event.clientX, y: event.clientY, id: event.pointerId, triggered: false };
     board.setPointerCapture?.(event.pointerId);
   });
@@ -7432,6 +7450,32 @@ window.BOXXY_RELEASE = Object.freeze({
   const clearBtn = document.getElementById("makerClearBtn");
   const closeBtn = document.getElementById("makerCloseBtn");
   const importBtn = document.getElementById("makerImportBtn");
+  const imageImportBtn = document.getElementById("makerImageImportBtn");
+  const imageInput = document.getElementById("makerImageInput");
+  const imageImportModal = document.getElementById("makerImageImportModal");
+  const imageImportCloseBtn = document.getElementById("makerImageImportCloseBtn");
+  const imageImportCancelBtn = document.getElementById("makerImageImportCancelBtn");
+  const imageImportApplyBtn = document.getElementById("makerImageImportApplyBtn");
+  const imageImportReplaceBtn = document.getElementById("makerImageReplaceBtn");
+  const imageImportReanalyseBtn = document.getElementById("makerImageReanalyseBtn");
+  const imageResetCornersBtn = document.getElementById("makerImageResetCornersBtn");
+  const imageCornerPlaceButtons = [...document.querySelectorAll("[data-image-corner-place]")];
+  const imageTraceBtn = document.getElementById("makerImageTraceBtn");
+  const imageTracePanel = document.getElementById("makerImageTracePanel");
+  const imageAutoPanel = document.getElementById("makerImageAutoPanel");
+  const imageTracePalette = document.getElementById("makerImageTracePalette");
+  const imageTraceClearBtn = document.getElementById("makerImageTraceClearBtn");
+  const imageTraceFloorBtn = document.getElementById("makerImageTraceFloorBtn");
+  const imageTraceToolButtons = [...document.querySelectorAll("[data-image-trace-tool]")];
+  const imagePreviewCanvas = document.getElementById("makerImagePreviewCanvas");
+  const imagePreviewSummary = document.getElementById("makerImagePreviewSummary");
+  const imageColsInput = document.getElementById("makerImageColsInput");
+  const imageRowsInput = document.getElementById("makerImageRowsInput");
+  const imageGroupsEl = document.getElementById("makerImageGroups");
+  const imageCellOverrideTitle = document.getElementById("makerImageCellOverrideTitle");
+  const imageCellOverrideInfo = document.getElementById("makerImageCellOverrideInfo");
+  const imageCellValueButtons = [...document.querySelectorAll("[data-image-cell-value]")];
+  const imageImportStatusEl = document.getElementById("makerImageImportStatus");
   const copyBtn = document.getElementById("makerCopyBtn");
   const shareBtn = document.getElementById("makerShareBtn");
   const testBtn = document.getElementById("makerTestBtn");
@@ -7539,6 +7583,29 @@ window.BOXXY_RELEASE = Object.freeze({
   let solverJobId = 0;
   let solverStartedAt = 0;
   let solverAudioContext = null;
+  let imageImportLoaded = null;
+  let imageImportObjectUrl = "";
+  let imageImportState = null;
+  let imageImportMode = "auto";
+  let imageTraceTool = " ";
+  let imageTracePainting = false;
+  let imageTraceLastIndex = -1;
+  let imageCornerDragIndex = -1;
+  let imageCornerPlaceIndex = -1;
+  let imageSelectedCellIndex = -1;
+  let imageSelectedClusterId = -1;
+  let imageDraggedClusterId = -1;
+  const IMAGE_CLUSTER_ASSIGNMENTS = [
+    ["", "UNASSIGNED"],
+    ["#", "WALL #"],
+    [" ", "FLOOR"],
+    ["void", "VOID / OUTSIDE"],
+    ["@", "PLAYER @"],
+    ["$", "BOX $"],
+    [".", "TARGET ."],
+    ["*", "BOX ON TARGET *"],
+    ["+", "PLAYER ON TARGET +"]
+  ];
   const SOLVER_TIMEOUT_MS = 12 * 60 * 60 * 1000;
 
   const clampSize = value => Math.max(MIN_SIZE, Math.min(MAX_SIZE, Math.round(Number(value) || 10)));
@@ -7656,6 +7723,1078 @@ window.BOXXY_RELEASE = Object.freeze({
     statusEl.textContent = message;
     statusEl.classList.toggle("error", type === "error");
     statusEl.classList.toggle("success", type === "success");
+  }
+
+
+  function setImageImportStatus(message, type = "") {
+    if (!imageImportStatusEl) return;
+    imageImportStatusEl.textContent = message;
+    imageImportStatusEl.classList.toggle("error", type === "error");
+    imageImportStatusEl.classList.toggle("success", type === "success");
+  }
+
+  function openImageImportModal() {
+    if (!imageImportModal) return;
+    imageImportModal.hidden = false;
+    requestAnimationFrame(drawImageImportPreview);
+  }
+
+  function closeImageImportModal() {
+    if (!imageImportModal) return;
+    imageImportModal.hidden = true;
+    imageTracePainting = false;
+    imageCornerDragIndex = -1;
+  }
+
+  function releaseImageImportUrl() {
+    if (imageImportObjectUrl) {
+      try { URL.revokeObjectURL(imageImportObjectUrl); } catch (_) {}
+      imageImportObjectUrl = "";
+    }
+  }
+
+  function createCanvas(width, height) {
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(width));
+    canvas.height = Math.max(1, Math.round(height));
+    return canvas;
+  }
+
+  function clampImageGridSize(value) {
+    return Math.max(MIN_SIZE, Math.min(MAX_SIZE, Math.round(Number(value) || 10)));
+  }
+
+  function loadImageFromFile(file) {
+    return new Promise((resolve, reject) => {
+      if (!file) {
+        reject(new Error("No image was selected."));
+        return;
+      }
+      releaseImageImportUrl();
+      const url = URL.createObjectURL(file);
+      imageImportObjectUrl = url;
+      const image = new Image();
+      image.onload = () => resolve({ image, url });
+      image.onerror = () => reject(new Error("That image could not be opened."));
+      image.src = url;
+    });
+  }
+
+  function defaultImageCorners(sourceCanvas) {
+    const marginX = sourceCanvas.width * 0.10;
+    const marginY = sourceCanvas.height * 0.10;
+    return [
+      { x: marginX, y: marginY },
+      { x: sourceCanvas.width - marginX, y: marginY },
+      { x: sourceCanvas.width - marginX, y: sourceCanvas.height - marginY },
+      { x: marginX, y: sourceCanvas.height - marginY }
+    ];
+  }
+
+  function sourceCanvasFromImage(sourceImage) {
+    const naturalWidth = sourceImage.naturalWidth || sourceImage.width || 1;
+    const naturalHeight = sourceImage.naturalHeight || sourceImage.height || 1;
+    const scale = Math.min(1, 1600 / Math.max(naturalWidth, naturalHeight));
+    const canvas = createCanvas(naturalWidth * scale, naturalHeight * scale);
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    ctx.drawImage(sourceImage, 0, 0, canvas.width, canvas.height);
+    return canvas;
+  }
+
+  function createInitialImageImportState(sourceImage) {
+    const sourceCanvas = sourceCanvasFromImage(sourceImage);
+    const initialCols = clampImageGridSize(imageColsInput?.value || 16);
+    const initialRows = clampImageGridSize(imageRowsInput?.value || 12);
+    return {
+      sourceCanvas,
+      corners: defaultImageCorners(sourceCanvas),
+      cols: initialCols,
+      rows: initialRows,
+      clusters: [],
+      cellsData: [],
+      cellOverrides: Array(initialCols * initialRows).fill(null),
+      targetHints: Array(initialCols * initialRows).fill(false),
+      traceCells: Array(initialCols * initialRows).fill(" "),
+      display: null
+    };
+  }
+
+  function distance2(a, b) {
+    const dx = a.x - b.x;
+    const dy = a.y - b.y;
+    return dx * dx + dy * dy;
+  }
+
+  function homographyFromUnitSquare(corners) {
+    if (!corners || corners.length !== 4) return null;
+    const [p0, p1, p2, p3] = corners;
+    const dx1 = p1.x - p2.x;
+    const dx2 = p3.x - p2.x;
+    const dx3 = p0.x - p1.x + p2.x - p3.x;
+    const dy1 = p1.y - p2.y;
+    const dy2 = p3.y - p2.y;
+    const dy3 = p0.y - p1.y + p2.y - p3.y;
+    const denominator = dx1 * dy2 - dx2 * dy1;
+    let g = 0;
+    let h = 0;
+    if (Math.abs(denominator) > 1e-8) {
+      g = (dx3 * dy2 - dx2 * dy3) / denominator;
+      h = (dx1 * dy3 - dx3 * dy1) / denominator;
+    }
+    return [
+      p1.x - p0.x + g * p1.x,
+      p3.x - p0.x + h * p3.x,
+      p0.x,
+      p1.y - p0.y + g * p1.y,
+      p3.y - p0.y + h * p3.y,
+      p0.y,
+      g,
+      h,
+      1
+    ];
+  }
+
+  function applyHomography(matrix, u, v) {
+    if (!matrix) return { x: 0, y: 0 };
+    const denominator = matrix[6] * u + matrix[7] * v + matrix[8];
+    if (Math.abs(denominator) < 1e-8) return { x: 0, y: 0 };
+    return {
+      x: (matrix[0] * u + matrix[1] * v + matrix[2]) / denominator,
+      y: (matrix[3] * u + matrix[4] * v + matrix[5]) / denominator
+    };
+  }
+
+  function invert3x3(matrix) {
+    if (!matrix) return null;
+    const [a,b,c,d,e,f,g,h,i] = matrix;
+    const A = e*i - f*h;
+    const B = -(d*i - f*g);
+    const C = d*h - e*g;
+    const D = -(b*i - c*h);
+    const E = a*i - c*g;
+    const F = -(a*h - b*g);
+    const G = b*f - c*e;
+    const H = -(a*f - c*d);
+    const I = a*e - b*d;
+    const det = a*A + b*B + c*C;
+    if (Math.abs(det) < 1e-10) return null;
+    const inv = 1 / det;
+    return [A*inv,D*inv,G*inv,B*inv,E*inv,H*inv,C*inv,F*inv,I*inv];
+  }
+
+  function sourceToCanvas(point) {
+    const display = imageImportState?.display;
+    if (!display) return { x: point.x, y: point.y };
+    return {
+      x: display.x + point.x * display.scale,
+      y: display.y + point.y * display.scale
+    };
+  }
+
+  function canvasToSource(point) {
+    const display = imageImportState?.display;
+    if (!display) return { x: point.x, y: point.y };
+    return {
+      x: (point.x - display.x) / display.scale,
+      y: (point.y - display.y) / display.scale
+    };
+  }
+
+  function pointerOnPreview(event) {
+    if (!imagePreviewCanvas) return { x: 0, y: 0 };
+    const rect = imagePreviewCanvas.getBoundingClientRect();
+    return {
+      x: (event.clientX - rect.left) * imagePreviewCanvas.width / Math.max(1, rect.width),
+      y: (event.clientY - rect.top) * imagePreviewCanvas.height / Math.max(1, rect.height)
+    };
+  }
+
+  function imageCellFromCanvasPoint(canvasPoint) {
+    if (!imageImportState?.corners) return null;
+    const sourcePoint = canvasToSource(canvasPoint);
+    const inverse = invert3x3(homographyFromUnitSquare(imageImportState.corners));
+    if (!inverse) return null;
+    const uv = applyHomography(inverse, sourcePoint.x, sourcePoint.y);
+    if (uv.x < 0 || uv.y < 0 || uv.x >= 1 || uv.y >= 1) return null;
+    const x = Math.max(0, Math.min(imageImportState.cols - 1, Math.floor(uv.x * imageImportState.cols)));
+    const y = Math.max(0, Math.min(imageImportState.rows - 1, Math.floor(uv.y * imageImportState.rows)));
+    return { x, y, index: y * imageImportState.cols + x };
+  }
+
+  function nearestImageCorner(canvasPoint, radius = 18) {
+    if (!imageImportState?.corners) return -1;
+    let best = -1;
+    let bestDistance = radius * radius;
+    imageImportState.corners.forEach((corner, index) => {
+      const displayed = sourceToCanvas(corner);
+      const distance = distance2(displayed, canvasPoint);
+      if (distance <= bestDistance) {
+        bestDistance = distance;
+        best = index;
+      }
+    });
+    return best;
+  }
+
+
+  function imageAssignmentLabel(value) {
+    switch (value) {
+      case "#": return "Wall";
+      case " ": return "Floor";
+      case "void": return "Outside";
+      case "@": return "Player";
+      case "$": return "Box";
+      case ".": return "Target";
+      case "*": return "Box + Target";
+      case "+": return "Player + Target";
+      default: return "Unassigned";
+    }
+  }
+
+  function autoImageCellAssignment(index) {
+    if (!imageImportState?.cellsData?.length || index < 0 || index >= imageImportState.cellsData.length) return "";
+    const cell = imageImportState.cellsData[index];
+    const cluster = imageImportState.clusters?.[cell.clusterId];
+    let value = cluster?.assignment || "";
+    // A colour hint only becomes a target once its underlying visual group is confirmed as FLOOR.
+    // This stops an unassigned, box or player group being silently converted into targets.
+    if (imageImportState.targetHints?.[index] && value === " ") value = ".";
+    return value;
+  }
+
+  function effectiveImageCellAssignment(index) {
+    const override = imageImportState?.cellOverrides?.[index];
+    return override == null ? autoImageCellAssignment(index) : override;
+  }
+
+
+  function unresolvedImageClusters() {
+    if (!imageImportState?.clusters?.length) return [];
+    return imageImportState.clusters.filter(cluster => {
+      if (cluster.assignment) return false;
+      return cluster.cells.some(cell => {
+        const index = cell.y * imageImportState.cols + cell.x;
+        return imageImportState.cellOverrides?.[index] == null;
+      });
+    });
+  }
+
+  function updateImageCellOverridePanel() {
+    const ready = Boolean(imageImportState?.cellsData?.length && imageImportState?.clusters?.length);
+    if (imageSelectedCellIndex < 0 || !ready) {
+      if (imageCellOverrideTitle) imageCellOverrideTitle.textContent = "CELL OVERRIDE";
+      if (imageCellOverrideInfo) imageCellOverrideInfo.textContent = ready
+        ? "Click any square in the photograph to change just that cell."
+        : "Run Auto Read Tiles, then click any square in the photograph.";
+      imageCellValueButtons.forEach(button => button.classList.remove("selected"));
+      return;
+    }
+    const x = imageSelectedCellIndex % imageImportState.cols;
+    const y = Math.floor(imageSelectedCellIndex / imageImportState.cols);
+    const autoValue = autoImageCellAssignment(imageSelectedCellIndex);
+    const override = imageImportState.cellOverrides?.[imageSelectedCellIndex];
+    if (imageCellOverrideTitle) imageCellOverrideTitle.textContent = `CELL ${x + 1}, ${y + 1}`;
+    if (imageCellOverrideInfo) {
+      imageCellOverrideInfo.textContent = override == null
+        ? `Auto: ${imageAssignmentLabel(autoValue)}. Choose a type below to override this square.`
+        : `Auto: ${imageAssignmentLabel(autoValue)} • Override: ${imageAssignmentLabel(override)}.`;
+    }
+    imageCellValueButtons.forEach(button => {
+      const value = button.dataset.imageCellValue;
+      const selected = override == null ? value === "__auto__" : value === override;
+      button.classList.toggle("selected", selected);
+    });
+  }
+
+  function setImageCellOverride(value) {
+    if (!imageImportState?.cellOverrides || imageSelectedCellIndex < 0) return;
+    if (value === "__auto__") {
+      imageImportState.cellOverrides[imageSelectedCellIndex] = null;
+    } else {
+      if (value === "@" || value === "+") {
+        imageImportState.cellOverrides = imageImportState.cellOverrides.map((item, index) => {
+          if (index === imageSelectedCellIndex) return item;
+          return item === "@" || item === "+" ? null : item;
+        });
+      }
+      imageImportState.cellOverrides[imageSelectedCellIndex] = value;
+    }
+    updateImageCellOverridePanel();
+    drawImageImportPreview();
+  }
+
+  function setImageCornerPlacementMode(index) {
+    imageCornerPlaceIndex = Number.isInteger(index) && index >= 0 && index < 4 ? index : -1;
+    imageCornerPlaceButtons.forEach(button => {
+      button.classList.toggle("selected", Number(button.dataset.imageCornerPlace) === imageCornerPlaceIndex);
+    });
+    if (imageCornerPlaceIndex >= 0) {
+      const names = ["top-left", "top-right", "bottom-right", "bottom-left"];
+      setImageImportStatus(`Click the ${names[imageCornerPlaceIndex]} corner of the Sokoban board in the photograph.`);
+    }
+  }
+
+  function placeImageCornerFromCanvasPoint(canvasPoint) {
+    if (!imageImportState?.sourceCanvas || imageCornerPlaceIndex < 0) return false;
+    const source = canvasToSource(canvasPoint);
+    const sourceCanvas = imageImportState.sourceCanvas;
+    imageImportState.corners[imageCornerPlaceIndex] = {
+      x: Math.max(0, Math.min(sourceCanvas.width, source.x)),
+      y: Math.max(0, Math.min(sourceCanvas.height, source.y))
+    };
+    imageImportState.clusters = [];
+    imageImportState.cellsData = [];
+    imageImportState.cellOverrides = Array(imageImportState.cols * imageImportState.rows).fill(null);
+    imageImportState.targetHints = Array(imageImportState.cols * imageImportState.rows).fill(false);
+    imageSelectedCellIndex = -1;
+    imageSelectedClusterId = -1;
+    updateImageCellOverridePanel();
+    renderImageImportGroups();
+    const placed = imageCornerPlaceIndex;
+    if (placed < 3) setImageCornerPlacementMode(placed + 1);
+    else {
+      setImageCornerPlacementMode(-1);
+      setImageImportStatus("All four corners placed. Fine-tune by dragging the red handles if needed, then Auto Read Tiles.", "success");
+    }
+    drawImageImportPreview();
+    return true;
+  }
+
+  function imageTraceColour(value) {
+    switch (value) {
+      case "#": return "rgba(25,25,28,.66)";
+      case "$": return "rgba(228,162,48,.78)";
+      case ".": return "rgba(213,57,49,.28)";
+      case "@": return "rgba(55,111,181,.72)";
+      case "*": return "rgba(228,162,48,.78)";
+      case "+": return "rgba(55,111,181,.72)";
+      case "void": return "rgba(120,116,110,.62)";
+      default: return "rgba(255,255,255,.06)";
+    }
+  }
+
+  function imageTraceLabel(value) {
+    if (value === "void" || value === " ") return "";
+    return value;
+  }
+
+  function drawImageImportPreview() {
+    if (!imagePreviewCanvas || !imageImportState?.sourceCanvas) return;
+    const canvas = imagePreviewCanvas;
+    const ctx = canvas.getContext("2d");
+    const sourceCanvas = imageImportState.sourceCanvas;
+    const cssWidth = Math.max(320, Math.min(760, imagePreviewCanvas.parentElement?.clientWidth || 640));
+    const aspect = sourceCanvas.width / Math.max(1, sourceCanvas.height);
+    canvas.width = Math.round(cssWidth);
+    canvas.height = Math.max(260, Math.min(620, Math.round(cssWidth / aspect)));
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#d9d1c6";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const scale = Math.min(canvas.width / sourceCanvas.width, canvas.height / sourceCanvas.height);
+    const width = sourceCanvas.width * scale;
+    const height = sourceCanvas.height * scale;
+    const offsetX = (canvas.width - width) / 2;
+    const offsetY = (canvas.height - height) / 2;
+    imageImportState.display = { x: offsetX, y: offsetY, width, height, scale };
+    ctx.drawImage(sourceCanvas, offsetX, offsetY, width, height);
+
+    const matrix = homographyFromUnitSquare(imageImportState.corners);
+    if (!matrix) return;
+
+    if (imageImportMode === "trace" && imageImportState.traceCells?.length === imageImportState.cols * imageImportState.rows) {
+      for (let y = 0; y < imageImportState.rows; y++) {
+        for (let x = 0; x < imageImportState.cols; x++) {
+          const value = imageImportState.traceCells[y * imageImportState.cols + x];
+          if (value === " ") continue;
+          const p0 = sourceToCanvas(applyHomography(matrix, x / imageImportState.cols, y / imageImportState.rows));
+          const p1 = sourceToCanvas(applyHomography(matrix, (x + 1) / imageImportState.cols, y / imageImportState.rows));
+          const p2 = sourceToCanvas(applyHomography(matrix, (x + 1) / imageImportState.cols, (y + 1) / imageImportState.rows));
+          const p3 = sourceToCanvas(applyHomography(matrix, x / imageImportState.cols, (y + 1) / imageImportState.rows));
+          ctx.beginPath();
+          ctx.moveTo(p0.x, p0.y);
+          ctx.lineTo(p1.x, p1.y);
+          ctx.lineTo(p2.x, p2.y);
+          ctx.lineTo(p3.x, p3.y);
+          ctx.closePath();
+          ctx.fillStyle = imageTraceColour(value);
+          ctx.fill();
+          if (value === "." || value === "*" || value === "+") {
+            const centre = sourceToCanvas(applyHomography(matrix, (x + 0.5) / imageImportState.cols, (y + 0.5) / imageImportState.rows));
+            const r = Math.max(2.5, Math.min(10, Math.min(canvas.width / imageImportState.cols, canvas.height / imageImportState.rows) * .18));
+            ctx.beginPath();
+            ctx.arc(centre.x, centre.y, r, 0, Math.PI * 2);
+            ctx.fillStyle = "rgba(215,58,49,.85)";
+            ctx.fill();
+          }
+          const label = imageTraceLabel(value);
+          if (label) {
+            const centre = sourceToCanvas(applyHomography(matrix, (x + 0.5) / imageImportState.cols, (y + 0.5) / imageImportState.rows));
+            ctx.font = `900 ${Math.max(10, Math.min(24, Math.min(canvas.width / imageImportState.cols, canvas.height / imageImportState.rows) * .45))}px system-ui`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillStyle = "#fff";
+            ctx.strokeStyle = "rgba(0,0,0,.75)";
+            ctx.lineWidth = 3;
+            ctx.strokeText(label, centre.x, centre.y);
+            ctx.fillText(label, centre.x, centre.y);
+          }
+        }
+      }
+    }
+
+
+    if (imageImportMode === "auto" && imageImportState.cellsData?.length === imageImportState.cols * imageImportState.rows) {
+      for (let y = 0; y < imageImportState.rows; y++) {
+        for (let x = 0; x < imageImportState.cols; x++) {
+          const index = y * imageImportState.cols + x;
+          const override = imageImportState.cellOverrides?.[index];
+          const hintedTarget = override == null && imageImportState.targetHints?.[index] && autoImageCellAssignment(index) === ".";
+          if (override == null && !hintedTarget && index !== imageSelectedCellIndex) continue;
+          const p0 = sourceToCanvas(applyHomography(matrix, x / imageImportState.cols, y / imageImportState.rows));
+          const p1 = sourceToCanvas(applyHomography(matrix, (x + 1) / imageImportState.cols, y / imageImportState.rows));
+          const p2 = sourceToCanvas(applyHomography(matrix, (x + 1) / imageImportState.cols, (y + 1) / imageImportState.rows));
+          const p3 = sourceToCanvas(applyHomography(matrix, x / imageImportState.cols, (y + 1) / imageImportState.rows));
+          ctx.beginPath();
+          ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.lineTo(p3.x, p3.y); ctx.closePath();
+          if (override != null) {
+            ctx.fillStyle = imageTraceColour(override);
+            ctx.fill();
+          }
+          if (hintedTarget || override === "." || override === "*" || override === "+") {
+            const centre = sourceToCanvas(applyHomography(matrix, (x + .5) / imageImportState.cols, (y + .5) / imageImportState.rows));
+            const r = Math.max(2.5, Math.min(9, Math.min(canvas.width / imageImportState.cols, canvas.height / imageImportState.rows) * .16));
+            ctx.beginPath(); ctx.arc(centre.x, centre.y, r, 0, Math.PI * 2); ctx.fillStyle = "rgba(215,58,49,.86)"; ctx.fill();
+          }
+          if (index === imageSelectedCellIndex) {
+            ctx.strokeStyle = "#f4bf22";
+            ctx.lineWidth = 4;
+            ctx.stroke();
+          }
+        }
+      }
+    }
+
+    ctx.save();
+    ctx.strokeStyle = "rgba(255,255,255,.82)";
+    ctx.lineWidth = 1;
+    for (let x = 0; x <= imageImportState.cols; x++) {
+      const u = x / imageImportState.cols;
+      const top = sourceToCanvas(applyHomography(matrix, u, 0));
+      const bottom = sourceToCanvas(applyHomography(matrix, u, 1));
+      ctx.beginPath();
+      ctx.moveTo(top.x, top.y);
+      ctx.lineTo(bottom.x, bottom.y);
+      ctx.stroke();
+    }
+    for (let y = 0; y <= imageImportState.rows; y++) {
+      const v = y / imageImportState.rows;
+      const left = sourceToCanvas(applyHomography(matrix, 0, v));
+      const right = sourceToCanvas(applyHomography(matrix, 1, v));
+      ctx.beginPath();
+      ctx.moveTo(left.x, left.y);
+      ctx.lineTo(right.x, right.y);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    const cornerLabels = ["1", "2", "3", "4"];
+    imageImportState.corners.forEach((corner, index) => {
+      const point = sourceToCanvas(corner);
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, 12, 0, Math.PI * 2);
+      ctx.fillStyle = "#d63c2d";
+      ctx.fill();
+      ctx.strokeStyle = "#fff";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = "#fff";
+      ctx.font = "900 11px system-ui";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(cornerLabels[index], point.x, point.y + .5);
+    });
+
+    if (imagePreviewSummary) {
+      imagePreviewSummary.textContent = `${imageImportState.cols} × ${imageImportState.rows} grid • drag red corners to the board edges${imageImportMode === "trace" ? " • manual trace active" : ""}.`;
+    }
+  }
+
+  function samplePerspectiveCell(sourceCanvas, sourcePixels, matrix, cellX, cellY, colsCount, rowsCount, size = 18) {
+    const imageData = sourcePixels;
+    const values = [];
+    let red = 0;
+    let green = 0;
+    let blue = 0;
+    let edge = 0;
+    let redSpot = 0;
+    let centreSamples = 0;
+    let centreRedStrength = 0;
+    let outerRedStrength = 0;
+    let outerSamples = 0;
+    let targetInkCentre = 0;
+    let targetInkOuter = 0;
+    let orangeInkCentre = 0;
+    const grayscale = new Float32Array(size * size);
+    for (let sy = 0; sy < size; sy++) {
+      for (let sx = 0; sx < size; sx++) {
+        const u = (cellX + (sx + .5) / size) / colsCount;
+        const v = (cellY + (sy + .5) / size) / rowsCount;
+        const point = applyHomography(matrix, u, v);
+        const px = Math.max(0, Math.min(sourceCanvas.width - 1, Math.round(point.x)));
+        const py = Math.max(0, Math.min(sourceCanvas.height - 1, Math.round(point.y)));
+        const src = (py * sourceCanvas.width + px) * 4;
+        const r = imageData[src];
+        const g = imageData[src + 1];
+        const b = imageData[src + 2];
+        const l = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+        const dst = sy * size + sx;
+        grayscale[dst] = l;
+        values.push(l);
+        red += r;
+        green += g;
+        blue += b;
+
+        const nx = (sx + .5) / size - .5;
+        const ny = (sy + .5) / size - .5;
+        const radius = Math.hypot(nx, ny);
+        const redStrength = Math.max(0, r - Math.max(g, b)) / 255;
+        // Targets in photographed Sokoban boards are often a muted red/pink mark on beige floor.
+        // Wooden crates are usually much more orange: their green channel sits far above blue.
+        // Keep these as separate measurements so orange crate detail cannot masquerade as a target.
+        const redMinusGreen = r - g;
+        const greenMinusBlue = g - b;
+        const targetInk = r >= 105 && redMinusGreen >= 17 && greenMinusBlue <= 36 && b >= g * .64;
+        const orangeInk = r >= 105 && redMinusGreen >= 20 && greenMinusBlue >= 40;
+        if (radius <= .34) {
+          centreSamples++;
+          centreRedStrength += redStrength;
+          if (r > 85 && r - Math.max(g, b) > 24 && r > g * 1.10) redSpot++;
+          if (targetInk) targetInkCentre++;
+          if (orangeInk) orangeInkCentre++;
+        } else if (radius >= .40) {
+          outerSamples++;
+          outerRedStrength += redStrength;
+          if (targetInk) targetInkOuter++;
+        }
+      }
+    }
+    for (let y = 1; y < size; y++) {
+      for (let x = 1; x < size; x++) {
+        const idx = y * size + x;
+        edge += Math.abs(grayscale[idx] - grayscale[idx - 1]) + Math.abs(grayscale[idx] - grayscale[idx - size]);
+      }
+    }
+    const total = size * size;
+    const mean = values.reduce((sum, value) => sum + value, 0) / total;
+    const centreRed = centreRedStrength / Math.max(1, centreSamples);
+    const outerRed = outerRedStrength / Math.max(1, outerSamples);
+    return {
+      values,
+      mean,
+      edge: edge / Math.max(1, (size - 1) * (size - 1) * 2),
+      rgb: [red / total / 255, green / total / 255, blue / total / 255],
+      redSpot: redSpot / Math.max(1, centreSamples),
+      redContrast: Math.max(0, centreRed - outerRed),
+      centreRed,
+      targetInkCentre: targetInkCentre / Math.max(1, centreSamples),
+      targetInkOuter: targetInkOuter / Math.max(1, outerSamples),
+      orangeInkCentre: orangeInkCentre / Math.max(1, centreSamples)
+    };
+  }
+
+  function descriptorDistance(a, b) {
+    let patch = 0;
+    const length = Math.min(a.values.length, b.values.length);
+    for (let i = 0; i < length; i++) patch += Math.abs(a.values[i] - b.values[i]);
+    patch /= Math.max(1, length);
+    const colour = Math.abs(a.rgb[0] - b.rgb[0]) + Math.abs(a.rgb[1] - b.rgb[1]) + Math.abs(a.rgb[2] - b.rgb[2]);
+    return patch + colour * 0.20 + Math.abs(a.edge - b.edge) * 0.16 + Math.abs(a.mean - b.mean) * 0.08;
+  }
+
+  function clusterDescriptor(cellsList) {
+    if (!cellsList?.length) return null;
+    const sampleLength = cellsList[0].descriptor.values.length;
+    const values = Array(sampleLength).fill(0);
+    const rgb = [0, 0, 0];
+    let mean = 0;
+    let edge = 0;
+    for (const cell of cellsList) {
+      const descriptor = cell.descriptor;
+      for (let i = 0; i < sampleLength; i++) values[i] += descriptor.values[i] || 0;
+      rgb[0] += descriptor.rgb[0];
+      rgb[1] += descriptor.rgb[1];
+      rgb[2] += descriptor.rgb[2];
+      mean += descriptor.mean;
+      edge += descriptor.edge;
+    }
+    const count = cellsList.length;
+    for (let i = 0; i < sampleLength; i++) values[i] /= count;
+    rgb[0] /= count; rgb[1] /= count; rgb[2] /= count;
+    return { values, rgb, mean: mean / count, edge: edge / count };
+  }
+
+  function refreshImageCluster(cluster) {
+    cluster.descriptor = clusterDescriptor(cluster.cells);
+    cluster.representative = cluster.cells.reduce((best, cell) => {
+      if (!best) return cell;
+      return descriptorDistance(cell.descriptor, cluster.descriptor) < descriptorDistance(best.descriptor, cluster.descriptor) ? cell : best;
+    }, null);
+    const total = cluster.cells.length;
+    const borderCount = cluster.cells.filter(cell => cell.x === 0 || cell.y === 0 || cell.x === imageImportState.cols - 1 || cell.y === imageImportState.rows - 1).length;
+    cluster.borderShare = total ? borderCount / total : 0;
+    cluster.mean = cluster.descriptor?.mean || 0;
+    return cluster;
+  }
+
+  function mergeImageClusters(target, source) {
+    target.cells.push(...source.cells);
+    refreshImageCluster(target);
+  }
+
+  function clusterImageCells(cellsData) {
+    const clusters = [];
+    const threshold = 0.19;
+    for (const cell of cellsData) {
+      let best = null;
+      let bestDistance = Infinity;
+      for (const cluster of clusters) {
+        const distance = descriptorDistance(cell.descriptor, cluster.descriptor || cluster.representative.descriptor);
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          best = cluster;
+        }
+      }
+      if (!best || bestDistance > threshold) {
+        const cluster = { id: clusters.length, representative: cell, cells: [cell], assignment: "", descriptor: cell.descriptor };
+        refreshImageCluster(cluster);
+        clusters.push(cluster);
+      } else {
+        best.cells.push(cell);
+        refreshImageCluster(best);
+      }
+    }
+
+    // Photos often create several near-identical groups because of screen glare or perspective.
+    // Merge the closest groups until the UI stays compact, while retaining genuinely different tiles.
+    while (clusters.length > 10) {
+      let pair = null;
+      let pairDistance = Infinity;
+      for (let a = 0; a < clusters.length; a++) {
+        for (let b = a + 1; b < clusters.length; b++) {
+          const distance = descriptorDistance(clusters[a].descriptor, clusters[b].descriptor);
+          if (distance < pairDistance) {
+            pairDistance = distance;
+            pair = [a, b];
+          }
+        }
+      }
+      if (!pair) break;
+      const [a, b] = pair;
+      mergeImageClusters(clusters[a], clusters[b]);
+      clusters.splice(b, 1);
+    }
+
+    clusters.forEach((cluster, id) => {
+      cluster.id = id;
+      refreshImageCluster(cluster);
+    });
+    return clusters;
+  }
+
+  function suggestClusterAssignments(clusters) {
+    if (!Array.isArray(clusters) || !clusters.length) return;
+    const borderHeavy = clusters.filter(cluster => cluster.borderShare > 0.45);
+    if (borderHeavy.length) {
+      borderHeavy.sort((a, b) => a.mean - b.mean || b.cells.length - a.cells.length);
+      borderHeavy[0].assignment = "#";
+    }
+    const remaining = clusters.filter(cluster => !cluster.assignment).slice().sort((a, b) => b.cells.length - a.cells.length || b.mean - a.mean);
+    if (remaining[0]) remaining[0].assignment = " ";
+  }
+
+  function analyseImageIntoLevel() {
+    if (!imageImportState?.sourceCanvas) throw new Error("Choose an image first.");
+    imageImportState.cols = clampImageGridSize(imageColsInput?.value || imageImportState.cols);
+    imageImportState.rows = clampImageGridSize(imageRowsInput?.value || imageImportState.rows);
+    const matrix = homographyFromUnitSquare(imageImportState.corners);
+    if (!matrix) throw new Error("The crop corners are invalid. Reset them and try again.");
+    const sourceCtx = imageImportState.sourceCanvas.getContext("2d", { willReadFrequently: true });
+    const sourcePixels = sourceCtx.getImageData(0, 0, imageImportState.sourceCanvas.width, imageImportState.sourceCanvas.height).data;
+    const cellsData = [];
+    for (let y = 0; y < imageImportState.rows; y++) {
+      for (let x = 0; x < imageImportState.cols; x++) {
+        const descriptor = samplePerspectiveCell(imageImportState.sourceCanvas, sourcePixels, matrix, x, y, imageImportState.cols, imageImportState.rows);
+        cellsData.push({ x, y, descriptor, clusterId: -1 });
+      }
+    }
+    imageImportState.cellsData = cellsData;
+    const clusters = clusterImageCells(cellsData);
+    clusters.forEach(cluster => cluster.cells.forEach(cell => { cell.clusterId = cluster.id; }));
+    imageImportState.clusters = clusters;
+    suggestClusterAssignments(clusters);
+    imageImportState.cellOverrides = Array(imageImportState.cols * imageImportState.rows).fill(null);
+    const floorCluster = clusters.find(cluster => cluster.assignment === " ") || null;
+    imageImportState.targetHints = cellsData.map(cell => {
+      const descriptor = cell.descriptor || {};
+      const centreInk = Number(descriptor.targetInkCentre || 0);
+      const outerInk = Number(descriptor.targetInkOuter || 0);
+      const orangeInk = Number(descriptor.orangeInkCentre || 0);
+      const floorDistance = floorCluster?.descriptor ? descriptorDistance(descriptor, floorCluster.descriptor) : 0;
+      // Require a genuinely localised muted-red/pink centre mark on a tile that is still visually
+      // close to ordinary floor. This rejects the orange/brown cross and frame detail on crates.
+      const localisedRedMark = centreInk >= 0.105
+        && centreInk >= outerInk * 1.75 + 0.025
+        && orangeInk <= Math.max(0.08, centreInk * .55);
+      const floorLike = !floorCluster || floorDistance <= 0.235;
+      return Boolean(localisedRedMark && floorLike);
+    });
+    clusters.forEach(cluster => {
+      const targetCount = cluster.cells.filter(cell => imageImportState.targetHints[cell.y * imageImportState.cols + cell.x]).length;
+      cluster.targetShare = targetCount / Math.max(1, cluster.cells.length);
+      if (!cluster.assignment && cluster.targetShare >= 0.55) cluster.assignment = ".";
+    });
+    imageSelectedCellIndex = -1;
+    imageSelectedClusterId = -1;
+    imageSelectedClusterId = -1;
+    updateImageCellOverridePanel();
+    return imageImportState;
+  }
+
+  function createThumbnailCanvas(cluster) {
+    const thumb = createCanvas(48, 48);
+    const ctx = thumb.getContext("2d");
+    const matrix = homographyFromUnitSquare(imageImportState.corners);
+    const rep = cluster.representative;
+    const source = imageImportState.sourceCanvas;
+    const sourceCtx = source.getContext("2d", { willReadFrequently: true });
+    const data = sourceCtx.getImageData(0, 0, source.width, source.height).data;
+    const imageData = ctx.createImageData(48, 48);
+    for (let y = 0; y < 48; y++) {
+      for (let x = 0; x < 48; x++) {
+        const u = (rep.x + (x + .5) / 48) / imageImportState.cols;
+        const v = (rep.y + (y + .5) / 48) / imageImportState.rows;
+        const point = applyHomography(matrix, u, v);
+        const px = Math.max(0, Math.min(source.width - 1, Math.round(point.x)));
+        const py = Math.max(0, Math.min(source.height - 1, Math.round(point.y)));
+        const src = (py * source.width + px) * 4;
+        const dst = (y * 48 + x) * 4;
+        imageData.data[dst] = data[src];
+        imageData.data[dst + 1] = data[src + 1];
+        imageData.data[dst + 2] = data[src + 2];
+        imageData.data[dst + 3] = 255;
+      }
+    }
+    ctx.putImageData(imageData, 0, 0);
+    return thumb;
+  }
+
+  function imageClusterCellCount(cluster, predicate = null) {
+    if (!cluster?.cells?.length) return 0;
+    if (!predicate) return cluster.cells.length;
+    return cluster.cells.reduce((count, cell) => count + (predicate(cell) ? 1 : 0), 0);
+  }
+
+  function imageClusterTargetHintCount(cluster) {
+    if (cluster?.assignment !== " ") return 0;
+    return imageClusterCellCount(cluster, cell => {
+      const index = cell.y * imageImportState.cols + cell.x;
+      return imageImportState.targetHints?.[index] && autoImageCellAssignment(index) === ".";
+    });
+  }
+
+  function effectiveAutoTargetCount() {
+    if (!imageImportState?.targetHints?.length) return 0;
+    return imageImportState.targetHints.reduce((count, hint, index) => count + (hint && autoImageCellAssignment(index) === "." ? 1 : 0), 0);
+  }
+
+  function updateImageGroupStatus() {
+    const missing = unresolvedImageClusters().length;
+    const targetCount = effectiveAutoTargetCount();
+    updateImageCellOverridePanel();
+    drawImageImportPreview();
+    if (missing) {
+      setImageImportStatus(`${missing} visual group${missing === 1 ? "" : "s"} still need a bin${targetCount ? ` • ${targetCount} target mark${targetCount === 1 ? "" : "s"} spotted automatically` : ""}.`);
+    } else {
+      setImageImportStatus(`Ready to import ${imageImportState.cols} × ${imageImportState.rows} level${targetCount ? ` • ${targetCount} target mark${targetCount === 1 ? "" : "s"} spotted` : ""}. Click any cell to correct it.`, "success");
+    }
+  }
+
+  function reindexImageClusters() {
+    imageImportState.clusters.forEach((cluster, id) => {
+      cluster.id = id;
+      refreshImageCluster(cluster);
+      cluster.cells.forEach(cell => { cell.clusterId = id; });
+    });
+  }
+
+  function mergeImageClusterIds(sourceId, targetId) {
+    if (!imageImportState?.clusters?.length || sourceId === targetId) return;
+    const source = imageImportState.clusters.find(cluster => cluster.id === sourceId);
+    const target = imageImportState.clusters.find(cluster => cluster.id === targetId);
+    if (!source || !target) return;
+    target.cells.push(...source.cells);
+    if (!target.assignment && source.assignment) target.assignment = source.assignment;
+    refreshImageCluster(target);
+    imageImportState.clusters = imageImportState.clusters.filter(cluster => cluster !== source);
+    reindexImageClusters();
+    imageSelectedClusterId = target.id;
+    renderImageImportGroups();
+    updateImageGroupStatus();
+  }
+
+  function assignImageCluster(clusterId, value) {
+    const cluster = imageImportState?.clusters?.find(item => item.id === clusterId);
+    if (!cluster) return;
+    cluster.assignment = value;
+    imageSelectedClusterId = cluster.id;
+    renderImageImportGroups();
+    updateImageGroupStatus();
+  }
+
+  function makeImageClusterCard(cluster) {
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = `maker-image-cluster-card${cluster.id === imageSelectedClusterId ? " selected" : ""}`;
+    card.draggable = true;
+    card.dataset.clusterId = String(cluster.id);
+    const thumb = createThumbnailCanvas(cluster);
+    thumb.setAttribute("aria-hidden", "true");
+    const meta = document.createElement("span");
+    const targetHints = imageClusterTargetHintCount(cluster);
+    meta.innerHTML = `<b>${cluster.cells.length}</b><small>${targetHints ? `${targetHints} target${targetHints === 1 ? "" : "s"}` : "cells"}</small>`;
+    card.append(thumb, meta);
+    card.title = `Visual group ${cluster.id + 1}: ${cluster.cells.length} cell${cluster.cells.length === 1 ? "" : "s"}. Drag to a bin; drag onto another sample to merge.`;
+    card.addEventListener("click", () => {
+      imageSelectedClusterId = imageSelectedClusterId === cluster.id ? -1 : cluster.id;
+      renderImageImportGroups();
+    });
+    card.addEventListener("dragstart", event => {
+      imageDraggedClusterId = cluster.id;
+      card.classList.add("dragging");
+      try { event.dataTransfer.setData("text/plain", String(cluster.id)); } catch (_) {}
+      if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+    });
+    card.addEventListener("dragend", () => {
+      imageDraggedClusterId = -1;
+      card.classList.remove("dragging");
+    });
+    card.addEventListener("dragover", event => {
+      if (imageDraggedClusterId < 0 || imageDraggedClusterId === cluster.id) return;
+      event.preventDefault();
+      event.stopPropagation();
+      card.classList.add("merge-target");
+      if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+    });
+    card.addEventListener("dragleave", () => card.classList.remove("merge-target"));
+    card.addEventListener("drop", event => {
+      event.preventDefault();
+      event.stopPropagation();
+      card.classList.remove("merge-target");
+      const sourceId = Number(event.dataTransfer?.getData("text/plain") || imageDraggedClusterId);
+      if (Number.isInteger(sourceId) && sourceId !== cluster.id) mergeImageClusterIds(sourceId, cluster.id);
+    });
+    return card;
+  }
+
+  function makeImageAssignmentBin(value, label) {
+    const bin = document.createElement("section");
+    bin.className = `maker-image-assignment-bin${value === "" ? " unassigned-bin" : ""}`;
+    const heading = document.createElement("button");
+    heading.type = "button";
+    heading.className = "maker-image-bin-heading";
+    heading.textContent = label.replace(/ [#@$.*+]$/, "");
+    const tray = document.createElement("div");
+    tray.className = "maker-image-bin-tray";
+    const assigned = imageImportState.clusters.filter(cluster => cluster.assignment === value);
+    assigned.forEach(cluster => tray.appendChild(makeImageClusterCard(cluster)));
+    if (value === ".") {
+      const autoTargets = effectiveAutoTargetCount();
+      if (autoTargets) {
+        const detected = document.createElement("span");
+        detected.className = "maker-image-auto-targets";
+        detected.innerHTML = `<b>${autoTargets}</b><small>AUTO DETECTED<br>CELLS</small>`;
+        detected.title = `${autoTargets} individual target cell${autoTargets === 1 ? "" : "s"} detected inside floor groups.`;
+        tray.appendChild(detected);
+      }
+    }
+    if (!assigned.length && !(value === "." && effectiveAutoTargetCount())) {
+      const empty = document.createElement("span");
+      empty.className = "maker-image-bin-empty";
+      empty.textContent = value === "" ? "DROP UNASSIGNED SAMPLES HERE" : "DROP HERE";
+      tray.appendChild(empty);
+    }
+    const applySelected = () => {
+      if (imageSelectedClusterId < 0) return;
+      assignImageCluster(imageSelectedClusterId, value);
+    };
+    heading.addEventListener("click", applySelected);
+    bin.addEventListener("dragover", event => {
+      if (imageDraggedClusterId < 0) return;
+      event.preventDefault();
+      bin.classList.add("drag-over");
+      if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+    });
+    bin.addEventListener("dragleave", event => {
+      if (!bin.contains(event.relatedTarget)) bin.classList.remove("drag-over");
+    });
+    bin.addEventListener("drop", event => {
+      event.preventDefault();
+      bin.classList.remove("drag-over");
+      const sourceId = Number(event.dataTransfer?.getData("text/plain") || imageDraggedClusterId);
+      if (Number.isInteger(sourceId)) assignImageCluster(sourceId, value);
+    });
+    bin.append(heading, tray);
+    return bin;
+  }
+
+  function renderImageImportGroups() {
+    if (!imageGroupsEl) return;
+    imageGroupsEl.innerHTML = "";
+    if (!imageImportState?.clusters?.length) {
+      imageGroupsEl.innerHTML = '<p class="maker-image-help">Align the grid and press Auto Read Tiles.</p>';
+      return;
+    }
+
+    const board = document.createElement("div");
+    board.className = "maker-image-assignment-board";
+    const tip = document.createElement("p");
+    tip.className = "maker-image-drag-tip";
+    tip.textContent = "DRAG samples into a type. Drop one sample onto another to merge near-identical groups. Click a sample, then a type, if you prefer.";
+    board.appendChild(tip);
+
+    const unassigned = makeImageAssignmentBin("", "UNASSIGNED");
+    unassigned.classList.add("maker-image-unassigned-bin");
+    board.appendChild(unassigned);
+
+    const bins = document.createElement("div");
+    bins.className = "maker-image-assignment-grid";
+    IMAGE_CLUSTER_ASSIGNMENTS.filter(([value]) => value !== "").forEach(([value, label]) => {
+      bins.appendChild(makeImageAssignmentBin(value, label));
+    });
+    board.appendChild(bins);
+    imageGroupsEl.appendChild(board);
+    updateImageGroupStatus();
+  }
+
+  function ensureTraceCells(reset = false, fill = " ") {
+    if (!imageImportState) return;
+    const needed = imageImportState.cols * imageImportState.rows;
+    if (reset || !Array.isArray(imageImportState.traceCells) || imageImportState.traceCells.length !== needed) {
+      imageImportState.traceCells = Array(needed).fill(fill);
+    }
+  }
+
+  function setImageTraceTool(value) {
+    imageTraceTool = value;
+    imageTraceToolButtons.forEach(button => button.classList.toggle("selected", button.dataset.imageTraceTool === value));
+  }
+
+  function paintImageTraceCell(index) {
+    if (!imageImportState?.traceCells || index < 0 || index >= imageImportState.traceCells.length || imageTraceLastIndex === index) return;
+    if (imageTraceTool === "@" || imageTraceTool === "+") {
+      imageImportState.traceCells = imageImportState.traceCells.map(value => (value === "@" || value === "+") ? " " : value);
+    }
+    imageImportState.traceCells[index] = imageTraceTool;
+    imageTraceLastIndex = index;
+    drawImageImportPreview();
+  }
+
+  function startManualTrace() {
+    if (!imageImportState) return;
+    imageImportState.cols = clampImageGridSize(imageColsInput?.value || imageImportState.cols);
+    imageImportState.rows = clampImageGridSize(imageRowsInput?.value || imageImportState.rows);
+    ensureTraceCells(false, " ");
+    imageImportMode = "trace";
+    if (imageAutoPanel) imageAutoPanel.hidden = true;
+    if (imageTracePanel) imageTracePanel.hidden = false;
+    imageTraceBtn?.classList.add("selected");
+    imageImportReanalyseBtn?.classList.remove("selected");
+    setImageTraceTool(imageTraceTool || " ");
+    setImageImportStatus("Manual trace active. Paint components over the photograph, then press Import Level.", "success");
+    drawImageImportPreview();
+  }
+
+  function startAutoMode() {
+    imageImportMode = "auto";
+    if (imageAutoPanel) imageAutoPanel.hidden = false;
+    if (imageTracePanel) imageTracePanel.hidden = true;
+    imageTraceBtn?.classList.remove("selected");
+    imageImportReanalyseBtn?.classList.add("selected");
+    drawImageImportPreview();
+  }
+
+  function buildImageImportRows() {
+    if (!imageImportState) throw new Error("No image data is ready to import.");
+    const rowsOut = [];
+    if (imageImportMode === "trace") {
+      ensureTraceCells(false, " ");
+      for (let y = 0; y < imageImportState.rows; y++) {
+        let line = "";
+        for (let x = 0; x < imageImportState.cols; x++) {
+          const value = imageImportState.traceCells[y * imageImportState.cols + x];
+          if (value === "void") line += " ";
+          else if (value === " ") line += "-";
+          else line += value;
+        }
+        rowsOut.push(line.replace(/\s+$/g, ""));
+      }
+    } else {
+      if (!imageImportState.cellsData?.length || !imageImportState.clusters?.length) throw new Error("Press Auto Read Tiles first, or use Trace Manually.");
+      const missing = unresolvedImageClusters();
+      if (missing.length) throw new Error(`Assign ${missing.length} tile group${missing.length === 1 ? "" : "s"}, or override every cell in those groups, before importing.`);
+      for (let y = 0; y < imageImportState.rows; y++) {
+        let line = "";
+        for (let x = 0; x < imageImportState.cols; x++) {
+          const index = y * imageImportState.cols + x;
+          const assignment = effectiveImageCellAssignment(index);
+          if (assignment === "void") line += " ";
+          else if (assignment === " ") line += "-";
+          else line += assignment;
+        }
+        rowsOut.push(line.replace(/\s+$/g, ""));
+      }
+    }
+    while (rowsOut.length > 1 && !rowsOut[0].trim()) rowsOut.shift();
+    while (rowsOut.length > 1 && !rowsOut.at(-1).trim()) rowsOut.pop();
+    return rowsOut;
+  }
+
+  function syncImageGridDimensions(resetTrace = false) {
+    if (!imageImportState) return;
+    const nextCols = clampImageGridSize(imageColsInput?.value || imageImportState.cols);
+    const nextRows = clampImageGridSize(imageRowsInput?.value || imageImportState.rows);
+    const changed = nextCols !== imageImportState.cols || nextRows !== imageImportState.rows;
+    imageImportState.cols = nextCols;
+    imageImportState.rows = nextRows;
+    if (changed || resetTrace) {
+      imageImportState.clusters = [];
+      imageImportState.cellsData = [];
+      imageImportState.cellOverrides = Array(nextCols * nextRows).fill(null);
+      imageImportState.targetHints = Array(nextCols * nextRows).fill(false);
+      imageImportState.traceCells = Array(nextCols * nextRows).fill(" ");
+      imageSelectedCellIndex = -1;
+    imageSelectedClusterId = -1;
+      updateImageCellOverridePanel();
+      if (imageImportMode === "auto") renderImageImportGroups();
+    }
+    drawImageImportPreview();
+  }
+
+  function resetImageCorners() {
+    if (!imageImportState?.sourceCanvas) return;
+    imageImportState.corners = defaultImageCorners(imageImportState.sourceCanvas);
+    imageImportState.clusters = [];
+    imageImportState.cellsData = [];
+    imageImportState.cellOverrides = Array(imageImportState.cols * imageImportState.rows).fill(null);
+    imageImportState.targetHints = Array(imageImportState.cols * imageImportState.rows).fill(false);
+    imageSelectedCellIndex = -1;
+    imageSelectedClusterId = -1;
+    imageCornerPlaceIndex = -1;
+    imageCornerPlaceButtons.forEach(button => button.classList.remove("selected"));
+    updateImageCellOverridePanel();
+    renderImageImportGroups();
+    setImageImportStatus("Corners reset. Drag a red handle, or use Place Corner and click the exact position in the photograph.");
+    drawImageImportPreview();
   }
 
   function readRainbowPreference() {
@@ -7982,7 +9121,7 @@ window.BOXXY_RELEASE = Object.freeze({
     if (solverOutput) solverOutput.value = verification.route;
     setSolverStatus(savedAutomatically
       ? "The verified solution has been attached, saved and synchronised with linked pack drafts."
-      : "The verified solution has been attached. Test the puzzle, click the character five times, then press S for the guided solve.", "success");
+      : "The verified solution has been attached. Test the puzzle, then type HIROYUKI during play for the guided solve.", "success");
     setStatus(savedAutomatically
       ? `Solver saved a verified ${verification.moves}-move guided solve and updated linked pack drafts.`
       : `Solver attached a verified ${verification.moves}-move guided solve to the current puzzle. Save the level to keep it.`, "success");
@@ -8114,7 +9253,7 @@ window.BOXXY_RELEASE = Object.freeze({
     const savedAutomatically = persistAttachedSolutionToLoadedSave();
     setSolverStatus(savedAutomatically
       ? "Imported solution attached and saved to the loaded level. Its pack entries have been updated."
-      : "Imported solution attached. Test the puzzle, click the character five times, then press S.", "success");
+      : "Imported solution attached. Test the puzzle, then type HIROYUKI during play.", "success");
     setStatus(savedAutomatically
       ? `A verified ${route.length}-move imported solve was saved and synchronised with linked pack drafts.`
       : `A verified ${route.length}-move imported solve is attached to the current puzzle. Save the level to keep it.`, "success");
@@ -9928,6 +11067,171 @@ window.BOXXY_RELEASE = Object.freeze({
     }
   });
 
+
+  imageImportBtn?.addEventListener("click", () => imageInput?.click());
+  imageImportReplaceBtn?.addEventListener("click", () => imageInput?.click());
+
+  imageInput?.addEventListener("change", async () => {
+    const file = imageInput.files?.[0];
+    if (!file) return;
+    try {
+      const loaded = await loadImageFromFile(file);
+      imageImportLoaded = { image: loaded.image, name: file.name };
+      imageImportState = createInitialImageImportState(loaded.image);
+      if (imageColsInput) imageColsInput.value = String(imageImportState.cols);
+      if (imageRowsInput) imageRowsInput.value = String(imageImportState.rows);
+      imageImportMode = "auto";
+      imageSelectedCellIndex = -1;
+    imageSelectedClusterId = -1;
+      imageCornerPlaceIndex = -1;
+      imageCornerPlaceButtons.forEach(button => button.classList.remove("selected"));
+      updateImageCellOverridePanel();
+      if (imageAutoPanel) imageAutoPanel.hidden = false;
+      if (imageTracePanel) imageTracePanel.hidden = true;
+      imageTraceBtn?.classList.remove("selected");
+      imageImportReanalyseBtn?.classList.remove("selected");
+      renderImageImportGroups();
+      openImageImportModal();
+      drawImageImportPreview();
+      setImageImportStatus("Set the four board corners. Drag the red handles, or press Place Corner 1 and click the four board corners in sequence. Then set rows/columns and read or trace the tiles.");
+    } catch (error) {
+      setStatus(error?.message || "The image could not be opened.", "error");
+      setImageImportStatus(error?.message || "The image could not be opened.", "error");
+    } finally {
+      if (imageInput) imageInput.value = "";
+    }
+  });
+
+  imageColsInput?.addEventListener("change", () => syncImageGridDimensions());
+  imageRowsInput?.addEventListener("change", () => syncImageGridDimensions());
+  imageResetCornersBtn?.addEventListener("click", resetImageCorners);
+  imageCornerPlaceButtons.forEach(button => button.addEventListener("click", () => {
+    const index = Number(button.dataset.imageCornerPlace);
+    setImageCornerPlacementMode(imageCornerPlaceIndex === index ? -1 : index);
+  }));
+  imageCellValueButtons.forEach(button => button.addEventListener("click", () => {
+    setImageCellOverride(button.dataset.imageCellValue || "__auto__");
+  }));
+
+  imageImportReanalyseBtn?.addEventListener("click", async () => {
+    try {
+      syncImageGridDimensions();
+      startAutoMode();
+      setImageImportStatus("Reading aligned grid…");
+      await waitForPaint();
+      analyseImageIntoLevel();
+      renderImageImportGroups();
+      drawImageImportPreview();
+    } catch (error) {
+      setImageImportStatus(error?.message || "The image could not be analysed.", "error");
+    }
+  });
+
+  imageTraceBtn?.addEventListener("click", startManualTrace);
+  imageTraceToolButtons.forEach(button => button.addEventListener("click", () => setImageTraceTool(button.dataset.imageTraceTool || " ")));
+  imageTraceClearBtn?.addEventListener("click", () => {
+    if (!imageImportState) return;
+    ensureTraceCells(true, "void");
+    setImageImportStatus("Manual trace cleared to outside/void. Paint floor or components onto the board.");
+    drawImageImportPreview();
+  });
+  imageTraceFloorBtn?.addEventListener("click", () => {
+    if (!imageImportState) return;
+    ensureTraceCells(true, " ");
+    setImageImportStatus("Manual trace filled with floor. Paint walls, boxes, targets and the player over it.", "success");
+    drawImageImportPreview();
+  });
+
+  imagePreviewCanvas?.addEventListener("pointerdown", event => {
+    if (!imageImportState || imageImportModal?.hidden) return;
+    const point = pointerOnPreview(event);
+    if (imageCornerPlaceIndex >= 0) {
+      if (placeImageCornerFromCanvasPoint(point)) event.preventDefault();
+      return;
+    }
+    const cornerIndex = nearestImageCorner(point, 36);
+    if (cornerIndex >= 0) {
+      imageCornerDragIndex = cornerIndex;
+      imagePreviewCanvas.setPointerCapture?.(event.pointerId);
+      event.preventDefault();
+      return;
+    }
+    const cell = imageCellFromCanvasPoint(point);
+    if (!cell) return;
+    if (imageImportMode === "auto") {
+      if (!imageImportState.cellsData?.length) {
+        setImageImportStatus("Align the corners and press Auto Read Tiles first.");
+        return;
+      }
+      imageSelectedCellIndex = cell.index;
+      updateImageCellOverridePanel();
+      drawImageImportPreview();
+      event.preventDefault();
+      return;
+    }
+    imageTracePainting = true;
+    imageTraceLastIndex = -1;
+    imagePreviewCanvas.setPointerCapture?.(event.pointerId);
+    paintImageTraceCell(cell.index);
+    event.preventDefault();
+  });
+
+  imagePreviewCanvas?.addEventListener("pointermove", event => {
+    if (!imageImportState) return;
+    const point = pointerOnPreview(event);
+    if (imageCornerDragIndex >= 0) {
+      const source = canvasToSource(point);
+      const sourceCanvas = imageImportState.sourceCanvas;
+      imageImportState.corners[imageCornerDragIndex] = {
+        x: Math.max(0, Math.min(sourceCanvas.width, source.x)),
+        y: Math.max(0, Math.min(sourceCanvas.height, source.y))
+      };
+      imageImportState.clusters = [];
+      imageImportState.cellsData = [];
+      imageImportState.cellOverrides = Array(imageImportState.cols * imageImportState.rows).fill(null);
+      imageImportState.targetHints = Array(imageImportState.cols * imageImportState.rows).fill(false);
+      imageSelectedCellIndex = -1;
+    imageSelectedClusterId = -1;
+      updateImageCellOverridePanel();
+      if (imageImportMode === "auto") renderImageImportGroups();
+      drawImageImportPreview();
+      event.preventDefault();
+      return;
+    }
+    if (!imageTracePainting || imageImportMode !== "trace") return;
+    const cell = imageCellFromCanvasPoint(point);
+    if (cell) paintImageTraceCell(cell.index);
+    event.preventDefault();
+  });
+
+  const endImagePreviewPointer = event => {
+    imageTracePainting = false;
+    imageTraceLastIndex = -1;
+    imageCornerDragIndex = -1;
+    try { imagePreviewCanvas?.releasePointerCapture?.(event.pointerId); } catch (_) {}
+  };
+  imagePreviewCanvas?.addEventListener("pointerup", endImagePreviewPointer);
+  imagePreviewCanvas?.addEventListener("pointercancel", endImagePreviewPointer);
+
+  imageImportCloseBtn?.addEventListener("click", closeImageImportModal);
+  imageImportCancelBtn?.addEventListener("click", closeImageImportModal);
+  imageImportModal?.addEventListener("click", event => {
+    if (event.target === imageImportModal) closeImageImportModal();
+  });
+
+  imageImportApplyBtn?.addEventListener("click", () => {
+    try {
+      syncImageGridDimensions();
+      const rowsFromImage = buildImageImportRows();
+      importRows(rowsFromImage);
+      clearAttachedSolution(true);
+      setStatus(`Imported ${imageImportState.cols} × ${imageImportState.rows} level from image.`, "success");
+      closeImageImportModal();
+    } catch (error) {
+      setImageImportStatus(error?.message || "The image could not be imported.", "error");
+    }
+  });
+
   async function copyShareLink() {
     const validation = validate();
     if (!validation.ok) {
@@ -10054,7 +11358,10 @@ window.BOXXY_RELEASE = Object.freeze({
   });
 
   makerFullscreenBtn?.addEventListener("click", toggleMakerFullscreen);
-  closeBtn.addEventListener("click", closeMaker);
+  closeBtn.addEventListener("click", () => {
+    closeImageImportModal();
+    closeMaker();
+  });
   modal.addEventListener("click", event => {
     if (event.target === modal) closeMaker();
   });
