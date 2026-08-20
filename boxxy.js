@@ -6,7 +6,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: 280,
+  version: "281",
   lastUpdated: "2026-08-20"
 });
 /* BOXXY v280 — account avatar vertical position corrected between v278 and v279; release number updated for Legal. */

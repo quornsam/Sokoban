@@ -1,4 +1,4 @@
-/* BOXXY v277 — optional first-party accounts, cloud sync, gameplay statistics and level-attempt history. */
+/* BOXXY v281 — account medals added alongside cloud sync, gameplay statistics and level-attempt history. */
 (() => {
   "use strict";
 
@@ -60,6 +60,8 @@
   const stepsValue = document.getElementById("accountStepsValue");
   const pushesValue = document.getElementById("accountPushesValue");
   const avatarCanvas = document.getElementById("accountAvatarCanvas");
+  const medals = document.getElementById("accountMedals");
+  const medalsEmpty = document.getElementById("accountMedalsEmpty");
   const accountGuest = document.getElementById("accountGuest");
 
   if (!entryBtn || !accountView) return;
@@ -412,6 +414,40 @@
     return `${minutes}m`;
   }
 
+  function renderMedals() {
+    if (!medals || !medalsEmpty) return;
+    medals.replaceChildren();
+    let earned = 0;
+
+    const streakSource = document.getElementById("dailyStreak");
+    const streakNumber = Number(document.getElementById("dailyStreakNumber")?.textContent || 0);
+    if (streakSource && streakNumber > 0) {
+      const streak = document.createElement("span");
+      streak.className = "daily-streak-badge account-medal-static";
+      streak.dataset.tier = streakSource.dataset.tier || "green";
+      streak.dataset.digits = streakSource.dataset.digits || String(Math.min(5, String(streakNumber).length));
+      streak.setAttribute("aria-label", `Daily streak medal: ${streakNumber} ${streakNumber === 1 ? "day" : "days"}`);
+      streak.innerHTML = `<span class="daily-streak-flame" aria-hidden="true"></span><span class="daily-streak-number" aria-hidden="true">${streakNumber}</span>`;
+      medals.appendChild(streak);
+      earned++;
+    }
+
+    const completedSources = document.querySelectorAll("#completedPackStars .completed-pack-star");
+    completedSources.forEach(source => {
+      const medal = document.createElement("span");
+      medal.className = `${source.className} account-medal-static`;
+      medal.style.cssText = source.style.cssText;
+      medal.innerHTML = source.innerHTML;
+      const label = source.getAttribute("aria-label") || source.title || "Completed puzzle pack medal";
+      medal.setAttribute("aria-label", label.replace(/^View congratulations for /i, "Medal for "));
+      medals.appendChild(medal);
+      earned++;
+    });
+
+    medals.hidden = earned === 0;
+    medalsEmpty.hidden = earned !== 0;
+  }
+
   function render() {
     const loggedIn = Boolean(account);
     entryBtn.classList.toggle("account-entry-logged-in", loggedIn);
@@ -432,6 +468,7 @@
       if (stepsValue) stepsValue.textContent = lifetimeStat(ALL_TIME_STEPS_KEY).toLocaleString("en-GB");
       if (pushesValue) pushesValue.textContent = lifetimeStat(ALL_TIME_PUSHES_KEY).toLocaleString("en-GB");
       if (avatarCanvas) window.CharacterStyler?.draw?.(avatarCanvas, "player-front");
+      renderMedals();
     }
     renderMode();
   }

@@ -6325,3 +6325,24 @@ body[data-boxxy-speed="fast"] .piece.player.pushing :is(img,canvas),body[data-bo
   .account-detail-grid{grid-template-columns:repeat(5,minmax(0,1fr))}
   .account-detail-grid>div,.account-detail-grid>div:last-child{grid-column:auto;min-height:52px}
 }
+
+
+/* BOXXY v281 — account trophy cabinet. */
+.account-medals-card{margin:0 0 12px;padding:12px;border:2px solid var(--ink);background:#f7f0e5}
+.account-medals-heading{display:block;margin:0 0 9px;color:#71685e;font-size:7px;font-weight:1000;letter-spacing:.1em}
+.account-medals{--header-badge-size:46px;--header-badge-gap:8px;display:flex;align-items:center;flex-wrap:wrap;gap:var(--header-badge-gap);min-height:46px}
+.account-medals[hidden]{display:none!important}
+.account-medals .account-medal-static{pointer-events:none;cursor:default;transition:none}
+.account-medals .completed-pack-star{width:var(--header-badge-size);height:var(--header-badge-size)}
+.account-medals .daily-streak-badge{width:calc(var(--header-badge-size) * 163 / 208);height:var(--header-badge-size)}
+.account-medals .account-medal-static:hover,.account-medals .account-medal-static:focus-visible{transform:none;filter:drop-shadow(2px 2px 0 rgba(23,23,25,.28))}
+.account-medals-empty{margin:0;font-size:10px;line-height:1.35;font-weight:850;color:#6b6257}
+.account-medals-empty[hidden]{display:none!important}
+@media(max-width:760px){
+  .account-medals-card{padding:10px;margin-bottom:10px}
+  .account-medals{--header-badge-size:40px;--header-badge-gap:7px;min-height:40px}
+}
+@media(max-height:520px) and (orientation:landscape){
+  .account-medals-card{padding:8px;margin-bottom:8px}
+  .account-medals{--header-badge-size:34px;--header-badge-gap:6px;min-height:34px}
+}
