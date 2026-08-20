@@ -6,9 +6,14 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: 272,
+  version: "281",
   lastUpdated: "2026-08-20"
 });
+/* BOXXY v280 — account avatar vertical position corrected between v278 and v279; release number updated for Legal. */
+/* BOXXY v279 — account avatar centred on its visible artwork; release number updated for Legal. */
+/* BOXXY v277 — larger account avatar, clearer Basement device/stat display, and per-level attempt tracking. */
+/* BOXXY v276 — clearer total-step labels and reliable Enter/Space next-level handling after completion. */
+/* BOXXY v275 — tidier MENU controls plus richer account avatar and lifetime gameplay statistics. */
 /* Stored solver routes are kept separate from the authored pack data. */
 (() => {
   "use strict";
@@ -1197,7 +1202,70 @@ window.BOXXY_RELEASE = Object.freeze({
   const UNLOCK_SOURCE_PACK_IDS = new Set([PRIMARY_PACK_ID, MICROBAN_PACK_ID]);
   const ADDITIONAL_PACKS_UNLOCK_KEY = "boxxy-additional-packs-unlocked-v1";
   const ACTIVE_PACK_STORAGE_KEY = "boxxy-active-pack-v2";
+  const ALL_TIME_STEPS_KEY = "boxxy-all-time-steps-v1";
+  const ALL_TIME_PUSHES_KEY = "boxxy-all-time-pushes-v1";
+  const LEVEL_ATTEMPTS_KEY = "boxxy-level-attempts-v1";
+  const DEVICE_ID_KEY = "boxxy-device-id-v1";
   const packStorageKeyFor = (packId, suffix) => `boxxy-pack-${packId}-${suffix}-v1`;
+
+  function boxxyDeviceId() {
+    try {
+      let id = String(localStorage.getItem(DEVICE_ID_KEY) || "").trim();
+      if (id) return id;
+      if (crypto?.randomUUID) id = crypto.randomUUID();
+      else {
+        const bytes = new Uint8Array(16);
+        crypto.getRandomValues(bytes);
+        id = [...bytes].map(value => value.toString(16).padStart(2, "0")).join("");
+      }
+      localStorage.setItem(DEVICE_ID_KEY, id);
+      return id;
+    } catch (_) {
+      return "local";
+    }
+  }
+
+  function readLevelAttempts() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(LEVEL_ATTEMPTS_KEY) || "null");
+      if (parsed && typeof parsed === "object" && parsed.levels && typeof parsed.levels === "object") return parsed;
+    } catch (_) {}
+    return { version: 1, levels: {} };
+  }
+
+  function recordLevelAttempt(packId, levelToken, details = {}) {
+    const cleanPackId = String(packId || "").trim();
+    const cleanToken = String(levelToken ?? "").trim();
+    if (!cleanPackId || !cleanToken) return;
+    try {
+      const data = readLevelAttempts();
+      const key = `${cleanPackId}:${cleanToken}`;
+      const deviceId = boxxyDeviceId();
+      const previous = data.levels[key] && typeof data.levels[key] === "object" ? data.levels[key] : {};
+      const devices = previous.devices && typeof previous.devices === "object" ? { ...previous.devices } : {};
+      const oldDevice = devices[deviceId] && typeof devices[deviceId] === "object" ? devices[deviceId] : {};
+      devices[deviceId] = {
+        count: Math.max(0, Math.trunc(Number(oldDevice.count) || 0)) + 1,
+        lastAt: Date.now()
+      };
+      data.levels[key] = {
+        packId: cleanPackId,
+        packName: String(details.packName || previous.packName || cleanPackId),
+        levelToken: cleanToken,
+        levelNumber: Number.isFinite(Number(details.levelNumber)) ? Number(details.levelNumber) : (Number(previous.levelNumber) || 0),
+        levelName: String(details.levelName || previous.levelName || ""),
+        devices
+      };
+      localStorage.setItem(LEVEL_ATTEMPTS_KEY, JSON.stringify(data));
+    } catch (_) {}
+  }
+
+  function addLifetimeStat(key, amount = 1) {
+    try {
+      const current = Math.max(0, Math.trunc(Number(localStorage.getItem(key)) || 0));
+      localStorage.setItem(key, String(current + Math.max(0, Math.trunc(Number(amount) || 0))));
+    } catch (_) {}
+  }
   const packCompletionStatsKeyFor = packId => packStorageKeyFor(packId, "completion-stats");
   const PACK_ACCENT_COLOURS = Object.freeze({
     red: "#db3b27",
@@ -1836,6 +1904,7 @@ window.BOXXY_RELEASE = Object.freeze({
   const settingsCloseBtn = document.getElementById("settingsCloseBtn");
   const settingsMainView = document.getElementById("settingsMainView");
   const settingsKeyboardView = document.getElementById("settingsKeyboardView");
+  const settingsAccountView = document.getElementById("settingsAccountView");
   const settingsKeyboardBtn = document.getElementById("settingsKeyboardBtn");
   const settingsKeyboardBackBtn = document.getElementById("settingsKeyboardBackBtn");
   const settingsMusicTrack = document.getElementById("settingsMusicTrack");
@@ -4406,6 +4475,7 @@ window.BOXXY_RELEASE = Object.freeze({
   function showSettingsMainView() {
     if (settingsMainView) settingsMainView.hidden = false;
     if (settingsKeyboardView) settingsKeyboardView.hidden = true;
+    if (settingsAccountView) settingsAccountView.hidden = true;
   }
 
   function openSettings() {
@@ -5466,6 +5536,11 @@ window.BOXXY_RELEASE = Object.freeze({
     scheduleIdle();
     if (thoughtText) thoughtText.textContent = `Daily Boxxy #${Number(puzzle.sequence) || ""}. One puzzle. One day. Good luck.`;
     refreshLevelButtons();
+    recordLevelAttempt("daily-boxxy", String(puzzle.date || puzzle.sequence || "daily"), {
+      packName: "Daily Boxxy",
+      levelNumber: Number(puzzle.sequence) || 0,
+      levelName: String(puzzle.date || "Daily Boxxy")
+    });
     captureBoxxyAnalytics("daily_puzzle_started", currentLevelAnalytics());
     return true;
   }
@@ -5555,6 +5630,13 @@ window.BOXXY_RELEASE = Object.freeze({
     scheduleIdle();
     showCharacterThought(null, !thoughtReady);
     refreshLevelButtons();
+    if (!preserveAutoplay) {
+      recordLevelAttempt(activePack.id, String(levelIndex + 1), {
+        packName: String(activePack.displayName || activePack.title || activePack.id || ""),
+        levelNumber: levelIndex + 1,
+        levelName: String(levelData?.name || `Level ${levelIndex + 1}`)
+      });
+    }
     captureBoxxyAnalytics("level_started", currentLevelAnalytics({
       guided_solve_start: Boolean(preserveAutoplay)
     }));
@@ -5738,6 +5820,10 @@ window.BOXXY_RELEASE = Object.freeze({
       player = [nx, ny];
       moves++;
       pushes++;
+      if (!fromAutoplay) {
+        addLifetimeStat(ALL_TIME_STEPS_KEY);
+        addLifetimeStat(ALL_TIME_PUSHES_KEY);
+      }
       facing = facingOverride || attemptedFacing;
       sfx.push();
       if (isGoal(bx, by)) sfx.goal();
@@ -5749,6 +5835,7 @@ window.BOXXY_RELEASE = Object.freeze({
       boxes.forEach(box => { box.moving = false; });
       player = [nx, ny];
       moves++;
+      if (!fromAutoplay) addLifetimeStat(ALL_TIME_STEPS_KEY);
       facing = facingOverride || attemptedFacing;
       sfx.walk();
       render("walking");
@@ -5961,6 +6048,12 @@ window.BOXXY_RELEASE = Object.freeze({
       setZenNextButtonVisible(false);
       modal.hidden = false;
       render("idle");
+      // Move keyboard focus into the completion dialog. Without this, a control
+      // behind the modal (for example RESTART) can remain focused and Enter/Space
+      // can activate it instead of advancing to the next level.
+      if (completeMode === "normal") {
+        requestAnimationFrame(() => nextBtn?.focus?.({ preventScroll: true }));
+      }
       if (grandCelebrationPack) {
         renderPackCompletionStats(grandCelebrationPack, true);
         grandBurst(grandCelebrationPack);
@@ -7208,7 +7301,15 @@ window.BOXXY_RELEASE = Object.freeze({
 
     if (completeMode !== "normal" || levelIndex >= LEVELS.length - 1) return;
     if (event.key !== "Enter" && event.key !== " " && event.key !== "Spacebar") return;
-    if (target instanceof Element && target.closest("button, a")) return;
+
+    // If focus is deliberately on a control inside the completion dialog, let
+    // that control keep its normal keyboard behaviour. Any stale focus behind
+    // the modal is intercepted so it cannot restart or otherwise alter the level.
+    const focusedModalControl = target instanceof Element
+      && modal.contains(target)
+      && target.closest("button, a");
+    if (focusedModalControl && focusedModalControl !== nextBtn) return;
+
     event.preventDefault();
     if (event.repeat) return;
     nextBtn.click();
