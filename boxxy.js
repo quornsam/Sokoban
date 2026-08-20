@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: 277,
+  version: 279,
   lastUpdated: "2026-08-20"
 });
+/* BOXXY v279 — account avatar centred on its visible artwork; release number updated for Legal. */
 /* BOXXY v277 — larger account avatar, clearer Basement device/stat display, and per-level attempt tracking. */
 /* BOXXY v276 — clearer total-step labels and reliable Enter/Space next-level handling after completion. */
 /* BOXXY v275 — tidier MENU controls plus richer account avatar and lifetime gameplay statistics. */
