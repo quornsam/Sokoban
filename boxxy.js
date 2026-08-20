@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "281",
+  version: "282",
   lastUpdated: "2026-08-20"
 });
+/* BOXXY v282 — Zen Mode Undo now repeats while held without sacrificing swipe-anywhere movement. */
 /* BOXXY v280 — account avatar vertical position corrected between v278 and v279; release number updated for Legal. */
 /* BOXXY v279 — account avatar centred on its visible artwork; release number updated for Legal. */
 /* BOXXY v277 — larger account avatar, clearer Basement device/stat display, and per-level attempt tracking. */
@@ -7331,6 +7332,38 @@ window.BOXXY_RELEASE = Object.freeze({
   let zenScreenSwipe = null;
   let zenSuppressedClick = null;
 
+  const stopZenUndoHold = gesture => {
+    if (!gesture) return;
+    window.clearTimeout(gesture.undoIntentTimer);
+    window.clearTimeout(gesture.undoRepeatDelay);
+    window.clearInterval(gesture.undoRepeatTimer);
+    gesture.undoIntentTimer = 0;
+    gesture.undoRepeatDelay = 0;
+    gesture.undoRepeatTimer = 0;
+  };
+
+  const performZenUndo = gesture => {
+    if (!gesture || autoplayRunning || !history.length || completed) {
+      stopZenUndoHold(gesture);
+      return;
+    }
+    undo();
+  };
+
+  const beginZenUndoHold = gesture => {
+    if (!gesture || zenScreenSwipe !== gesture || gesture.triggered || gesture.holdCommitted) return;
+    gesture.holdCommitted = true;
+    performZenUndo(gesture);
+
+    // Match BOXXY's normal held-control cadence: one deliberate Undo, then
+    // continuous Undo until the finger is released.
+    const elapsed = Math.max(0, performance.now() - gesture.downAt);
+    const remaining = Math.max(0, scaledBoxxyDelay(330) - elapsed);
+    gesture.undoRepeatDelay = window.setTimeout(() => {
+      gesture.undoRepeatTimer = window.setInterval(() => performZenUndo(gesture), scaledBoxxyDelay(105));
+    }, remaining);
+  };
+
   document.addEventListener("pointerdown", event => {
     if (!phoneZenTouchPointer(event) || firstPersonMode || completed || autoplayRunning) return;
     if (event.isPrimary === false) return;
@@ -7340,13 +7373,23 @@ window.BOXXY_RELEASE = Object.freeze({
     // they retain BOXXY's original held-button repeat behaviour.
     if (target?.closest?.("[data-dir]")) return;
 
+    const undoTarget = Boolean(target?.closest?.("#undoBtn"));
     zenScreenSwipe = {
       id: event.pointerId,
       x: event.clientX,
       y: event.clientY,
+      downAt: performance.now(),
       triggered: false,
-      undo: Boolean(target?.closest?.("#undoBtn"))
+      undo: undoTarget,
+      holdCommitted: false,
+      undoIntentTimer: 0,
+      undoRepeatDelay: 0,
+      undoRepeatTimer: 0
     };
+    if (undoTarget) {
+      const gesture = zenScreenSwipe;
+      gesture.undoIntentTimer = window.setTimeout(() => beginZenUndoHold(gesture), ZEN_CONTROL_INTENT_DELAY_MS);
+    }
     ensureAudio();
   }, { capture: true });
 
@@ -7356,8 +7399,14 @@ window.BOXXY_RELEASE = Object.freeze({
     const dy = event.clientY - zenScreenSwipe.y;
     if (Math.max(Math.abs(dx), Math.abs(dy)) < ZEN_SCREEN_SWIPE_THRESHOLD) return;
 
+    // Once an Undo hold has deliberately committed, movement of that finger
+    // stays an Undo hold. Before that point, a swipe beginning on Undo is still
+    // treated exactly like a swipe beginning anywhere else in Zen Mode.
+    if (zenScreenSwipe.undo && zenScreenSwipe.holdCommitted) return;
+
     event.preventDefault();
     if (zenScreenSwipe.triggered) return;
+    stopZenUndoHold(zenScreenSwipe);
     zenScreenSwipe.triggered = true;
     zenSwipeMove(dx, dy, true);
   }, { capture: true, passive: false });
@@ -7366,13 +7415,14 @@ window.BOXXY_RELEASE = Object.freeze({
     if (!zenScreenSwipe || zenScreenSwipe.id !== event.pointerId) return;
     const gesture = zenScreenSwipe;
     zenScreenSwipe = null;
+    stopZenUndoHold(gesture);
 
     const dx = event.clientX - gesture.x;
     const dy = event.clientY - gesture.y;
     const distance = Math.max(Math.abs(dx), Math.abs(dy));
     let swiped = gesture.triggered;
 
-    if (!swiped && distance >= ZEN_SCREEN_SWIPE_THRESHOLD) {
+    if (!swiped && !gesture.holdCommitted && distance >= ZEN_SCREEN_SWIPE_THRESHOLD) {
       event.preventDefault();
       swiped = true;
       zenSwipeMove(dx, dy, false);
@@ -7386,9 +7436,9 @@ window.BOXXY_RELEASE = Object.freeze({
         x: event.clientX,
         y: event.clientY
       };
-    } else if (gesture.undo && !undoBtn.disabled && !autoplayRunning && history.length && !completed) {
-      // Undo normally acts on pointerdown. In Zen Mode defer it until pointerup
-      // so a swipe that begins over Undo remains a swipe rather than an Undo.
+    } else if (gesture.undo && !gesture.holdCommitted && !undoBtn.disabled && !autoplayRunning && history.length && !completed) {
+      // A short Zen Mode tap on Undo is one Undo. Holding commits to repeated
+      // Undo, while moving first remains a normal swipe.
       undo();
     }
 
@@ -7397,7 +7447,9 @@ window.BOXXY_RELEASE = Object.freeze({
 
   document.addEventListener("pointercancel", event => {
     if (!zenScreenSwipe || zenScreenSwipe.id !== event.pointerId) return;
+    const gesture = zenScreenSwipe;
     zenScreenSwipe = null;
+    stopZenUndoHold(gesture);
     releaseBlockedPush();
   }, { capture: true });
 
