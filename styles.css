@@ -6255,9 +6255,8 @@ body[data-boxxy-speed="fast"] .piece.player.pushing :is(img,canvas),body[data-bo
 .account-details{display:block}
 .account-details[hidden]{display:none!important}
 .account-player-summary{display:grid;grid-template-columns:150px minmax(0,1fr);gap:12px;margin-bottom:12px}
-.account-avatar-card{min-height:150px;padding:9px;border:2px solid var(--ink);background:var(--yellow);display:grid;grid-template-rows:auto minmax(0,1fr);place-items:center;overflow:hidden}
-.account-avatar-card>span{align-self:start;color:#5f574d;font-size:7px;font-weight:1000;letter-spacing:.1em}
-.account-avatar-card canvas{display:block;width:min(122px,100%);height:auto;align-self:end}
+.account-avatar-card{height:150px;padding:0;border:2px solid var(--ink);background:#f7f0e5;display:flex;align-items:flex-end;justify-content:center;overflow:hidden}
+.account-avatar-card canvas{display:block;width:auto;height:100%;max-width:none;flex:0 0 auto}
 .account-fun-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px;padding:2px;background:var(--ink)}
 .account-fun-grid>div{min-height:73px;padding:10px 11px;background:#f7f0e5;display:flex;flex-direction:column;justify-content:center;gap:5px;min-width:0}
 .account-fun-grid span{color:#71685e;font-size:7px;font-weight:1000;letter-spacing:.09em;line-height:1.15}
@@ -6298,8 +6297,8 @@ body[data-boxxy-speed="fast"] .piece.player.pushing :is(img,canvas),body[data-bo
   .account-form>label:first-child,.account-form>label:nth-child(2),.account-form>label:nth-child(3),.account-form .account-check,.account-primary,.account-small{grid-column:1}
   .account-form input,.account-delete-form input{height:39px;font-size:10px}
   .account-player-summary{grid-template-columns:1fr;margin-bottom:10px}
-  .account-avatar-card{min-height:125px;grid-template-rows:auto 1fr}
-  .account-avatar-card canvas{width:105px}
+  .account-avatar-card{height:150px}
+  .account-avatar-card canvas{width:auto;height:100%;max-width:none}
   .account-fun-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .account-fun-grid>div{min-height:62px;padding:9px}
   .account-fun-grid strong{font-size:20px}
@@ -6318,8 +6317,8 @@ body[data-boxxy-speed="fast"] .piece.player.pushing :is(img,canvas),body[data-bo
   .account-form .account-check{grid-column:1/-1}
   .account-primary,.account-small{grid-column:1/-1}
   .account-player-summary{grid-template-columns:118px minmax(0,1fr);gap:8px;margin-bottom:8px}
-  .account-avatar-card{min-height:104px;padding:6px}
-  .account-avatar-card canvas{width:86px}
+  .account-avatar-card{height:104px;padding:0}
+  .account-avatar-card canvas{width:auto;height:100%;max-width:none}
   .account-fun-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
   .account-fun-grid>div{min-height:52px;padding:7px}
   .account-fun-grid strong{font-size:17px}

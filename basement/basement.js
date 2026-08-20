@@ -14,6 +14,7 @@
   const userCount = document.getElementById("userCount");
   const activeCount = document.getElementById("activeCount");
   const totalTime = document.getElementById("totalTime");
+  const totalAttempts = document.getElementById("totalAttempts");
   const detailModal = document.getElementById("detailModal");
   const detailClose = document.getElementById("detailClose");
   const detailTitle = document.getElementById("detailTitle");
@@ -36,10 +37,33 @@
     if (hours) return `${hours}h ${mins}m`;
     return `${mins}m`;
   }
+  function browserDevice(userAgent) {
+    const ua = String(userAgent || "");
+    if (!ua) return "—";
+    let browser = "Browser";
+    let match = ua.match(/OPR\/([\d.]+)/);
+    if (match) browser = `Opera ${match[1].split(".")[0]}`;
+    else if ((match = ua.match(/Edg\/([\d.]+)/))) browser = `Edge ${match[1].split(".")[0]}`;
+    else if ((match = ua.match(/Firefox\/([\d.]+)/))) browser = `Firefox ${match[1].split(".")[0]}`;
+    else if ((match = ua.match(/Chrome\/([\d.]+)/))) browser = `Chrome ${match[1].split(".")[0]}`;
+    else if ((match = ua.match(/Version\/([\d.]+).*Safari/))) browser = `Safari ${match[1].split(".")[0]}`;
+
+    let device = "Unknown device";
+    if (/iPad/.test(ua) || (/Macintosh/.test(ua) && /Mobile/.test(ua))) device = "iPad";
+    else if (/iPhone/.test(ua)) device = "iPhone";
+    else if (/Android/.test(ua)) device = "Android";
+    else if (/Windows/.test(ua)) device = "Windows";
+    else if (/Macintosh|Mac OS X/.test(ua)) device = "macOS";
+    else if (/Linux/.test(ua)) device = "Linux";
+    return `${browser} · ${device}`;
+  }
   function progressText(summary) {
-    const parts = Object.entries(summary?.packs || {}).map(([pack, data]) => `${pack}: ${Number(data.completed || 0)} complete`);
-    if (summary?.dailyCompleted) parts.push(`daily: ${summary.dailyCompleted}`);
+    const parts = Object.entries(summary?.packs || {}).map(([pack, data]) => `${data?.name || pack}: ${Number(data.completed || 0)} complete`);
+    if (summary?.dailyCompleted) parts.push(`Daily: ${summary.dailyCompleted}`);
     return parts.length ? parts.join(" · ") : "No saved completions";
+  }
+  function gameStatsText(summary) {
+    return `${Number(summary?.levelsCompleted || 0)} levels · ${Number(summary?.packsCompleted || 0)} packs · ${Number(summary?.totalSteps || 0).toLocaleString("en-GB")} steps · ${Number(summary?.totalPushes || 0).toLocaleString("en-GB")} pushes · ${Number(summary?.totalAttempts || 0).toLocaleString("en-GB")} attempts`;
   }
   async function api(path = "", payload = null) {
     const response = await fetch(`${API}${path}`, {
@@ -68,6 +92,7 @@
     if (userCount) userCount.textContent = String(users.length);
     if (activeCount) activeCount.textContent = String(users.filter(user => now - Number(user.lastSeenAt || 0) <= 86400000).length);
     if (totalTime) totalTime.textContent = duration(users.reduce((sum, user) => sum + Number(user.totalActiveSeconds || 0), 0));
+    if (totalAttempts) totalAttempts.textContent = users.reduce((sum, user) => sum + Number(user.summary?.totalAttempts || 0), 0).toLocaleString("en-GB");
   }
   function filteredUsers() {
     const query = String(searchInput?.value || "").trim().toLowerCase();
@@ -83,6 +108,7 @@
         <td>${escapeHtml(dateTime(user.createdAt))}</td>
         <td>${escapeHtml(dateTime(user.lastSeenAt))}</td>
         <td>${escapeHtml(duration(user.totalActiveSeconds))}</td>
+        <td><div class="progress-list">${escapeHtml(gameStatsText(user.summary))}</div></td>
         <td><div class="progress-list">${escapeHtml(progressText(user.summary))}</div></td>
         <td><div>${escapeHtml(user.lastIp || "—")}</div><div class="muted">signup ${escapeHtml(user.signupIp || "—")}</div></td>
       </tr>`).join("");
@@ -93,6 +119,7 @@
         <div class="user-card-grid">
           <div><span>LAST ACTIVE</span><strong>${escapeHtml(dateTime(user.lastSeenAt))}</strong></div>
           <div><span>IP</span><strong>${escapeHtml(user.lastIp || "—")}</strong></div>
+          <div><span>GAME STATS</span><strong>${escapeHtml(gameStatsText(user.summary))}</strong></div>
           <div><span>PROGRESS</span><strong>${escapeHtml(progressText(user.summary))}</strong></div>
           <div><span>JOINED</span><strong>${escapeHtml(dateTime(user.createdAt))}</strong></div>
         </div>
@@ -111,7 +138,18 @@
   function detailProgress(summary) {
     const packs = Object.entries(summary?.packs || {});
     if (!packs.length && !summary?.dailyCompleted) return `<p class="muted">No cloud progress saved yet.</p>`;
-    return `<div class="detail-progress">${packs.map(([name,data]) => `<div><strong>${escapeHtml(name)}</strong><span>${Number(data.completed || 0)} completed · current ${Number(data.currentLevel || 1)}</span></div>`).join("")}${summary?.dailyCompleted ? `<div><strong>DAILY</strong><span>${Number(summary.dailyCompleted)} completed</span></div>` : ""}</div>`;
+    return `<div class="detail-progress">${packs.map(([name,data]) => `<div><strong>${escapeHtml(data?.name || name)}</strong><span>${Number(data.completed || 0)} completed · current ${Number(data.currentLevel || 1)}</span></div>`).join("")}${summary?.dailyCompleted ? `<div><strong>DAILY BOXXY</strong><span>${Number(summary.dailyCompleted)} completed</span></div>` : ""}</div>`;
+  }
+  function detailAttempts(summary) {
+    const attempts = Array.isArray(summary?.attempts) ? summary.attempts : [];
+    if (!attempts.length) return `<p class="muted">No level attempts recorded yet. Attempt counting begins with BOXXY v277.</p>`;
+    return `<div class="attempt-list">${attempts.map(item => {
+      const levelLabel = item.packId === "daily-boxxy"
+        ? `Daily #${Number(item.levelNumber || 0) || escapeHtml(item.levelToken || "")}`
+        : `Level ${Number(item.levelNumber || 0) || escapeHtml(item.levelToken || "")}`;
+      const name = item.levelName && item.levelName !== item.levelToken ? ` · ${escapeHtml(item.levelName)}` : "";
+      return `<div><span><strong>${escapeHtml(item.packName || item.packId || "Pack")}</strong> · ${levelLabel}${name}</span><b>${Number(item.count || 0)} attempt${Number(item.count || 0) === 1 ? "" : "s"}</b><small>Last ${escapeHtml(dateTime(item.lastAt))}</small></div>`;
+    }).join("")}</div>`;
   }
   async function openDetail(id) {
     try {
@@ -132,9 +170,17 @@
           <div><span>LAST IP</span><strong>${escapeHtml(user.lastIp || "—")}</strong></div>
           <div><span>ACTIVE PACK</span><strong>${escapeHtml(user.summary?.activePack || "—")}</strong></div>
           <div><span>LAST CLOUD SAVE</span><strong>${escapeHtml(dateTime(user.progressUpdatedAt))}</strong></div>
-          <div><span>BROWSER / DEVICE</span><strong>${escapeHtml(user.userAgent || "—")}</strong></div>
+          <div><span>BROWSER / DEVICE</span><strong>${escapeHtml(browserDevice(user.userAgent))}</strong></div>
+        </div>
+        <div class="detail-game-stats" aria-label="Game statistics">
+          <div><span>LEVELS COMPLETED</span><strong>${Number(user.summary?.levelsCompleted || 0).toLocaleString("en-GB")}</strong></div>
+          <div><span>PACKS COMPLETED</span><strong>${Number(user.summary?.packsCompleted || 0).toLocaleString("en-GB")}</strong></div>
+          <div><span>TOTAL STEPS</span><strong>${Number(user.summary?.totalSteps || 0).toLocaleString("en-GB")}</strong></div>
+          <div><span>TOTAL BOX PUSHES</span><strong>${Number(user.summary?.totalPushes || 0).toLocaleString("en-GB")}</strong></div>
+          <div><span>LEVEL ATTEMPTS</span><strong>${Number(user.summary?.totalAttempts || 0).toLocaleString("en-GB")}</strong></div>
         </div>
         <section><h3>PROGRESS SUMMARY</h3>${detailProgress(user.summary)}</section>
+        <section><h3>LEVEL ATTEMPTS</h3>${detailAttempts(user.summary)}</section>
         <section><h3>RAW CLOUD SAVE</h3><pre class="raw-progress">${escapeHtml(JSON.stringify(user.progress || {}, null, 2))}</pre></section>`;
       detailModal.hidden = false;
       requestAnimationFrame(() => detailClose?.focus());

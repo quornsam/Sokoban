@@ -1,4 +1,4 @@
-/* BOXXY v275 — optional first-party accounts, cloud sync and account gameplay statistics. */
+/* BOXXY v277 — optional first-party accounts, cloud sync, gameplay statistics and level-attempt history. */
 (() => {
   "use strict";
 
@@ -8,6 +8,8 @@
   const ACCOUNT_MARKER_KEY = "boxxy-account-known-v1";
   const ALL_TIME_STEPS_KEY = "boxxy-all-time-steps-v1";
   const ALL_TIME_PUSHES_KEY = "boxxy-all-time-pushes-v1";
+  const LEVEL_ATTEMPTS_KEY = "boxxy-level-attempts-v1";
+  const PACK_CATALOG_KEY = "boxxy-pack-catalog-v1";
   const EXACT_SYNC_KEYS = new Set([
     "boxxy-active-pack-v2",
     "boxxy-additional-packs-unlocked-v1",
@@ -25,7 +27,9 @@
     "boxxy-completed-levels-v1",
     "boxxy-level-progress-v1",
     ALL_TIME_STEPS_KEY,
-    ALL_TIME_PUSHES_KEY
+    ALL_TIME_PUSHES_KEY,
+    LEVEL_ATTEMPTS_KEY,
+    PACK_CATALOG_KEY
   ]);
 
   const entryBtn = document.getElementById("accountEntryBtn");
@@ -86,7 +90,23 @@
       || key.startsWith("push-bauhaus-v22-best-");
   }
 
+  function refreshPackCatalog() {
+    try {
+      const packs = Array.isArray(window.BOXXY_LEVEL_PACKS) ? window.BOXXY_LEVEL_PACKS : [];
+      const catalog = {};
+      packs.forEach(pack => {
+        if (!pack?.id) return;
+        catalog[String(pack.id)] = {
+          name: String(pack.displayName || pack.title || pack.id),
+          levels: Array.isArray(pack.levels) ? pack.levels.length : 0
+        };
+      });
+      localStorage.setItem(PACK_CATALOG_KEY, JSON.stringify(catalog));
+    } catch (_) {}
+  }
+
   function collectCloudState() {
+    refreshPackCatalog();
     const state = {};
     try {
       for (let index = 0; index < localStorage.length; index++) {
@@ -219,6 +239,55 @@
     return JSON.stringify(result);
   }
 
+  function mergePackCatalog(leftValue, rightValue) {
+    const left = parseJson(leftValue, {});
+    const right = parseJson(rightValue, {});
+    const merged = { ...(right && typeof right === "object" ? right : {}) };
+    Object.entries(left && typeof left === "object" ? left : {}).forEach(([id, data]) => {
+      const previous = merged[id] && typeof merged[id] === "object" ? merged[id] : {};
+      merged[id] = {
+        name: String(data?.name || previous?.name || id),
+        levels: Math.max(0, Number(data?.levels) || 0, Number(previous?.levels) || 0)
+      };
+    });
+    return JSON.stringify(merged);
+  }
+
+  function mergeLevelAttempts(leftValue, rightValue) {
+    const left = parseJson(leftValue, {});
+    const right = parseJson(rightValue, {});
+    const result = { version: 1, levels: {} };
+    const sourceLevels = [right?.levels || {}, left?.levels || {}];
+    sourceLevels.forEach(levels => {
+      Object.entries(levels).forEach(([key, entry]) => {
+        if (!entry || typeof entry !== "object") return;
+        const current = result.levels[key] && typeof result.levels[key] === "object" ? result.levels[key] : {};
+        const devices = { ...(current.devices || {}) };
+        Object.entries(entry.devices && typeof entry.devices === "object" ? entry.devices : {}).forEach(([deviceId, deviceEntry]) => {
+          const incomingCount = Math.max(0, Math.trunc(Number(deviceEntry?.count) || 0));
+          const incomingLastAt = Math.max(0, Number(deviceEntry?.lastAt) || 0);
+          const old = devices[deviceId] && typeof devices[deviceId] === "object" ? devices[deviceId] : {};
+          const oldCount = Math.max(0, Math.trunc(Number(old.count) || 0));
+          const oldLastAt = Math.max(0, Number(old.lastAt) || 0);
+          devices[deviceId] = {
+            count: Math.max(oldCount, incomingCount),
+            lastAt: Math.max(oldLastAt, incomingLastAt)
+          };
+        });
+        const useIncoming = Number(entry.levelNumber || 0) || !current.levelNumber;
+        result.levels[key] = {
+          packId: String(entry.packId || current.packId || ""),
+          packName: String(entry.packName || current.packName || entry.packId || ""),
+          levelToken: String(entry.levelToken || current.levelToken || ""),
+          levelNumber: useIncoming ? (Number(entry.levelNumber) || 0) : (Number(current.levelNumber) || 0),
+          levelName: String(entry.levelName || current.levelName || ""),
+          devices
+        };
+      });
+    });
+    return JSON.stringify(result);
+  }
+
   function newerCheckpoint(leftValue, rightValue) {
     const left = parseJson(leftValue, null);
     const right = parseJson(rightValue, null);
@@ -285,6 +354,10 @@
         merged[key] = (left === "true" || right === "true") ? "true" : left;
       } else if (key === ALL_TIME_STEPS_KEY || key === ALL_TIME_PUSHES_KEY) {
         merged[key] = String(Math.max(Number(left) || 0, Number(right) || 0));
+      } else if (key === LEVEL_ATTEMPTS_KEY) {
+        merged[key] = mergeLevelAttempts(left, right);
+      } else if (key === PACK_CATALOG_KEY) {
+        merged[key] = mergePackCatalog(left, right);
       } else if (!localHasProgress) {
         merged[key] = right;
       } else {

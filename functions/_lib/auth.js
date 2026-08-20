@@ -262,7 +262,7 @@ export function progressSummary(progressValue) {
       try {
         const parsed = JSON.parse(value);
         if (!packs[match[1]]) packs[match[1]] = {};
-        packs[match[1]].completed = Array.isArray(parsed) ? parsed.length : 0;
+        packs[match[1]].completed = Array.isArray(parsed) ? new Set(parsed.map(Number).filter(Number.isInteger)).size : 0;
       } catch (_) {}
       continue;
     }
@@ -281,14 +281,79 @@ export function progressSummary(progressValue) {
     if (key === "boxxy-daily-completions-v1") {
       try {
         const parsed = JSON.parse(value);
-        dailyCompleted = parsed && typeof parsed === "object" ? Object.keys(parsed).length : 0;
+        dailyCompleted = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? Object.keys(parsed).length : 0;
       } catch (_) {}
     }
   }
 
+  let catalog = {};
+  try {
+    const parsed = JSON.parse(String(progress["boxxy-pack-catalog-v1"] || "{}"));
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) catalog = parsed;
+  } catch (_) {}
+
+  for (const [packId, data] of Object.entries(packs)) {
+    const catalogEntry = catalog[packId] && typeof catalog[packId] === "object" ? catalog[packId] : {};
+    data.name = String(catalogEntry.name || packId);
+    data.levelCount = Math.max(0, Number(catalogEntry.levels) || 0);
+  }
+
+  const levelsCompleted = Object.values(packs).reduce((sum, pack) => sum + Math.max(0, Number(pack.completed) || 0), 0) + dailyCompleted;
+  const packsCompleted = Object.values(packs).reduce((sum, pack) => {
+    const levelCount = Math.max(0, Number(pack.levelCount) || 0);
+    return sum + (levelCount > 0 && Math.max(0, Number(pack.completed) || 0) >= levelCount ? 1 : 0);
+  }, 0);
+
+  const attemptLevels = [];
+  let totalAttempts = 0;
+  try {
+    const parsed = JSON.parse(String(progress["boxxy-level-attempts-v1"] || "{}"));
+    const levels = parsed && typeof parsed === "object" && parsed.levels && typeof parsed.levels === "object" ? parsed.levels : {};
+    for (const [key, entry] of Object.entries(levels)) {
+      if (!entry || typeof entry !== "object") continue;
+      let count = 0;
+      let lastAt = 0;
+      const devices = entry.devices && typeof entry.devices === "object" ? entry.devices : {};
+      for (const deviceEntry of Object.values(devices)) {
+        count += Math.max(0, Math.trunc(Number(deviceEntry?.count) || 0));
+        lastAt = Math.max(lastAt, Math.max(0, Number(deviceEntry?.lastAt) || 0));
+      }
+      if (!count) continue;
+      totalAttempts += count;
+      attemptLevels.push({
+        key,
+        packId: String(entry.packId || ""),
+        packName: String(entry.packName || entry.packId || ""),
+        levelToken: String(entry.levelToken || ""),
+        levelNumber: Math.max(0, Number(entry.levelNumber) || 0),
+        levelName: String(entry.levelName || ""),
+        count,
+        lastAt
+      });
+    }
+  } catch (_) {}
+  attemptLevels.sort((a, b) =>
+    String(a.packName).localeCompare(String(b.packName))
+    || Number(a.levelNumber || 0) - Number(b.levelNumber || 0)
+    || String(a.levelToken).localeCompare(String(b.levelToken))
+  );
+
+  let avatar = {};
+  try {
+    const parsed = JSON.parse(String(progress["push-bauhaus-character-style-v51"] || "{}"));
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) avatar = parsed;
+  } catch (_) {}
+
   return {
     activePack: String(progress["boxxy-active-pack-v2"] || ""),
     dailyCompleted,
+    levelsCompleted,
+    packsCompleted,
+    totalSteps: Math.max(0, Math.trunc(Number(progress["boxxy-all-time-steps-v1"]) || 0)),
+    totalPushes: Math.max(0, Math.trunc(Number(progress["boxxy-all-time-pushes-v1"]) || 0)),
+    totalAttempts,
+    attempts: attemptLevels,
+    avatar,
     packs
   };
 }
