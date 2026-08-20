@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: 275,
+  version: 276,
   lastUpdated: "2026-08-20"
 });
+/* BOXXY v276 — clearer total-step labels and reliable Enter/Space next-level handling after completion. */
 /* BOXXY v275 — tidier MENU controls plus richer account avatar and lifetime gameplay statistics. */
 /* Stored solver routes are kept separate from the authored pack data. */
 (() => {
@@ -5978,6 +5979,12 @@ window.BOXXY_RELEASE = Object.freeze({
       setZenNextButtonVisible(false);
       modal.hidden = false;
       render("idle");
+      // Move keyboard focus into the completion dialog. Without this, a control
+      // behind the modal (for example RESTART) can remain focused and Enter/Space
+      // can activate it instead of advancing to the next level.
+      if (completeMode === "normal") {
+        requestAnimationFrame(() => nextBtn?.focus?.({ preventScroll: true }));
+      }
       if (grandCelebrationPack) {
         renderPackCompletionStats(grandCelebrationPack, true);
         grandBurst(grandCelebrationPack);
@@ -7225,7 +7232,15 @@ window.BOXXY_RELEASE = Object.freeze({
 
     if (completeMode !== "normal" || levelIndex >= LEVELS.length - 1) return;
     if (event.key !== "Enter" && event.key !== " " && event.key !== "Spacebar") return;
-    if (target instanceof Element && target.closest("button, a")) return;
+
+    // If focus is deliberately on a control inside the completion dialog, let
+    // that control keep its normal keyboard behaviour. Any stale focus behind
+    // the modal is intercepted so it cannot restart or otherwise alter the level.
+    const focusedModalControl = target instanceof Element
+      && modal.contains(target)
+      && target.closest("button, a");
+    if (focusedModalControl && focusedModalControl !== nextBtn) return;
+
     event.preventDefault();
     if (event.repeat) return;
     nextBtn.click();
