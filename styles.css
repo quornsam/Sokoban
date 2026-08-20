@@ -6152,3 +6152,165 @@ body[data-boxxy-speed="fast"] .piece.player.pushing :is(img,canvas),body[data-bo
 .maker-image-auto-targets{width:48px;height:48px;border:2px solid #b94135;background:#f2d7ce;display:grid;place-items:center;align-content:center;text-align:center;line-height:1;box-shadow:1px 1px 0 rgba(23,23,25,.18)}
 .maker-image-auto-targets b{font-size:14px;font-weight:950;color:#9d2e27}
 .maker-image-auto-targets small{font-size:5px;font-weight:950;letter-spacing:.03em;color:#6b332f;line-height:1.1;margin-top:2px}
+
+/* BOXXY v273 — MENU, account entry and responsive account panel. */
+.settings-action .menu-lines{
+  width:22px;
+  height:18px;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  align-items:stretch;
+  font-size:0!important;
+  line-height:0!important;
+}
+.settings-action .menu-lines i{
+  display:block;
+  width:100%;
+  height:3px;
+  background:currentColor;
+  border-radius:1px;
+}
+.level-action>span{font-size:26px!important;line-height:1!important;font-family:Arial,sans-serif;font-weight:400!important}
+.account-entry{
+  width:100%;
+  min-height:58px;
+  margin:0 0 14px;
+  padding:9px 13px;
+  border:2px solid var(--ink);
+  background:var(--yellow);
+  color:var(--ink);
+  box-shadow:4px 4px 0 var(--ink);
+  display:grid;
+  grid-template-columns:36px minmax(0,1fr) 24px;
+  align-items:center;
+  gap:10px;
+  text-align:left;
+}
+.account-entry-mark{
+  width:32px;
+  height:32px;
+  display:grid;
+  place-items:center;
+  border:2px solid var(--ink);
+  background:#fffaf1;
+  font-size:15px;
+  font-weight:1000;
+}
+.account-entry b{font-size:12px;letter-spacing:.08em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.account-entry>i{font-style:normal;font-size:22px;text-align:right}
+.account-entry.account-entry-logged-in{background:var(--green);color:#fff}
+.account-entry.account-entry-logged-in .account-entry-mark{background:#fff;color:var(--ink)}
+.settings-account-view{padding:20px 22px 24px}
+.settings-account-view[hidden]{display:none!important}
+.account-sheet{border:2px solid var(--ink);background:#fffaf1;box-shadow:4px 4px 0 rgba(23,23,25,.13);padding:18px}
+.account-head{padding-bottom:14px;margin-bottom:14px;border-bottom:2px solid var(--ink)}
+.account-head h3{margin:5px 0 7px;font-size:26px;line-height:.95;letter-spacing:-.03em}
+.account-head p{margin:0;color:#655c50;font-size:10px;line-height:1.45;font-weight:750}
+.account-mode-switch{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.account-mode-switch button{
+  min-height:40px;
+  border:2px solid var(--ink);
+  background:#e9e3da;
+  color:var(--ink);
+  font-size:9px;
+  font-weight:1000;
+  letter-spacing:.08em;
+}
+.account-mode-switch button.active{background:var(--blue);color:#fff;box-shadow:3px 3px 0 var(--ink)}
+.account-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}
+.account-form[hidden]{display:none!important}
+.account-form>label{display:grid;gap:5px;min-width:0}
+.account-form>label:first-child{grid-column:1/2}
+.account-form>label:nth-child(2){grid-column:2/3}
+.account-form>label:nth-child(3){grid-column:1/-1}
+.account-form label>span,.account-delete-form label>span{font-size:8px;font-weight:1000;letter-spacing:.1em}
+.account-form input,.account-delete-form input{
+  width:100%;
+  min-width:0;
+  height:42px;
+  box-sizing:border-box;
+  padding:8px 10px;
+  border:2px solid var(--ink);
+  border-radius:0;
+  background:#f7f0e5;
+  color:var(--ink);
+  font:inherit;
+  font-size:11px;
+  font-weight:800;
+}
+.account-form .account-check{grid-column:1/-1;display:flex;align-items:flex-start;gap:8px}
+.account-check input{width:18px;height:18px;min-width:18px;margin:0;accent-color:var(--blue)}
+.account-check span{font-size:9px!important;line-height:1.4;letter-spacing:0!important;font-weight:750!important}
+.account-check a{color:var(--blue);font-weight:900}
+.account-primary,.account-secondary{
+  grid-column:1/-1;
+  min-height:46px;
+  border:2px solid var(--ink);
+  color:#fff;
+  font-size:10px;
+  font-weight:1000;
+  letter-spacing:.08em;
+  box-shadow:3px 3px 0 var(--ink);
+}
+.account-primary{background:var(--blue)}
+.account-secondary{width:100%;background:var(--blue);margin-top:13px}
+.account-primary:disabled,.account-secondary:disabled{opacity:.55;cursor:wait}
+.account-small{grid-column:1/-1;margin:0;color:#6b6257;font-size:8px;line-height:1.45;font-weight:750}
+.account-details{display:block}
+.account-details[hidden]{display:none!important}
+.account-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border:2px solid var(--ink)}
+.account-detail-grid>div{min-height:62px;padding:10px 11px;display:flex;flex-direction:column;justify-content:center;gap:5px;border-right:1px solid var(--ink);border-bottom:1px solid var(--ink);background:#f7f0e5;min-width:0}
+.account-detail-grid>div:nth-child(2n){border-right:0}
+.account-detail-grid>div:last-child{grid-column:1/-1;border-right:0;border-bottom:0}
+.account-detail-grid>div:nth-last-child(2){border-bottom:0}
+.account-detail-grid span{color:#71685e;font-size:7px;font-weight:900;letter-spacing:.1em}
+.account-detail-grid strong{font-size:11px;overflow-wrap:anywhere}
+.account-details>.account-small{margin:12px 0 0}
+.account-danger-link{display:block;margin:14px auto 0;border:0;background:transparent;color:#9d3028;text-decoration:underline;font-size:8px;font-weight:900;letter-spacing:.06em}
+.account-delete-form{margin-top:12px;padding:12px;border:2px solid #9d3028;background:#fff2ef;display:grid;gap:9px}
+.account-delete-form[hidden]{display:none!important}
+.account-delete-form p{margin:0;font-size:9px;line-height:1.4;font-weight:750}
+.account-delete-form label{display:grid;gap:5px}
+.account-delete-form>div{display:grid;grid-template-columns:1fr 1.4fr;gap:8px}
+.account-delete-form button{min-height:40px;border:2px solid var(--ink);font-size:8px;font-weight:1000;letter-spacing:.06em}
+.account-delete-form button:first-child{background:#e9e3da;color:var(--ink)}
+.account-delete-confirm{background:var(--red);color:#fff}
+.account-status{min-height:17px;margin:14px 0 0;font-size:9px;line-height:1.4;font-weight:1000;letter-spacing:.04em}
+.account-status[data-kind="error"]{color:#a92921}
+.account-status[data-kind="success"]{color:#23734b}
+
+@media(max-width:760px){
+  .settings-action .menu-lines{width:20px;height:16px}
+  .settings-action .menu-lines i{height:2px}
+  .level-action>span{font-size:23px!important}
+  .account-entry{min-height:50px;margin-bottom:10px;grid-template-columns:30px minmax(0,1fr) 18px;padding:7px 9px;box-shadow:3px 3px 0 var(--ink)}
+  .account-entry-mark{width:27px;height:27px;font-size:12px}
+  .account-entry b{font-size:9px}
+  .settings-account-view{padding:12px}
+  .account-sheet{padding:12px;box-shadow:3px 3px 0 rgba(23,23,25,.13)}
+  .account-head{padding-bottom:10px;margin-bottom:10px}
+  .account-head h3{font-size:21px}
+  .account-head p{font-size:9px}
+  .account-form{grid-template-columns:1fr;gap:9px}
+  .account-form>label:first-child,.account-form>label:nth-child(2),.account-form>label:nth-child(3),.account-form .account-check,.account-primary,.account-small{grid-column:1}
+  .account-form input,.account-delete-form input{height:39px;font-size:10px}
+  .account-detail-grid{grid-template-columns:1fr}
+  .account-detail-grid>div,.account-detail-grid>div:nth-child(2n),.account-detail-grid>div:nth-last-child(2),.account-detail-grid>div:last-child{grid-column:1;border-right:0;border-bottom:1px solid var(--ink);min-height:52px}
+  .account-detail-grid>div:last-child{border-bottom:0}
+}
+
+@media(max-height:520px) and (orientation:landscape){
+  .settings-account-view{padding:9px 12px 12px}
+  .account-sheet{padding:10px}
+  .account-head{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:16px;align-items:end}
+  .account-head .complete-kicker,.account-head h3{grid-column:1}
+  .account-head p{grid-column:2;grid-row:1/3}
+  .account-form{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+  .account-form>label:first-child{grid-column:1}.account-form>label:nth-child(2){grid-column:2}.account-form>label:nth-child(3){grid-column:3}
+  .account-form .account-check{grid-column:1/-1}
+  .account-primary,.account-small{grid-column:1/-1}
+  .account-detail-grid{grid-template-columns:repeat(5,minmax(0,1fr))}
+  .account-detail-grid>div,.account-detail-grid>div:nth-child(2n),.account-detail-grid>div:nth-last-child(2),.account-detail-grid>div:last-child{grid-column:auto;border-right:1px solid var(--ink);border-bottom:0;min-height:52px}
+  .account-detail-grid>div:last-child{border-right:0}
+}

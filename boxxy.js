@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: 272,
+  version: 273,
   lastUpdated: "2026-08-20"
 });
+/* BOXXY v273 — optional Cloudflare-backed accounts, MENU navigation and Basement admin. */
 /* Stored solver routes are kept separate from the authored pack data. */
 (() => {
   "use strict";
@@ -1836,6 +1837,7 @@ window.BOXXY_RELEASE = Object.freeze({
   const settingsCloseBtn = document.getElementById("settingsCloseBtn");
   const settingsMainView = document.getElementById("settingsMainView");
   const settingsKeyboardView = document.getElementById("settingsKeyboardView");
+  const settingsAccountView = document.getElementById("settingsAccountView");
   const settingsKeyboardBtn = document.getElementById("settingsKeyboardBtn");
   const settingsKeyboardBackBtn = document.getElementById("settingsKeyboardBackBtn");
   const settingsMusicTrack = document.getElementById("settingsMusicTrack");
@@ -4406,6 +4408,7 @@ window.BOXXY_RELEASE = Object.freeze({
   function showSettingsMainView() {
     if (settingsMainView) settingsMainView.hidden = false;
     if (settingsKeyboardView) settingsKeyboardView.hidden = true;
+    if (settingsAccountView) settingsAccountView.hidden = true;
   }
 
   function openSettings() {

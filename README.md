@@ -87,15 +87,15 @@ Combining every layer into one very large atlas would not reduce decoded image m
 - `solver-worker.js` — loader and adapter for the external Rust/WebAssembly solver
 - `legal.html` — public-facing legal information
 
-## Local browser storage
+## Browser storage and accounts
 
-Campaign progress, saved gameplay positions, Level Maker saves, pack drafts and Daily Puzzle drafts are stored in the browser. They are not committed to GitHub automatically. Clearing site data may delete them.
+Game progress, saved gameplay positions, Level Maker saves, pack drafts and Daily Puzzle drafts are stored in the browser. Clearing site data may delete them. BOXXY v273 also adds optional Cloudflare D1 accounts that can synchronise supported game progress and settings between devices.
 
 The v143 file cleanup does not change pack IDs, level source numbers or storage-key formats, so existing progress remains compatible.
 
 ## Privacy
 
-BOXXY does not include analytics or advertising trackers. See [PRIVACY.md](PRIVACY.md) for local-storage and external solver-request details.
+BOXXY uses limited cookieless PostHog analytics and optional first-party accounts. Account data is stored through Cloudflare. See [PRIVACY.md](PRIVACY.md) for details.
 
 ## Hidden tools
 

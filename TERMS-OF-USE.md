@@ -1,6 +1,6 @@
 # BOXXY Terms of Use
 
-Effective: 19 July 2026
+Effective: 20 August 2026
 
 ## Personal use
 
@@ -16,9 +16,11 @@ You are responsible for puzzle names, text and layouts that you create, import o
 
 Shared-puzzle links contain an encoded puzzle layout in the URL. Anyone who receives the link may decode, copy and play that puzzle.
 
-## Local saves
+## Saves and optional accounts
 
-Campaign progress, Level Maker saves, recorded solutions, pack drafts and Daily Puzzle drafts are stored in the browser. They may be lost when browser data is cleared, storage is unavailable, or the site changes. Export important work separately.
+Game progress, Level Maker saves, recorded solutions, pack drafts and Daily Puzzle drafts may be stored in the browser. They may be lost when browser data is cleared, storage is unavailable, or the site changes. Export important work separately.
+
+A BOXXY account is optional. Signed-in players may store supported game progress and settings in BOXXY's Cloudflare database so that progress can be used on another device. Account availability, synchronisation and stored data are not guaranteed. Users must not create accounts or use the account system to abuse, overload or interfere with BOXXY.
 
 ## Solver
 

@@ -159,7 +159,7 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=272">
+<link rel="stylesheet" href="styles.css?v=273">
 <link rel="stylesheet" href="how-to-play.css?v=225">
 <link rel="preload" as="image" href="assets/board/boxes/box-default-yellow.png?v=226">
 <link rel="preload" as="image" href="assets/board/goals/goal-red.png?v=226">
@@ -275,8 +275,8 @@
     </section>
 
     <section class="bottom-actions">
-      <button id="settingsBtn" class="action small settings-action" type="button" aria-haspopup="dialog" aria-controls="settingsModal" aria-expanded="false"><span>⚙</span><b>SETTINGS</b></button>
-      <button id="levelBtn" class="action small"><span>☰</span><b>LEVEL</b></button>
+      <button id="settingsBtn" class="action small settings-action" type="button" aria-haspopup="dialog" aria-controls="settingsModal" aria-expanded="false"><span class="menu-lines" aria-hidden="true"><i></i><i></i><i></i></span><b>MENU</b></button>
+      <button id="levelBtn" class="action small level-action"><span aria-hidden="true">☆</span><b>LEVEL</b></button>
       <button id="fullscreenBtn" class="action small fullscreen-action"><span>⛶</span><b>FULL SCREEN</b></button>
     </section>
 
@@ -381,12 +381,17 @@
     <header class="settings-head">
       <div>
         <span class="complete-kicker">BOXXY</span>
-        <h2 id="settingsTitle">SETTINGS</h2>
+        <h2 id="settingsTitle">MENU</h2>
       </div>
       <button id="settingsCloseBtn" class="settings-close" type="button" aria-label="Close settings">×</button>
     </header>
 
     <div id="settingsMainView" class="settings-main-view">
+      <button id="accountEntryBtn" class="account-entry" type="button" aria-label="Make or sign in to a BOXXY account">
+        <span class="account-entry-mark" aria-hidden="true">B</span>
+        <b id="accountEntryLabel">MAKE AN ACCOUNT</b>
+        <i aria-hidden="true">→</i>
+      </button>
       <div class="settings-grid">
         <section class="settings-panel settings-audio-panel">
           <h3>AUDIO</h3>
@@ -438,7 +443,7 @@
     </div>
 
     <div id="settingsKeyboardView" class="settings-keyboard-view" hidden>
-      <button id="settingsKeyboardBackBtn" class="settings-back" type="button">← SETTINGS</button>
+      <button id="settingsKeyboardBackBtn" class="settings-back" type="button">← MENU</button>
       <h3>KEYBOARD CONTROLS</h3>
       <div class="settings-key-list">
         <div><span>MOVE</span><strong>ARROW KEYS / WASD</strong></div>
@@ -450,7 +455,64 @@
       </div>
     </div>
 
-    <footer class="settings-footer"><span>Changes are saved on this device.</span></footer>
+    <div id="settingsAccountView" class="settings-account-view" hidden>
+      <button id="accountBackBtn" class="settings-back" type="button">← MENU</button>
+      <div class="account-sheet">
+        <header class="account-head">
+          <span class="complete-kicker">OPTIONAL CLOUD SAVE</span>
+          <h3>YOUR BOXXY ACCOUNT</h3>
+          <p>Keep your progress under one username and continue on another device.</p>
+        </header>
+
+        <div id="accountGuest">
+          <div class="account-mode-switch" role="group" aria-label="Account action">
+            <button id="accountCreateModeBtn" class="active" type="button" aria-pressed="true">CREATE ACCOUNT</button>
+            <button id="accountLoginModeBtn" type="button" aria-pressed="false">SIGN IN</button>
+          </div>
+
+          <form id="accountCreateForm" class="account-form" novalidate>
+            <label><span>USERNAME</span><input name="username" type="text" minlength="3" maxlength="20" pattern="[A-Za-z0-9_-]+" autocomplete="username" required></label>
+            <label><span>EMAIL</span><input name="email" type="email" maxlength="254" autocomplete="email" required></label>
+            <label><span>PASSWORD</span><input name="password" type="password" minlength="8" maxlength="128" autocomplete="new-password" required></label>
+            <label class="account-check"><input name="ageConfirmed" type="checkbox" value="yes" required><span>I am 13 or over, or I have permission from a parent/guardian.</span></label>
+            <label class="account-check"><input name="termsAccepted" type="checkbox" value="yes" required><span>I agree to the <a href="legal.html" target="_blank" rel="noopener">account and privacy information</a>.</span></label>
+            <button id="accountCreateSubmit" class="account-primary" type="submit">MAKE MY ACCOUNT</button>
+          </form>
+
+          <form id="accountLoginForm" class="account-form" hidden novalidate>
+            <label><span>USERNAME OR EMAIL</span><input name="identity" type="text" maxlength="254" autocomplete="username" required></label>
+            <label><span>PASSWORD</span><input name="password" type="password" maxlength="128" autocomplete="current-password" required></label>
+            <button id="accountLoginSubmit" class="account-primary" type="submit">SIGN IN</button>
+            <p class="account-small">Password recovery by email is not enabled in this test version.</p>
+          </form>
+        </div>
+
+        <section id="accountDetails" class="account-details" hidden>
+          <div class="account-detail-grid">
+            <div><span>USERNAME</span><strong id="accountUsernameValue">—</strong></div>
+            <div><span>EMAIL</span><strong id="accountEmailValue">—</strong></div>
+            <div><span>JOINED</span><strong id="accountJoinedValue">—</strong></div>
+            <div><span>ACTIVE TIME</span><strong id="accountActiveValue">—</strong></div>
+            <div><span>LAST CLOUD SAVE</span><strong id="accountSyncValue">—</strong></div>
+          </div>
+          <p class="account-small">Your local game remains playable without an account. While signed in, progress is also copied to BOXXY so it can follow you to another device.</p>
+          <button id="accountLogoutBtn" class="account-secondary" type="button">SIGN OUT</button>
+          <button id="accountDeleteToggle" class="account-danger-link" type="button">DELETE ACCOUNT…</button>
+          <form id="accountDeleteForm" class="account-delete-form" hidden>
+            <p>Deletes the BOXXY account and cloud copy. Progress already stored on this device remains here.</p>
+            <label><span>CONFIRM PASSWORD</span><input name="password" type="password" maxlength="128" autocomplete="current-password" required></label>
+            <div>
+              <button id="accountDeleteCancel" type="button">CANCEL</button>
+              <button class="account-delete-confirm" type="submit">DELETE ACCOUNT</button>
+            </div>
+          </form>
+        </section>
+
+        <p id="accountStatus" class="account-status" aria-live="polite"></p>
+      </div>
+    </div>
+
+    <footer class="settings-footer"><span>Progress is saved on this device. Signed-in players also sync to BOXXY.</span></footer>
   </section>
 </div>
 
@@ -1068,11 +1130,12 @@
       </div>
 
       <section class="legal-section">
-        <h3>Privacy, analytics and progress</h3>
-        <p>BOXXY does not use user accounts, advertising or session recordings, and it does not ask PostHog to identify you.</p>
+        <h3>Privacy, analytics, accounts and progress</h3>
+        <p>BOXXY accounts are optional. You can continue playing without one and local progress remains stored by your browser on your own device.</p>
+        <p>If you create an account, BOXXY stores your chosen username, email address, a one-way password hash, account dates, your sign-up and most recent IP address, most recent browser/device user-agent, accumulated active time while signed in, and the game progress/settings needed for cloud saving. This information is stored in Cloudflare D1 and is used to provide the account, synchronise progress, administer BOXXY and prevent abuse. BOXXY does not store your password in readable form.</p>
+        <p>A strictly necessary secure session cookie is used while you are signed in. BOXXY does not use account email addresses for advertising. They may be used where reasonably necessary for account, security, abuse or support matters. You can delete your account from the account screen; this removes the cloud account and cloud progress but does not erase progress already stored in your browser.</p>
         <p>BOXXY uses PostHog, hosted in the European Union, to measure visits and a small set of gameplay events: opening the game, choosing a puzzle pack, starting or restarting a level, completing a level and pressing next level. A completion event may include the puzzle pack, level number, moves, pushes, time taken, whether a guided solve was used and screen orientation.</p>
-        <p>PostHog is configured in cookieless mode. It does not store BOXXY analytics identifiers in cookies, local storage or session storage. It estimates visitors using a privacy-preserving hash calculated on PostHog's servers. BOXXY does not send puzzle layouts, puzzle links, typed puzzle names, email addresses or other entered text. URL query strings and fragments are removed before analytics events are sent.</p>
-        <p>Your game progress and settings remain stored locally by your browser on your own device and are not sent as analytics. Clearing browser data, changing browser or changing device may remove that information. BOXXY cannot see it, transfer it or restore it for you.</p>
+        <p>PostHog is configured in cookieless mode. It does not store BOXXY analytics identifiers in cookies, local storage or session storage and BOXXY does not send account usernames or email addresses to PostHog. URL query strings and fragments are removed before analytics events are sent.</p>
         <p>PostHog receives the ordinary technical information needed to deliver and measure a web request, such as browser and device information, page path and referrer. BOXXY asks PostHog to respect supported Do Not Track signals. You can read <a href="https://posthog.com/privacy" target="_blank" rel="noopener">PostHog's privacy information</a>.</p>
         <p>If you use the Contact Us form, your name, email address and comment are sent through Cloudflare Email Service to the BOXXY contact mailbox and are used only to deal with your message. The same applies to information you choose to send by email or as part of a prize claim.</p>
       </section>
@@ -1101,7 +1164,8 @@
 
 <script src="daily-puzzles/boxxy-daily-loader.js?v=217"></script>
 <script src="levels.js?v=268"></script>
-<script src="boxxy.js?v=272"></script>
+<script src="boxxy.js?v=273"></script>
+<script src="account.js?v=273"></script>
 <script src="pack-builder.js?v=216"></script>
 <script src="how-to-play.js?v=153"></script>
 </body>
