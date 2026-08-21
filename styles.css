@@ -6350,3 +6350,10 @@ body[data-boxxy-speed="fast"] .piece.player.pushing :is(img,canvas),body[data-bo
   .account-medals-card{padding:8px;margin-bottom:8px}
   .account-medals{--header-badge-size:34px;--header-badge-gap:6px;min-height:34px}
 }
+
+/* BOXXY v284 — equal-height account avatar/stat panel and clean attire stacking. */
+@media (min-width:761px){
+  .account-player-summary{align-items:stretch}
+  .account-avatar-card{height:auto;min-height:152px;align-self:stretch}
+}
+.style-modal{z-index:9700}

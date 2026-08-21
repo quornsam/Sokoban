@@ -344,6 +344,21 @@ export function progressSummary(progressValue) {
     if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) avatar = parsed;
   } catch (_) {}
 
+  const activityDays = [];
+  try {
+    const activity = progress["__boxxy-server-activity-v1"];
+    const days = activity && typeof activity === "object" && !Array.isArray(activity) && activity.days && typeof activity.days === "object" ? activity.days : {};
+    for (const [date, entry] of Object.entries(days)) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !entry || typeof entry !== "object") continue;
+      activityDays.push({
+        date,
+        seconds: Math.max(0, Math.trunc(Number(entry.seconds) || 0)),
+        lastSeenAt: Math.max(0, Number(entry.lastSeenAt) || 0)
+      });
+    }
+    activityDays.sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  } catch (_) {}
+
   return {
     activePack: String(progress["boxxy-active-pack-v2"] || ""),
     dailyCompleted,
@@ -353,6 +368,7 @@ export function progressSummary(progressValue) {
     totalPushes: Math.max(0, Math.trunc(Number(progress["boxxy-all-time-pushes-v1"]) || 0)),
     totalAttempts,
     attempts: attemptLevels,
+    activityDays,
     avatar,
     packs
   };

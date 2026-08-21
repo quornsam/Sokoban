@@ -39,3 +39,26 @@ table{width:100%;border-collapse:collapse;min-width:1320px}th,td{padding:10px 11
 .raw-progress{margin:0;max-height:300px;overflow:auto;padding:12px;border:2px solid var(--ink);background:#fff;font:11px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap;overflow-wrap:anywhere}
 @media(max-width:760px){.basement-shell{width:min(100% - 16px,900px);margin-top:8px}.basement-head{padding:14px}.basement-head h1{font-size:46px}.basement-head button{min-height:36px;padding:6px 8px;font-size:7px}.login-panel{margin:24px auto;padding:15px}.dashboard-summary{grid-template-columns:1fr 1fr}.dashboard-summary strong{font-size:22px}.table-wrap{display:none}.user-cards{display:grid;gap:9px}.user-card{border:2px solid var(--ink);background:#fffaf1;padding:11px;box-shadow:3px 3px 0 rgba(23,23,25,.14)}.user-card button{width:100%;padding:0;border:0;background:transparent;color:inherit;text-align:left}.user-card-top{display:flex;justify-content:space-between;gap:10px}.user-card .user-main{font-size:12px}.user-card-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:9px}.user-card-grid div{min-width:0}.user-card-grid span{display:block;color:#71685e;font-size:7px;font-weight:900;letter-spacing:.07em}.user-card-grid strong{display:block;margin-top:2px;font-size:9px;overflow-wrap:anywhere}.detail-modal{padding:8px}.detail-card{width:100%;max-height:96dvh}.detail-grid{grid-template-columns:1fr 1fr}.detail-grid>div,.detail-grid>div:nth-child(3n){border-right:1px solid var(--ink)}.detail-grid>div:nth-child(2n){border-right:0}.detail-progress{grid-template-columns:1fr}.detail-game-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.attempt-list>div{grid-template-columns:1fr auto}.attempt-list small{grid-column:1/-1}.toolbar{grid-template-columns:1fr auto}.toolbar input{min-width:0}}
 @media(max-width:430px){.dashboard-summary{grid-template-columns:1fr}.user-card-grid{grid-template-columns:1fr}.detail-grid{grid-template-columns:1fr}.detail-grid>div,.detail-grid>div:nth-child(2n),.detail-grid>div:nth-child(3n){border-right:0}.detail-game-stats{grid-template-columns:1fr}}
+
+/* BOXXY v284 — recent-online marker and seven-day activity strip. */
+table{min-width:1460px}
+.user-with-status{display:inline-flex;align-items:center;gap:6px}
+.online-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#24a45a;box-shadow:0 0 0 2px rgba(36,164,90,.13);flex:0 0 auto}
+.activity-week{display:flex;align-items:flex-end;gap:5px;min-height:40px}
+.activity-day{display:grid;grid-template-rows:16px 10px;justify-items:center;align-items:center;gap:2px;min-width:14px}
+.activity-day i{display:block;width:11px;height:11px;border:1.5px solid #857b6f;border-radius:50%;background:transparent;box-sizing:border-box}
+.activity-day i[data-level="1"]{background:rgba(36,164,90,.30);border-color:#24a45a}
+.activity-day i[data-level="2"]{background:rgba(36,164,90,.52);border-color:#208b4d}
+.activity-day i[data-level="3"]{background:rgba(36,164,90,.76);border-color:#176f3d}
+.activity-day i[data-level="4"]{background:#24a45a;border-color:#145f35}
+.activity-day.is-today i{outline:2px solid var(--ink);outline-offset:2px}
+.activity-day span{font-size:6px;font-weight:1000;color:#71685e;line-height:1}
+.activity-week-compact{gap:3px;min-height:34px;margin-top:3px}
+.activity-week-compact .activity-day{grid-template-rows:14px 9px;min-width:12px}
+.activity-week-compact .activity-day i{width:9px;height:9px}
+.activity-week-compact .activity-day span{font-size:5px}
+.detail-body .activity-week{padding:12px;border:2px solid var(--ink);background:#fffaf1;gap:12px;align-items:end}
+.detail-body .activity-day{min-width:28px;grid-template-rows:20px 12px}
+.detail-body .activity-day i{width:15px;height:15px}
+.detail-body .activity-day span{font-size:7px}
+@media(max-width:760px){.activity-week-compact{margin:8px 0 2px}.detail-body .activity-week{gap:7px;justify-content:space-between}.detail-body .activity-day{min-width:20px}}

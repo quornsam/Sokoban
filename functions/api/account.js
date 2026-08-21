@@ -20,6 +20,42 @@ import {
   expireCookie
 } from "../_lib/auth.js";
 
+
+const SERVER_ACTIVITY_KEY = "__boxxy-server-activity-v1";
+
+function utcDayKey(timestamp) {
+  return new Date(Number(timestamp) || Date.now()).toISOString().slice(0, 10);
+}
+
+function withServerActivity(existingValue, incomingValue, activeSeconds, now) {
+  const existing = parseProgress(existingValue);
+  const incoming = parseProgress(incomingValue);
+  let activity = { version: 1, days: {} };
+  const previous = existing[SERVER_ACTIVITY_KEY];
+  if (previous && typeof previous === "object" && !Array.isArray(previous)) {
+    const days = previous.days && typeof previous.days === "object" && !Array.isArray(previous.days) ? previous.days : {};
+    activity = { version: 1, days: { ...days } };
+  }
+
+  const seconds = Math.max(0, Math.min(1800, Math.trunc(Number(activeSeconds) || 0)));
+  if (seconds > 0) {
+    const day = utcDayKey(now);
+    const prior = activity.days[day] && typeof activity.days[day] === "object" ? activity.days[day] : {};
+    activity.days[day] = {
+      seconds: Math.max(0, Math.trunc(Number(prior.seconds) || 0)) + seconds,
+      lastSeenAt: Number(now) || Date.now()
+    };
+  }
+
+  const cutoff = Date.now() - (14 * 24 * 60 * 60 * 1000);
+  for (const day of Object.keys(activity.days)) {
+    const stamp = Date.parse(`${day}T00:00:00Z`);
+    if (!Number.isFinite(stamp) || stamp < cutoff) delete activity.days[day];
+  }
+  incoming[SERVER_ACTIVITY_KEY] = activity;
+  return incoming;
+}
+
 function errorMessage(error) {
   const text = String(error?.message || error || "Unexpected error.");
   return text.includes("UNIQUE constraint failed: users.username")
@@ -146,9 +182,9 @@ async function handleSync(context, body) {
   const user = await authenticatedUser(env, request);
   if (!user) return json({ ok: false, authenticated: false, error: "Please sign in again." }, 401);
 
-  const progressJson = safeProgressJson(body.progress || {});
   const activeSeconds = Math.max(0, Math.min(1800, Math.trunc(Number(body.activeSecondsDelta) || 0)));
   const now = Date.now();
+  const progressJson = safeProgressJson(withServerActivity(user.progress_json, body.progress || {}, activeSeconds, now));
   await db.prepare(`
     UPDATE users SET
       progress_json = ?, progress_updated_at = ?, last_seen_at = ?, last_ip = ?, user_agent = ?,

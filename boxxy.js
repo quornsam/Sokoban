@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "283",
+  version: "284",
   lastUpdated: "2026-08-21"
 });
+/* BOXXY v284 — account avatar layout, attire modal stacking, and Basement recent-activity history. */
 /* BOXXY v283 — account avatar card alignment, attire shortcut, and contact-based password recovery. */
 /* BOXXY v282 — Zen Mode Undo now repeats while held without sacrificing swipe-anywhere movement. */
 /* BOXXY v280 — account avatar vertical position corrected between v278 and v279; release number updated for Legal. */
