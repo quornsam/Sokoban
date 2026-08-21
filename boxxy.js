@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "282",
-  lastUpdated: "2026-08-20"
+  version: "283",
+  lastUpdated: "2026-08-21"
 });
+/* BOXXY v283 — account avatar card alignment, attire shortcut, and contact-based password recovery. */
 /* BOXXY v282 — Zen Mode Undo now repeats while held without sacrificing swipe-anywhere movement. */
 /* BOXXY v280 — account avatar vertical position corrected between v278 and v279; release number updated for Legal. */
 /* BOXXY v279 — account avatar centred on its visible artwork; release number updated for Legal. */
@@ -11679,7 +11680,9 @@ window.BOXXY_RELEASE = Object.freeze({
   const closeBtn = document.getElementById("makerContactCloseBtn");
   const cancelBtn = document.getElementById("makerContactCancelBtn");
   const form = document.getElementById("makerContactForm");
+  const forgotPasswordBtn = document.getElementById("accountForgotPasswordBtn");
   const nameInput = document.getElementById("makerContactName");
+  const usernameInput = document.getElementById("makerContactUsername");
   const emailInput = document.getElementById("makerContactEmail");
   const commentInput = document.getElementById("makerContactComment");
   const websiteInput = document.getElementById("makerContactWebsite");
@@ -11705,6 +11708,22 @@ window.BOXXY_RELEASE = Object.freeze({
     window.setTimeout(() => nameInput?.focus(), 0);
   }
 
+  function openPasswordRecovery(event) {
+    lastOpener = event?.currentTarget || forgotPasswordBtn || openBtn || settingsOpenBtn;
+    const identity = String(document.querySelector('#accountLoginForm input[name="identity"]')?.value || "").trim();
+    if (identity) {
+      if (identity.includes("@")) {
+        if (emailInput && !emailInput.value) emailInput.value = identity;
+      } else if (usernameInput && !usernameInput.value) {
+        usernameInput.value = identity;
+      }
+    }
+    if (commentInput && !commentInput.value) commentInput.value = "I need help recovering my BOXXY password.";
+    modal.hidden = false;
+    setStatus("");
+    window.setTimeout(() => (nameInput?.value ? (usernameInput?.value ? emailInput : usernameInput) : nameInput)?.focus?.(), 0);
+  }
+
   function closeContact() {
     if (sending) return;
     modal.hidden = true;
@@ -11714,6 +11733,7 @@ window.BOXXY_RELEASE = Object.freeze({
 
   openBtn?.addEventListener("click", openContact);
   settingsOpenBtn?.addEventListener("click", openContact);
+  forgotPasswordBtn?.addEventListener("click", openPasswordRecovery);
   closeBtn?.addEventListener("click", closeContact);
   cancelBtn?.addEventListener("click", closeContact);
   modal.addEventListener("click", event => {
@@ -11732,6 +11752,7 @@ window.BOXXY_RELEASE = Object.freeze({
     if (sending) return;
 
     const name = String(nameInput?.value || "").trim();
+    const username = String(usernameInput?.value || "").trim();
     const email = String(emailInput?.value || "").trim();
     const comment = String(commentInput?.value || "").trim();
 
@@ -11760,6 +11781,7 @@ window.BOXXY_RELEASE = Object.freeze({
         credentials: "same-origin",
         body: JSON.stringify({
           name,
+          username,
           email,
           comment,
           website: String(websiteInput?.value || ""),

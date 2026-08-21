@@ -56,6 +56,7 @@ export async function onRequestPost(context) {
   if (cleanText(body.website, 200)) return json({ ok: true });
 
   const name = cleanSingleLine(body.name, 80);
+  const username = cleanSingleLine(body.username, 20);
   const email = cleanSingleLine(body.email, 254);
   const comment = cleanText(body.comment, 2000);
   const version = Number.isFinite(Number(body.version)) ? Math.max(0, Math.floor(Number(body.version))) : 0;
@@ -68,6 +69,7 @@ export async function onRequestPost(context) {
     "New message from the BOXXY Contact Us form",
     "",
     `Name: ${name}`,
+    `BOXXY username: ${username || "Not provided"}`,
     `Email: ${email}`,
     version ? `BOXXY version: v${version}` : "BOXXY version: unknown",
     "",
