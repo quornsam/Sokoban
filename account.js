@@ -1,3 +1,4 @@
+/* BOXXY v290 — Android native install handoff added without changing the iPhone or desktop offline flows. */
 /* BOXXY v289 — signed-in offline download, iPhone Home Screen handoff and offline account continuity. */
 /* BOXXY v281 — account medals added alongside cloud sync, gameplay statistics and level-attempt history. */
 (() => {
@@ -84,6 +85,8 @@
   let activeSecondsDelta = 0;
   let lastActivityTick = Date.now();
   let offlineBusy = false;
+  let deferredAndroidInstallPrompt = null;
+  let androidOfflineReady = false;
 
   function setStatus(message = "", kind = "") {
     if (!status) return;
@@ -106,6 +109,57 @@
     const ua = navigator.userAgent || "";
     const platform = navigator.platform || "";
     return /iPhone|iPad|iPod/i.test(ua) || (platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  }
+
+  function isAndroidMobile() {
+    return /Android/i.test(navigator.userAgent || "");
+  }
+
+  function prepareAndroidInstallPrompt() {
+    if (!isAndroidMobile() || isStandaloneDisplay()) return;
+
+    window.addEventListener("beforeinstallprompt", event => {
+      event.preventDefault();
+      deferredAndroidInstallPrompt = event;
+      if (account) refreshOfflineButton();
+    });
+
+    window.addEventListener("appinstalled", () => {
+      deferredAndroidInstallPrompt = null;
+      if (offlineHelp && account) offlineHelp.textContent = "The playable game is stored on this device and BOXXY is installed.";
+      setStatus("BOXXY INSTALLED · OFFLINE PLAY READY", "success");
+      refreshOfflineButton();
+    });
+
+    // Android needs an installed service worker before some browsers will
+    // advertise the native PWA install prompt. Registration alone does not
+    // download BOXXY's opt-in offline pack.
+    registerOfflineWorker().catch(() => {});
+  }
+
+  function promptAndroidInstallNow() {
+    if (!isAndroidMobile() || isStandaloneDisplay() || !deferredAndroidInstallPrompt) return null;
+
+    const installPrompt = deferredAndroidInstallPrompt;
+    deferredAndroidInstallPrompt = null;
+    try {
+      // Must be invoked directly from the player's button press so Android's
+      // browser is allowed to show its native install sheet.
+      const shown = installPrompt.prompt();
+      return Promise.resolve(shown)
+        .then(() => installPrompt.userChoice)
+        .then(choice => {
+          if (choice?.outcome === "accepted") {
+            if (offlineHelp) offlineHelp.textContent = "BOXXY is being added to your device. The offline game will be ready when the download finishes.";
+          } else if (offlineHelp) {
+            offlineHelp.textContent = "Offline play is still available here. You can install BOXXY later from your browser menu.";
+          }
+          return choice;
+        })
+        .catch(() => null);
+    } catch (_) {
+      return null;
+    }
   }
 
   function saveOfflineAccountSnapshot() {
@@ -142,7 +196,7 @@
   function setOfflineRequestCookie(enabled = true) {
     const secure = location.protocol === "https:" ? "; Secure" : "";
     if (enabled) {
-      const version = encodeURIComponent(String(window.BOXXY_RELEASE?.version || "289"));
+      const version = encodeURIComponent(String(window.BOXXY_RELEASE?.version || "290"));
       document.cookie = `${OFFLINE_REQUEST_COOKIE}=${version}; Max-Age=86400; Path=/; SameSite=Lax${secure}`;
     } else {
       document.cookie = `${OFFLINE_REQUEST_COOKIE}=; Max-Age=0; Path=/; SameSite=Lax${secure}`;
@@ -179,11 +233,18 @@
   async function refreshOfflineButton() {
     if (!offlineBtn || !account || offlineBusy) return;
     const meta = await readOfflineMeta();
-    const current = String(window.BOXXY_RELEASE?.version || "289");
+    const current = String(window.BOXXY_RELEASE?.version || "290");
     if (meta?.version === current) {
-      offlineBtn.textContent = "OFFLINE PLAY READY ✓";
-      offlineBtn.classList.add("ready");
-      if (offlineHelp) offlineHelp.textContent = "The playable game is stored on this device and can open without internet.";
+      androidOfflineReady = true;
+      if (isAndroidMobile() && !isStandaloneDisplay() && deferredAndroidInstallPrompt) {
+        offlineBtn.textContent = "INSTALL BOXXY";
+        offlineBtn.classList.add("ready");
+        if (offlineHelp) offlineHelp.textContent = "Offline play is ready. Tap once more to add BOXXY to your Android Home Screen.";
+      } else {
+        offlineBtn.textContent = "OFFLINE PLAY READY ✓";
+        offlineBtn.classList.add("ready");
+        if (offlineHelp) offlineHelp.textContent = "The playable game is stored on this device and can open without internet.";
+      }
     } else if (meta?.version) {
       offlineBtn.textContent = "UPDATE OFFLINE COPY";
       offlineBtn.classList.remove("ready");
@@ -195,7 +256,7 @@
 
   async function registerOfflineWorker() {
     if (!("serviceWorker" in navigator)) throw new Error("Offline play is not supported by this browser.");
-    const registration = await navigator.serviceWorker.register(`/service-worker.js?v=${encodeURIComponent(String(window.BOXXY_RELEASE?.version || "289"))}`, { scope: "/" });
+    const registration = await navigator.serviceWorker.register(`/service-worker.js?v=${encodeURIComponent(String(window.BOXXY_RELEASE?.version || "290"))}`, { scope: "/" });
     await navigator.serviceWorker.ready;
     if (!registration.active) {
       await new Promise(resolve => {
@@ -254,7 +315,7 @@
           }
         };
         navigator.serviceWorker.addEventListener("message", onMessage);
-        worker.postMessage({ type: "CACHE_ALL_BOXXY", version: String(window.BOXXY_RELEASE?.version || "289") });
+        worker.postMessage({ type: "CACHE_ALL_BOXXY", version: String(window.BOXXY_RELEASE?.version || "290") });
       });
 
       setOfflineRequestCookie(false);
@@ -294,13 +355,37 @@
       setStatus("FOLLOW THE HOME SCREEN STEPS BELOW", "success");
       return;
     }
+
+    if (isAndroidMobile() && !isStandaloneDisplay()) {
+      // If the offline files are already present, a later Android install event
+      // can use this same account button solely as the native install button.
+      if (androidOfflineReady && deferredAndroidInstallPrompt) {
+        promptAndroidInstallNow();
+        return;
+      }
+
+      // Start the offline cache, then invoke Android's native prompt immediately
+      // from this same tap. Keeping prompt() inside the original user gesture is
+      // required by Chromium. The cache continues while the user answers it.
+      const cachePromise = cacheBoxxyForOffline();
+      const installChoicePromise = promptAndroidInstallNow();
+      const cached = await cachePromise;
+      if (cached) androidOfflineReady = true;
+      if (installChoicePromise) await installChoicePromise;
+      await refreshOfflineButton();
+      if (cached && !installChoicePromise && offlineHelp && !deferredAndroidInstallPrompt) {
+        offlineHelp.textContent = "The playable game is stored on this device. If Android does not offer installation automatically, use your browser's Install app / Add to Home screen option.";
+      }
+      return;
+    }
+
     await cacheBoxxyForOffline();
   }
 
   async function maybeResumeOfflineSetup() {
     if (!account || !isStandaloneDisplay() || !offlineRequestCookieValue()) return;
     const meta = await readOfflineMeta();
-    const current = String(window.BOXXY_RELEASE?.version || "289");
+    const current = String(window.BOXXY_RELEASE?.version || "290");
     if (meta?.version === current) {
       setOfflineRequestCookie(false);
       refreshOfflineButton();
@@ -974,6 +1059,7 @@
     if (document.visibilityState === "hidden" && account && activeSecondsDelta >= 30) syncNow(true);
   });
 
+  prepareAndroidInstallPrompt();
   seedLifetimeStats();
   render();
   initialAccountCheck();

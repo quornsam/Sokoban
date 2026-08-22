@@ -1,8 +1,8 @@
-/* BOXXY v289 — opt-in offline cache for signed-in players. */
+/* BOXXY v290 — opt-in offline cache with Android install handoff support. */
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v1";
-const RELEASE_VERSION = "289";
+const RELEASE_VERSION = "290";
 const META_URL = "/__boxxy_offline_meta__";
 const ASSETS = [
   "/",

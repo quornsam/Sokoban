@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "289",
+  version: "290",
   lastUpdated: "2026-08-22"
 });
+/* BOXXY v290 — Android native install handoff added after opting into offline play. */
 /* BOXXY v289 — signed-in offline download and Home Screen handoff. */
 /* BOXXY v288 — smooth tile travel retained without pose blending; blocked pushes now hold the push pose correctly. */
 /* BOXXY v287 — smoother tile movement with interpolated travel and blended in-between character poses. */
