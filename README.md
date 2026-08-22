@@ -1,106 +1,65 @@
 # BOXXY — Pushbox Puzzle
 
-Copyright © 2026 Sam Cornwell. All rights reserved.
+**BOXXY** is a browser-based Sokoban puzzle game built around the simple rule that makes Sokoban so enduring: you can push boxes, but you cannot pull them.
 
-BOXXY is a proprietary, source-available Sokoban game. The repository is public so the browser game can be hosted through GitHub Pages; that does not make BOXXY open-source.
+It combines classic push-box puzzles with a clean visual style, responsive controls, character customisation, daily challenges, medals and optional accounts.
 
-Personal, non-commercial play and private experimentation are permitted under [LICENSE.md](LICENSE.md). Commercial exploitation, republication, redistribution as another game or website, and extraction of BOXXY artwork, interface assets, audio or original puzzle content require prior written permission.
+**Play BOXXY:** https://boxxy.io
 
-Third-party puzzle collections and the externally loaded solver are not owned by Sam Cornwell. Their details and separate terms are listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+## Features
 
-## Play
+- Multiple curated Sokoban puzzle packs
+- Daily puzzles with streak tracking and medals
+- Desktop, tablet and mobile support
+- Keyboard, touch and swipe controls
+- Undo, redo, restart and saved positions
+- Zen Mode for a stripped-back playing view
+- Character and attire customisation
+- Progress, completion and gameplay statistics
+- Optional BOXXY accounts for cross-device progress
+- Local play remains available without an account
+- No advertising
 
-The live GitHub Pages build is published from the repository root.
+## Playing BOXXY
 
-## Current release: v143
+The aim is to push every box onto a target square. Boxes can only be pushed, never pulled, so positioning and planning matter.
 
-### v143 repository and asset cleanup
+BOXXY is designed to work equally well with a keyboard, touchscreen or tablet. Progress is saved automatically in the browser. Players who choose to create an account can also carry supported progress between devices.
 
-- Replaces the split `data.js` and separate BOXXY pack script with one readable `levels.js` file.
-- Keeps the existing pack IDs, pack order, all 288 level records and saved-progress keys unchanged.
-- Stores all five bundled collections together:
-  - BOXXY Original Puzzle Pack — 50 levels
-  - Microban Series — 50 levels
-  - Chrysalis Variations — 113 levels
-  - Haikemono — 35 levels
-  - Small Chessboards — 40 levels
-- Merges the small route verifier into `boxxy.js` and removes its standalone script.
-- Removes legacy Ink-theme artwork, obsolete per-frame character layers, duplicate board images, duplicate music and old root-level sprites that the game did not load.
-- Uses the efficient 300 × 260 character wardrobe sheets on every device and removes the duplicate 600 × 520 set.
-- Retains the 24 simple fallback character images because they are the independent safety net for the older-iPad disappearance bug reported by AngeM.
-- Removes the unnecessary character-sheet preloads from `index.html`.
-- Consolidates third-party credits into `THIRD-PARTY-NOTICES.md`.
+## Accounts
 
-### v142 compact movement controls and attire placement
+Accounts are optional.
 
-- Uses a compact two-row direction pad: Up above Left, Down and Right.
-- Places attire separately on desktop and tablet, and inside Choose Level on phone layouts.
-- Gives movement controls more room on compact screens without overlapping action labels.
+A BOXXY account gives players a username, cloud-saved progress, gameplay statistics and a personal medal collection. The game remains fully playable without signing in.
 
-### v141 older-iPad character stability
+Account and privacy information is covered in [PRIVACY.md](PRIVACY.md) and the in-game Legal section.
 
-- Uses cached character images with an immediate independent fallback frame.
-- Repaints the character after page restoration and visibility changes.
-- Reduces Safari memory pressure and avoids the old zero-height-container animation issue.
+## Daily BOXXY
 
-## Repository structure
+A new Daily puzzle gives players a reason to return regularly. Completing Daily puzzles builds a streak and unlocks progressively rarer streak medals.
 
-```text
-assets/
-  audio/cracked-ivory-drift.mp3
-  board/board-atlas.png
-  characters/
-    boy/   (six wardrobe-layer sprite sheets)
-    girl/  (six wardrobe-layer sprite sheets)
-  characters-fallback/
-    boy/   (12 independent emergency frames)
-    girl/  (12 independent emergency frames)
-  ui/boxxy-splash.png
+## Puzzle packs
 
-index.html
-styles.css
-boxxy.js
-levels.js
-pack-builder.js
-solver-worker.js
-legal.html
-README.md
-LICENSE.md
-TERMS-OF-USE.md
-PRIVACY.md
-THIRD-PARTY-NOTICES.md
-```
+BOXXY includes a growing collection of puzzle packs ranging from compact introductory levels to much more demanding Sokoban problems.
 
-## Why the character graphics are not one file
+Some collections contain original BOXXY material and some are based on third-party puzzle collections. Ownership and attribution for third-party material are listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
-The wardrobe changes hair, skin, shirt, trousers and shoes independently, so those colour-mask layers must remain separately addressable. Each of the six files is already a sprite sheet containing all 12 poses; they are not 12 individual animation files.
+## Source and licence
 
-Combining every layer into one very large atlas would not reduce decoded image memory and could exceed older iPad texture or canvas limits. The current arrangement is the smaller safe structure: six compact sheets per character, plus independent fallback frames that remain visible if Safari cannot compose a customised sprite.
+BOXXY is **source-available proprietary software**, not open-source software.
 
-## Main code files
+The repository is public so the project can be viewed, studied and developed openly, but the BOXXY code, artwork, characters, interface, audio, branding and original puzzle material remain protected.
 
-- `index.html` — page structure and script loading
-- `styles.css` — responsive interface and game styling
-- `boxxy.js` — game, character renderer, Level Maker and route verification
-- `levels.js` — the single source of truth for all five bundled level packs
-- `pack-builder.js` — private Level Pack and Daily Puzzle workspaces
-- `solver-worker.js` — loader and adapter for the external Rust/WebAssembly solver
-- `legal.html` — public-facing legal information
-
-## Browser storage and accounts
-
-Game progress, saved gameplay positions, Level Maker saves, pack drafts and Daily Puzzle drafts are stored in the browser. Clearing site data may delete them. BOXXY v274 also adds optional Cloudflare D1 accounts that can synchronise supported game progress and settings between devices.
-
-The v143 file cleanup does not change pack IDs, level source numbers or storage-key formats, so existing progress remains compatible.
+Personal, non-commercial play and private experimentation are permitted subject to [LICENSE.md](LICENSE.md). Republishing, redistributing, commercialising or reusing BOXXY material in another product requires permission.
 
 ## Privacy
 
-BOXXY uses limited cookieless PostHog analytics and optional first-party accounts. Account data is stored through Cloudflare. See [PRIVACY.md](PRIVACY.md) for details.
+BOXXY stores game data locally in the browser and offers optional account-based cloud saving.
 
-## Hidden tools
+For full details about account information, analytics, cookies, IP addresses and stored game data, see [PRIVACY.md](PRIVACY.md).
 
-The Level Maker and pack-building tools are intended for the project owner. Their presence in client-side code does not grant permission to copy, publish or commercially exploit BOXXY.
+## Contact
 
-## Rights and permissions
+Feedback, bug reports, puzzle comments and general enquiries can be sent through the **Contact BOXXY** option inside the game.
 
-Commercial or republication enquiries should be directed to Sam Cornwell through the `quornsam` GitHub profile.
+Copyright © 2026 Sam Cornwell. All rights reserved.
