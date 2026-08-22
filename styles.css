@@ -6357,3 +6357,26 @@ body[data-boxxy-speed="fast"] .piece.player.pushing :is(img,canvas),body[data-bo
   .account-avatar-card{height:auto;min-height:152px;align-self:stretch}
 }
 .style-modal{z-index:9700}
+
+/* BOXXY v285 — optional account shortcut from the level-cleared modal. */
+.complete-account-prompt{
+  align-self:flex-start;
+  margin:12px 0 0;
+  padding:0;
+  border:0;
+  background:transparent;
+  color:#5f574f;
+  font:inherit;
+  font-size:9px;
+  line-height:1.35;
+  font-weight:850;
+  text-decoration:underline;
+  text-underline-offset:2px;
+  cursor:pointer;
+}
+.complete-account-prompt:hover{color:var(--blue)}
+.complete-account-prompt:focus-visible{outline:2px solid var(--ink);outline-offset:4px}
+.complete-account-prompt[hidden]{display:none!important}
+@media(max-width:560px){
+  .complete-account-prompt{font-size:9px;margin-top:10px}
+}

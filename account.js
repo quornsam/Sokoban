@@ -63,6 +63,9 @@
   const medals = document.getElementById("accountMedals");
   const medalsEmpty = document.getElementById("accountMedalsEmpty");
   const accountGuest = document.getElementById("accountGuest");
+  const completeAccountPrompt = document.getElementById("completeAccountPrompt");
+  const completeCloseBtn = document.getElementById("completeCloseBtn");
+  const settingsBtn = document.getElementById("settingsBtn");
 
   if (!entryBtn || !accountView) return;
 
@@ -455,6 +458,7 @@
     if (entryLabel) entryLabel.textContent = loggedIn ? `LOGGED IN AS ${account.username}` : "MAKE AN ACCOUNT / SIGN IN";
 
     if (accountGuest) accountGuest.hidden = loggedIn;
+    if (completeAccountPrompt) completeAccountPrompt.hidden = loggedIn;
     if (details) details.hidden = !loggedIn;
     if (loggedIn) {
       if (usernameValue) usernameValue.textContent = account.username || "—";
@@ -580,6 +584,15 @@
 
   createModeBtn?.addEventListener("click", () => { mode = "create"; setStatus(""); renderMode(); });
   loginModeBtn?.addEventListener("click", () => { mode = "login"; setStatus(""); renderMode(); });
+  completeAccountPrompt?.addEventListener("click", () => {
+    mode = "create";
+    setStatus("");
+    completeCloseBtn?.click();
+    settingsBtn?.click();
+    openAccount();
+    renderMode();
+    requestAnimationFrame(() => createForm?.querySelector('input[name="username"]')?.focus?.({ preventScroll: true }));
+  });
   entryBtn.addEventListener("click", openAccount);
   backBtn?.addEventListener("click", closeAccount);
 
