@@ -6,9 +6,13 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "284",
-  lastUpdated: "2026-08-21"
+  version: "288",
+  lastUpdated: "2026-08-22"
 });
+/* BOXXY v288 — smooth tile travel retained without pose blending; blocked pushes now hold the push pose correctly. */
+/* BOXXY v287 — smoother tile movement with interpolated travel and blended in-between character poses. */
+/* BOXXY v286 — level-cleared account shortcut styling refined. */
+/* BOXXY v285 — account shortcut added to level-cleared modal for unsigned players. */
 /* BOXXY v284 — account avatar layout, attire modal stacking, and Basement recent-activity history. */
 /* BOXXY v283 — account avatar card alignment, attire shortcut, and contact-based password recovery. */
 /* BOXXY v282 — Zen Mode Undo now repeats while held without sacrificing swipe-anywhere movement. */
@@ -2068,6 +2072,7 @@ window.BOXXY_RELEASE = Object.freeze({
   let timer = null;
   let idleTimer = null;
   let animTimer = null;
+  let boardStepMotion = null;
 
   function updatePackCollectionLabels(pack = activePack) {
     const label = dailyMode ? "Boxxy Dailys" : packCollectionLabel(pack);
@@ -5288,13 +5293,27 @@ window.BOXXY_RELEASE = Object.freeze({
 
   function render(anim = "idle") {
     currentAnimation = anim;
+    if (anim === "idle") boardStepMotion = null;
     pieceLayer.innerHTML = "";
+    const activeBoardMotion = (anim === "walking" || anim === "pushing") ? boardStepMotion : null;
+
     boxes.forEach(box => {
       const goal = goalAt(box.x, box.y);
       const onGoal = Boolean(goal);
+      const movingBox = Boolean(
+        anim === "pushing"
+        && box.moving
+        && activeBoardMotion?.type === "push"
+        && box.x === activeBoardMotion.boxToX
+        && box.y === activeBoardMotion.boxToY
+      );
       const piece = document.createElement("div");
-      piece.className = `piece box${onGoal ? " on-goal" : ""}${anim === "push" && box.moving ? " pushing" : ""}`;
+      piece.className = `piece box${onGoal ? " on-goal" : ""}${movingBox ? " pushing board-step" : ""}`;
       piece.style.cssText = posStyle(box.x, box.y, depth(box.y, "box"));
+      if (movingBox) {
+        piece.style.setProperty("--from-x", activeBoardMotion.boxFromX);
+        piece.style.setProperty("--from-y", activeBoardMotion.boxFromY);
+      }
       if (goal) GOAL_COLOURS?.style?.(piece, goal.colour);
       const art = document.createElement("span");
       art.className = "board-art board-art-box";
@@ -5305,20 +5324,35 @@ window.BOXXY_RELEASE = Object.freeze({
     });
 
     const playerPiece = document.createElement("div");
-    playerPiece.className = `piece player facing-${facing}${anim && anim !== "idle" ? " " + anim : ""}`;
+    const playerMoving = Boolean(activeBoardMotion);
+    playerPiece.className = `piece player facing-${facing}${anim && anim !== "idle" ? " " + anim : ""}${playerMoving ? " board-step" : ""}`;
     playerPiece.style.cssText = posStyle(player[0], player[1], depth(player[1], "player"));
-    const playerImage = document.createElement("img");
-    playerImage.alt = "";
-    playerImage.draggable = false;
-    playerImage.decoding = "sync";
-    playerImage.setAttribute("aria-hidden", "true");
-    const frameName = characterFrameName(
-      anim === "walking" ? "walk" : anim === "pushing" ? "push" : "idle",
-      facing
-    );
-    playerImage.dataset.characterFrame = frameName;
-    playerPiece.appendChild(playerImage);
-    window.CharacterStyler?.drawImage?.(playerImage, frameName);
+    if (playerMoving) {
+      playerPiece.style.setProperty("--from-x", activeBoardMotion.fromX);
+      playerPiece.style.setProperty("--from-y", activeBoardMotion.fromY);
+    }
+
+    const appendCharacterImage = (frameName, className = "") => {
+      const image = document.createElement("img");
+      image.alt = "";
+      image.draggable = false;
+      image.decoding = "sync";
+      image.setAttribute("aria-hidden", "true");
+      if (className) image.className = className;
+      image.dataset.characterFrame = frameName;
+      playerPiece.appendChild(image);
+      window.CharacterStyler?.drawImage?.(image, frameName);
+      return image;
+    };
+
+    if (anim === "walking" || anim === "pushing") {
+      // Use the actual movement pose for the whole step. This avoids the faint
+      // cross-fade flicker seen at RELAXED speed and lets a blocked held push
+      // remain visibly in the push pose until the input is released.
+      appendCharacterImage(characterFrameName(anim === "walking" ? "walk" : "push", facing));
+    } else {
+      appendCharacterImage(characterFrameName("idle", facing));
+    }
     pieceLayer.appendChild(playerPiece);
 
     movesEl.textContent = moves;
@@ -5786,6 +5820,8 @@ window.BOXXY_RELEASE = Object.freeze({
     if (completed || (autoplayRunning && !fromAutoplay)) return;
     ensureAudio();
     clearTimeout(animTimer);
+    const previousPlayer = [...player];
+    boardStepMotion = null;
     const attemptedFacing = DELTA_TO_FACING(dx, dy);
     const nx = player[0] + dx;
     const ny = player[1] + dy;
@@ -5817,10 +5853,19 @@ window.BOXXY_RELEASE = Object.freeze({
       redoHistory = [];
       history.push(snapshot());
       boxes.forEach(box => { box.moving = false; });
+      const movedBoxFromX = boxes[index].x;
+      const movedBoxFromY = boxes[index].y;
       boxes[index].x = bx;
       boxes[index].y = by;
       boxes[index].moving = true;
       player = [nx, ny];
+      boardStepMotion = {
+        type: "push",
+        fromX: previousPlayer[0], fromY: previousPlayer[1],
+        toX: nx, toY: ny,
+        boxFromX: movedBoxFromX, boxFromY: movedBoxFromY,
+        boxToX: bx, boxToY: by
+      };
       moves++;
       pushes++;
       if (!fromAutoplay) {
@@ -5837,6 +5882,11 @@ window.BOXXY_RELEASE = Object.freeze({
       history.push(snapshot());
       boxes.forEach(box => { box.moving = false; });
       player = [nx, ny];
+      boardStepMotion = {
+        type: "walk",
+        fromX: previousPlayer[0], fromY: previousPlayer[1],
+        toX: nx, toY: ny
+      };
       moves++;
       if (!fromAutoplay) addLifetimeStat(ALL_TIME_STEPS_KEY);
       facing = facingOverride || attemptedFacing;
