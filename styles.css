@@ -6401,3 +6401,29 @@ body[data-boxxy-speed="fast"]{--boxxy-step-transition:.11s;--boxxy-motion-durati
 @media(max-width:560px){
   .complete-card button.complete-account-prompt{font-size:9px;margin-top:18px}
 }
+
+
+/* BOXXY v289 — signed-in offline download and iPhone Home Screen handoff. */
+.account-offline-card{margin:12px 0 0;padding:12px;border:2px solid var(--ink);background:#f7f0e5}
+.account-offline-heading{display:block;margin:0 0 8px;color:#71685e;font-size:7px;font-weight:1000;letter-spacing:.1em}
+.account-offline-button{width:100%;min-height:44px;border:2px solid var(--ink);background:var(--yellow);color:var(--ink);box-shadow:3px 3px 0 var(--ink);font-size:9px;font-weight:1000;letter-spacing:.07em;cursor:pointer}
+.account-offline-button:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--ink)}
+.account-offline-button:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+.account-offline-button:disabled{opacity:.68;cursor:wait;transform:none}
+.account-offline-button.ready{background:#9bd4a7}
+.account-offline-help{margin:9px 0 0;color:#6b6257;font-size:8px;line-height:1.45;font-weight:750}
+.account-offline-guide{margin:10px 0 0;padding:10px;border:2px solid var(--blue);background:#eef7ff}
+.account-offline-guide[hidden]{display:none!important}
+.account-offline-guide strong{display:block;margin:0 0 6px;color:var(--blue);font-size:8px;font-weight:1000;letter-spacing:.07em}
+.account-offline-guide p{margin:0;color:var(--ink);font-size:9px;line-height:1.45;font-weight:750}
+.boxxy-offline-toast{position:fixed;left:50%;bottom:max(18px,env(safe-area-inset-bottom));z-index:100000;transform:translateX(-50%);max-width:min(90vw,420px);padding:10px 14px;border:2px solid var(--ink);background:var(--yellow);box-shadow:3px 3px 0 var(--ink);font-size:9px;font-weight:1000;letter-spacing:.05em;text-align:center}
+.boxxy-offline-toast.done{background:#9bd4a7}
+.boxxy-offline-toast[hidden]{display:none!important}
+@media(max-width:760px){
+  .account-offline-card{padding:10px;margin-top:10px}
+  .account-offline-button{min-height:42px;font-size:8px}
+}
+@media(max-height:520px) and (orientation:landscape){
+  .account-offline-card{padding:8px;margin-top:8px}
+  .account-offline-help{margin-top:6px}
+}

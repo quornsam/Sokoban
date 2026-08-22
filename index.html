@@ -159,7 +159,7 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=288">
+<link rel="stylesheet" href="styles.css?v=289">
 <link rel="stylesheet" href="how-to-play.css?v=225">
 <link rel="preload" as="image" href="assets/board/boxes/box-default-yellow.png?v=226">
 <link rel="preload" as="image" href="assets/board/goals/goal-red.png?v=226">
@@ -510,6 +510,15 @@
             <div><span>LAST CLOUD SAVE</span><strong id="accountSyncValue">—</strong></div>
           </div>
           <p class="account-small">Your local game remains playable without an account. While signed in, progress is also copied to BOXXY so it can follow you to another device.</p>
+          <section class="account-offline-card" aria-labelledby="accountOfflineHeading">
+            <span id="accountOfflineHeading" class="account-offline-heading">OFFLINE PLAY</span>
+            <button id="accountOfflineBtn" class="account-offline-button" type="button">DOWNLOAD FOR OFFLINE PLAY</button>
+            <p id="accountOfflineHelp" class="account-offline-help">Keep the complete playable game on this device for flights and other places without internet.</p>
+            <div id="accountOfflineGuide" class="account-offline-guide" hidden>
+              <strong>ADD BOXXY TO YOUR HOME SCREEN</strong>
+              <p>Tap the iPhone Share button, choose <b>Add to Home Screen</b>, then <b>Add</b>. Open BOXXY once from the new icon while still online; the offline download will finish automatically.</p>
+            </div>
+          </section>
           <button id="accountLogoutBtn" class="account-secondary" type="button">SIGN OUT</button>
           <button id="accountDeleteToggle" class="account-danger-link" type="button">DELETE ACCOUNT…</button>
           <form id="accountDeleteForm" class="account-delete-form" hidden>
@@ -1182,8 +1191,8 @@
 
 <script src="daily-puzzles/boxxy-daily-loader.js?v=217"></script>
 <script src="levels.js?v=268"></script>
-<script src="boxxy.js?v=288"></script>
-<script src="account.js?v=285"></script>
+<script src="boxxy.js?v=289"></script>
+<script src="account.js?v=289"></script>
 <script src="pack-builder.js?v=216"></script>
 <script src="how-to-play.js?v=153"></script>
 </body>
