@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "287",
+  version: "288",
   lastUpdated: "2026-08-22"
 });
+/* BOXXY v288 — smooth tile travel retained without pose blending; blocked pushes now hold the push pose correctly. */
 /* BOXXY v287 — smoother tile movement with interpolated travel and blended in-between character poses. */
 /* BOXXY v286 — level-cleared account shortcut styling refined. */
 /* BOXXY v285 — account shortcut added to level-cleared modal for unsigned players. */
@@ -5345,12 +5346,12 @@ window.BOXXY_RELEASE = Object.freeze({
     };
 
     if (anim === "walking" || anim === "pushing") {
-      const idleFrameName = characterFrameName("idle", facing);
-      const actionFrameName = characterFrameName(anim === "walking" ? "walk" : "push", facing);
-      appendCharacterImage(idleFrameName, "character-pose-base");
-      appendCharacterImage(actionFrameName, "character-pose-action");
+      // Use the actual movement pose for the whole step. This avoids the faint
+      // cross-fade flicker seen at RELAXED speed and lets a blocked held push
+      // remain visibly in the push pose until the input is released.
+      appendCharacterImage(characterFrameName(anim === "walking" ? "walk" : "push", facing));
     } else {
-      appendCharacterImage(characterFrameName("idle", facing), "character-pose-base");
+      appendCharacterImage(characterFrameName("idle", facing));
     }
     pieceLayer.appendChild(playerPiece);
 
