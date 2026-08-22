@@ -1,3 +1,4 @@
+/* BOXXY v289 — signed-in offline download, iPhone Home Screen handoff and offline account continuity. */
 /* BOXXY v281 — account medals added alongside cloud sync, gameplay statistics and level-attempt history. */
 (() => {
   "use strict";
@@ -10,6 +11,10 @@
   const ALL_TIME_PUSHES_KEY = "boxxy-all-time-pushes-v1";
   const LEVEL_ATTEMPTS_KEY = "boxxy-level-attempts-v1";
   const PACK_CATALOG_KEY = "boxxy-pack-catalog-v1";
+  const OFFLINE_ACCOUNT_SNAPSHOT_KEY = "boxxy-offline-account-snapshot-v1";
+  const OFFLINE_REQUEST_COOKIE = "boxxy_offline_requested";
+  const OFFLINE_CACHE_NAME = "boxxy-offline-v1";
+  const OFFLINE_META_URL = "/__boxxy_offline_meta__";
   const EXACT_SYNC_KEYS = new Set([
     "boxxy-active-pack-v2",
     "boxxy-additional-packs-unlocked-v1",
@@ -63,6 +68,9 @@
   const medals = document.getElementById("accountMedals");
   const medalsEmpty = document.getElementById("accountMedalsEmpty");
   const accountGuest = document.getElementById("accountGuest");
+  const offlineBtn = document.getElementById("accountOfflineBtn");
+  const offlineHelp = document.getElementById("accountOfflineHelp");
+  const offlineGuide = document.getElementById("accountOfflineGuide");
   const completeAccountPrompt = document.getElementById("completeAccountPrompt");
   const completeCloseBtn = document.getElementById("completeCloseBtn");
   const settingsBtn = document.getElementById("settingsBtn");
@@ -75,6 +83,7 @@
   let lastSyncedFingerprint = "";
   let activeSecondsDelta = 0;
   let lastActivityTick = Date.now();
+  let offlineBusy = false;
 
   function setStatus(message = "", kind = "") {
     if (!status) return;
@@ -87,6 +96,217 @@
     [createSubmit, loginSubmit, logoutBtn].forEach(button => {
       if (button) button.disabled = busy;
     });
+  }
+
+  function isStandaloneDisplay() {
+    return Boolean(window.navigator.standalone) || window.matchMedia?.("(display-mode: standalone)")?.matches === true;
+  }
+
+  function isAppleMobile() {
+    const ua = navigator.userAgent || "";
+    const platform = navigator.platform || "";
+    return /iPhone|iPad|iPod/i.test(ua) || (platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  }
+
+  function saveOfflineAccountSnapshot() {
+    if (!account) return;
+    try {
+      localStorage.setItem(OFFLINE_ACCOUNT_SNAPSHOT_KEY, JSON.stringify({
+        username: account.username || "",
+        email: account.email || "",
+        createdAt: Number(account.createdAt) || 0,
+        totalActiveSeconds: Number(account.totalActiveSeconds) || 0,
+        progressUpdatedAt: Number(account.progressUpdatedAt) || 0
+      }));
+    } catch (_) {}
+  }
+
+  function loadOfflineAccountSnapshot() {
+    try {
+      const value = JSON.parse(localStorage.getItem(OFFLINE_ACCOUNT_SNAPSHOT_KEY) || "null");
+      return value && typeof value === "object" && value.username ? value : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function clearOfflineAccountSnapshot() {
+    try { localStorage.removeItem(OFFLINE_ACCOUNT_SNAPSHOT_KEY); } catch (_) {}
+  }
+
+  function offlineRequestCookieValue() {
+    const prefix = `${OFFLINE_REQUEST_COOKIE}=`;
+    return document.cookie.split(";").map(value => value.trim()).find(value => value.startsWith(prefix))?.slice(prefix.length) || "";
+  }
+
+  function setOfflineRequestCookie(enabled = true) {
+    const secure = location.protocol === "https:" ? "; Secure" : "";
+    if (enabled) {
+      const version = encodeURIComponent(String(window.BOXXY_RELEASE?.version || "289"));
+      document.cookie = `${OFFLINE_REQUEST_COOKIE}=${version}; Max-Age=86400; Path=/; SameSite=Lax${secure}`;
+    } else {
+      document.cookie = `${OFFLINE_REQUEST_COOKIE}=; Max-Age=0; Path=/; SameSite=Lax${secure}`;
+    }
+  }
+
+  function makeOfflineToast(message, done = false) {
+    let toast = document.getElementById("boxxyOfflineToast");
+    if (!toast) {
+      toast = document.createElement("div");
+      toast.id = "boxxyOfflineToast";
+      toast.className = "boxxy-offline-toast";
+      toast.setAttribute("role", "status");
+      toast.setAttribute("aria-live", "polite");
+      document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    toast.hidden = false;
+    toast.classList.toggle("done", Boolean(done));
+    if (done) setTimeout(() => { toast.hidden = true; }, 3200);
+  }
+
+  async function readOfflineMeta() {
+    if (!("caches" in window)) return null;
+    try {
+      const cache = await caches.open(OFFLINE_CACHE_NAME);
+      const response = await cache.match(OFFLINE_META_URL);
+      return response ? await response.json() : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  async function refreshOfflineButton() {
+    if (!offlineBtn || !account || offlineBusy) return;
+    const meta = await readOfflineMeta();
+    const current = String(window.BOXXY_RELEASE?.version || "289");
+    if (meta?.version === current) {
+      offlineBtn.textContent = "OFFLINE PLAY READY ✓";
+      offlineBtn.classList.add("ready");
+      if (offlineHelp) offlineHelp.textContent = "The playable game is stored on this device and can open without internet.";
+    } else if (meta?.version) {
+      offlineBtn.textContent = "UPDATE OFFLINE COPY";
+      offlineBtn.classList.remove("ready");
+    } else {
+      offlineBtn.textContent = "DOWNLOAD FOR OFFLINE PLAY";
+      offlineBtn.classList.remove("ready");
+    }
+  }
+
+  async function registerOfflineWorker() {
+    if (!("serviceWorker" in navigator)) throw new Error("Offline play is not supported by this browser.");
+    const registration = await navigator.serviceWorker.register(`/service-worker.js?v=${encodeURIComponent(String(window.BOXXY_RELEASE?.version || "289"))}`, { scope: "/" });
+    await navigator.serviceWorker.ready;
+    if (!registration.active) {
+      await new Promise(resolve => {
+        const worker = registration.installing || registration.waiting;
+        if (!worker) return resolve();
+        const finish = () => { if (worker.state === "activated") resolve(); };
+        worker.addEventListener("statechange", finish);
+        finish();
+        setTimeout(resolve, 3000);
+      });
+    }
+    return registration;
+  }
+
+  async function cacheBoxxyForOffline({ automatic = false } = {}) {
+    if (offlineBusy || !account) return false;
+    offlineBusy = true;
+    if (offlineBtn) {
+      offlineBtn.disabled = true;
+      offlineBtn.classList.remove("ready");
+      offlineBtn.textContent = "PREPARING OFFLINE PLAY…";
+    }
+    if (offlineGuide) offlineGuide.hidden = true;
+    if (offlineHelp) offlineHelp.textContent = "Downloading the complete playable game to this device…";
+    if (automatic) makeOfflineToast("BOXXY OFFLINE DOWNLOAD · STARTING…");
+
+    let onMessage = null;
+    try {
+      const registration = await registerOfflineWorker();
+      const worker = registration.active || registration.waiting || registration.installing;
+      if (!worker) throw new Error("Offline worker did not start.");
+
+      const result = await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          if (onMessage) navigator.serviceWorker.removeEventListener("message", onMessage);
+          reject(new Error("Offline download timed out."));
+        }, 180000);
+        onMessage = event => {
+          const data = event.data || {};
+          if (data.type === "BOXXY_OFFLINE_PROGRESS") {
+            const total = Math.max(1, Number(data.total) || 1);
+            const done = Math.max(0, Number(data.done) || 0);
+            const percent = Math.min(100, Math.round((done / total) * 100));
+            if (offlineBtn) offlineBtn.textContent = `DOWNLOADING ${percent}%…`;
+            if (automatic) makeOfflineToast(`BOXXY OFFLINE DOWNLOAD · ${percent}%`);
+          } else if (data.type === "BOXXY_OFFLINE_COMPLETE") {
+            clearTimeout(timeout);
+            navigator.serviceWorker.removeEventListener("message", onMessage);
+            onMessage = null;
+            resolve(data);
+          } else if (data.type === "BOXXY_OFFLINE_ERROR") {
+            clearTimeout(timeout);
+            navigator.serviceWorker.removeEventListener("message", onMessage);
+            onMessage = null;
+            reject(new Error(data.message || "Offline download failed."));
+          }
+        };
+        navigator.serviceWorker.addEventListener("message", onMessage);
+        worker.postMessage({ type: "CACHE_ALL_BOXXY", version: String(window.BOXXY_RELEASE?.version || "289") });
+      });
+
+      setOfflineRequestCookie(false);
+      if (offlineBtn) {
+        offlineBtn.textContent = "OFFLINE PLAY READY ✓";
+        offlineBtn.classList.add("ready");
+      }
+      if (offlineHelp) offlineHelp.textContent = "The playable game is stored on this device and can open without internet.";
+      setStatus("OFFLINE PLAY READY", "success");
+      if (automatic) makeOfflineToast("BOXXY IS READY FOR OFFLINE PLAY ✓", true);
+      return Boolean(result);
+    } catch (error) {
+      if (onMessage) navigator.serviceWorker.removeEventListener("message", onMessage);
+      if (offlineBtn) offlineBtn.textContent = "TRY OFFLINE DOWNLOAD AGAIN";
+      if (offlineHelp) offlineHelp.textContent = error?.message || "Offline download could not be completed.";
+      setStatus(error?.message || "Offline download could not be completed.", "error");
+      if (automatic) makeOfflineToast("OFFLINE DOWNLOAD NEEDS INTERNET", true);
+      return false;
+    } finally {
+      offlineBusy = false;
+      if (offlineBtn) offlineBtn.disabled = false;
+    }
+  }
+
+  async function beginOfflineSetup() {
+    if (!account || offlineBusy) return;
+    if (isAppleMobile() && !isStandaloneDisplay()) {
+      // iOS/iPadOS creates a separate storage container for a Home Screen web app.
+      // A short-lived cookie is intentionally used because login cookies are copied at install time.
+      setOfflineRequestCookie(true);
+      if (offlineGuide) offlineGuide.hidden = false;
+      if (offlineHelp) offlineHelp.textContent = "Apple requires one Home Screen step before the offline files can be stored in the app.";
+      if (offlineBtn) {
+        offlineBtn.textContent = "READY — ADD TO HOME SCREEN";
+        offlineBtn.classList.remove("ready");
+      }
+      setStatus("FOLLOW THE HOME SCREEN STEPS BELOW", "success");
+      return;
+    }
+    await cacheBoxxyForOffline();
+  }
+
+  async function maybeResumeOfflineSetup() {
+    if (!account || !isStandaloneDisplay() || !offlineRequestCookieValue()) return;
+    const meta = await readOfflineMeta();
+    const current = String(window.BOXXY_RELEASE?.version || "289");
+    if (meta?.version === current) {
+      setOfflineRequestCookie(false);
+      refreshOfflineButton();
+      return;
+    }
+    await cacheBoxxyForOffline({ automatic: true });
   }
 
   function shouldSyncKey(key) {
@@ -473,6 +693,10 @@
       if (pushesValue) pushesValue.textContent = lifetimeStat(ALL_TIME_PUSHES_KEY).toLocaleString("en-GB");
       if (avatarCanvas) window.CharacterStyler?.draw?.(avatarCanvas, "player-front");
       renderMedals();
+      saveOfflineAccountSnapshot();
+      refreshOfflineButton();
+    } else if (offlineGuide) {
+      offlineGuide.hidden = true;
     }
     renderMode();
   }
@@ -508,10 +732,12 @@
     if (!account) {
       lastSyncedFingerprint = "";
       try { localStorage.removeItem(ACCOUNT_MARKER_KEY); } catch (_) {}
+      clearOfflineAccountSnapshot();
       render();
       return false;
     }
     try { localStorage.setItem(ACCOUNT_MARKER_KEY, "1"); } catch (_) {}
+    saveOfflineAccountSnapshot();
 
     const local = collectCloudState();
     const remote = data.progress && typeof data.progress === "object" ? data.progress : {};
@@ -533,8 +759,10 @@
   }
 
   async function initialAccountCheck() {
+    const standalone = isStandaloneDisplay();
+    const markerKnown = (() => { try { return localStorage.getItem(ACCOUNT_MARKER_KEY) === "1"; } catch (_) { return false; } })();
+    if (!markerKnown && !standalone) return;
     try {
-      if (localStorage.getItem(ACCOUNT_MARKER_KEY) !== "1") return;
       const { response, data } = await requestAccount();
       if (!response.ok && response.status !== 401) {
         setStatus(data.error || "Account service is not ready yet.", "error");
@@ -547,8 +775,17 @@
         return;
       }
       sessionStorage.removeItem("boxxy-account-merge-reload-v1");
+      await maybeResumeOfflineSetup();
     } catch (_) {
-      /* The game remains fully usable if the optional account service is unavailable. */
+      // A previously verified Home Screen account remains locally identifiable while offline.
+      if (standalone) {
+        const snapshot = loadOfflineAccountSnapshot();
+        if (snapshot) {
+          account = snapshot;
+          render();
+          setStatus("OFFLINE · PROGRESS WILL SYNC WHEN INTERNET RETURNS", "success");
+        }
+      }
     }
   }
 
@@ -568,6 +805,7 @@
       if (response.status === 401) {
         account = null;
         lastSyncedFingerprint = "";
+        clearOfflineAccountSnapshot();
         render();
         return false;
       }
@@ -575,6 +813,7 @@
       activeSecondsDelta = Math.max(0, activeSecondsDelta - delta);
       lastSyncedFingerprint = fingerprint;
       if (data.account) account = data.account;
+      saveOfflineAccountSnapshot();
       render();
       return true;
     } catch (_) {
@@ -595,6 +834,7 @@
   });
   entryBtn.addEventListener("click", openAccount);
   backBtn?.addEventListener("click", closeAccount);
+  offlineBtn?.addEventListener("click", beginOfflineSetup);
 
   createForm?.addEventListener("submit", async event => {
     event.preventDefault();
@@ -664,6 +904,8 @@
     activeSecondsDelta = 0;
     lastSyncedFingerprint = "";
     try { localStorage.removeItem(ACCOUNT_MARKER_KEY); } catch (_) {}
+    clearOfflineAccountSnapshot();
+    setOfflineRequestCookie(false);
     setBusy(false);
     setStatus("SIGNED OUT", "success");
     render();
@@ -699,6 +941,8 @@
       activeSecondsDelta = 0;
       lastSyncedFingerprint = "";
       try { localStorage.removeItem(ACCOUNT_MARKER_KEY); } catch (_) {}
+      clearOfflineAccountSnapshot();
+      setOfflineRequestCookie(false);
       deleteForm.reset();
       deleteForm.hidden = true;
       if (deleteToggle) deleteToggle.hidden = false;

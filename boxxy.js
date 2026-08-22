@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "288",
+  version: "289",
   lastUpdated: "2026-08-22"
 });
+/* BOXXY v289 — signed-in offline download and Home Screen handoff. */
 /* BOXXY v288 — smooth tile travel retained without pose blending; blocked pushes now hold the push pose correctly. */
 /* BOXXY v287 — smoother tile movement with interpolated travel and blended in-between character poses. */
 /* BOXXY v286 — level-cleared account shortcut styling refined. */
