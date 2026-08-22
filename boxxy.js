@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "285",
+  version: "286",
   lastUpdated: "2026-08-22"
 });
+/* BOXXY v286 — level-cleared account shortcut styling refined. */
 /* BOXXY v285 — account shortcut added to level-cleared modal for unsigned players. */
 /* BOXXY v284 — account avatar layout, attire modal stacking, and Basement recent-activity history. */
 /* BOXXY v283 — account avatar card alignment, attire shortcut, and contact-based password recovery. */
