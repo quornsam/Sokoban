@@ -92,8 +92,18 @@ button{font:inherit;color:inherit;cursor:pointer}
 .piece.player{width:calc(207% / var(--cols));height:0;transform:translateX(-50%);transition:left var(--boxxy-step-transition,.17s) cubic-bezier(.2,.82,.32,1),top var(--boxxy-step-transition,.17s) cubic-bezier(.2,.82,.32,1);display:block;overflow:visible;z-index:99999!important;pointer-events:auto}
 .piece.player::before{content:"";position:absolute;left:50%;bottom:3px;width:30%;height:8px;transform:translateX(-38%);border-radius:50%;background:rgba(48,34,18,.34);filter:blur(3px);box-shadow:6px 4px 6px rgba(48,34,18,.14);z-index:0}
 .piece.player img{position:absolute;left:50%;bottom:0;z-index:1;display:block;width:100%;height:auto;max-width:none;max-height:none;object-fit:contain;overflow:visible;clip-path:none;transform:translateX(-50%);transform-origin:50% 100%;filter:none}
+.piece.player img.character-pose-action{opacity:0}
 .piece.player.pushing.facing-left,.piece.player.pushing.facing-right,.piece.player.pushing.facing-front,.piece.player.pushing.facing-back{width:calc(207% / var(--cols))}
-.piece.box.pushing{animation:boxPush .2s ease}.piece.player.walking :is(img,canvas){animation:playerWalk .17s linear}.piece.player.pushing :is(img,canvas){animation:playerPush .2s ease}.piece.player.bumping :is(img,canvas){animation:playerBump .16s ease}
+.piece.player.board-step{animation:boardPieceMove var(--boxxy-motion-duration,.105s) cubic-bezier(.2,.82,.32,1) both}
+.piece.box.pushing.board-step{animation:boardPieceMove var(--boxxy-motion-duration,.105s) cubic-bezier(.2,.82,.32,1) both,boxPush var(--boxxy-motion-duration,.105s) ease both}
+.piece.player.walking img.character-pose-base{animation:playerWalk var(--boxxy-motion-duration,.105s) linear,characterPoseBase var(--boxxy-motion-duration,.105s) ease-in-out}
+.piece.player.walking img.character-pose-action{animation:playerWalk var(--boxxy-motion-duration,.105s) linear,characterPoseAction var(--boxxy-motion-duration,.105s) ease-in-out}
+.piece.player.pushing img.character-pose-base{animation:playerPush var(--boxxy-motion-duration,.105s) ease,characterPoseBase var(--boxxy-motion-duration,.105s) ease-in-out}
+.piece.player.pushing img.character-pose-action{animation:playerPush var(--boxxy-motion-duration,.105s) ease,characterPoseAction var(--boxxy-motion-duration,.105s) ease-in-out}
+.piece.player.bumping :is(img,canvas){animation:playerBump .16s ease}
+@keyframes boardPieceMove{0%{left:calc((var(--from-x) + .5) * 100% / var(--cols));top:calc((var(--from-y) + 1) * 100% / var(--rows))}100%{left:calc((var(--x) + .5) * 100% / var(--cols));top:calc((var(--y) + 1) * 100% / var(--rows))}}
+@keyframes characterPoseBase{0%,100%{opacity:1}46%,54%{opacity:.08}}
+@keyframes characterPoseAction{0%,100%{opacity:0}46%,54%{opacity:1}}
 @keyframes boxPush{50%{transform:translate(-50%,-101%)}}@keyframes playerWalk{50%{transform:translateX(-50%) translateY(-2%)}}@keyframes playerPush{50%{transform:translateX(-50%) translateY(-1%)}}@keyframes playerBump{50%{transform:translateX(-50%) translateY(2%)}}
 .celebration{position:absolute;inset:0;z-index:2400;pointer-events:none;overflow:hidden}.confetti{position:absolute;width:12px;height:12px;animation:confetti 1.2s ease-out forwards}@keyframes confetti{to{transform:translate(var(--dx),var(--dy)) rotate(540deg);opacity:0}}
 .deco{position:absolute;z-index:0;pointer-events:none}.deco-red{width:clamp(75px,10vw,125px);height:clamp(75px,10vw,125px);left:16px;top:24px;background:var(--red);border-radius:0 0 100% 0}.deco-yellow{width:82px;height:62px;right:22px;top:150px;background:var(--yellow)}.stripes{position:absolute;width:58px;height:145px;background:repeating-linear-gradient(90deg,var(--ink) 0 7px,transparent 7px 16px);z-index:0}.stripes-a{right:26px;top:18px}.stripes-b{left:22px;bottom:28px}.semicircle{position:absolute;right:-42px;bottom:20px;width:135px;height:135px;background:var(--ink);border-radius:100% 0 0 100%;z-index:0}
@@ -5839,13 +5849,9 @@ body.first-person-mode .board::after{
 .settings-key-list span{color:#71685e;font-size:8px;font-weight:850;letter-spacing:.1em}.settings-key-list strong{font-size:11px;letter-spacing:.04em}
 .settings-footer{padding:10px 18px;border-top:2px solid var(--ink);background:#efe6d9;text-align:center;color:#6b6257;font-size:8px;font-weight:800;letter-spacing:.04em}
 body.settings-touch-device .desktop-settings-only{display:none!important}
-body{--boxxy-step-transition:.17s}
-body[data-boxxy-speed="slow"]{--boxxy-step-transition:.25s}
-body[data-boxxy-speed="fast"]{--boxxy-step-transition:.11s}
-body[data-boxxy-speed="slow"] .piece.player.walking :is(img,canvas){animation-duration:.25s!important}
-body[data-boxxy-speed="slow"] .piece.player.pushing :is(img,canvas),body[data-boxxy-speed="slow"] .piece.box.pushing{animation-duration:.28s!important}
-body[data-boxxy-speed="fast"] .piece.player.walking :is(img,canvas){animation-duration:.11s!important}
-body[data-boxxy-speed="fast"] .piece.player.pushing :is(img,canvas),body[data-boxxy-speed="fast"] .piece.box.pushing{animation-duration:.13s!important}
+body{--boxxy-step-transition:.17s;--boxxy-motion-duration:.105s}
+body[data-boxxy-speed="slow"]{--boxxy-step-transition:.25s;--boxxy-motion-duration:.147s}
+body[data-boxxy-speed="fast"]{--boxxy-step-transition:.11s;--boxxy-motion-duration:.071s}
 .maker-contact-overlay{z-index:10000}
 
 @media(max-width:760px){
@@ -6358,6 +6364,7 @@ body[data-boxxy-speed="fast"] .piece.player.pushing :is(img,canvas),body[data-bo
 }
 .style-modal{z-index:9700}
 
+/* BOXXY v287 — interpolated tile travel and blended in-between character poses. */
 /* BOXXY v286 — level-cleared account shortcut is plain hoverable text. */
 /* BOXXY v285 — optional account shortcut from the level-cleared modal. */
 .complete-card button.complete-account-prompt{
