@@ -6427,3 +6427,164 @@ body[data-boxxy-speed="fast"]{--boxxy-step-transition:.11s;--boxxy-motion-durati
   .account-offline-card{padding:8px;margin-top:8px}
   .account-offline-help{margin-top:6px}
 }
+
+/* BOXXY v292 — desktop Full Screen is a distraction-free Zen Mode. */
+@media (min-width:761px) and (hover:hover) and (pointer:fine){
+  html.desktop-zen-mode,
+  html.desktop-zen-mode body{
+    width:100%;
+    height:100%;
+    min-height:100%;
+    overflow:hidden!important;
+    background:#eadcca;
+  }
+
+  body.desktop-zen-mode{
+    margin:0;
+    overscroll-behavior:none;
+  }
+
+  body.desktop-zen-mode .app{
+    position:fixed;
+    inset:0;
+    width:100vw;
+    max-width:none;
+    height:100dvh;
+    min-height:0;
+    margin:0;
+    display:block;
+    overflow:hidden;
+    border:0;
+    background:linear-gradient(135deg,#f4ebdd,#eadcca);
+  }
+
+  body.desktop-zen-mode .play-area{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    min-width:0;
+    min-height:0;
+    display:block;
+    overflow:hidden;
+  }
+
+  body.desktop-zen-mode .masthead,
+  body.desktop-zen-mode .instruction,
+  body.desktop-zen-mode .side-panel>.credit,
+  body.desktop-zen-mode .side-panel>.stats,
+  body.desktop-zen-mode .side-panel>.top-actions,
+  body.desktop-zen-mode .side-panel>.move-zone,
+  body.desktop-zen-mode .side-panel>.palette{
+    display:none!important;
+  }
+
+  body.desktop-zen-mode .board-wrap{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    min-width:0;
+    min-height:0;
+    padding:clamp(20px,4dvh,48px);
+    display:grid;
+    place-items:center;
+    overflow:hidden;
+    background:linear-gradient(135deg,#f4ebdd,#eadcca);
+  }
+
+  body.desktop-zen-mode .side-panel{
+    position:fixed;
+    inset:0;
+    z-index:6900;
+    width:100%;
+    height:100%;
+    min-width:0;
+    min-height:0;
+    display:block;
+    overflow:visible;
+    border:0;
+    background:transparent;
+    pointer-events:none;
+  }
+
+  body.desktop-zen-mode .bottom-actions{
+    position:fixed;
+    right:max(18px,env(safe-area-inset-right));
+    bottom:max(18px,env(safe-area-inset-bottom));
+    z-index:7000;
+    width:auto;
+    height:auto;
+    padding:0;
+    display:grid;
+    grid-template-columns:repeat(3,46px);
+    grid-template-rows:46px;
+    gap:8px;
+    background:transparent;
+    pointer-events:auto;
+  }
+
+  body.desktop-zen-mode .bottom-actions .action,
+  body.desktop-zen-mode .bottom-actions .action.small{
+    width:46px;
+    max-width:46px;
+    min-width:46px;
+    height:46px;
+    min-height:46px;
+    padding:10px;
+    display:grid;
+    grid-template-rows:1fr;
+    place-items:center;
+    border:1px solid rgba(255,255,255,.52);
+    border-radius:12px;
+    background:rgba(23,23,25,.54);
+    color:#fff;
+    box-shadow:0 5px 16px rgba(23,23,25,.24),inset 0 1px 0 rgba(255,255,255,.13);
+    -webkit-backdrop-filter:blur(6px);
+    backdrop-filter:blur(6px);
+    opacity:.82;
+    transform:none;
+    transition:opacity .15s ease,background .15s ease,transform .12s ease;
+  }
+
+  body.desktop-zen-mode .bottom-actions .action:hover,
+  body.desktop-zen-mode .bottom-actions .action.small:hover{
+    opacity:1;
+    background:rgba(23,23,25,.68);
+  }
+
+  body.desktop-zen-mode .bottom-actions .action:active,
+  body.desktop-zen-mode .bottom-actions .action.small:active{
+    transform:scale(.96);
+    filter:none;
+  }
+
+  body.desktop-zen-mode .bottom-actions .action b,
+  body.desktop-zen-mode .bottom-actions .action.small b{
+    display:none!important;
+  }
+
+  body.desktop-zen-mode .bottom-actions .action>span,
+  body.desktop-zen-mode .bottom-actions .action.small>span{
+    grid-row:1;
+    align-self:center;
+    justify-self:center;
+    margin:0;
+    color:inherit;
+  }
+
+  body.desktop-zen-mode .bottom-actions .settings-action .menu-lines{
+    width:22px;
+    height:18px;
+  }
+
+  body.desktop-zen-mode .bottom-actions .level-action>span,
+  body.desktop-zen-mode .bottom-actions .fullscreen-action>span{
+    font-size:22px!important;
+    line-height:1!important;
+  }
+
+  body.desktop-zen-mode .level-picker{
+    pointer-events:auto;
+  }
+}

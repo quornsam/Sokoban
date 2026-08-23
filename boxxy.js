@@ -6,7 +6,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "291",
+  version: "292",
   lastUpdated: "2026-08-23"
 });
 /* BOXXY v291 — redirect-safe offline PWA relaunch fix for iPhone/iPad. */
@@ -27,6 +27,8 @@ window.BOXXY_RELEASE = Object.freeze({
 /* Stored solver routes are kept separate from the authored pack data. */
 (() => {
   "use strict";
+
+/* BOXXY v292 — desktop Full Screen now becomes a distraction-free Zen Mode. */
   const STORAGE_KEY = "boxxy-solver-solutions-v1";
   function readAll() {
     try {
@@ -4151,6 +4153,16 @@ window.BOXXY_RELEASE = Object.freeze({
     return document.body.classList.contains("phone-zen-mode");
   }
 
+  function desktopZenModeActive() {
+    return document.body.classList.contains("desktop-zen-mode");
+  }
+
+  function setDesktopZenMode(active) {
+    const enabled = Boolean(active);
+    document.documentElement.classList.toggle("desktop-zen-mode", enabled);
+    document.body.classList.toggle("desktop-zen-mode", enabled);
+  }
+
   function phoneZenTouchPointer(event) {
     if (!phoneZenModeActive()) return false;
     const pointerType = String(event?.pointerType || "");
@@ -4214,7 +4226,13 @@ window.BOXXY_RELEASE = Object.freeze({
     const supported = fullscreenSupported();
     const desktop = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
     const phone = phoneFullscreenLayout();
-    const desktopFullscreenActive = Boolean(fullscreenElement());
+    const activeFullscreenElement = fullscreenElement();
+    const desktopFullscreenActive = Boolean(activeFullscreenElement);
+    const desktopGameFullscreenActive = Boolean(
+      desktop &&
+      !phone &&
+      (activeFullscreenElement === document.documentElement || activeFullscreenElement === document.body)
+    );
     let phoneZenActive = phoneZenModeActive();
 
     if (!phone && phoneZenActive) {
@@ -4222,13 +4240,17 @@ window.BOXXY_RELEASE = Object.freeze({
       phoneZenActive = false;
     }
 
+    setDesktopZenMode(desktopGameFullscreenActive);
+
     if (fullscreenBtn) {
       fullscreenBtn.hidden = !desktop || !supported;
       const icon = fullscreenBtn.querySelector("span");
       const label = fullscreenBtn.querySelector("b");
-      if (icon) icon.textContent = desktopFullscreenActive ? "⤢" : "⛶";
-      if (label) label.textContent = desktopFullscreenActive ? "EXIT" : "FULL SCREEN";
-      setFullscreenControlState(fullscreenBtn, desktopFullscreenActive);
+      if (icon) icon.textContent = desktopGameFullscreenActive ? "⤢" : "⛶";
+      if (label) label.textContent = desktopGameFullscreenActive ? "EXIT" : "FULL SCREEN";
+      setFullscreenControlState(fullscreenBtn, desktopGameFullscreenActive);
+      fullscreenBtn.setAttribute("aria-label", desktopGameFullscreenActive ? "Exit Zen Mode" : "Enter Zen Mode");
+      fullscreenBtn.title = desktopGameFullscreenActive ? "Exit Zen Mode" : "Enter Zen Mode";
     }
 
     if (mobileFullscreenBtn) {
