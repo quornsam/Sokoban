@@ -1,11 +1,11 @@
-/* BOXXY v290 — opt-in offline cache with Android install handoff support. */
+/* BOXXY v291 — redirect-safe offline navigation cache for iOS/PWA relaunches. */
 "use strict";
 
-const CACHE_NAME = "boxxy-offline-v1";
-const RELEASE_VERSION = "290";
+const CACHE_NAME = "boxxy-offline-v2";
+const RELEASE_VERSION = "291";
 const META_URL = "/__boxxy_offline_meta__";
+const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [
-  "/",
   "/account.js",
   "/alphabet-soup.js",
   "/assets/audio/Fading-into-Gold-296KB.mp3",
@@ -132,7 +132,7 @@ const ASSETS = [
   "/daily-puzzles/boxxy-daily-puzzles.js",
   "/how-to-play.css",
   "/how-to-play.js",
-  "/index.html",
+  OFFLINE_ENTRY,
   "/legal.html",
   "/levels.js",
   "/pack-builder.js",
@@ -146,7 +146,15 @@ self.addEventListener("install", event => {
 });
 
 self.addEventListener("activate", event => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil((async () => {
+    const names = await caches.keys();
+    await Promise.all(
+      names
+        .filter(name => name.startsWith("boxxy-offline-") && name !== CACHE_NAME)
+        .map(name => caches.delete(name))
+    );
+    await self.clients.claim();
+  })());
 });
 
 async function tellClients(message) {
@@ -154,28 +162,61 @@ async function tellClients(message) {
   clients.forEach(client => client.postMessage(message));
 }
 
+/*
+ * Safari rejects a navigation response carrying redirect history when that
+ * response is returned by a service worker. Rebuilding a fetched response
+ * from its body creates an ordinary response with no redirected state.
+ */
+async function redirectSafeCopy(response) {
+  const source = response.clone();
+  const headers = new Headers(source.headers);
+  headers.delete("content-encoding");
+  headers.delete("content-length");
+  return new Response(await source.arrayBuffer(), {
+    status: source.status,
+    statusText: source.statusText,
+    headers
+  });
+}
+
 async function cacheEverything(requestedVersion) {
+  await caches.delete(CACHE_NAME);
   const cache = await caches.open(CACHE_NAME);
   let done = 0;
   const failures = [];
+
   for (const path of ASSETS) {
     try {
-      const response = await fetch(new Request(path, { cache: "reload", credentials: "same-origin" }));
+      const response = await fetch(new Request(path, {
+        cache: "reload",
+        credentials: "same-origin",
+        redirect: "follow"
+      }));
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      await cache.put(path, response.clone());
+      await cache.put(path, await redirectSafeCopy(response));
     } catch (error) {
       failures.push(`${path}: ${error?.message || "failed"}`);
     }
+
     done++;
     if (done === 1 || done === ASSETS.length || done % 4 === 0) {
       await tellClients({ type: "BOXXY_OFFLINE_PROGRESS", done, total: ASSETS.length });
     }
   }
+
   if (failures.length) {
+    await caches.delete(CACHE_NAME);
     throw new Error(`Could not save ${failures.length} game file${failures.length === 1 ? "" : "s"}. Please stay online and try again.`);
   }
-  const meta = { version: String(requestedVersion || RELEASE_VERSION), savedAt: Date.now(), files: ASSETS.length };
-  await cache.put(META_URL, new Response(JSON.stringify(meta), { headers: { "content-type": "application/json" } }));
+
+  const meta = {
+    version: String(requestedVersion || RELEASE_VERSION),
+    savedAt: Date.now(),
+    files: ASSETS.length
+  };
+  await cache.put(META_URL, new Response(JSON.stringify(meta), {
+    headers: { "content-type": "application/json" }
+  }));
   return meta;
 }
 
@@ -194,26 +235,25 @@ self.addEventListener("message", event => {
 self.addEventListener("fetch", event => {
   const request = event.request;
   if (request.method !== "GET") return;
+
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
   if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/basement/")) return;
 
   event.respondWith((async () => {
-    const cache = await caches.open(CACHE_NAME);
     try {
-      const response = await fetch(request);
-      if (response && response.ok) {
-        const cacheKey = request.mode === "navigate" ? "/index.html" : url.pathname;
-        if (ASSETS.includes(cacheKey) || cacheKey === "/index.html") {
-          cache.put(cacheKey, response.clone()).catch(() => {});
-        }
-      }
-      return response;
+      // Online use remains network-first. Ordinary browsing does not rewrite
+      // the deliberately downloaded offline package.
+      return await fetch(request);
     } catch (_) {
+      const cache = await caches.open(CACHE_NAME);
+
       if (request.mode === "navigate") {
-        return (await cache.match("/index.html")) || (await cache.match("/")) || Response.error();
+        const cachedEntry = await cache.match(OFFLINE_ENTRY);
+        return cachedEntry || Response.error();
       }
-      return (await cache.match(request)) || (await cache.match(url.pathname)) || Response.error();
+
+      return (await cache.match(url.pathname)) || Response.error();
     }
   })());
 });

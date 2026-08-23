@@ -1,3 +1,4 @@
+/* BOXXY v291 — redirect-safe offline cache generation for reliable iOS PWA relaunches. */
 /* BOXXY v290 — Android native install handoff added without changing the iPhone or desktop offline flows. */
 /* BOXXY v289 — signed-in offline download, iPhone Home Screen handoff and offline account continuity. */
 /* BOXXY v281 — account medals added alongside cloud sync, gameplay statistics and level-attempt history. */
@@ -14,7 +15,7 @@
   const PACK_CATALOG_KEY = "boxxy-pack-catalog-v1";
   const OFFLINE_ACCOUNT_SNAPSHOT_KEY = "boxxy-offline-account-snapshot-v1";
   const OFFLINE_REQUEST_COOKIE = "boxxy_offline_requested";
-  const OFFLINE_CACHE_NAME = "boxxy-offline-v1";
+  const OFFLINE_CACHE_NAME = "boxxy-offline-v2";
   const OFFLINE_META_URL = "/__boxxy_offline_meta__";
   const EXACT_SYNC_KEYS = new Set([
     "boxxy-active-pack-v2",
@@ -196,7 +197,7 @@
   function setOfflineRequestCookie(enabled = true) {
     const secure = location.protocol === "https:" ? "; Secure" : "";
     if (enabled) {
-      const version = encodeURIComponent(String(window.BOXXY_RELEASE?.version || "290"));
+      const version = encodeURIComponent(String(window.BOXXY_RELEASE?.version || "291"));
       document.cookie = `${OFFLINE_REQUEST_COOKIE}=${version}; Max-Age=86400; Path=/; SameSite=Lax${secure}`;
     } else {
       document.cookie = `${OFFLINE_REQUEST_COOKIE}=; Max-Age=0; Path=/; SameSite=Lax${secure}`;
@@ -233,7 +234,7 @@
   async function refreshOfflineButton() {
     if (!offlineBtn || !account || offlineBusy) return;
     const meta = await readOfflineMeta();
-    const current = String(window.BOXXY_RELEASE?.version || "290");
+    const current = String(window.BOXXY_RELEASE?.version || "291");
     if (meta?.version === current) {
       androidOfflineReady = true;
       if (isAndroidMobile() && !isStandaloneDisplay() && deferredAndroidInstallPrompt) {
@@ -256,19 +257,48 @@
 
   async function registerOfflineWorker() {
     if (!("serviceWorker" in navigator)) throw new Error("Offline play is not supported by this browser.");
-    const registration = await navigator.serviceWorker.register(`/service-worker.js?v=${encodeURIComponent(String(window.BOXXY_RELEASE?.version || "290"))}`, { scope: "/" });
-    await navigator.serviceWorker.ready;
-    if (!registration.active) {
-      await new Promise(resolve => {
-        const worker = registration.installing || registration.waiting;
-        if (!worker) return resolve();
-        const finish = () => { if (worker.state === "activated") resolve(); };
-        worker.addEventListener("statechange", finish);
-        finish();
-        setTimeout(resolve, 3000);
-      });
+
+    const version = String(window.BOXXY_RELEASE?.version || "291");
+    const scriptPath = `/service-worker.js?v=${encodeURIComponent(version)}`;
+    const registration = await navigator.serviceWorker.register(scriptPath, { scope: "/", updateViaCache: "none" });
+
+    // An older BOXXY worker may already be active. Wait specifically for the
+    // worker belonging to this release before asking it to rebuild the cache.
+    const isCurrentWorker = worker => {
+      if (!worker?.scriptURL) return false;
+      try {
+        return new URL(worker.scriptURL).searchParams.get("v") === version;
+      } catch (_) {
+        return false;
+      }
+    };
+
+    const deadline = Date.now() + 10000;
+    while (Date.now() < deadline) {
+      if (registration.active?.state === "activated" && isCurrentWorker(registration.active)) {
+        return registration;
+      }
+
+      const candidate = [registration.installing, registration.waiting].find(isCurrentWorker);
+      if (candidate && candidate.state !== "redundant") {
+        await new Promise(resolve => {
+          const timer = setTimeout(resolve, 250);
+          const onStateChange = () => {
+            if (candidate.state === "activated" || candidate.state === "redundant") {
+              clearTimeout(timer);
+              candidate.removeEventListener("statechange", onStateChange);
+              resolve();
+            }
+          };
+          candidate.addEventListener("statechange", onStateChange);
+          onStateChange();
+        });
+      } else {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
     }
-    return registration;
+
+    throw new Error("Offline update did not finish installing. Please try again.");
   }
 
   async function cacheBoxxyForOffline({ automatic = false } = {}) {
@@ -315,7 +345,7 @@
           }
         };
         navigator.serviceWorker.addEventListener("message", onMessage);
-        worker.postMessage({ type: "CACHE_ALL_BOXXY", version: String(window.BOXXY_RELEASE?.version || "290") });
+        worker.postMessage({ type: "CACHE_ALL_BOXXY", version: String(window.BOXXY_RELEASE?.version || "291") });
       });
 
       setOfflineRequestCookie(false);
@@ -385,7 +415,7 @@
   async function maybeResumeOfflineSetup() {
     if (!account || !isStandaloneDisplay() || !offlineRequestCookieValue()) return;
     const meta = await readOfflineMeta();
-    const current = String(window.BOXXY_RELEASE?.version || "290");
+    const current = String(window.BOXXY_RELEASE?.version || "291");
     if (meta?.version === current) {
       setOfflineRequestCookie(false);
       refreshOfflineButton();

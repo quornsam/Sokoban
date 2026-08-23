@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "290",
-  lastUpdated: "2026-08-22"
+  version: "291",
+  lastUpdated: "2026-08-23"
 });
+/* BOXXY v291 — redirect-safe offline PWA relaunch fix for iPhone/iPad. */
 /* BOXXY v290 — Android native install handoff added after opting into offline play. */
 /* BOXXY v289 — signed-in offline download and Home Screen handoff. */
 /* BOXXY v288 — smooth tile travel retained without pose blending; blocked pushes now hold the push pose correctly. */
