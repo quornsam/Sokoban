@@ -6602,7 +6602,7 @@ body[data-boxxy-speed="fast"]{--boxxy-step-transition:.11s;--boxxy-motion-durati
   }
 }
 
-/* BOXXY v294 — larger, zoomable image tracing and automatic Rainbow colour sampling. */
+/* BOXXY v295 — image importer keeps every control available while the photograph can zoom independently. */
 .maker-image-zoom-controls{
   display:grid;
   grid-template-columns:40px 58px minmax(58px,auto) 40px;
@@ -6648,15 +6648,27 @@ body[data-boxxy-speed="fast"]{--boxxy-step-transition:.11s;--boxxy-motion-durati
 @media (min-width:901px){
   .maker-image-import-card{
     width:min(1500px,calc(100vw - 18px));
-    height:min(97vh,1050px);
-    max-height:97vh;
+    height:min(96vh,1050px);
+    max-height:96vh;
     padding:16px;
   }
-  .maker-image-import-body{grid-template-columns:minmax(560px,1.45fr) minmax(390px,.85fr)}
-  .maker-image-preview-panel{overflow:hidden;grid-template-rows:minmax(0,1fr) auto auto auto auto auto auto}
+  .maker-image-import-body{
+    grid-template-columns:minmax(560px,1.45fr) minmax(390px,.85fr);
+    min-height:0;
+    overflow:hidden;
+  }
+  .maker-image-preview-panel{
+    min-height:0;
+    overflow-y:auto;
+    overflow-x:hidden;
+    padding-right:4px;
+    grid-template-rows:minmax(120px,1fr) auto auto auto auto auto auto;
+    align-content:stretch;
+    scrollbar-gutter:stable;
+  }
   .maker-image-canvas-wrap{
-    min-height:330px;
-    max-height:min(58vh,650px);
+    min-height:0;
+    max-height:none;
     overflow:auto;
     display:block;
     text-align:center;
@@ -6669,6 +6681,15 @@ body[data-boxxy-speed="fast"]{--boxxy-step-transition:.11s;--boxxy-motion-durati
     max-height:none;
     margin:0 auto;
   }
+  .maker-image-groups-panel{
+    min-height:0;
+    overflow-y:auto;
+    overflow-x:hidden;
+    padding-right:6px;
+    align-content:start;
+    scrollbar-gutter:stable;
+  }
+  .maker-image-trace-panel{align-content:start}
 }
 
 @media (max-width:900px){
