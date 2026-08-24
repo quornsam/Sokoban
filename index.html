@@ -159,7 +159,7 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=292">
+<link rel="stylesheet" href="styles.css?v=293">
 <link rel="stylesheet" href="how-to-play.css?v=225">
 <link rel="preload" as="image" href="assets/board/boxes/box-default-yellow.png?v=226">
 <link rel="preload" as="image" href="assets/board/goals/goal-red.png?v=226">
@@ -865,6 +865,38 @@
 
             <div id="makerImageTracePanel" class="maker-image-trace-panel" hidden>
               <p class="maker-image-help">Manual trace starts with ordinary floor. Pick a component and paint directly over the photograph. Drag across cells to paint several at once.</p>
+              <div id="makerImageRainbowControls" class="maker-image-rainbow-controls">
+                <div class="maker-image-rainbow-head">
+                  <strong>RAINBOW MODE</strong>
+                  <label class="maker-rainbow-switch">
+                    <input id="makerImageRainbowMode" type="checkbox" role="switch" aria-describedby="makerImageRainbowDescription">
+                    <span aria-hidden="true"></span>
+                    <b id="makerImageRainbowState">OFF</b>
+                  </label>
+                </div>
+                <div id="makerImageGoalColourControls" class="maker-image-goal-colour-controls" hidden>
+                  <strong>TARGET COLOUR</strong>
+                  <div class="maker-image-goal-swatches" role="toolbar" aria-label="Rainbow target colour">
+                    <button type="button" data-image-goal-colour="red" aria-label="Red target" title="Red"><span></span></button>
+                    <button type="button" data-image-goal-colour="blue" aria-label="Blue target" title="Blue"><span></span></button>
+                    <button type="button" data-image-goal-colour="green" aria-label="Green target" title="Green"><span></span></button>
+                    <button type="button" data-image-goal-colour="purple" aria-label="Purple target" title="Purple"><span></span></button>
+                    <button type="button" data-image-goal-colour="light-blue" aria-label="Light blue target" title="Light blue"><span></span></button>
+                    <button type="button" data-image-goal-colour="teal" aria-label="Teal target" title="Teal"><span></span></button>
+                    <button type="button" data-image-goal-colour="black" aria-label="Black target" title="Black"><span></span></button>
+                    <button type="button" data-image-goal-colour="grey" aria-label="Grey target" title="Grey"><span></span></button>
+                    <button type="button" data-image-goal-colour="burgundy" aria-label="Burgundy target" title="Burgundy"><span></span></button>
+                    <button type="button" data-image-goal-colour="brown" aria-label="Brown target" title="Brown"><span></span></button>
+                    <button type="button" data-image-goal-colour="orange" aria-label="Orange target" title="Orange"><span></span></button>
+                    <button type="button" data-image-goal-colour="yellow" aria-label="Yellow target" title="Yellow"><span></span></button>
+                    <button type="button" data-image-goal-colour="lime" aria-label="Lime target" title="Lime"><span></span></button>
+                    <button type="button" data-image-goal-colour="pink" aria-label="Pink target" title="Pink"><span></span></button>
+                    <button type="button" data-image-goal-colour="cream" aria-label="Cream target" title="Cream"><span></span></button>
+                  </div>
+                  <small>Choose a colour, then paint TARGET, BOX + TARGET or PLAYER + TARGET.</small>
+                </div>
+                <small id="makerImageRainbowDescription" class="maker-image-rainbow-description">OFF — image tracing uses standard red targets.</small>
+              </div>
               <div id="makerImageTracePalette" class="maker-image-trace-palette" role="toolbar" aria-label="Manual image tracing tools">
                 <button type="button" data-image-trace-tool=" " class="selected">FLOOR</button>
                 <button type="button" data-image-trace-tool="#">WALL</button>
@@ -1191,7 +1223,7 @@
 
 <script src="daily-puzzles/boxxy-daily-loader.js?v=217"></script>
 <script src="levels.js?v=268"></script>
-<script src="boxxy.js?v=292"></script>
+<script src="boxxy.js?v=293"></script>
 <script src="account.js?v=291"></script>
 <script src="pack-builder.js?v=216"></script>
 <script src="how-to-play.js?v=153"></script>
