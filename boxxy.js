@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "293",
+  version: "294",
   lastUpdated: "2026-08-24"
 });
+/* BOXXY v294 — image tracing zoom, sampled Rainbow colours, and coloured-box painting. */
 /* BOXXY v293 — Rainbow Mode painting added to Secret Workshop image tracing. */
 /* BOXXY v291 — redirect-safe offline PWA relaunch fix for iPhone/iPad. */
 /* BOXXY v290 — Android native install handoff added after opting into offline play. */
@@ -7701,6 +7702,12 @@ window.BOXXY_RELEASE = Object.freeze({
   const imageRainbowDescription = document.getElementById("makerImageRainbowDescription");
   const imageGoalColourControls = document.getElementById("makerImageGoalColourControls");
   const imageGoalColourButtons = [...document.querySelectorAll("[data-image-goal-colour]")];
+  const imageAutoColourBtn = document.getElementById("makerImageAutoColourBtn");
+  const imageZoomOutBtn = document.getElementById("makerImageZoomOutBtn");
+  const imageZoomFitBtn = document.getElementById("makerImageZoomFitBtn");
+  const imageZoomInBtn = document.getElementById("makerImageZoomInBtn");
+  const imageZoomLabel = document.getElementById("makerImageZoomLabel");
+  const imageTraceNote = document.getElementById("makerImageTraceNote");
   const imageTraceClearBtn = document.getElementById("makerImageTraceClearBtn");
   const imageTraceFloorBtn = document.getElementById("makerImageTraceFloorBtn");
   const imageTraceToolButtons = [...document.querySelectorAll("[data-image-trace-tool]")];
@@ -7832,6 +7839,8 @@ window.BOXXY_RELEASE = Object.freeze({
   let imageSelectedCellIndex = -1;
   let imageSelectedClusterId = -1;
   let imageDraggedClusterId = -1;
+  let imagePreviewZoom = 1;
+  let imageAutoColourEnabled = false;
   const IMAGE_CLUSTER_ASSIGNMENTS = [
     ["", "UNASSIGNED"],
     ["#", "WALL #"],
@@ -8053,6 +8062,7 @@ window.BOXXY_RELEASE = Object.freeze({
       targetHints: Array(initialCols * initialRows).fill(false),
       traceCells: Array(initialCols * initialRows).fill(" "),
       traceGoalColours: Array(initialCols * initialRows).fill(null),
+      traceDetectedColours: Array(initialCols * initialRows).fill(null),
       display: null
     };
   }
@@ -8284,6 +8294,9 @@ window.BOXXY_RELEASE = Object.freeze({
     imageImportState.cellsData = [];
     imageImportState.cellOverrides = Array(imageImportState.cols * imageImportState.rows).fill(null);
     imageImportState.targetHints = Array(imageImportState.cols * imageImportState.rows).fill(false);
+    imageImportState.traceDetectedColours = Array(imageImportState.cols * imageImportState.rows).fill(null);
+    imageAutoColourEnabled = false;
+    updateImageAutoColourButton();
     imageSelectedCellIndex = -1;
     imageSelectedClusterId = -1;
     updateImageCellOverridePanel();
@@ -8296,6 +8309,84 @@ window.BOXXY_RELEASE = Object.freeze({
     }
     drawImageImportPreview();
     return true;
+  }
+
+  function imageDetectedColourAt(index) {
+    return GOAL_COLOURS?.normalise?.(imageImportState?.traceDetectedColours?.[index]) || activeGoalColour || DEFAULT_GOAL_COLOUR;
+  }
+
+  function imagePaintColourAt(index) {
+    return imageAutoColourEnabled ? imageDetectedColourAt(index) : activeGoalColour;
+  }
+
+  function nearestBoxxyPaletteColour(rgb) {
+    const source = Array.isArray(rgb) ? rgb : [0, 0, 0];
+    const r = Math.max(0, Math.min(255, Number(source[0] || 0) * 255));
+    const g = Math.max(0, Math.min(255, Number(source[1] || 0) * 255));
+    const b = Math.max(0, Math.min(255, Number(source[2] || 0) * 255));
+    let bestColour = DEFAULT_GOAL_COLOUR;
+    let bestDistance = Infinity;
+    for (const colour of GOAL_COLOURS?.ORDER || []) {
+      const rawHex = String(GOAL_COLOURS?.PALETTE?.[colour]?.hex || "#000000").replace("#", "");
+      const hex = rawHex.length === 3 ? rawHex.split("").map(ch => ch + ch).join("") : rawHex;
+      const value = Number.parseInt(hex, 16);
+      if (!Number.isFinite(value)) continue;
+      const pr = (value >> 16) & 255;
+      const pg = (value >> 8) & 255;
+      const pb = value & 255;
+      const meanR = (r + pr) / 2;
+      const dr = r - pr;
+      const dg = g - pg;
+      const db = b - pb;
+      const distance = (2 + meanR / 256) * dr * dr + 4 * dg * dg + (2 + (255 - meanR) / 256) * db * db;
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestColour = colour;
+      }
+    }
+    return bestColour;
+  }
+
+  function updateImageAutoColourButton() {
+    if (!imageAutoColourBtn) return;
+    imageAutoColourBtn.classList.toggle("selected", imageAutoColourEnabled);
+    imageAutoColourBtn.setAttribute("aria-pressed", String(imageAutoColourEnabled));
+    imageAutoColourBtn.textContent = imageAutoColourEnabled ? "AUTO COLOUR ON" : "AUTO DETECT COLOURS";
+  }
+
+  function detectImageTraceColours() {
+    if (!imageImportState?.sourceCanvas) return;
+    ensureTraceCells(false, " ");
+    const matrix = homographyFromUnitSquare(imageImportState.corners);
+    if (!matrix) throw new Error("The crop corners are invalid. Reset them and try again.");
+    const sourceCtx = imageImportState.sourceCanvas.getContext("2d", { willReadFrequently: true });
+    const sourcePixels = sourceCtx.getImageData(0, 0, imageImportState.sourceCanvas.width, imageImportState.sourceCanvas.height).data;
+    const detected = Array(imageImportState.cols * imageImportState.rows).fill(DEFAULT_GOAL_COLOUR);
+    for (let y = 0; y < imageImportState.rows; y++) {
+      for (let x = 0; x < imageImportState.cols; x++) {
+        const index = y * imageImportState.cols + x;
+        const descriptor = samplePerspectiveCell(
+          imageImportState.sourceCanvas, sourcePixels, matrix, x, y, imageImportState.cols, imageImportState.rows, 10
+        );
+        detected[index] = nearestBoxxyPaletteColour(descriptor.rgb);
+      }
+    }
+    imageImportState.traceDetectedColours = detected;
+    imageAutoColourEnabled = true;
+    imageImportState.traceCells.forEach((value, index) => {
+      if (value === "." || value === "*" || value === "+") imageImportState.traceGoalColours[index] = detected[index];
+    });
+    updateImageAutoColourButton();
+    setImageImportStatus("Colours detected. Each new Rainbow target or box now uses the colour sampled from that square.", "success");
+    drawImageImportPreview();
+  }
+
+  function setImagePreviewZoom(value) {
+    imagePreviewZoom = Math.max(1, Math.min(5, Number(value) || 1));
+    if (imageZoomLabel) imageZoomLabel.textContent = `${Math.round(imagePreviewZoom * 100)}%`;
+    if (imageZoomOutBtn) imageZoomOutBtn.disabled = imagePreviewZoom <= 1;
+    if (imageZoomInBtn) imageZoomInBtn.disabled = imagePreviewZoom >= 5;
+    drawImageImportPreview();
   }
 
   function imageGoalColourAt(index) {
@@ -8321,7 +8412,7 @@ window.BOXXY_RELEASE = Object.freeze({
       case "$": return "rgba(228,162,48,.78)";
       case ".": return imageGoalColourRgba(index, .30);
       case "@": return "rgba(55,111,181,.72)";
-      case "*": return "rgba(228,162,48,.78)";
+      case "*": return rainbowMode ? imageGoalColourRgba(index, .82) : "rgba(228,162,48,.78)";
       case "+": return "rgba(55,111,181,.72)";
       case "void": return "rgba(120,116,110,.62)";
       default: return "rgba(255,255,255,.06)";
@@ -8338,10 +8429,11 @@ window.BOXXY_RELEASE = Object.freeze({
     const canvas = imagePreviewCanvas;
     const ctx = canvas.getContext("2d");
     const sourceCanvas = imageImportState.sourceCanvas;
-    const cssWidth = Math.max(320, Math.min(760, imagePreviewCanvas.parentElement?.clientWidth || 640));
+    const baseWidth = Math.max(320, Math.min(900, imagePreviewCanvas.parentElement?.clientWidth || 640));
     const aspect = sourceCanvas.width / Math.max(1, sourceCanvas.height);
-    canvas.width = Math.round(cssWidth);
-    canvas.height = Math.max(260, Math.min(620, Math.round(cssWidth / aspect)));
+    const baseHeight = Math.max(260, Math.min(680, Math.round(baseWidth / aspect)));
+    canvas.width = Math.round(baseWidth * imagePreviewZoom);
+    canvas.height = Math.round(baseHeight * imagePreviewZoom);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = "#d9d1c6";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -8470,7 +8562,7 @@ window.BOXXY_RELEASE = Object.freeze({
     });
 
     if (imagePreviewSummary) {
-      imagePreviewSummary.textContent = `${imageImportState.cols} × ${imageImportState.rows} grid • drag red corners to the board edges${imageImportMode === "trace" ? " • manual trace active" : ""}.`;
+      imagePreviewSummary.textContent = `${imageImportState.cols} × ${imageImportState.rows} grid • ${Math.round(imagePreviewZoom * 100)}% zoom • drag red corners to the board edges${imageImportMode === "trace" ? " • manual trace active" : ""}.`;
     }
   }
 
@@ -8940,6 +9032,11 @@ window.BOXXY_RELEASE = Object.freeze({
     if (reset || !Array.isArray(imageImportState.traceGoalColours) || imageImportState.traceGoalColours.length !== needed) {
       imageImportState.traceGoalColours = Array(needed).fill(null);
     }
+    if (reset || !Array.isArray(imageImportState.traceDetectedColours) || imageImportState.traceDetectedColours.length !== needed) {
+      imageImportState.traceDetectedColours = Array(needed).fill(null);
+      if (reset) imageAutoColourEnabled = false;
+    }
+    updateImageAutoColourButton();
   }
 
   function syncImageRainbowControls() {
@@ -8949,8 +9046,11 @@ window.BOXXY_RELEASE = Object.freeze({
     }
     if (imageRainbowModeState) imageRainbowModeState.textContent = rainbowMode ? "ON" : "OFF";
     if (imageRainbowDescription) imageRainbowDescription.textContent = rainbowMode
-      ? "ON — choose a colour, then paint coloured targets directly over the image."
+      ? "ON — choose colours manually or sample them from the image."
       : "OFF — image tracing uses standard red targets.";
+    if (imageTraceNote) imageTraceNote.textContent = rainbowMode
+      ? "Rainbow Mode: BOX paints a coloured box on a matching target so its colour is preserved. Zoom in for detailed pixel painting."
+      : "Tip: line the grid up first. For most levels you only need to paint walls, boxes, targets and the player.";
     if (imageGoalColourControls) {
       imageGoalColourControls.hidden = !rainbowMode;
       imageGoalColourControls.setAttribute("aria-hidden", String(!rainbowMode));
@@ -8975,16 +9075,20 @@ window.BOXXY_RELEASE = Object.freeze({
   function paintImageTraceCell(index) {
     if (!imageImportState?.traceCells || index < 0 || index >= imageImportState.traceCells.length || imageTraceLastIndex === index) return;
     ensureTraceCells(false, " ");
-    if (imageTraceTool === "@" || imageTraceTool === "+") {
+    let paintedValue = imageTraceTool;
+    // Coloured box artwork in Boxxy is tied to the target beneath it. During Rainbow image tracing,
+    // BOX paints a box-on-target so a sampled or manual colour survives the import.
+    if (rainbowMode && imageTraceTool === "$") paintedValue = "*";
+    if (paintedValue === "@" || paintedValue === "+") {
       imageImportState.traceCells.forEach((value, existingIndex) => {
         if (existingIndex === index || (value !== "@" && value !== "+")) return;
         imageImportState.traceCells[existingIndex] = " ";
         imageImportState.traceGoalColours[existingIndex] = null;
       });
     }
-    imageImportState.traceCells[index] = imageTraceTool;
-    imageImportState.traceGoalColours[index] = (imageTraceTool === "." || imageTraceTool === "*" || imageTraceTool === "+")
-      ? (rainbowMode ? activeGoalColour : DEFAULT_GOAL_COLOUR)
+    imageImportState.traceCells[index] = paintedValue;
+    imageImportState.traceGoalColours[index] = (paintedValue === "." || paintedValue === "*" || paintedValue === "+")
+      ? (rainbowMode ? imagePaintColourAt(index) : DEFAULT_GOAL_COLOUR)
       : null;
     imageTraceLastIndex = index;
     drawImageImportPreview();
@@ -9093,6 +9197,9 @@ window.BOXXY_RELEASE = Object.freeze({
       imageImportState.targetHints = Array(nextCols * nextRows).fill(false);
       imageImportState.traceCells = Array(nextCols * nextRows).fill(" ");
       imageImportState.traceGoalColours = Array(nextCols * nextRows).fill(null);
+      imageImportState.traceDetectedColours = Array(nextCols * nextRows).fill(null);
+      imageAutoColourEnabled = false;
+      updateImageAutoColourButton();
       imageSelectedCellIndex = -1;
     imageSelectedClusterId = -1;
       updateImageCellOverridePanel();
@@ -9108,6 +9215,9 @@ window.BOXXY_RELEASE = Object.freeze({
     imageImportState.cellsData = [];
     imageImportState.cellOverrides = Array(imageImportState.cols * imageImportState.rows).fill(null);
     imageImportState.targetHints = Array(imageImportState.cols * imageImportState.rows).fill(false);
+    imageImportState.traceDetectedColours = Array(imageImportState.cols * imageImportState.rows).fill(null);
+    imageAutoColourEnabled = false;
+    updateImageAutoColourButton();
     imageSelectedCellIndex = -1;
     imageSelectedClusterId = -1;
     imageCornerPlaceIndex = -1;
@@ -11327,18 +11437,29 @@ window.BOXXY_RELEASE = Object.freeze({
   imageRainbowModeInput?.addEventListener("change", () => {
     setRainbowMode(imageRainbowModeInput.checked, { announce: false, persist: true });
     setImageImportStatus(imageRainbowModeInput.checked
-      ? "Rainbow Mode on. Choose a target colour, then paint over the photograph."
+      ? "Rainbow Mode on. Choose a paint colour or use Auto Detect Colours, then paint over the photograph."
       : "Rainbow Mode off. Image targets will import as standard red.", "success");
   });
   imageGoalColourButtons.forEach(button => {
     const colour = GOAL_COLOURS?.normalise?.(button.dataset.imageGoalColour) || DEFAULT_GOAL_COLOUR;
     applyGoalStyle(button, colour);
     button.addEventListener("click", () => {
+      imageAutoColourEnabled = false;
+      updateImageAutoColourButton();
       setActiveGoalColour(colour, false);
-      setImageImportStatus(`${GOAL_COLOURS?.PALETTE?.[colour]?.label || "Target"} selected. Paint TARGET, BOX + TARGET or PLAYER + TARGET.`, "success");
+      setImageImportStatus(`${GOAL_COLOURS?.PALETTE?.[colour]?.label || "Target"} selected. New Rainbow boxes and targets will use this colour.`, "success");
     });
   });
   syncImageRainbowControls();
+  updateImageAutoColourButton();
+  if (imageZoomLabel) imageZoomLabel.textContent = "100%";
+  imageAutoColourBtn?.addEventListener("click", () => {
+    try { detectImageTraceColours(); }
+    catch (error) { setImageImportStatus(error?.message || "Colours could not be detected from this image.", "error"); }
+  });
+  imageZoomOutBtn?.addEventListener("click", () => setImagePreviewZoom(imagePreviewZoom - .5));
+  imageZoomFitBtn?.addEventListener("click", () => setImagePreviewZoom(1));
+  imageZoomInBtn?.addEventListener("click", () => setImagePreviewZoom(imagePreviewZoom + .5));
 
   gridEl.addEventListener("pointerdown", event => {
     const cell = event.target.closest(".maker-cell");
@@ -11421,6 +11542,10 @@ window.BOXXY_RELEASE = Object.freeze({
       const loaded = await loadImageFromFile(file);
       imageImportLoaded = { image: loaded.image, name: file.name };
       imageImportState = createInitialImageImportState(loaded.image);
+      imagePreviewZoom = 1;
+      imageAutoColourEnabled = false;
+      updateImageAutoColourButton();
+      if (imageZoomLabel) imageZoomLabel.textContent = "100%";
       if (imageColsInput) imageColsInput.value = String(imageImportState.cols);
       if (imageRowsInput) imageRowsInput.value = String(imageImportState.rows);
       imageImportMode = "auto";

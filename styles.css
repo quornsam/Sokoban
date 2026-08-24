@@ -6601,3 +6601,78 @@ body[data-boxxy-speed="fast"]{--boxxy-step-transition:.11s;--boxxy-motion-durati
     pointer-events:auto;
   }
 }
+
+/* BOXXY v294 — larger, zoomable image tracing and automatic Rainbow colour sampling. */
+.maker-image-zoom-controls{
+  display:grid;
+  grid-template-columns:40px 58px minmax(58px,auto) 40px;
+  gap:6px;
+  align-items:center;
+  justify-content:start;
+}
+.maker-image-zoom-controls button{
+  min-height:32px;
+  border:2px solid var(--ink);
+  background:#fff8ed;
+  font:inherit;
+  font-size:10px;
+  font-weight:950;
+  letter-spacing:.04em;
+  cursor:pointer;
+}
+.maker-image-zoom-controls button:first-child,
+.maker-image-zoom-controls button:last-child{font-size:18px;line-height:1}
+.maker-image-zoom-controls button:disabled{opacity:.35;cursor:default}
+.maker-image-zoom-controls strong{
+  min-width:58px;
+  text-align:center;
+  font-size:10px;
+  letter-spacing:.05em;
+}
+.maker-image-colour-actions{display:flex;justify-content:flex-start}
+.maker-image-colour-actions button{
+  min-height:34px;
+  padding:6px 10px;
+  border:2px solid var(--ink);
+  background:#fff8ed;
+  color:var(--ink);
+  font:inherit;
+  font-size:8px;
+  font-weight:950;
+  letter-spacing:.055em;
+  cursor:pointer;
+  box-shadow:2px 2px 0 rgba(23,23,25,.14);
+}
+.maker-image-colour-actions button.selected{background:var(--yellow)}
+
+@media (min-width:901px){
+  .maker-image-import-card{
+    width:min(1500px,calc(100vw - 18px));
+    height:min(97vh,1050px);
+    max-height:97vh;
+    padding:16px;
+  }
+  .maker-image-import-body{grid-template-columns:minmax(560px,1.45fr) minmax(390px,.85fr)}
+  .maker-image-preview-panel{overflow:hidden;grid-template-rows:minmax(0,1fr) auto auto auto auto auto auto}
+  .maker-image-canvas-wrap{
+    min-height:330px;
+    max-height:min(58vh,650px);
+    overflow:auto;
+    display:block;
+    text-align:center;
+    overscroll-behavior:contain;
+  }
+  .maker-image-preview-panel canvas{
+    width:auto;
+    height:auto;
+    max-width:none;
+    max-height:none;
+    margin:0 auto;
+  }
+}
+
+@media (max-width:900px){
+  .maker-image-zoom-controls{grid-template-columns:38px 54px 56px 38px}
+  .maker-image-canvas-wrap{overflow:auto}
+  .maker-image-preview-panel canvas{max-width:none;max-height:none}
+}
