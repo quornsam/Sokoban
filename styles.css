@@ -6602,101 +6602,87 @@ body[data-boxxy-speed="fast"]{--boxxy-step-transition:.11s;--boxxy-motion-durati
   }
 }
 
-/* BOXXY v296 — image importer keeps its controls outside the zoomed image viewport. */
-.maker-image-zoom-controls{
-  display:grid;
-  grid-template-columns:40px 58px minmax(58px,auto) 40px;
-  gap:6px;
-  align-items:center;
-  justify-content:start;
-}
-.maker-image-zoom-controls button{
-  min-height:32px;
-  border:2px solid var(--ink);
-  background:#fff8ed;
-  font:inherit;
-  font-size:10px;
-  font-weight:950;
-  letter-spacing:.04em;
-  cursor:pointer;
-}
-.maker-image-zoom-controls button:first-child,
-.maker-image-zoom-controls button:last-child{font-size:18px;line-height:1}
+/* BOXXY v297 — image importer is a large fit-to-workspace editor with optional full-screen mode. */
+.maker-image-import-head-actions{display:flex;align-items:center;gap:8px}
+.maker-image-import-head .maker-image-fullscreen-btn{width:auto;min-width:112px;height:40px;padding:0 12px;background:#fff8ed;color:var(--ink);font-size:9px;letter-spacing:.055em;box-shadow:3px 3px 0 rgba(23,23,25,.18)}
+.maker-image-import-head .maker-image-fullscreen-btn[aria-pressed="true"]{background:var(--blue);color:#fff}
+.maker-image-import-head .maker-image-close-btn{width:40px;height:40px;padding:0;background:#d34734;color:#fff;font-size:26px}
+.maker-image-work-controls{display:grid;gap:8px;padding-bottom:10px;border-bottom:2px solid rgba(23,23,25,.15)}
+.maker-image-zoom-controls{display:grid;grid-template-columns:40px 58px minmax(58px,auto) 40px;gap:6px;align-items:center;justify-content:start}
+.maker-image-zoom-controls button{min-height:32px;border:2px solid var(--ink);background:#fff8ed;font:inherit;font-size:10px;font-weight:950;letter-spacing:.04em;cursor:pointer}
+.maker-image-zoom-controls button:first-child,.maker-image-zoom-controls button:last-child{font-size:18px;line-height:1}
 .maker-image-zoom-controls button:disabled{opacity:.35;cursor:default}
-.maker-image-zoom-controls strong{
-  min-width:58px;
-  text-align:center;
-  font-size:10px;
-  letter-spacing:.05em;
-}
+.maker-image-zoom-controls strong{min-width:58px;text-align:center;font-size:10px;letter-spacing:.05em}
 .maker-image-colour-actions{display:flex;justify-content:flex-start}
-.maker-image-colour-actions button{
-  min-height:34px;
-  padding:6px 10px;
-  border:2px solid var(--ink);
-  background:#fff8ed;
-  color:var(--ink);
-  font:inherit;
-  font-size:8px;
-  font-weight:950;
-  letter-spacing:.055em;
-  cursor:pointer;
-  box-shadow:2px 2px 0 rgba(23,23,25,.14);
-}
+.maker-image-colour-actions button{min-height:34px;padding:6px 10px;border:2px solid var(--ink);background:#fff8ed;color:var(--ink);font:inherit;font-size:8px;font-weight:950;letter-spacing:.055em;cursor:pointer;box-shadow:2px 2px 0 rgba(23,23,25,.14)}
 .maker-image-colour-actions button.selected{background:var(--yellow)}
 
 @media (min-width:901px){
+  .maker-image-import-overlay{padding:10px}
   .maker-image-import-card{
-    width:min(1500px,calc(100vw - 18px));
-    height:auto;
-    max-height:96vh;
-    overflow:auto;
-    padding:16px;
-    grid-template-rows:auto auto auto auto auto;
+    width:min(1680px,calc(100vw - 20px));
+    height:calc(100dvh - 20px);
+    max-height:none;
+    overflow:hidden;
+    padding:14px;
+    gap:10px;
+    grid-template-rows:auto auto minmax(0,1fr) auto auto;
   }
+  .maker-image-import-head{padding-bottom:8px}
+  .maker-image-import-head h2{font-size:26px}
+  .maker-image-stage-help{padding:7px 10px;font-size:10px}
   .maker-image-import-body{
-    grid-template-columns:minmax(560px,1.45fr) minmax(390px,.85fr);
+    grid-template-columns:minmax(0,2.15fr) minmax(360px,.85fr);
     min-height:0;
-    overflow:visible;
-    align-items:start;
+    overflow:hidden;
+    align-items:stretch;
+    gap:12px;
   }
-  .maker-image-preview-panel{
-    min-height:0;
-    overflow:visible;
-    padding-right:0;
-    grid-template-rows:auto auto auto auto auto auto;
-    align-content:start;
-  }
-  /* Only the photograph scrolls/zooms. The controls below it never disappear. */
+  .maker-image-preview-panel{display:grid;min-height:0;height:100%;overflow:hidden}
   .maker-image-canvas-wrap{
-    height:clamp(320px,46vh,560px);
-    min-height:320px;
-    max-height:560px;
+    min-width:0;
+    min-height:0;
+    width:100%;
+    height:100%;
     overflow:auto;
-    display:block;
+    display:grid;
+    place-items:center;
     text-align:center;
     overscroll-behavior:contain;
-    scrollbar-gutter:stable both-edges;
+    scrollbar-gutter:stable;
   }
-  .maker-image-preview-panel canvas{
-    display:block;
-    width:auto;
-    height:auto;
-    max-width:none;
-    max-height:none;
-    margin:0 auto;
+  .maker-image-preview-panel canvas{display:block;width:auto;height:auto;max-width:none;max-height:none;margin:auto}
+  .maker-image-groups-panel{min-height:0;height:100%;overflow:auto;padding-right:5px;align-content:start;scrollbar-gutter:stable}
+  .maker-image-grid-tweaks{grid-template-columns:70px 70px 1fr 1fr;gap:6px}
+  .maker-image-grid-tweaks input{height:32px;font-size:14px}
+  .maker-image-grid-tweaks button{min-height:32px;font-size:8px}
+  .maker-image-mode-actions{gap:6px}
+  .maker-image-mode-actions button{min-height:36px;font-size:9px}
+  .maker-image-corner-place{gap:4px}
+  .maker-image-corner-place button{min-height:30px;font-size:9px}
+  .maker-image-corner-note{font-size:8px}
+  .maker-image-import-status{min-height:30px;padding:6px 9px;font-size:10px}
+  .maker-image-import-actions button{min-height:34px}
+
+  .maker-image-import-overlay.fullscreen{padding:0;background:#2b2b2d}
+  .maker-image-import-overlay.fullscreen .maker-image-import-card{
+    width:100vw;
+    height:100dvh;
+    border:0;
+    box-shadow:none;
+    padding:12px 14px;
   }
-  .maker-image-groups-panel{
-    min-height:0;
-    overflow:visible;
-    padding-right:0;
-    align-content:start;
-  }
-  .maker-image-trace-panel{align-content:start}
+  .maker-image-import-overlay.fullscreen .maker-image-import-body{grid-template-columns:minmax(0,2.35fr) minmax(360px,.65fr)}
 }
 
 @media (max-width:900px){
-  .maker-image-zoom-controls{grid-template-columns:38px 54px 56px 38px}
-  .maker-image-canvas-wrap{overflow:auto}
+  .maker-image-import-head .maker-image-fullscreen-btn{display:none}
+  .maker-image-import-card{height:auto;max-height:94vh;overflow:auto}
+  .maker-image-import-body{grid-template-columns:1fr;overflow:visible}
+  .maker-image-preview-panel{min-height:0}
+  .maker-image-canvas-wrap{height:clamp(300px,52vh,560px);overflow:auto;display:grid;place-items:center}
   .maker-image-preview-panel canvas{max-width:none;max-height:none}
+  .maker-image-groups-panel{overflow:visible}
+  .maker-image-work-controls{padding-bottom:8px}
+  .maker-image-zoom-controls{grid-template-columns:38px 54px 56px 38px}
 }

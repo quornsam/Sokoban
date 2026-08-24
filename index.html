@@ -159,7 +159,7 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=296">
+<link rel="stylesheet" href="styles.css?v=297">
 <link rel="stylesheet" href="how-to-play.css?v=225">
 <link rel="preload" as="image" href="assets/board/boxes/box-default-yellow.png?v=226">
 <link rel="preload" as="image" href="assets/board/goals/goal-red.png?v=226">
@@ -811,7 +811,10 @@
             <p>LEVEL MAKER</p>
             <h2 id="makerImageImportTitle">IMPORT FROM IMAGE</h2>
           </div>
-          <button id="makerImageImportCloseBtn" type="button" aria-label="Close image importer">×</button>
+          <div class="maker-image-import-head-actions">
+            <button id="makerImageFullscreenBtn" class="maker-image-fullscreen-btn" type="button" aria-pressed="false">FULL SCREEN</button>
+            <button id="makerImageImportCloseBtn" class="maker-image-close-btn" type="button" aria-label="Close image importer">×</button>
+          </div>
         </div>
 
         <p class="maker-image-stage-help">Drag the four corner handles onto the outside corners of the Sokoban board. This crops and straightens a photographed screen before Boxxy reads it.</p>
@@ -821,34 +824,36 @@
             <div class="maker-image-canvas-wrap">
               <canvas id="makerImagePreviewCanvas" width="640" height="480" aria-label="Image import crop and grid preview"></canvas>
             </div>
-            <div class="maker-image-zoom-controls" aria-label="Image preview zoom">
-              <button id="makerImageZoomOutBtn" type="button" aria-label="Zoom image out">−</button>
-              <button id="makerImageZoomFitBtn" type="button">FIT</button>
-              <strong id="makerImageZoomLabel">100%</strong>
-              <button id="makerImageZoomInBtn" type="button" aria-label="Zoom image in">+</button>
-            </div>
-            <div id="makerImagePreviewSummary" class="maker-image-preview-summary">Choose an image to begin.</div>
-            <div class="maker-image-mode-actions">
-              <button id="makerImageReanalyseBtn" type="button">AUTO READ TILES</button>
-              <button id="makerImageTraceBtn" type="button">TRACE MANUALLY</button>
-            </div>
-            <div class="maker-image-grid-tweaks">
-              <label>COLS<input id="makerImageColsInput" type="number" min="3" max="100" inputmode="numeric"></label>
-              <label>ROWS<input id="makerImageRowsInput" type="number" min="3" max="100" inputmode="numeric"></label>
-              <button id="makerImageResetCornersBtn" type="button">RESET CORNERS</button>
-              <button id="makerImageReplaceBtn" type="button">CHOOSE ANOTHER</button>
-            </div>
-            <div class="maker-image-corner-place" aria-label="Place crop corners">
-              <span>PLACE CORNER</span>
-              <button type="button" data-image-corner-place="0">1 ↖</button>
-              <button type="button" data-image-corner-place="1">2 ↗</button>
-              <button type="button" data-image-corner-place="2">3 ↘</button>
-              <button type="button" data-image-corner-place="3">4 ↙</button>
-            </div>
-            <p class="maker-image-corner-note">If a red handle is awkward to drag, press its number above and then click exactly where that board corner should be.</p>
           </div>
 
           <div class="maker-image-groups-panel">
+            <div class="maker-image-work-controls">
+              <div class="maker-image-zoom-controls" aria-label="Image preview zoom">
+                <button id="makerImageZoomOutBtn" type="button" aria-label="Zoom image out">−</button>
+                <button id="makerImageZoomFitBtn" type="button">FIT</button>
+                <strong id="makerImageZoomLabel">100%</strong>
+                <button id="makerImageZoomInBtn" type="button" aria-label="Zoom image in">+</button>
+              </div>
+              <div id="makerImagePreviewSummary" class="maker-image-preview-summary">Choose an image to begin.</div>
+              <div class="maker-image-mode-actions">
+                <button id="makerImageReanalyseBtn" type="button">AUTO READ TILES</button>
+                <button id="makerImageTraceBtn" type="button">TRACE MANUALLY</button>
+              </div>
+              <div class="maker-image-grid-tweaks">
+                <label>COLS<input id="makerImageColsInput" type="number" min="3" max="100" inputmode="numeric"></label>
+                <label>ROWS<input id="makerImageRowsInput" type="number" min="3" max="100" inputmode="numeric"></label>
+                <button id="makerImageResetCornersBtn" type="button">RESET CORNERS</button>
+                <button id="makerImageReplaceBtn" type="button">CHOOSE ANOTHER</button>
+              </div>
+              <div class="maker-image-corner-place" aria-label="Place crop corners">
+                <span>PLACE CORNER</span>
+                <button type="button" data-image-corner-place="0">1 ↖</button>
+                <button type="button" data-image-corner-place="1">2 ↗</button>
+                <button type="button" data-image-corner-place="2">3 ↘</button>
+                <button type="button" data-image-corner-place="3">4 ↙</button>
+              </div>
+              <p class="maker-image-corner-note">If a red handle is awkward to drag, press its number above and then click exactly where that board corner should be.</p>
+            </div>
             <div id="makerImageAutoPanel">
               <p class="maker-image-help">Drag tile samples into the correct bins. Different-looking samples can share the same bin. Click any square in the photograph to correct that cell directly.</p>
               <div id="makerImageGroups" class="maker-image-groups"></div>
@@ -1232,7 +1237,7 @@
 
 <script src="daily-puzzles/boxxy-daily-loader.js?v=217"></script>
 <script src="levels.js?v=268"></script>
-<script src="boxxy.js?v=296"></script>
+<script src="boxxy.js?v=297"></script>
 <script src="account.js?v=291"></script>
 <script src="pack-builder.js?v=216"></script>
 <script src="how-to-play.js?v=153"></script>

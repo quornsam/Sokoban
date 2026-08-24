@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "296",
+  version: "297",
   lastUpdated: "2026-08-24"
 });
+/* BOXXY v297 — image importer reorganised around a large fit-to-workspace preview with optional full-screen workspace. */
 /* BOXXY v296 — image-import controls remain visible below an independently scrolling zoom viewport. */
 /* BOXXY v295 — image-import modal layout repaired so controls never disappear at larger zoom/workspace sizes. */
 /* BOXXY v294 — image tracing zoom, sampled Rainbow colours, and coloured-box painting. */
@@ -7688,6 +7689,7 @@ window.BOXXY_RELEASE = Object.freeze({
   const imageInput = document.getElementById("makerImageInput");
   const imageImportModal = document.getElementById("makerImageImportModal");
   const imageImportCloseBtn = document.getElementById("makerImageImportCloseBtn");
+  const imageFullscreenBtn = document.getElementById("makerImageFullscreenBtn");
   const imageImportCancelBtn = document.getElementById("makerImageImportCancelBtn");
   const imageImportApplyBtn = document.getElementById("makerImageImportApplyBtn");
   const imageImportReplaceBtn = document.getElementById("makerImageReplaceBtn");
@@ -7981,15 +7983,39 @@ window.BOXXY_RELEASE = Object.freeze({
     imageImportStatusEl.classList.toggle("success", type === "success");
   }
 
+  async function setImageImportFullscreen(active) {
+    if (!imageImportModal) return;
+    const enabled = Boolean(active);
+    imageImportModal.classList.toggle("fullscreen", enabled);
+    if (imageFullscreenBtn) {
+      imageFullscreenBtn.setAttribute("aria-pressed", enabled ? "true" : "false");
+      imageFullscreenBtn.textContent = enabled ? "EXIT FULL SCREEN" : "FULL SCREEN";
+    }
+    if (enabled && document.fullscreenElement !== imageImportModal && imageImportModal.requestFullscreen) {
+      try { await imageImportModal.requestFullscreen(); } catch (_) { /* CSS full-screen remains as a fallback. */ }
+    } else if (!enabled && document.fullscreenElement === imageImportModal && document.exitFullscreen) {
+      try { await document.exitFullscreen(); } catch (_) {}
+    }
+    requestAnimationFrame(() => requestAnimationFrame(drawImageImportPreview));
+  }
+
   function openImageImportModal() {
     if (!imageImportModal) return;
     imageImportModal.hidden = false;
-    requestAnimationFrame(drawImageImportPreview);
+    requestAnimationFrame(() => requestAnimationFrame(drawImageImportPreview));
   }
 
   function closeImageImportModal() {
     if (!imageImportModal) return;
     imageImportModal.hidden = true;
+    if (document.fullscreenElement === imageImportModal && document.exitFullscreen) {
+      try { document.exitFullscreen().catch(() => {}); } catch (_) {}
+    }
+    imageImportModal.classList.remove("fullscreen");
+    if (imageFullscreenBtn) {
+      imageFullscreenBtn.setAttribute("aria-pressed", "false");
+      imageFullscreenBtn.textContent = "FULL SCREEN";
+    }
     imageTracePainting = false;
     imageCornerDragIndex = -1;
   }
@@ -8431,11 +8457,18 @@ window.BOXXY_RELEASE = Object.freeze({
     const canvas = imagePreviewCanvas;
     const ctx = canvas.getContext("2d");
     const sourceCanvas = imageImportState.sourceCanvas;
-    const baseWidth = Math.max(320, Math.min(900, imagePreviewCanvas.parentElement?.clientWidth || 640));
+    const wrap = imagePreviewCanvas.parentElement;
+    const availableWidth = Math.max(240, (wrap?.clientWidth || 640) - 4);
+    const availableHeight = Math.max(220, (wrap?.clientHeight || 480) - 4);
     const aspect = sourceCanvas.width / Math.max(1, sourceCanvas.height);
-    const baseHeight = Math.max(260, Math.min(680, Math.round(baseWidth / aspect)));
-    canvas.width = Math.round(baseWidth * imagePreviewZoom);
-    canvas.height = Math.round(baseHeight * imagePreviewZoom);
+    let baseWidth = availableWidth;
+    let baseHeight = baseWidth / aspect;
+    if (baseHeight > availableHeight) {
+      baseHeight = availableHeight;
+      baseWidth = baseHeight * aspect;
+    }
+    canvas.width = Math.max(1, Math.round(baseWidth * imagePreviewZoom));
+    canvas.height = Math.max(1, Math.round(baseHeight * imagePreviewZoom));
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = "#d9d1c6";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -11683,8 +11716,31 @@ window.BOXXY_RELEASE = Object.freeze({
   imagePreviewCanvas?.addEventListener("pointerup", endImagePreviewPointer);
   imagePreviewCanvas?.addEventListener("pointercancel", endImagePreviewPointer);
 
+  imageFullscreenBtn?.addEventListener("click", () => {
+    setImageImportFullscreen(!imageImportModal?.classList.contains("fullscreen"));
+  });
+  document.addEventListener("fullscreenchange", () => {
+    if (!imageImportModal || document.fullscreenElement === imageImportModal) return;
+    if (!imageImportModal.classList.contains("fullscreen")) return;
+    imageImportModal.classList.remove("fullscreen");
+    if (imageFullscreenBtn) {
+      imageFullscreenBtn.setAttribute("aria-pressed", "false");
+      imageFullscreenBtn.textContent = "FULL SCREEN";
+    }
+    requestAnimationFrame(() => requestAnimationFrame(drawImageImportPreview));
+  });
   imageImportCloseBtn?.addEventListener("click", closeImageImportModal);
   imageImportCancelBtn?.addEventListener("click", closeImageImportModal);
+  document.addEventListener("keydown", event => {
+    if (imageImportModal?.hidden || event.key !== "Escape") return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    if (imageImportModal.classList.contains("fullscreen")) setImageImportFullscreen(false);
+    else closeImageImportModal();
+  }, { capture: true });
+  window.addEventListener("resize", () => {
+    if (!imageImportModal?.hidden) requestAnimationFrame(drawImageImportPreview);
+  });
   imageImportModal?.addEventListener("click", event => {
     if (event.target === imageImportModal) closeImageImportModal();
   });
