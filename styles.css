@@ -6602,7 +6602,7 @@ body[data-boxxy-speed="fast"]{--boxxy-step-transition:.11s;--boxxy-motion-durati
   }
 }
 
-/* BOXXY v295 — image importer keeps every control available while the photograph can zoom independently. */
+/* BOXXY v296 — image importer keeps its controls outside the zoomed image viewport. */
 .maker-image-zoom-controls{
   display:grid;
   grid-template-columns:40px 58px minmax(58px,auto) 40px;
@@ -6648,33 +6648,38 @@ body[data-boxxy-speed="fast"]{--boxxy-step-transition:.11s;--boxxy-motion-durati
 @media (min-width:901px){
   .maker-image-import-card{
     width:min(1500px,calc(100vw - 18px));
-    height:min(96vh,1050px);
+    height:auto;
     max-height:96vh;
+    overflow:auto;
     padding:16px;
+    grid-template-rows:auto auto auto auto auto;
   }
   .maker-image-import-body{
     grid-template-columns:minmax(560px,1.45fr) minmax(390px,.85fr);
     min-height:0;
-    overflow:hidden;
+    overflow:visible;
+    align-items:start;
   }
   .maker-image-preview-panel{
     min-height:0;
-    overflow-y:auto;
-    overflow-x:hidden;
-    padding-right:4px;
-    grid-template-rows:minmax(120px,1fr) auto auto auto auto auto auto;
-    align-content:stretch;
-    scrollbar-gutter:stable;
+    overflow:visible;
+    padding-right:0;
+    grid-template-rows:auto auto auto auto auto auto;
+    align-content:start;
   }
+  /* Only the photograph scrolls/zooms. The controls below it never disappear. */
   .maker-image-canvas-wrap{
-    min-height:0;
-    max-height:none;
+    height:clamp(320px,46vh,560px);
+    min-height:320px;
+    max-height:560px;
     overflow:auto;
     display:block;
     text-align:center;
     overscroll-behavior:contain;
+    scrollbar-gutter:stable both-edges;
   }
   .maker-image-preview-panel canvas{
+    display:block;
     width:auto;
     height:auto;
     max-width:none;
@@ -6683,11 +6688,9 @@ body[data-boxxy-speed="fast"]{--boxxy-step-transition:.11s;--boxxy-motion-durati
   }
   .maker-image-groups-panel{
     min-height:0;
-    overflow-y:auto;
-    overflow-x:hidden;
-    padding-right:6px;
+    overflow:visible;
+    padding-right:0;
     align-content:start;
-    scrollbar-gutter:stable;
   }
   .maker-image-trace-panel{align-content:start}
 }

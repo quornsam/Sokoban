@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "295",
+  version: "296",
   lastUpdated: "2026-08-24"
 });
+/* BOXXY v296 — image-import controls remain visible below an independently scrolling zoom viewport. */
 /* BOXXY v295 — image-import modal layout repaired so controls never disappear at larger zoom/workspace sizes. */
 /* BOXXY v294 — image tracing zoom, sampled Rainbow colours, and coloured-box painting. */
 /* BOXXY v293 — Rainbow Mode painting added to Secret Workshop image tracing. */
