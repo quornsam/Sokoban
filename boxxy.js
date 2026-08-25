@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "297",
-  lastUpdated: "2026-08-24"
+  version: "298",
+  lastUpdated: "2026-08-25"
 });
+/* BOXXY v298 — automatic large-level performance mode for boards wider or taller than 50 cells. */
 /* BOXXY v297 — image importer reorganised around a large fit-to-workspace preview with optional full-screen workspace. */
 /* BOXXY v296 — image-import controls remain visible below an independently scrolling zoom viewport. */
 /* BOXXY v295 — image-import modal layout repaired so controls never disappear at larger zoom/workspace sizes. */
@@ -1671,6 +1672,7 @@ window.BOXXY_RELEASE = Object.freeze({
     clearTimeout(animTimer);
     player = [Number(currentCheckpoint.player[0]), Number(currentCheckpoint.player[1])];
     boxes = currentCheckpoint.boxes.map(box => ({ x: Number(box.x), y: Number(box.y), moving: false }));
+    rebuildBoxLookup();
     moves = Math.max(0, Number(currentCheckpoint.moves) || 0);
     pushes = Math.max(0, Number(currentCheckpoint.pushes) || 0);
     facing = ["front", "back", "left", "right"].includes(currentCheckpoint.facing) ? currentCheckpoint.facing : "front";
@@ -2083,6 +2085,13 @@ window.BOXXY_RELEASE = Object.freeze({
   let idleTimer = null;
   let animTimer = null;
   let boardStepMotion = null;
+  let largeLevelPerformanceMode = false;
+  let goalLookup = new Map();
+  let boxLookup = new Map();
+  let largeBoxPieces = [];
+  let largePlayerPiece = null;
+  let largePlayerImage = null;
+  let largeLastAnimatedBoxIndex = -1;
 
   function updatePackCollectionLabels(pack = activePack) {
     const label = dailyMode ? "Boxxy Dailys" : packCollectionLabel(pack);
@@ -5308,8 +5317,34 @@ window.BOXXY_RELEASE = Object.freeze({
     });
   }
 
+  function rebuildGoalLookup() {
+    goalLookup = new Map();
+    goals.forEach(goal => goalLookup.set(key(goal.x, goal.y), goal));
+  }
+
+  function rebuildBoxLookup() {
+    boxLookup = new Map();
+    boxes.forEach((box, index) => boxLookup.set(key(box.x, box.y), index));
+  }
+
+  function resetLargePieceCache() {
+    largeBoxPieces = [];
+    largePlayerPiece = null;
+    largePlayerImage = null;
+    largeLastAnimatedBoxIndex = -1;
+  }
+
+  function configureLargeLevelPerformanceMode() {
+    largeLevelPerformanceMode = width > 50 || height > 50;
+    document.body.classList.toggle("large-level-performance", largeLevelPerformanceMode);
+    board?.classList.toggle("large-level-performance", largeLevelPerformanceMode);
+    rebuildGoalLookup();
+    rebuildBoxLookup();
+    resetLargePieceCache();
+  }
+
   function goalAt(x, y) {
-    return goals.find(goal => goal.x === x && goal.y === y) || null;
+    return goalLookup.get(key(x, y)) || null;
   }
 
   function isGoal(x, y) {
@@ -5321,7 +5356,166 @@ window.BOXXY_RELEASE = Object.freeze({
     return `${prefix}-${direction}`;
   }
 
+  function setLargePiecePosition(piece, x, y, z) {
+    if (!piece) return;
+    if (piece.dataset.x !== String(x)) {
+      piece.style.setProperty("--x", x);
+      piece.dataset.x = String(x);
+    }
+    if (piece.dataset.y !== String(y)) {
+      piece.style.setProperty("--y", y);
+      piece.dataset.y = String(y);
+    }
+    if (piece.dataset.z !== String(z)) {
+      piece.style.setProperty("--z", z);
+      piece.dataset.z = String(z);
+    }
+  }
+
+  function createLargeBoxPiece(box, index) {
+    const piece = document.createElement("div");
+    piece.className = "piece box";
+    piece.dataset.boxIndex = String(index);
+    const art = document.createElement("span");
+    art.className = "board-art board-art-box";
+    art.setAttribute("aria-hidden", "true");
+    piece.appendChild(art);
+    pieceLayer.appendChild(piece);
+    largeBoxPieces[index] = piece;
+    return piece;
+  }
+
+  function ensureLargePieceLayer() {
+    if (largePlayerPiece?.isConnected && largeBoxPieces.length === boxes.length) return;
+
+    pieceLayer.replaceChildren();
+    largeBoxPieces = [];
+    boxes.forEach((box, index) => createLargeBoxPiece(box, index));
+
+    largePlayerPiece = document.createElement("div");
+    largePlayerPiece.className = "piece player facing-front";
+    largePlayerImage = document.createElement("img");
+    largePlayerImage.alt = "";
+    largePlayerImage.draggable = false;
+    largePlayerImage.decoding = "sync";
+    largePlayerImage.setAttribute("aria-hidden", "true");
+    largePlayerPiece.appendChild(largePlayerImage);
+    pieceLayer.appendChild(largePlayerPiece);
+  }
+
+  function syncLargeBoxPiece(index, animate = false, motion = null) {
+    const box = boxes[index];
+    const piece = largeBoxPieces[index];
+    if (!box || !piece) return;
+
+    const goal = goalAt(box.x, box.y);
+    const goalColour = goal ? (GOAL_COLOURS?.normalise?.(goal.colour) || "red") : "";
+    const stateToken = goal ? `goal:${goalColour}` : "floor";
+
+    setLargePiecePosition(piece, box.x, box.y, depth(box.y, "box"));
+
+    if (piece.dataset.stateToken !== stateToken) {
+      piece.dataset.stateToken = stateToken;
+      piece.classList.toggle("on-goal", Boolean(goal));
+      if (goal) {
+        GOAL_COLOURS?.style?.(piece, goalColour);
+      } else {
+        delete piece.dataset.goalColour;
+        piece.style.removeProperty("--goal-colour");
+        piece.style.removeProperty("--goal-sprite");
+        piece.style.removeProperty("--box-sprite");
+      }
+      applyBoardArtwork(piece.querySelector(".board-art-box"), "box", goal ? goalColour : "default-yellow");
+    }
+
+    piece.classList.remove("pushing", "board-step");
+    if (animate && motion?.type === "push") {
+      piece.style.setProperty("--from-x", motion.boxFromX);
+      piece.style.setProperty("--from-y", motion.boxFromY);
+      void piece.offsetWidth;
+      piece.classList.add("pushing", "board-step");
+    }
+  }
+
+  function syncLargePlayer(anim, motion = null) {
+    if (!largePlayerPiece || !largePlayerImage) return;
+    const frameName = characterFrameName(anim === "walking" ? "walk" : anim === "pushing" ? "push" : "idle", facing);
+
+    setLargePiecePosition(largePlayerPiece, player[0], player[1], depth(player[1], "player"));
+    largePlayerPiece.className = `piece player facing-${facing}${anim && anim !== "idle" ? " " + anim : ""}`;
+    if (largePlayerImage.dataset.characterFrame !== frameName) {
+      largePlayerImage.dataset.characterFrame = frameName;
+      window.CharacterStyler?.drawImage?.(largePlayerImage, frameName);
+    }
+
+    if (motion) {
+      largePlayerPiece.style.setProperty("--from-x", motion.fromX);
+      largePlayerPiece.style.setProperty("--from-y", motion.fromY);
+      void largePlayerPiece.offsetWidth;
+      largePlayerPiece.classList.add("board-step");
+    }
+  }
+
+  function renderLargeLevel(anim = "idle") {
+    currentAnimation = anim;
+    const previousMotion = boardStepMotion;
+    const activeMotion = (anim === "walking" || anim === "pushing") ? boardStepMotion : null;
+    ensureLargePieceLayer();
+
+    if (!largeBoxPieces[0]?.dataset?.stateToken && boxes.length) {
+      boxes.forEach((box, index) => syncLargeBoxPiece(index, false, null));
+    }
+
+    let animatedBoxIndex = -1;
+    if (activeMotion?.type === "push") {
+      const found = boxLookup.get(key(activeMotion.boxToX, activeMotion.boxToY));
+      animatedBoxIndex = Number.isInteger(found) ? found : -1;
+    }
+
+    if (largeLastAnimatedBoxIndex >= 0 && largeLastAnimatedBoxIndex !== animatedBoxIndex) {
+      largeBoxPieces[largeLastAnimatedBoxIndex]?.classList.remove("pushing", "board-step");
+    }
+
+    if (animatedBoxIndex >= 0) {
+      syncLargeBoxPiece(animatedBoxIndex, true, activeMotion);
+    } else if (anim === "idle" && previousMotion?.type === "push") {
+      const found = boxLookup.get(key(previousMotion.boxToX, previousMotion.boxToY));
+      if (Number.isInteger(found)) syncLargeBoxPiece(found, false, null);
+    } else if (anim === "idle" && !previousMotion) {
+      boxes.forEach((box, index) => {
+        const piece = largeBoxPieces[index];
+        const goal = goalAt(box.x, box.y);
+        const goalColour = goal ? (GOAL_COLOURS?.normalise?.(goal.colour) || "red") : "";
+        const stateToken = goal ? `goal:${goalColour}` : "floor";
+        if (!piece || piece.dataset.x !== String(box.x) || piece.dataset.y !== String(box.y)
+          || piece.dataset.stateToken !== stateToken) {
+          syncLargeBoxPiece(index, false, null);
+        }
+      });
+    }
+
+    largeLastAnimatedBoxIndex = animatedBoxIndex;
+    syncLargePlayer(anim, activeMotion);
+
+    if (anim === "idle") boardStepMotion = null;
+
+    movesEl.textContent = moves;
+    pushesEl.textContent = pushes;
+    levelCount.textContent = sharedPuzzleMode ? "SHARED" : makerTesting ? "MAKER" : dailyMode ? `DAILY #${Number(dailyPuzzle?.sequence) || ""}` : `${levelIndex + 1} / ${LEVELS.length}`;
+    const best = (makerTesting || sharedPuzzleMode) ? null : dailyMode ? dailyBestMoves(dailyPuzzle) : readBest(levelData);
+    bestEl.textContent = best || "—";
+    undoBtn.disabled = !history.length || completed;
+    updateSavePositionButton();
+
+    if (levelPicker && !levelPicker.hidden) refreshLevelButtons();
+    scheduleFirstPersonRender();
+  }
+
   function render(anim = "idle") {
+    if (largeLevelPerformanceMode) {
+      renderLargeLevel(anim);
+      return;
+    }
     currentAnimation = anim;
     if (anim === "idle") boardStepMotion = null;
     pieceLayer.innerHTML = "";
@@ -5407,7 +5601,7 @@ window.BOXXY_RELEASE = Object.freeze({
       if (!completed) {
         sfx.idle();
         const playerNode = pieceLayer.querySelector(".player");
-        if (playerNode) {
+        if (playerNode && !largeLevelPerformanceMode) {
           // Do not animate the zero-height player container itself: older WebKit can
           // leave its composited child invisible after that animation completes.
           playerNode.classList.remove("idle-bob");
@@ -5565,6 +5759,7 @@ window.BOXXY_RELEASE = Object.freeze({
     player = [...parsed.player];
     boxes = parsed.boxes.map(([x, y]) => ({ x, y, moving: false }));
     goals = parsed.goals.map(goal => ({ ...goal }));
+    configureLargeLevelPerformanceMode();
     levelData.pushMinimum = boxes.length;
     moves = 0;
     pushes = 0;
@@ -5655,6 +5850,7 @@ window.BOXXY_RELEASE = Object.freeze({
     player = [...parsed.player];
     boxes = parsed.boxes.map(([x, y]) => ({ x, y, moving: false }));
     goals = parsed.goals.map(goal => ({ ...goal }));
+    configureLargeLevelPerformanceMode();
     moves = 0;
     pushes = 0;
     history = [];
@@ -5760,6 +5956,7 @@ window.BOXXY_RELEASE = Object.freeze({
       player = [...parsed.player];
       boxes = parsed.boxes.map(([x, y]) => ({ x, y, moving: false }));
       goals = parsed.goals.map(goal => ({ ...goal }));
+      configureLargeLevelPerformanceMode();
       moves = 0;
       pushes = 0;
       history = [];
@@ -5818,14 +6015,36 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   function snapshot() {
-    return {
+    const state = {
       player: [...player],
-      boxes: copyBoxes(boxes),
       moves,
       pushes,
       facing,
       route: playedRoute
     };
+    if (largeLevelPerformanceMode) {
+      const coords = new Uint16Array(boxes.length * 2);
+      boxes.forEach((box, index) => {
+        coords[index * 2] = box.x;
+        coords[index * 2 + 1] = box.y;
+      });
+      state.boxCoords = coords;
+    } else {
+      state.boxes = copyBoxes(boxes);
+    }
+    return state;
+  }
+
+  function boxesFromSnapshot(state) {
+    const coords = state?.boxCoords;
+    if (coords && typeof coords.length === "number") {
+      const restored = [];
+      for (let i = 0; i + 1 < coords.length; i += 2) {
+        restored.push({ x: Number(coords[i]), y: Number(coords[i + 1]), moving: false });
+      }
+      return restored;
+    }
+    return copyBoxes(Array.isArray(state?.boxes) ? state.boxes : []);
   }
 
   function blocked(x, y) {
@@ -5833,6 +6052,10 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   function boxIndex(x, y) {
+    if (largeLevelPerformanceMode) {
+      const index = boxLookup.get(key(x, y));
+      return Number.isInteger(index) ? index : -1;
+    }
     return boxes.findIndex(box => box.x === x && box.y === y);
   }
 
@@ -5885,9 +6108,11 @@ window.BOXXY_RELEASE = Object.freeze({
       boxes.forEach(box => { box.moving = false; });
       const movedBoxFromX = boxes[index].x;
       const movedBoxFromY = boxes[index].y;
+      if (largeLevelPerformanceMode) boxLookup.delete(key(movedBoxFromX, movedBoxFromY));
       boxes[index].x = bx;
       boxes[index].y = by;
       boxes[index].moving = true;
+      if (largeLevelPerformanceMode) boxLookup.set(key(bx, by), index);
       player = [nx, ny];
       boardStepMotion = {
         type: "push",
@@ -6222,8 +6447,9 @@ window.BOXXY_RELEASE = Object.freeze({
     redoHistory.push(snapshot());
     const state = history.pop();
     player = [...state.player];
-    boxes = copyBoxes(state.boxes);
+    boxes = boxesFromSnapshot(state);
     boxes.forEach(box => { box.moving = false; });
+    rebuildBoxLookup();
     moves = state.moves;
     pushes = state.pushes;
     facing = state.facing;
@@ -6241,8 +6467,9 @@ window.BOXXY_RELEASE = Object.freeze({
     history.push(snapshot());
     const state = redoHistory.pop();
     player = [...state.player];
-    boxes = copyBoxes(state.boxes);
+    boxes = boxesFromSnapshot(state);
     boxes.forEach(box => { box.moving = false; });
+    rebuildBoxLookup();
     moves = state.moves;
     pushes = state.pushes;
     facing = state.facing;

@@ -6686,3 +6686,35 @@ body[data-boxxy-speed="fast"]{--boxxy-step-transition:.11s;--boxxy-motion-durati
   .maker-image-work-controls{padding-bottom:8px}
   .maker-image-zoom-controls{grid-template-columns:38px 54px 56px 38px}
 }
+
+
+/* BOXXY v298 — automatic performance mode for boards over 50 cells wide or tall.
+   Large boards keep the same gameplay but avoid costly per-move effects. */
+body.large-level-performance .board{
+  contain:layout paint style;
+  box-shadow:0 16px 30px rgba(37,26,15,.26);
+}
+body.large-level-performance .piece.box,
+body.large-level-performance .piece.player{
+  transition:none!important;
+}
+body.large-level-performance .piece.box::before,
+body.large-level-performance .piece.player::before{
+  display:none!important;
+}
+body.large-level-performance .wall::before,
+body.large-level-performance .void-cell{
+  box-shadow:none!important;
+}
+body.large-level-performance .piece.player.board-step,
+body.large-level-performance .piece.box.pushing.board-step{
+  animation:boardPieceMove .14s steps(2,end) both!important;
+}
+body.large-level-performance .piece.player.walking :is(img,canvas),
+body.large-level-performance .piece.player.pushing :is(img,canvas),
+body.large-level-performance .piece.player.idle-bob :is(img,canvas){
+  animation:none!important;
+}
+body.large-level-performance .instruction .thought-text{
+  transition:none;
+}
