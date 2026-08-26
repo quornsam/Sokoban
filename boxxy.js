@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "300",
-  lastUpdated: "2026-08-25"
+  version: "301",
+  lastUpdated: "2026-08-26"
 });
+/* BOXXY v301 — renamed the unlocked very-fast speed from Instant to Turbo; movement behaviour is unchanged. */
 /* BOXXY v300 — Starry Night restored on the v298 performance core; Instant Move unlocks after Level 24. */
 /* BOXXY v298 — automatic large-level performance mode for boards wider or taller than 50 cells. */
 /* BOXXY v297 — image importer reorganised around a large fit-to-workspace preview with optional full-screen workspace. */
@@ -4560,7 +4561,7 @@ window.BOXXY_RELEASE = Object.freeze({
     if (!option) {
       option = document.createElement("option");
       option.value = "instant";
-      option.textContent = "INSTANT";
+      option.textContent = "TURBO";
       settingsSpeedSelect.appendChild(option);
     }
     settingsSpeedSelect.value = boxxySpeed;
@@ -6413,7 +6414,7 @@ window.BOXXY_RELEASE = Object.freeze({
         if (completeKicker) completeKicker.textContent = packCollectionLabel(activePack).toUpperCase();
         if (completedPackHeading) completedPackHeading.textContent = "";
         if (completeTitle) completeTitle.innerHTML = isInstantUnlockCompletion
-          ? "INSTANT MOVE<br>UNLOCKED"
+          ? "TURBO<br>UNLOCKED"
           : solvedWithWalkthrough ? "GUIDED<br>SOLVE" : "PUZZLE<br>CLEARED";
         const statedMinimum = Number(levelData.minimum);
         let summary;
@@ -6426,7 +6427,7 @@ window.BOXXY_RELEASE = Object.freeze({
           summary = `Solved in ${moves} moves and ${pushes} pushes.`;
         }
         if (isInstantUnlockCompletion) {
-          completeText.innerHTML = `You can now select <strong>Instant</strong> from Menu → Boxxy Speed. Movement happens immediately, with no running animation. This will be useful for Level 25.<br><br>Level 24 completed in ${moves} moves and ${pushes} pushes.`;
+          completeText.innerHTML = `You can now select <strong>Turbo</strong> from Menu → Boxxy Speed. Boxxy moves at maximum speed. This will be useful for Level 25.<br><br>Level 24 completed in ${moves} moves and ${pushes} pushes.`;
         } else {
           completeText.textContent = solvedWithWalkthrough
             ? `${summary} This level is now counted as completed, and its button will appear in yellow.`
