@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "304",
+  version: "305",
   lastUpdated: "2026-08-26"
 });
+/* BOXXY v305 — Turbo keyboard input keeps a tap to one square; sustained holds engage Turbo repeat speed. */
 /* BOXXY v304 — Starry Night crescent optically aligned with the header medal rail across responsive sizes. */
 /* BOXXY v302 — Starry Night levels 1–24 renamed for the 24 brightest night-sky stars, faintest-to-brightest. */
 /* BOXXY v301 — renamed the unlocked very-fast speed from Instant to Turbo; movement behaviour is unchanged. */
@@ -7132,6 +7133,13 @@ window.BOXXY_RELEASE = Object.freeze({
     keyboardMoveRepeatKey = "";
   }
 
+  function keyboardMoveRepeatStartDelay() {
+    /* Turbo should accelerate sustained movement, not turn a normal tap into
+       several moves. Quick already uses about a 220 ms hold threshold, so
+       keep that as the minimum before keyboard repetition begins. */
+    return Math.max(220, scaledBoxxyDelay(330));
+  }
+
   function startKeyboardMove(directionKey, delta) {
     clearKeyboardMoveRepeat();
     keyboardMoveRepeatKey = directionKey;
@@ -7147,7 +7155,7 @@ window.BOXXY_RELEASE = Object.freeze({
         move(...delta, true);
       };
       keyboardMoveRepeatTimer = window.setInterval(repeatMove, scaledBoxxyDelay(105));
-    }, scaledBoxxyDelay(330));
+    }, keyboardMoveRepeatStartDelay());
   }
 
   document.addEventListener("keydown", event => {
