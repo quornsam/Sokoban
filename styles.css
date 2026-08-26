@@ -6700,6 +6700,11 @@ body.large-level-performance .board{
   contain:layout paint style;
   box-shadow:0 16px 30px rgba(37,26,15,.26);
 }
+/* BOXXY v307 — Turbo updates the board at very high frequency. Keep those
+   paints inside the board so mobile browsers do not rerasterise header medals. */
+body[data-boxxy-speed="instant"] .board{
+  contain:layout paint style;
+}
 body.large-level-performance .piece.box,
 body.large-level-performance .piece.player{
   transition:none!important;

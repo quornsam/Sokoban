@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "306",
+  version: "307",
   lastUpdated: "2026-08-26"
 });
+/* BOXXY v307 — Turbo reuses the cached piece renderer so rapid movement does not repeatedly rebuild the board DOM or disturb header medal painting. */
 /* BOXXY v306 — Turbo keyboard taps retain the normal walk/push animation; held repeats run without animation at Turbo speed. */
 /* BOXXY v305 — Turbo keyboard input keeps a tap to one square; sustained holds engage Turbo repeat speed. */
 /* BOXXY v304 — Starry Night crescent optically aligned with the header medal rail across responsive sizes. */
@@ -5592,7 +5593,12 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   function render(anim = "idle") {
-    if (largeLevelPerformanceMode) {
+    /* Turbo can issue movement updates faster than a display paints frames.
+       Reuse the existing v298 persistent piece renderer for Turbo's idle-frame
+       movement instead of rebuilding every box/player DOM node on every step. */
+    const useCachedPieceRenderer = largeLevelPerformanceMode
+      || (boxxyInstantSpeedActive() && anim === "idle");
+    if (useCachedPieceRenderer) {
       renderLargeLevel(anim);
       return;
     }
@@ -6132,7 +6138,7 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   function boxIndex(x, y) {
-    if (largeLevelPerformanceMode) {
+    if (largeLevelPerformanceMode || boxxyInstantSpeedActive()) {
       const index = boxLookup.get(key(x, y));
       return Number.isInteger(index) ? index : -1;
     }
@@ -6189,11 +6195,13 @@ window.BOXXY_RELEASE = Object.freeze({
       boxes.forEach(box => { box.moving = false; });
       const movedBoxFromX = boxes[index].x;
       const movedBoxFromY = boxes[index].y;
-      if (largeLevelPerformanceMode) boxLookup.delete(key(movedBoxFromX, movedBoxFromY));
+      /* Keep the coordinate cache current on every board. Turbo reuses the
+         persistent v298 renderer even on ordinary-sized levels. */
+      boxLookup.delete(key(movedBoxFromX, movedBoxFromY));
       boxes[index].x = bx;
       boxes[index].y = by;
       boxes[index].moving = true;
-      if (largeLevelPerformanceMode) boxLookup.set(key(bx, by), index);
+      boxLookup.set(key(bx, by), index);
       player = [nx, ny];
       boardStepMotion = {
         type: "push",
