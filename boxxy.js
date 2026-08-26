@@ -6,12 +6,36 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: 299,
+  version: "300",
   lastUpdated: "2026-08-25"
 });
+/* BOXXY v300 — Starry Night restored on the v298 performance core; Instant Move unlocks after Level 24. */
+/* BOXXY v298 — automatic large-level performance mode for boards wider or taller than 50 cells. */
+/* BOXXY v297 — image importer reorganised around a large fit-to-workspace preview with optional full-screen workspace. */
+/* BOXXY v296 — image-import controls remain visible below an independently scrolling zoom viewport. */
+/* BOXXY v295 — image-import modal layout repaired so controls never disappear at larger zoom/workspace sizes. */
+/* BOXXY v294 — image tracing zoom, sampled Rainbow colours, and coloured-box painting. */
+/* BOXXY v293 — Rainbow Mode painting added to Secret Workshop image tracing. */
+/* BOXXY v291 — redirect-safe offline PWA relaunch fix for iPhone/iPad. */
+/* BOXXY v290 — Android native install handoff added after opting into offline play. */
+/* BOXXY v289 — signed-in offline download and Home Screen handoff. */
+/* BOXXY v288 — smooth tile travel retained without pose blending; blocked pushes now hold the push pose correctly. */
+/* BOXXY v287 — smoother tile movement with interpolated travel and blended in-between character poses. */
+/* BOXXY v286 — level-cleared account shortcut styling refined. */
+/* BOXXY v285 — account shortcut added to level-cleared modal for unsigned players. */
+/* BOXXY v284 — account avatar layout, attire modal stacking, and Basement recent-activity history. */
+/* BOXXY v283 — account avatar card alignment, attire shortcut, and contact-based password recovery. */
+/* BOXXY v282 — Zen Mode Undo now repeats while held without sacrificing swipe-anywhere movement. */
+/* BOXXY v280 — account avatar vertical position corrected between v278 and v279; release number updated for Legal. */
+/* BOXXY v279 — account avatar centred on its visible artwork; release number updated for Legal. */
+/* BOXXY v277 — larger account avatar, clearer Basement device/stat display, and per-level attempt tracking. */
+/* BOXXY v276 — clearer total-step labels and reliable Enter/Space next-level handling after completion. */
+/* BOXXY v275 — tidier MENU controls plus richer account avatar and lifetime gameplay statistics. */
 /* Stored solver routes are kept separate from the authored pack data. */
 (() => {
   "use strict";
+
+/* BOXXY v292 — desktop Full Screen now becomes a distraction-free Zen Mode. */
   const STORAGE_KEY = "boxxy-solver-solutions-v1";
   function readAll() {
     try {
@@ -1201,13 +1225,101 @@ window.BOXXY_RELEASE = Object.freeze({
   const MICROBAN_PACK_ID = "microban";
   const JIGSAW_PACK_ID = "jigsaw";
   const STARRY_NIGHT_PACK_ID = "starry-night";
-  const STARRY_NIGHT_INSTANT_UNLOCK_LEVEL = 23;
+  const STARRY_NIGHT_INSTANT_UNLOCK_LEVEL = 23; // zero-based: Level 24
   const STARRY_NIGHT_INSTANT_SPEED_KEY = "boxxy-starry-night-instant-unlocked-v1";
   const ALWAYS_UNLOCKED_PACK_IDS = new Set([PRIMARY_PACK_ID, MICROBAN_PACK_ID]);
   const UNLOCK_SOURCE_PACK_IDS = new Set([PRIMARY_PACK_ID, MICROBAN_PACK_ID]);
   const ADDITIONAL_PACKS_UNLOCK_KEY = "boxxy-additional-packs-unlocked-v1";
   const ACTIVE_PACK_STORAGE_KEY = "boxxy-active-pack-v2";
+  const ALL_TIME_STEPS_KEY = "boxxy-all-time-steps-v1";
+  const ALL_TIME_PUSHES_KEY = "boxxy-all-time-pushes-v1";
+  const LEVEL_ATTEMPTS_KEY = "boxxy-level-attempts-v1";
+  const DEVICE_ID_KEY = "boxxy-device-id-v1";
   const packStorageKeyFor = (packId, suffix) => `boxxy-pack-${packId}-${suffix}-v1`;
+
+  function starryNightLevel24AlreadyComplete() {
+    try {
+      const completed = JSON.parse(localStorage.getItem(packStorageKeyFor(STARRY_NIGHT_PACK_ID, "completed")) || "[]");
+      return Array.isArray(completed) && completed.map(Number).includes(STARRY_NIGHT_INSTANT_UNLOCK_LEVEL);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function instantSpeedUnlocked() {
+    try {
+      if (localStorage.getItem(STARRY_NIGHT_INSTANT_SPEED_KEY) === "true") return true;
+      if (starryNightLevel24AlreadyComplete()) {
+        localStorage.setItem(STARRY_NIGHT_INSTANT_SPEED_KEY, "true");
+        return true;
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  function unlockInstantSpeed() {
+    try { localStorage.setItem(STARRY_NIGHT_INSTANT_SPEED_KEY, "true"); } catch (_) {}
+    updateInstantSpeedOption();
+  }
+
+  function boxxyDeviceId() {
+    try {
+      let id = String(localStorage.getItem(DEVICE_ID_KEY) || "").trim();
+      if (id) return id;
+      if (crypto?.randomUUID) id = crypto.randomUUID();
+      else {
+        const bytes = new Uint8Array(16);
+        crypto.getRandomValues(bytes);
+        id = [...bytes].map(value => value.toString(16).padStart(2, "0")).join("");
+      }
+      localStorage.setItem(DEVICE_ID_KEY, id);
+      return id;
+    } catch (_) {
+      return "local";
+    }
+  }
+
+  function readLevelAttempts() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(LEVEL_ATTEMPTS_KEY) || "null");
+      if (parsed && typeof parsed === "object" && parsed.levels && typeof parsed.levels === "object") return parsed;
+    } catch (_) {}
+    return { version: 1, levels: {} };
+  }
+
+  function recordLevelAttempt(packId, levelToken, details = {}) {
+    const cleanPackId = String(packId || "").trim();
+    const cleanToken = String(levelToken ?? "").trim();
+    if (!cleanPackId || !cleanToken) return;
+    try {
+      const data = readLevelAttempts();
+      const key = `${cleanPackId}:${cleanToken}`;
+      const deviceId = boxxyDeviceId();
+      const previous = data.levels[key] && typeof data.levels[key] === "object" ? data.levels[key] : {};
+      const devices = previous.devices && typeof previous.devices === "object" ? { ...previous.devices } : {};
+      const oldDevice = devices[deviceId] && typeof devices[deviceId] === "object" ? devices[deviceId] : {};
+      devices[deviceId] = {
+        count: Math.max(0, Math.trunc(Number(oldDevice.count) || 0)) + 1,
+        lastAt: Date.now()
+      };
+      data.levels[key] = {
+        packId: cleanPackId,
+        packName: String(details.packName || previous.packName || cleanPackId),
+        levelToken: cleanToken,
+        levelNumber: Number.isFinite(Number(details.levelNumber)) ? Number(details.levelNumber) : (Number(previous.levelNumber) || 0),
+        levelName: String(details.levelName || previous.levelName || ""),
+        devices
+      };
+      localStorage.setItem(LEVEL_ATTEMPTS_KEY, JSON.stringify(data));
+    } catch (_) {}
+  }
+
+  function addLifetimeStat(key, amount = 1) {
+    try {
+      const current = Math.max(0, Math.trunc(Number(localStorage.getItem(key)) || 0));
+      localStorage.setItem(key, String(current + Math.max(0, Math.trunc(Number(amount) || 0))));
+    } catch (_) {}
+  }
   const packCompletionStatsKeyFor = packId => packStorageKeyFor(packId, "completion-stats");
   const PACK_ACCENT_COLOURS = Object.freeze({
     red: "#db3b27",
@@ -1219,20 +1331,6 @@ window.BOXXY_RELEASE = Object.freeze({
     orange: "#f47a20",
     teal: "#00a6b2"
   });
-
-
-  function instantSpeedUnlocked() {
-    try {
-      return localStorage.getItem(STARRY_NIGHT_INSTANT_SPEED_KEY) === "true";
-    } catch (_) {
-      return false;
-    }
-  }
-
-  function unlockInstantSpeed() {
-    try { localStorage.setItem(STARRY_NIGHT_INSTANT_SPEED_KEY, "true"); } catch (_) {}
-    return true;
-  }
 
   function readPackCompletionStats(packId) {
     try {
@@ -1610,6 +1708,7 @@ window.BOXXY_RELEASE = Object.freeze({
     clearTimeout(animTimer);
     player = [Number(currentCheckpoint.player[0]), Number(currentCheckpoint.player[1])];
     boxes = currentCheckpoint.boxes.map(box => ({ x: Number(box.x), y: Number(box.y), moving: false }));
+    rebuildBoxLookup();
     moves = Math.max(0, Number(currentCheckpoint.moves) || 0);
     pushes = Math.max(0, Number(currentCheckpoint.pushes) || 0);
     facing = ["front", "back", "left", "right"].includes(currentCheckpoint.facing) ? currentCheckpoint.facing : "front";
@@ -1860,6 +1959,7 @@ window.BOXXY_RELEASE = Object.freeze({
   const settingsCloseBtn = document.getElementById("settingsCloseBtn");
   const settingsMainView = document.getElementById("settingsMainView");
   const settingsKeyboardView = document.getElementById("settingsKeyboardView");
+  const settingsAccountView = document.getElementById("settingsAccountView");
   const settingsKeyboardBtn = document.getElementById("settingsKeyboardBtn");
   const settingsKeyboardBackBtn = document.getElementById("settingsKeyboardBackBtn");
   const settingsMusicTrack = document.getElementById("settingsMusicTrack");
@@ -2020,6 +2120,14 @@ window.BOXXY_RELEASE = Object.freeze({
   let timer = null;
   let idleTimer = null;
   let animTimer = null;
+  let boardStepMotion = null;
+  let largeLevelPerformanceMode = false;
+  let goalLookup = new Map();
+  let boxLookup = new Map();
+  let largeBoxPieces = [];
+  let largePlayerPiece = null;
+  let largePlayerImage = null;
+  let largeLastAnimatedBoxIndex = -1;
 
   function updatePackCollectionLabels(pack = activePack) {
     const label = dailyMode ? "Boxxy Dailys" : packCollectionLabel(pack);
@@ -2044,8 +2152,9 @@ window.BOXXY_RELEASE = Object.freeze({
     ? storedMusicTrackId
     : "ivory";
   let musicPlayAllIndex = 0;
-  const BOXXY_SPEED_FACTORS = Object.freeze({ slow: 1.4, normal: 1, fast: 0.68, instant: 0.14 });
-  let boxxySpeed = BOXXY_SPEED_FACTORS[localStorage.getItem("boxxy-speed-v1")] ? localStorage.getItem("boxxy-speed-v1") : "normal";
+  const BOXXY_SPEED_FACTORS = Object.freeze({ slow: 1.4, normal: 1, fast: 0.68, instant: 0.12 });
+  const storedBoxxySpeed = localStorage.getItem("boxxy-speed-v1");
+  let boxxySpeed = BOXXY_SPEED_FACTORS[storedBoxxySpeed] ? storedBoxxySpeed : "normal";
   let musicPausedForHiddenTab = false;
   let audioCtx = null;
   let autoplayRunning = false;
@@ -2425,9 +2534,9 @@ window.BOXXY_RELEASE = Object.freeze({
   const PACK_ALPHABET_SOUP_BADGE_HTML = '<img src="assets/ui/alphabet-soup-badge.png" alt="" aria-hidden="true" style="display:block;width:100%;height:100%;object-fit:contain;">';
   const PACK_STARRY_NIGHT_BADGE_HTML = '<img src="assets/ui/starry-night-badge.png" alt="" aria-hidden="true" style="display:block;width:100%;height:100%;object-fit:contain;">';
   const PACK_STARRY_NIGHT_AWARD_MESSAGES = Object.freeze([
-    packName => `A crescent moon has been added to your badge collection for completing “${packName}”. Find it beside BOXXY at the top of your screen, you star-chasing crate-shifter.`,
-    packName => `You completed “${packName}” and earned its moon badge. It is waiting beside BOXXY at the top of your screen, you celestial puzzle champion.`,
-    packName => `“${packName}” is complete. Its moon badge now sits beside BOXXY at the top of your screen, you night-sky box-pushing wizard.`
+    packName => `A crescent moon has been added to your badge collection for completing “${packName}”. Find it beside BOXXY at the top of your screen.`,
+    packName => `You completed “${packName}” and earned its crescent moon badge. It is waiting beside BOXXY at the top of your screen.`,
+    packName => `“${packName}” is complete. Its crescent moon badge now sits beside BOXXY at the top of your screen.`
   ]);
   const lastPackAwardMessage = { star: -1, jigsaw: -1, alphabet: -1, moon: -1 };
 
@@ -2473,7 +2582,7 @@ window.BOXXY_RELEASE = Object.freeze({
     const kind = packRewardKind(pack);
     packStarAward.hidden = false;
     packStarAward.dataset.rewardType = kind;
-    packStarAward.setAttribute("aria-label", kind === "jigsaw" ? "Pack completion jigsaw puzzle piece awarded" : kind === "alphabet" ? "Pack completion A badge awarded" : kind === "moon" ? "Pack completion moon badge awarded" : "Pack completion star awarded");
+    packStarAward.setAttribute("aria-label", kind === "jigsaw" ? "Pack completion jigsaw puzzle piece awarded" : kind === "alphabet" ? "Pack completion A badge awarded" : kind === "moon" ? "Pack completion crescent moon badge awarded" : "Pack completion star awarded");
     if (packStarAwardIcon) {
       packStarAwardIcon.innerHTML = packRewardSvg(pack);
       packStarAwardIcon.style.setProperty("--pack-star-colour", packAccentColour(pack));
@@ -4105,6 +4214,16 @@ window.BOXXY_RELEASE = Object.freeze({
     return document.body.classList.contains("phone-zen-mode");
   }
 
+  function desktopZenModeActive() {
+    return document.body.classList.contains("desktop-zen-mode");
+  }
+
+  function setDesktopZenMode(active) {
+    const enabled = Boolean(active);
+    document.documentElement.classList.toggle("desktop-zen-mode", enabled);
+    document.body.classList.toggle("desktop-zen-mode", enabled);
+  }
+
   function phoneZenTouchPointer(event) {
     if (!phoneZenModeActive()) return false;
     const pointerType = String(event?.pointerType || "");
@@ -4168,7 +4287,13 @@ window.BOXXY_RELEASE = Object.freeze({
     const supported = fullscreenSupported();
     const desktop = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
     const phone = phoneFullscreenLayout();
-    const desktopFullscreenActive = Boolean(fullscreenElement());
+    const activeFullscreenElement = fullscreenElement();
+    const desktopFullscreenActive = Boolean(activeFullscreenElement);
+    const desktopGameFullscreenActive = Boolean(
+      desktop &&
+      !phone &&
+      (activeFullscreenElement === document.documentElement || activeFullscreenElement === document.body)
+    );
     let phoneZenActive = phoneZenModeActive();
 
     if (!phone && phoneZenActive) {
@@ -4176,13 +4301,17 @@ window.BOXXY_RELEASE = Object.freeze({
       phoneZenActive = false;
     }
 
+    setDesktopZenMode(desktopGameFullscreenActive);
+
     if (fullscreenBtn) {
       fullscreenBtn.hidden = !desktop || !supported;
       const icon = fullscreenBtn.querySelector("span");
       const label = fullscreenBtn.querySelector("b");
-      if (icon) icon.textContent = desktopFullscreenActive ? "⤢" : "⛶";
-      if (label) label.textContent = desktopFullscreenActive ? "EXIT" : "FULL SCREEN";
-      setFullscreenControlState(fullscreenBtn, desktopFullscreenActive);
+      if (icon) icon.textContent = desktopGameFullscreenActive ? "⤢" : "⛶";
+      if (label) label.textContent = desktopGameFullscreenActive ? "EXIT" : "FULL SCREEN";
+      setFullscreenControlState(fullscreenBtn, desktopGameFullscreenActive);
+      fullscreenBtn.setAttribute("aria-label", desktopGameFullscreenActive ? "Exit Zen Mode" : "Enter Zen Mode");
+      fullscreenBtn.title = desktopGameFullscreenActive ? "Exit Zen Mode" : "Enter Zen Mode";
     }
 
     if (mobileFullscreenBtn) {
@@ -4409,38 +4538,39 @@ window.BOXXY_RELEASE = Object.freeze({
     return BOXXY_SPEED_FACTORS[boxxySpeed] || 1;
   }
 
-  function scaledBoxxyDelay(milliseconds) {
-    return Math.max(28, Math.round(Number(milliseconds || 0) * boxxySpeedFactor()));
-  }
-
   function boxxyInstantSpeedActive() {
     return boxxySpeed === "instant" && instantSpeedUnlocked();
+  }
+
+  function scaledBoxxyDelay(milliseconds) {
+    const scaled = Math.round(Number(milliseconds || 0) * boxxySpeedFactor());
+    return boxxyInstantSpeedActive() ? Math.max(12, scaled) : Math.max(28, scaled);
   }
 
   function updateInstantSpeedOption() {
     if (!settingsSpeedSelect) return;
     let option = settingsSpeedSelect.querySelector('option[value="instant"]');
+    const unlocked = instantSpeedUnlocked();
+    if (!unlocked) {
+      option?.remove();
+      if (boxxySpeed === "instant") boxxySpeed = "fast";
+      settingsSpeedSelect.value = boxxySpeed;
+      return;
+    }
     if (!option) {
       option = document.createElement("option");
       option.value = "instant";
       option.textContent = "INSTANT";
       settingsSpeedSelect.appendChild(option);
     }
-    const unlocked = instantSpeedUnlocked();
-    option.hidden = !unlocked;
-    option.disabled = !unlocked;
-    document.body.classList.toggle("boxxy-speed-instant-unlocked", unlocked);
-    if (!unlocked && boxxySpeed === "instant") {
-      boxxySpeed = "fast";
-      try { localStorage.setItem("boxxy-speed-v1", boxxySpeed); } catch (_) {}
-    }
     settingsSpeedSelect.value = boxxySpeed;
   }
 
   function applyBoxxySpeed(value, persist = true) {
     const requested = String(value || "normal");
-    const allowed = requested === "instant" && !instantSpeedUnlocked() ? "fast" : requested;
-    boxxySpeed = BOXXY_SPEED_FACTORS[allowed] ? allowed : "normal";
+    boxxySpeed = requested === "instant" && !instantSpeedUnlocked()
+      ? "fast"
+      : (BOXXY_SPEED_FACTORS[requested] ? requested : "normal");
     document.body.dataset.boxxySpeed = boxxySpeed;
     updateInstantSpeedOption();
     if (persist) localStorage.setItem("boxxy-speed-v1", boxxySpeed);
@@ -4466,6 +4596,7 @@ window.BOXXY_RELEASE = Object.freeze({
   function showSettingsMainView() {
     if (settingsMainView) settingsMainView.hidden = false;
     if (settingsKeyboardView) settingsKeyboardView.hidden = true;
+    if (settingsAccountView) settingsAccountView.hidden = true;
   }
 
   function openSettings() {
@@ -5261,8 +5392,34 @@ window.BOXXY_RELEASE = Object.freeze({
     });
   }
 
+  function rebuildGoalLookup() {
+    goalLookup = new Map();
+    goals.forEach(goal => goalLookup.set(key(goal.x, goal.y), goal));
+  }
+
+  function rebuildBoxLookup() {
+    boxLookup = new Map();
+    boxes.forEach((box, index) => boxLookup.set(key(box.x, box.y), index));
+  }
+
+  function resetLargePieceCache() {
+    largeBoxPieces = [];
+    largePlayerPiece = null;
+    largePlayerImage = null;
+    largeLastAnimatedBoxIndex = -1;
+  }
+
+  function configureLargeLevelPerformanceMode() {
+    largeLevelPerformanceMode = width > 50 || height > 50;
+    document.body.classList.toggle("large-level-performance", largeLevelPerformanceMode);
+    board?.classList.toggle("large-level-performance", largeLevelPerformanceMode);
+    rebuildGoalLookup();
+    rebuildBoxLookup();
+    resetLargePieceCache();
+  }
+
   function goalAt(x, y) {
-    return goals.find(goal => goal.x === x && goal.y === y) || null;
+    return goalLookup.get(key(x, y)) || null;
   }
 
   function isGoal(x, y) {
@@ -5274,15 +5431,188 @@ window.BOXXY_RELEASE = Object.freeze({
     return `${prefix}-${direction}`;
   }
 
-  function render(anim = "idle") {
+  function setLargePiecePosition(piece, x, y, z) {
+    if (!piece) return;
+    if (piece.dataset.x !== String(x)) {
+      piece.style.setProperty("--x", x);
+      piece.dataset.x = String(x);
+    }
+    if (piece.dataset.y !== String(y)) {
+      piece.style.setProperty("--y", y);
+      piece.dataset.y = String(y);
+    }
+    if (piece.dataset.z !== String(z)) {
+      piece.style.setProperty("--z", z);
+      piece.dataset.z = String(z);
+    }
+  }
+
+  function createLargeBoxPiece(box, index) {
+    const piece = document.createElement("div");
+    piece.className = "piece box";
+    piece.dataset.boxIndex = String(index);
+    const art = document.createElement("span");
+    art.className = "board-art board-art-box";
+    art.setAttribute("aria-hidden", "true");
+    piece.appendChild(art);
+    pieceLayer.appendChild(piece);
+    largeBoxPieces[index] = piece;
+    return piece;
+  }
+
+  function ensureLargePieceLayer() {
+    if (largePlayerPiece?.isConnected && largeBoxPieces.length === boxes.length) return;
+
+    pieceLayer.replaceChildren();
+    largeBoxPieces = [];
+    boxes.forEach((box, index) => createLargeBoxPiece(box, index));
+
+    largePlayerPiece = document.createElement("div");
+    largePlayerPiece.className = "piece player facing-front";
+    largePlayerImage = document.createElement("img");
+    largePlayerImage.alt = "";
+    largePlayerImage.draggable = false;
+    largePlayerImage.decoding = "sync";
+    largePlayerImage.setAttribute("aria-hidden", "true");
+    largePlayerPiece.appendChild(largePlayerImage);
+    pieceLayer.appendChild(largePlayerPiece);
+  }
+
+  function syncLargeBoxPiece(index, animate = false, motion = null) {
+    const box = boxes[index];
+    const piece = largeBoxPieces[index];
+    if (!box || !piece) return;
+
+    const goal = goalAt(box.x, box.y);
+    const goalColour = goal ? (GOAL_COLOURS?.normalise?.(goal.colour) || "red") : "";
+    const stateToken = goal ? `goal:${goalColour}` : "floor";
+
+    setLargePiecePosition(piece, box.x, box.y, depth(box.y, "box"));
+
+    if (piece.dataset.stateToken !== stateToken) {
+      piece.dataset.stateToken = stateToken;
+      piece.classList.toggle("on-goal", Boolean(goal));
+      if (goal) {
+        GOAL_COLOURS?.style?.(piece, goalColour);
+      } else {
+        delete piece.dataset.goalColour;
+        piece.style.removeProperty("--goal-colour");
+        piece.style.removeProperty("--goal-sprite");
+        piece.style.removeProperty("--box-sprite");
+      }
+      applyBoardArtwork(piece.querySelector(".board-art-box"), "box", goal ? goalColour : "default-yellow");
+    }
+
+    piece.classList.remove("pushing", "board-step");
+    if (animate && motion?.type === "push") {
+      piece.style.setProperty("--from-x", motion.boxFromX);
+      piece.style.setProperty("--from-y", motion.boxFromY);
+      void piece.offsetWidth;
+      piece.classList.add("pushing", "board-step");
+    }
+  }
+
+  function syncLargePlayer(anim, motion = null) {
+    if (!largePlayerPiece || !largePlayerImage) return;
+    const frameName = characterFrameName(anim === "walking" ? "walk" : anim === "pushing" ? "push" : "idle", facing);
+
+    setLargePiecePosition(largePlayerPiece, player[0], player[1], depth(player[1], "player"));
+    largePlayerPiece.className = `piece player facing-${facing}${anim && anim !== "idle" ? " " + anim : ""}`;
+    if (largePlayerImage.dataset.characterFrame !== frameName) {
+      largePlayerImage.dataset.characterFrame = frameName;
+      window.CharacterStyler?.drawImage?.(largePlayerImage, frameName);
+    }
+
+    if (motion) {
+      largePlayerPiece.style.setProperty("--from-x", motion.fromX);
+      largePlayerPiece.style.setProperty("--from-y", motion.fromY);
+      void largePlayerPiece.offsetWidth;
+      largePlayerPiece.classList.add("board-step");
+    }
+  }
+
+  function renderLargeLevel(anim = "idle") {
     currentAnimation = anim;
+    const previousMotion = boardStepMotion;
+    const activeMotion = (anim === "walking" || anim === "pushing") ? boardStepMotion : null;
+    ensureLargePieceLayer();
+
+    if (!largeBoxPieces[0]?.dataset?.stateToken && boxes.length) {
+      boxes.forEach((box, index) => syncLargeBoxPiece(index, false, null));
+    }
+
+    let animatedBoxIndex = -1;
+    if (activeMotion?.type === "push") {
+      const found = boxLookup.get(key(activeMotion.boxToX, activeMotion.boxToY));
+      animatedBoxIndex = Number.isInteger(found) ? found : -1;
+    }
+
+    if (largeLastAnimatedBoxIndex >= 0 && largeLastAnimatedBoxIndex !== animatedBoxIndex) {
+      largeBoxPieces[largeLastAnimatedBoxIndex]?.classList.remove("pushing", "board-step");
+    }
+
+    if (animatedBoxIndex >= 0) {
+      syncLargeBoxPiece(animatedBoxIndex, true, activeMotion);
+    } else if (anim === "idle" && previousMotion?.type === "push") {
+      const found = boxLookup.get(key(previousMotion.boxToX, previousMotion.boxToY));
+      if (Number.isInteger(found)) syncLargeBoxPiece(found, false, null);
+    } else if (anim === "idle" && !previousMotion) {
+      boxes.forEach((box, index) => {
+        const piece = largeBoxPieces[index];
+        const goal = goalAt(box.x, box.y);
+        const goalColour = goal ? (GOAL_COLOURS?.normalise?.(goal.colour) || "red") : "";
+        const stateToken = goal ? `goal:${goalColour}` : "floor";
+        if (!piece || piece.dataset.x !== String(box.x) || piece.dataset.y !== String(box.y)
+          || piece.dataset.stateToken !== stateToken) {
+          syncLargeBoxPiece(index, false, null);
+        }
+      });
+    }
+
+    largeLastAnimatedBoxIndex = animatedBoxIndex;
+    syncLargePlayer(anim, activeMotion);
+
+    if (anim === "idle") boardStepMotion = null;
+
+    movesEl.textContent = moves;
+    pushesEl.textContent = pushes;
+    levelCount.textContent = sharedPuzzleMode ? "SHARED" : makerTesting ? "MAKER" : dailyMode ? `DAILY #${Number(dailyPuzzle?.sequence) || ""}` : `${levelIndex + 1} / ${LEVELS.length}`;
+    const best = (makerTesting || sharedPuzzleMode) ? null : dailyMode ? dailyBestMoves(dailyPuzzle) : readBest(levelData);
+    bestEl.textContent = best || "—";
+    undoBtn.disabled = !history.length || completed;
+    updateSavePositionButton();
+
+    if (levelPicker && !levelPicker.hidden) refreshLevelButtons();
+    scheduleFirstPersonRender();
+  }
+
+  function render(anim = "idle") {
+    if (largeLevelPerformanceMode) {
+      renderLargeLevel(anim);
+      return;
+    }
+    currentAnimation = anim;
+    if (anim === "idle") boardStepMotion = null;
     pieceLayer.innerHTML = "";
+    const activeBoardMotion = (anim === "walking" || anim === "pushing") ? boardStepMotion : null;
+
     boxes.forEach(box => {
       const goal = goalAt(box.x, box.y);
       const onGoal = Boolean(goal);
+      const movingBox = Boolean(
+        anim === "pushing"
+        && box.moving
+        && activeBoardMotion?.type === "push"
+        && box.x === activeBoardMotion.boxToX
+        && box.y === activeBoardMotion.boxToY
+      );
       const piece = document.createElement("div");
-      piece.className = `piece box${onGoal ? " on-goal" : ""}${anim === "push" && box.moving ? " pushing" : ""}`;
+      piece.className = `piece box${onGoal ? " on-goal" : ""}${movingBox ? " pushing board-step" : ""}`;
       piece.style.cssText = posStyle(box.x, box.y, depth(box.y, "box"));
+      if (movingBox) {
+        piece.style.setProperty("--from-x", activeBoardMotion.boxFromX);
+        piece.style.setProperty("--from-y", activeBoardMotion.boxFromY);
+      }
       if (goal) GOAL_COLOURS?.style?.(piece, goal.colour);
       const art = document.createElement("span");
       art.className = "board-art board-art-box";
@@ -5293,20 +5623,35 @@ window.BOXXY_RELEASE = Object.freeze({
     });
 
     const playerPiece = document.createElement("div");
-    playerPiece.className = `piece player facing-${facing}${anim && anim !== "idle" ? " " + anim : ""}`;
+    const playerMoving = Boolean(activeBoardMotion);
+    playerPiece.className = `piece player facing-${facing}${anim && anim !== "idle" ? " " + anim : ""}${playerMoving ? " board-step" : ""}`;
     playerPiece.style.cssText = posStyle(player[0], player[1], depth(player[1], "player"));
-    const playerImage = document.createElement("img");
-    playerImage.alt = "";
-    playerImage.draggable = false;
-    playerImage.decoding = "sync";
-    playerImage.setAttribute("aria-hidden", "true");
-    const frameName = characterFrameName(
-      anim === "walking" ? "walk" : anim === "pushing" ? "push" : "idle",
-      facing
-    );
-    playerImage.dataset.characterFrame = frameName;
-    playerPiece.appendChild(playerImage);
-    window.CharacterStyler?.drawImage?.(playerImage, frameName);
+    if (playerMoving) {
+      playerPiece.style.setProperty("--from-x", activeBoardMotion.fromX);
+      playerPiece.style.setProperty("--from-y", activeBoardMotion.fromY);
+    }
+
+    const appendCharacterImage = (frameName, className = "") => {
+      const image = document.createElement("img");
+      image.alt = "";
+      image.draggable = false;
+      image.decoding = "sync";
+      image.setAttribute("aria-hidden", "true");
+      if (className) image.className = className;
+      image.dataset.characterFrame = frameName;
+      playerPiece.appendChild(image);
+      window.CharacterStyler?.drawImage?.(image, frameName);
+      return image;
+    };
+
+    if (anim === "walking" || anim === "pushing") {
+      // Use the actual movement pose for the whole step. This avoids the faint
+      // cross-fade flicker seen at RELAXED speed and lets a blocked held push
+      // remain visibly in the push pose until the input is released.
+      appendCharacterImage(characterFrameName(anim === "walking" ? "walk" : "push", facing));
+    } else {
+      appendCharacterImage(characterFrameName("idle", facing));
+    }
     pieceLayer.appendChild(playerPiece);
 
     movesEl.textContent = moves;
@@ -5331,7 +5676,7 @@ window.BOXXY_RELEASE = Object.freeze({
       if (!completed) {
         sfx.idle();
         const playerNode = pieceLayer.querySelector(".player");
-        if (playerNode) {
+        if (playerNode && !largeLevelPerformanceMode) {
           // Do not animate the zero-height player container itself: older WebKit can
           // leave its composited child invisible after that animation completes.
           playerNode.classList.remove("idle-bob");
@@ -5489,6 +5834,7 @@ window.BOXXY_RELEASE = Object.freeze({
     player = [...parsed.player];
     boxes = parsed.boxes.map(([x, y]) => ({ x, y, moving: false }));
     goals = parsed.goals.map(goal => ({ ...goal }));
+    configureLargeLevelPerformanceMode();
     levelData.pushMinimum = boxes.length;
     moves = 0;
     pushes = 0;
@@ -5527,6 +5873,11 @@ window.BOXXY_RELEASE = Object.freeze({
     scheduleIdle();
     if (thoughtText) thoughtText.textContent = `Daily Boxxy #${Number(puzzle.sequence) || ""}. One puzzle. One day. Good luck.`;
     refreshLevelButtons();
+    recordLevelAttempt("daily-boxxy", String(puzzle.date || puzzle.sequence || "daily"), {
+      packName: "Daily Boxxy",
+      levelNumber: Number(puzzle.sequence) || 0,
+      levelName: String(puzzle.date || "Daily Boxxy")
+    });
     captureBoxxyAnalytics("daily_puzzle_started", currentLevelAnalytics());
     return true;
   }
@@ -5574,6 +5925,7 @@ window.BOXXY_RELEASE = Object.freeze({
     player = [...parsed.player];
     boxes = parsed.boxes.map(([x, y]) => ({ x, y, moving: false }));
     goals = parsed.goals.map(goal => ({ ...goal }));
+    configureLargeLevelPerformanceMode();
     moves = 0;
     pushes = 0;
     history = [];
@@ -5616,6 +5968,13 @@ window.BOXXY_RELEASE = Object.freeze({
     scheduleIdle();
     showCharacterThought(null, !thoughtReady);
     refreshLevelButtons();
+    if (!preserveAutoplay) {
+      recordLevelAttempt(activePack.id, String(levelIndex + 1), {
+        packName: String(activePack.displayName || activePack.title || activePack.id || ""),
+        levelNumber: levelIndex + 1,
+        levelName: String(levelData?.name || `Level ${levelIndex + 1}`)
+      });
+    }
     captureBoxxyAnalytics("level_started", currentLevelAnalytics({
       guided_solve_start: Boolean(preserveAutoplay)
     }));
@@ -5672,6 +6031,7 @@ window.BOXXY_RELEASE = Object.freeze({
       player = [...parsed.player];
       boxes = parsed.boxes.map(([x, y]) => ({ x, y, moving: false }));
       goals = parsed.goals.map(goal => ({ ...goal }));
+      configureLargeLevelPerformanceMode();
       moves = 0;
       pushes = 0;
       history = [];
@@ -5730,14 +6090,36 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   function snapshot() {
-    return {
+    const state = {
       player: [...player],
-      boxes: copyBoxes(boxes),
       moves,
       pushes,
       facing,
       route: playedRoute
     };
+    if (largeLevelPerformanceMode) {
+      const coords = new Uint16Array(boxes.length * 2);
+      boxes.forEach((box, index) => {
+        coords[index * 2] = box.x;
+        coords[index * 2 + 1] = box.y;
+      });
+      state.boxCoords = coords;
+    } else {
+      state.boxes = copyBoxes(boxes);
+    }
+    return state;
+  }
+
+  function boxesFromSnapshot(state) {
+    const coords = state?.boxCoords;
+    if (coords && typeof coords.length === "number") {
+      const restored = [];
+      for (let i = 0; i + 1 < coords.length; i += 2) {
+        restored.push({ x: Number(coords[i]), y: Number(coords[i + 1]), moving: false });
+      }
+      return restored;
+    }
+    return copyBoxes(Array.isArray(state?.boxes) ? state.boxes : []);
   }
 
   function blocked(x, y) {
@@ -5745,6 +6127,10 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   function boxIndex(x, y) {
+    if (largeLevelPerformanceMode) {
+      const index = boxLookup.get(key(x, y));
+      return Number.isInteger(index) ? index : -1;
+    }
     return boxes.findIndex(box => box.x === x && box.y === y);
   }
 
@@ -5762,6 +6148,8 @@ window.BOXXY_RELEASE = Object.freeze({
     if (completed || (autoplayRunning && !fromAutoplay)) return;
     ensureAudio();
     clearTimeout(animTimer);
+    const previousPlayer = [...player];
+    boardStepMotion = null;
     const attemptedFacing = DELTA_TO_FACING(dx, dy);
     const nx = player[0] + dx;
     const ny = player[1] + dy;
@@ -5793,26 +6181,49 @@ window.BOXXY_RELEASE = Object.freeze({
       redoHistory = [];
       history.push(snapshot());
       boxes.forEach(box => { box.moving = false; });
+      const movedBoxFromX = boxes[index].x;
+      const movedBoxFromY = boxes[index].y;
+      if (largeLevelPerformanceMode) boxLookup.delete(key(movedBoxFromX, movedBoxFromY));
       boxes[index].x = bx;
       boxes[index].y = by;
       boxes[index].moving = true;
+      if (largeLevelPerformanceMode) boxLookup.set(key(bx, by), index);
       player = [nx, ny];
+      boardStepMotion = {
+        type: "push",
+        fromX: previousPlayer[0], fromY: previousPlayer[1],
+        toX: nx, toY: ny,
+        boxFromX: movedBoxFromX, boxFromY: movedBoxFromY,
+        boxToX: bx, boxToY: by
+      };
       moves++;
       pushes++;
+      if (!fromAutoplay) {
+        addLifetimeStat(ALL_TIME_STEPS_KEY);
+        addLifetimeStat(ALL_TIME_PUSHES_KEY);
+      }
       facing = facingOverride || attemptedFacing;
       sfx.push();
       if (isGoal(bx, by)) sfx.goal();
-      render(boxxyInstantSpeedActive() ? "idle" : "pushing");
+      if (boxxyInstantSpeedActive()) render("idle");
+      else render("pushing");
     } else {
       blockedPushHeld = false;
       redoHistory = [];
       history.push(snapshot());
       boxes.forEach(box => { box.moving = false; });
       player = [nx, ny];
+      boardStepMotion = {
+        type: "walk",
+        fromX: previousPlayer[0], fromY: previousPlayer[1],
+        toX: nx, toY: ny
+      };
       moves++;
+      if (!fromAutoplay) addLifetimeStat(ALL_TIME_STEPS_KEY);
       facing = facingOverride || attemptedFacing;
       sfx.walk();
-      render(boxxyInstantSpeedActive() ? "idle" : "walking");
+      if (boxxyInstantSpeedActive()) render("idle");
+      else render("walking");
     }
 
     playedRoute += DELTA_TO_CODE(dx, dy);
@@ -5987,13 +6398,10 @@ window.BOXXY_RELEASE = Object.freeze({
         if (finalPackStatus) finalPackStatus.textContent = solvedWithWalkthrough ? "Guided-solve completions are shown in yellow in the level list." : "";
         configureFinalCompletionActions(activePack);
       } else {
-        const unlockedInstantNow = activePack.id === STARRY_NIGHT_PACK_ID
-          && levelIndex === STARRY_NIGHT_INSTANT_UNLOCK_LEVEL
-          && !instantSpeedUnlocked();
-        if (unlockedInstantNow) {
-          unlockInstantSpeed();
-          updateInstantSpeedOption();
-        }
+        const isInstantUnlockCompletion = activePack.id === STARRY_NIGHT_PACK_ID
+          && levelIndex === STARRY_NIGHT_INSTANT_UNLOCK_LEVEL;
+        if (isInstantUnlockCompletion) unlockInstantSpeed();
+
         completeMode = "normal";
         completionPackContext = null;
         hidePackCompletionStats();
@@ -6004,8 +6412,8 @@ window.BOXXY_RELEASE = Object.freeze({
         if (finalPackStatus) finalPackStatus.textContent = solvedWithWalkthrough ? "Guided-solve completions are marked yellow in the level list." : "";
         if (completeKicker) completeKicker.textContent = packCollectionLabel(activePack).toUpperCase();
         if (completedPackHeading) completedPackHeading.textContent = "";
-        if (completeTitle) completeTitle.innerHTML = unlockedInstantNow
-          ? "INSTANT<br>UNLOCKED"
+        if (completeTitle) completeTitle.innerHTML = isInstantUnlockCompletion
+          ? "INSTANT MOVE<br>UNLOCKED"
           : solvedWithWalkthrough ? "GUIDED<br>SOLVE" : "PUZZLE<br>CLEARED";
         const statedMinimum = Number(levelData.minimum);
         let summary;
@@ -6017,11 +6425,13 @@ window.BOXXY_RELEASE = Object.freeze({
         } else {
           summary = `Solved in ${moves} moves and ${pushes} pushes.`;
         }
-        completeText.textContent = unlockedInstantNow
-          ? `You have unlocked Instant move. Open Menu → Boxxy Speed and choose Instant for immediate movement with no running animation. It should come in handy for Level 25. ${summary}`
-          : solvedWithWalkthrough
+        if (isInstantUnlockCompletion) {
+          completeText.innerHTML = `You can now select <strong>Instant</strong> from Menu → Boxxy Speed. Movement happens immediately, with no running animation. This will be useful for Level 25.<br><br>Level 24 completed in ${moves} moves and ${pushes} pushes.`;
+        } else {
+          completeText.textContent = solvedWithWalkthrough
             ? `${summary} This level is now counted as completed, and its button will appear in yellow.`
             : summary;
+        }
         if (nextBtnLabel) nextBtnLabel.textContent = "NEXT LEVEL";
         if (nextBtnIcon) nextBtnIcon.textContent = "→";
       }
@@ -6035,6 +6445,12 @@ window.BOXXY_RELEASE = Object.freeze({
       setZenNextButtonVisible(false);
       modal.hidden = false;
       render("idle");
+      // Move keyboard focus into the completion dialog. Without this, a control
+      // behind the modal (for example RESTART) can remain focused and Enter/Space
+      // can activate it instead of advancing to the next level.
+      if (completeMode === "normal") {
+        requestAnimationFrame(() => nextBtn?.focus?.({ preventScroll: true }));
+      }
       if (grandCelebrationPack) {
         renderPackCompletionStats(grandCelebrationPack, true);
         grandBurst(grandCelebrationPack);
@@ -6120,8 +6536,9 @@ window.BOXXY_RELEASE = Object.freeze({
     redoHistory.push(snapshot());
     const state = history.pop();
     player = [...state.player];
-    boxes = copyBoxes(state.boxes);
+    boxes = boxesFromSnapshot(state);
     boxes.forEach(box => { box.moving = false; });
+    rebuildBoxLookup();
     moves = state.moves;
     pushes = state.pushes;
     facing = state.facing;
@@ -6139,8 +6556,9 @@ window.BOXXY_RELEASE = Object.freeze({
     history.push(snapshot());
     const state = redoHistory.pop();
     player = [...state.player];
-    boxes = copyBoxes(state.boxes);
+    boxes = boxesFromSnapshot(state);
     boxes.forEach(box => { box.moving = false; });
+    rebuildBoxLookup();
     moves = state.moves;
     pushes = state.pushes;
     facing = state.facing;
@@ -7282,7 +7700,15 @@ window.BOXXY_RELEASE = Object.freeze({
 
     if (completeMode !== "normal" || levelIndex >= LEVELS.length - 1) return;
     if (event.key !== "Enter" && event.key !== " " && event.key !== "Spacebar") return;
-    if (target instanceof Element && target.closest("button, a")) return;
+
+    // If focus is deliberately on a control inside the completion dialog, let
+    // that control keep its normal keyboard behaviour. Any stale focus behind
+    // the modal is intercepted so it cannot restart or otherwise alter the level.
+    const focusedModalControl = target instanceof Element
+      && modal.contains(target)
+      && target.closest("button, a");
+    if (focusedModalControl && focusedModalControl !== nextBtn) return;
+
     event.preventDefault();
     if (event.repeat) return;
     nextBtn.click();
@@ -7304,6 +7730,38 @@ window.BOXXY_RELEASE = Object.freeze({
   let zenScreenSwipe = null;
   let zenSuppressedClick = null;
 
+  const stopZenUndoHold = gesture => {
+    if (!gesture) return;
+    window.clearTimeout(gesture.undoIntentTimer);
+    window.clearTimeout(gesture.undoRepeatDelay);
+    window.clearInterval(gesture.undoRepeatTimer);
+    gesture.undoIntentTimer = 0;
+    gesture.undoRepeatDelay = 0;
+    gesture.undoRepeatTimer = 0;
+  };
+
+  const performZenUndo = gesture => {
+    if (!gesture || autoplayRunning || !history.length || completed) {
+      stopZenUndoHold(gesture);
+      return;
+    }
+    undo();
+  };
+
+  const beginZenUndoHold = gesture => {
+    if (!gesture || zenScreenSwipe !== gesture || gesture.triggered || gesture.holdCommitted) return;
+    gesture.holdCommitted = true;
+    performZenUndo(gesture);
+
+    // Match BOXXY's normal held-control cadence: one deliberate Undo, then
+    // continuous Undo until the finger is released.
+    const elapsed = Math.max(0, performance.now() - gesture.downAt);
+    const remaining = Math.max(0, scaledBoxxyDelay(330) - elapsed);
+    gesture.undoRepeatDelay = window.setTimeout(() => {
+      gesture.undoRepeatTimer = window.setInterval(() => performZenUndo(gesture), scaledBoxxyDelay(105));
+    }, remaining);
+  };
+
   document.addEventListener("pointerdown", event => {
     if (!phoneZenTouchPointer(event) || firstPersonMode || completed || autoplayRunning) return;
     if (event.isPrimary === false) return;
@@ -7313,13 +7771,23 @@ window.BOXXY_RELEASE = Object.freeze({
     // they retain BOXXY's original held-button repeat behaviour.
     if (target?.closest?.("[data-dir]")) return;
 
+    const undoTarget = Boolean(target?.closest?.("#undoBtn"));
     zenScreenSwipe = {
       id: event.pointerId,
       x: event.clientX,
       y: event.clientY,
+      downAt: performance.now(),
       triggered: false,
-      undo: Boolean(target?.closest?.("#undoBtn"))
+      undo: undoTarget,
+      holdCommitted: false,
+      undoIntentTimer: 0,
+      undoRepeatDelay: 0,
+      undoRepeatTimer: 0
     };
+    if (undoTarget) {
+      const gesture = zenScreenSwipe;
+      gesture.undoIntentTimer = window.setTimeout(() => beginZenUndoHold(gesture), ZEN_CONTROL_INTENT_DELAY_MS);
+    }
     ensureAudio();
   }, { capture: true });
 
@@ -7329,8 +7797,14 @@ window.BOXXY_RELEASE = Object.freeze({
     const dy = event.clientY - zenScreenSwipe.y;
     if (Math.max(Math.abs(dx), Math.abs(dy)) < ZEN_SCREEN_SWIPE_THRESHOLD) return;
 
+    // Once an Undo hold has deliberately committed, movement of that finger
+    // stays an Undo hold. Before that point, a swipe beginning on Undo is still
+    // treated exactly like a swipe beginning anywhere else in Zen Mode.
+    if (zenScreenSwipe.undo && zenScreenSwipe.holdCommitted) return;
+
     event.preventDefault();
     if (zenScreenSwipe.triggered) return;
+    stopZenUndoHold(zenScreenSwipe);
     zenScreenSwipe.triggered = true;
     zenSwipeMove(dx, dy, true);
   }, { capture: true, passive: false });
@@ -7339,13 +7813,14 @@ window.BOXXY_RELEASE = Object.freeze({
     if (!zenScreenSwipe || zenScreenSwipe.id !== event.pointerId) return;
     const gesture = zenScreenSwipe;
     zenScreenSwipe = null;
+    stopZenUndoHold(gesture);
 
     const dx = event.clientX - gesture.x;
     const dy = event.clientY - gesture.y;
     const distance = Math.max(Math.abs(dx), Math.abs(dy));
     let swiped = gesture.triggered;
 
-    if (!swiped && distance >= ZEN_SCREEN_SWIPE_THRESHOLD) {
+    if (!swiped && !gesture.holdCommitted && distance >= ZEN_SCREEN_SWIPE_THRESHOLD) {
       event.preventDefault();
       swiped = true;
       zenSwipeMove(dx, dy, false);
@@ -7359,9 +7834,9 @@ window.BOXXY_RELEASE = Object.freeze({
         x: event.clientX,
         y: event.clientY
       };
-    } else if (gesture.undo && !undoBtn.disabled && !autoplayRunning && history.length && !completed) {
-      // Undo normally acts on pointerdown. In Zen Mode defer it until pointerup
-      // so a swipe that begins over Undo remains a swipe rather than an Undo.
+    } else if (gesture.undo && !gesture.holdCommitted && !undoBtn.disabled && !autoplayRunning && history.length && !completed) {
+      // A short Zen Mode tap on Undo is one Undo. Holding commits to repeated
+      // Undo, while moving first remains a normal swipe.
       undo();
     }
 
@@ -7370,7 +7845,9 @@ window.BOXXY_RELEASE = Object.freeze({
 
   document.addEventListener("pointercancel", event => {
     if (!zenScreenSwipe || zenScreenSwipe.id !== event.pointerId) return;
+    const gesture = zenScreenSwipe;
     zenScreenSwipe = null;
+    stopZenUndoHold(gesture);
     releaseBlockedPush();
   }, { capture: true });
 
@@ -7529,6 +8006,7 @@ window.BOXXY_RELEASE = Object.freeze({
   const imageInput = document.getElementById("makerImageInput");
   const imageImportModal = document.getElementById("makerImageImportModal");
   const imageImportCloseBtn = document.getElementById("makerImageImportCloseBtn");
+  const imageFullscreenBtn = document.getElementById("makerImageFullscreenBtn");
   const imageImportCancelBtn = document.getElementById("makerImageImportCancelBtn");
   const imageImportApplyBtn = document.getElementById("makerImageImportApplyBtn");
   const imageImportReplaceBtn = document.getElementById("makerImageReplaceBtn");
@@ -7539,6 +8017,18 @@ window.BOXXY_RELEASE = Object.freeze({
   const imageTracePanel = document.getElementById("makerImageTracePanel");
   const imageAutoPanel = document.getElementById("makerImageAutoPanel");
   const imageTracePalette = document.getElementById("makerImageTracePalette");
+  const imageRainbowControls = document.getElementById("makerImageRainbowControls");
+  const imageRainbowModeInput = document.getElementById("makerImageRainbowMode");
+  const imageRainbowModeState = document.getElementById("makerImageRainbowState");
+  const imageRainbowDescription = document.getElementById("makerImageRainbowDescription");
+  const imageGoalColourControls = document.getElementById("makerImageGoalColourControls");
+  const imageGoalColourButtons = [...document.querySelectorAll("[data-image-goal-colour]")];
+  const imageAutoColourBtn = document.getElementById("makerImageAutoColourBtn");
+  const imageZoomOutBtn = document.getElementById("makerImageZoomOutBtn");
+  const imageZoomFitBtn = document.getElementById("makerImageZoomFitBtn");
+  const imageZoomInBtn = document.getElementById("makerImageZoomInBtn");
+  const imageZoomLabel = document.getElementById("makerImageZoomLabel");
+  const imageTraceNote = document.getElementById("makerImageTraceNote");
   const imageTraceClearBtn = document.getElementById("makerImageTraceClearBtn");
   const imageTraceFloorBtn = document.getElementById("makerImageTraceFloorBtn");
   const imageTraceToolButtons = [...document.querySelectorAll("[data-image-trace-tool]")];
@@ -7670,6 +8160,8 @@ window.BOXXY_RELEASE = Object.freeze({
   let imageSelectedCellIndex = -1;
   let imageSelectedClusterId = -1;
   let imageDraggedClusterId = -1;
+  let imagePreviewZoom = 1;
+  let imageAutoColourEnabled = false;
   const IMAGE_CLUSTER_ASSIGNMENTS = [
     ["", "UNASSIGNED"],
     ["#", "WALL #"],
@@ -7808,15 +8300,39 @@ window.BOXXY_RELEASE = Object.freeze({
     imageImportStatusEl.classList.toggle("success", type === "success");
   }
 
+  async function setImageImportFullscreen(active) {
+    if (!imageImportModal) return;
+    const enabled = Boolean(active);
+    imageImportModal.classList.toggle("fullscreen", enabled);
+    if (imageFullscreenBtn) {
+      imageFullscreenBtn.setAttribute("aria-pressed", enabled ? "true" : "false");
+      imageFullscreenBtn.textContent = enabled ? "EXIT FULL SCREEN" : "FULL SCREEN";
+    }
+    if (enabled && document.fullscreenElement !== imageImportModal && imageImportModal.requestFullscreen) {
+      try { await imageImportModal.requestFullscreen(); } catch (_) { /* CSS full-screen remains as a fallback. */ }
+    } else if (!enabled && document.fullscreenElement === imageImportModal && document.exitFullscreen) {
+      try { await document.exitFullscreen(); } catch (_) {}
+    }
+    requestAnimationFrame(() => requestAnimationFrame(drawImageImportPreview));
+  }
+
   function openImageImportModal() {
     if (!imageImportModal) return;
     imageImportModal.hidden = false;
-    requestAnimationFrame(drawImageImportPreview);
+    requestAnimationFrame(() => requestAnimationFrame(drawImageImportPreview));
   }
 
   function closeImageImportModal() {
     if (!imageImportModal) return;
     imageImportModal.hidden = true;
+    if (document.fullscreenElement === imageImportModal && document.exitFullscreen) {
+      try { document.exitFullscreen().catch(() => {}); } catch (_) {}
+    }
+    imageImportModal.classList.remove("fullscreen");
+    if (imageFullscreenBtn) {
+      imageFullscreenBtn.setAttribute("aria-pressed", "false");
+      imageFullscreenBtn.textContent = "FULL SCREEN";
+    }
     imageTracePainting = false;
     imageCornerDragIndex = -1;
   }
@@ -7890,6 +8406,8 @@ window.BOXXY_RELEASE = Object.freeze({
       cellOverrides: Array(initialCols * initialRows).fill(null),
       targetHints: Array(initialCols * initialRows).fill(false),
       traceCells: Array(initialCols * initialRows).fill(" "),
+      traceGoalColours: Array(initialCols * initialRows).fill(null),
+      traceDetectedColours: Array(initialCols * initialRows).fill(null),
       display: null
     };
   }
@@ -8121,6 +8639,9 @@ window.BOXXY_RELEASE = Object.freeze({
     imageImportState.cellsData = [];
     imageImportState.cellOverrides = Array(imageImportState.cols * imageImportState.rows).fill(null);
     imageImportState.targetHints = Array(imageImportState.cols * imageImportState.rows).fill(false);
+    imageImportState.traceDetectedColours = Array(imageImportState.cols * imageImportState.rows).fill(null);
+    imageAutoColourEnabled = false;
+    updateImageAutoColourButton();
     imageSelectedCellIndex = -1;
     imageSelectedClusterId = -1;
     updateImageCellOverridePanel();
@@ -8135,13 +8656,108 @@ window.BOXXY_RELEASE = Object.freeze({
     return true;
   }
 
-  function imageTraceColour(value) {
+  function imageDetectedColourAt(index) {
+    return GOAL_COLOURS?.normalise?.(imageImportState?.traceDetectedColours?.[index]) || activeGoalColour || DEFAULT_GOAL_COLOUR;
+  }
+
+  function imagePaintColourAt(index) {
+    return imageAutoColourEnabled ? imageDetectedColourAt(index) : activeGoalColour;
+  }
+
+  function nearestBoxxyPaletteColour(rgb) {
+    const source = Array.isArray(rgb) ? rgb : [0, 0, 0];
+    const r = Math.max(0, Math.min(255, Number(source[0] || 0) * 255));
+    const g = Math.max(0, Math.min(255, Number(source[1] || 0) * 255));
+    const b = Math.max(0, Math.min(255, Number(source[2] || 0) * 255));
+    let bestColour = DEFAULT_GOAL_COLOUR;
+    let bestDistance = Infinity;
+    for (const colour of GOAL_COLOURS?.ORDER || []) {
+      const rawHex = String(GOAL_COLOURS?.PALETTE?.[colour]?.hex || "#000000").replace("#", "");
+      const hex = rawHex.length === 3 ? rawHex.split("").map(ch => ch + ch).join("") : rawHex;
+      const value = Number.parseInt(hex, 16);
+      if (!Number.isFinite(value)) continue;
+      const pr = (value >> 16) & 255;
+      const pg = (value >> 8) & 255;
+      const pb = value & 255;
+      const meanR = (r + pr) / 2;
+      const dr = r - pr;
+      const dg = g - pg;
+      const db = b - pb;
+      const distance = (2 + meanR / 256) * dr * dr + 4 * dg * dg + (2 + (255 - meanR) / 256) * db * db;
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestColour = colour;
+      }
+    }
+    return bestColour;
+  }
+
+  function updateImageAutoColourButton() {
+    if (!imageAutoColourBtn) return;
+    imageAutoColourBtn.classList.toggle("selected", imageAutoColourEnabled);
+    imageAutoColourBtn.setAttribute("aria-pressed", String(imageAutoColourEnabled));
+    imageAutoColourBtn.textContent = imageAutoColourEnabled ? "AUTO COLOUR ON" : "AUTO DETECT COLOURS";
+  }
+
+  function detectImageTraceColours() {
+    if (!imageImportState?.sourceCanvas) return;
+    ensureTraceCells(false, " ");
+    const matrix = homographyFromUnitSquare(imageImportState.corners);
+    if (!matrix) throw new Error("The crop corners are invalid. Reset them and try again.");
+    const sourceCtx = imageImportState.sourceCanvas.getContext("2d", { willReadFrequently: true });
+    const sourcePixels = sourceCtx.getImageData(0, 0, imageImportState.sourceCanvas.width, imageImportState.sourceCanvas.height).data;
+    const detected = Array(imageImportState.cols * imageImportState.rows).fill(DEFAULT_GOAL_COLOUR);
+    for (let y = 0; y < imageImportState.rows; y++) {
+      for (let x = 0; x < imageImportState.cols; x++) {
+        const index = y * imageImportState.cols + x;
+        const descriptor = samplePerspectiveCell(
+          imageImportState.sourceCanvas, sourcePixels, matrix, x, y, imageImportState.cols, imageImportState.rows, 10
+        );
+        detected[index] = nearestBoxxyPaletteColour(descriptor.rgb);
+      }
+    }
+    imageImportState.traceDetectedColours = detected;
+    imageAutoColourEnabled = true;
+    imageImportState.traceCells.forEach((value, index) => {
+      if (value === "." || value === "*" || value === "+") imageImportState.traceGoalColours[index] = detected[index];
+    });
+    updateImageAutoColourButton();
+    setImageImportStatus("Colours detected. Each new Rainbow target or box now uses the colour sampled from that square.", "success");
+    drawImageImportPreview();
+  }
+
+  function setImagePreviewZoom(value) {
+    imagePreviewZoom = Math.max(1, Math.min(5, Number(value) || 1));
+    if (imageZoomLabel) imageZoomLabel.textContent = `${Math.round(imagePreviewZoom * 100)}%`;
+    if (imageZoomOutBtn) imageZoomOutBtn.disabled = imagePreviewZoom <= 1;
+    if (imageZoomInBtn) imageZoomInBtn.disabled = imagePreviewZoom >= 5;
+    drawImageImportPreview();
+  }
+
+  function imageGoalColourAt(index) {
+    if (!rainbowMode) return DEFAULT_GOAL_COLOUR;
+    return GOAL_COLOURS?.normalise?.(imageImportState?.traceGoalColours?.[index]) || DEFAULT_GOAL_COLOUR;
+  }
+
+  function imageGoalColourRgba(index, alpha = 1) {
+    const colour = imageGoalColourAt(index);
+    const hex = GOAL_COLOURS?.PALETTE?.[colour]?.hex || "#ec2826";
+    const clean = String(hex).replace("#", "");
+    const expanded = clean.length === 3 ? clean.split("").map(ch => ch + ch).join("") : clean.padEnd(6, "0").slice(0, 6);
+    const number = Number.parseInt(expanded, 16);
+    const red = Number.isFinite(number) ? (number >> 16) & 255 : 236;
+    const green = Number.isFinite(number) ? (number >> 8) & 255 : 40;
+    const blue = Number.isFinite(number) ? number & 255 : 38;
+    return `rgba(${red},${green},${blue},${Math.max(0, Math.min(1, Number(alpha) || 0))})`;
+  }
+
+  function imageTraceColour(value, index = -1) {
     switch (value) {
       case "#": return "rgba(25,25,28,.66)";
       case "$": return "rgba(228,162,48,.78)";
-      case ".": return "rgba(213,57,49,.28)";
+      case ".": return imageGoalColourRgba(index, .30);
       case "@": return "rgba(55,111,181,.72)";
-      case "*": return "rgba(228,162,48,.78)";
+      case "*": return rainbowMode ? imageGoalColourRgba(index, .82) : "rgba(228,162,48,.78)";
       case "+": return "rgba(55,111,181,.72)";
       case "void": return "rgba(120,116,110,.62)";
       default: return "rgba(255,255,255,.06)";
@@ -8158,10 +8774,18 @@ window.BOXXY_RELEASE = Object.freeze({
     const canvas = imagePreviewCanvas;
     const ctx = canvas.getContext("2d");
     const sourceCanvas = imageImportState.sourceCanvas;
-    const cssWidth = Math.max(320, Math.min(760, imagePreviewCanvas.parentElement?.clientWidth || 640));
+    const wrap = imagePreviewCanvas.parentElement;
+    const availableWidth = Math.max(240, (wrap?.clientWidth || 640) - 4);
+    const availableHeight = Math.max(220, (wrap?.clientHeight || 480) - 4);
     const aspect = sourceCanvas.width / Math.max(1, sourceCanvas.height);
-    canvas.width = Math.round(cssWidth);
-    canvas.height = Math.max(260, Math.min(620, Math.round(cssWidth / aspect)));
+    let baseWidth = availableWidth;
+    let baseHeight = baseWidth / aspect;
+    if (baseHeight > availableHeight) {
+      baseHeight = availableHeight;
+      baseWidth = baseHeight * aspect;
+    }
+    canvas.width = Math.max(1, Math.round(baseWidth * imagePreviewZoom));
+    canvas.height = Math.max(1, Math.round(baseHeight * imagePreviewZoom));
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = "#d9d1c6";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -8191,14 +8815,14 @@ window.BOXXY_RELEASE = Object.freeze({
           ctx.lineTo(p2.x, p2.y);
           ctx.lineTo(p3.x, p3.y);
           ctx.closePath();
-          ctx.fillStyle = imageTraceColour(value);
+          ctx.fillStyle = imageTraceColour(value, y * imageImportState.cols + x);
           ctx.fill();
           if (value === "." || value === "*" || value === "+") {
             const centre = sourceToCanvas(applyHomography(matrix, (x + 0.5) / imageImportState.cols, (y + 0.5) / imageImportState.rows));
             const r = Math.max(2.5, Math.min(10, Math.min(canvas.width / imageImportState.cols, canvas.height / imageImportState.rows) * .18));
             ctx.beginPath();
             ctx.arc(centre.x, centre.y, r, 0, Math.PI * 2);
-            ctx.fillStyle = "rgba(215,58,49,.85)";
+            ctx.fillStyle = imageGoalColourRgba(y * imageImportState.cols + x, .90);
             ctx.fill();
           }
           const label = imageTraceLabel(value);
@@ -8232,7 +8856,7 @@ window.BOXXY_RELEASE = Object.freeze({
           ctx.beginPath();
           ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.lineTo(p3.x, p3.y); ctx.closePath();
           if (override != null) {
-            ctx.fillStyle = imageTraceColour(override);
+            ctx.fillStyle = imageTraceColour(override, index);
             ctx.fill();
           }
           if (hintedTarget || override === "." || override === "*" || override === "+") {
@@ -8290,7 +8914,7 @@ window.BOXXY_RELEASE = Object.freeze({
     });
 
     if (imagePreviewSummary) {
-      imagePreviewSummary.textContent = `${imageImportState.cols} × ${imageImportState.rows} grid • drag red corners to the board edges${imageImportMode === "trace" ? " • manual trace active" : ""}.`;
+      imagePreviewSummary.textContent = `${imageImportState.cols} × ${imageImportState.rows} grid • ${Math.round(imagePreviewZoom * 100)}% zoom • drag red corners to the board edges${imageImportMode === "trace" ? " • manual trace active" : ""}.`;
     }
   }
 
@@ -8757,19 +9381,67 @@ window.BOXXY_RELEASE = Object.freeze({
     if (reset || !Array.isArray(imageImportState.traceCells) || imageImportState.traceCells.length !== needed) {
       imageImportState.traceCells = Array(needed).fill(fill);
     }
+    if (reset || !Array.isArray(imageImportState.traceGoalColours) || imageImportState.traceGoalColours.length !== needed) {
+      imageImportState.traceGoalColours = Array(needed).fill(null);
+    }
+    if (reset || !Array.isArray(imageImportState.traceDetectedColours) || imageImportState.traceDetectedColours.length !== needed) {
+      imageImportState.traceDetectedColours = Array(needed).fill(null);
+      if (reset) imageAutoColourEnabled = false;
+    }
+    updateImageAutoColourButton();
+  }
+
+  function syncImageRainbowControls() {
+    if (imageRainbowModeInput) {
+      imageRainbowModeInput.checked = rainbowMode;
+      imageRainbowModeInput.setAttribute("aria-checked", String(rainbowMode));
+    }
+    if (imageRainbowModeState) imageRainbowModeState.textContent = rainbowMode ? "ON" : "OFF";
+    if (imageRainbowDescription) imageRainbowDescription.textContent = rainbowMode
+      ? "ON — choose colours manually or sample them from the image."
+      : "OFF — image tracing uses standard red targets.";
+    if (imageTraceNote) imageTraceNote.textContent = rainbowMode
+      ? "Rainbow Mode: BOX paints a coloured box on a matching target so its colour is preserved. Zoom in for detailed pixel painting."
+      : "Tip: line the grid up first. For most levels you only need to paint walls, boxes, targets and the player.";
+    if (imageGoalColourControls) {
+      imageGoalColourControls.hidden = !rainbowMode;
+      imageGoalColourControls.setAttribute("aria-hidden", String(!rainbowMode));
+    }
+    if (imageRainbowControls) imageRainbowControls.classList.toggle("rainbow-on", rainbowMode);
+    imageGoalColourButtons.forEach(button => {
+      const colour = GOAL_COLOURS?.normalise?.(button.dataset.imageGoalColour) || DEFAULT_GOAL_COLOUR;
+      const selected = colour === activeGoalColour;
+      button.disabled = !rainbowMode;
+      button.classList.toggle("selected", selected);
+      button.setAttribute("aria-pressed", String(selected));
+    });
+    drawImageImportPreview();
   }
 
   function setImageTraceTool(value) {
     imageTraceTool = value;
     imageTraceToolButtons.forEach(button => button.classList.toggle("selected", button.dataset.imageTraceTool === value));
+    imageRainbowControls?.classList.toggle("target-tool-active", rainbowMode && (value === "." || value === "*" || value === "+"));
   }
 
   function paintImageTraceCell(index) {
     if (!imageImportState?.traceCells || index < 0 || index >= imageImportState.traceCells.length || imageTraceLastIndex === index) return;
-    if (imageTraceTool === "@" || imageTraceTool === "+") {
-      imageImportState.traceCells = imageImportState.traceCells.map(value => (value === "@" || value === "+") ? " " : value);
+    ensureTraceCells(false, " ");
+    let paintedValue = imageTraceTool;
+    // Coloured box artwork in Boxxy is tied to the target beneath it. During Rainbow image tracing,
+    // BOX paints a box-on-target so a sampled or manual colour survives the import.
+    if (rainbowMode && imageTraceTool === "$") paintedValue = "*";
+    if (paintedValue === "@" || paintedValue === "+") {
+      imageImportState.traceCells.forEach((value, existingIndex) => {
+        if (existingIndex === index || (value !== "@" && value !== "+")) return;
+        imageImportState.traceCells[existingIndex] = " ";
+        imageImportState.traceGoalColours[existingIndex] = null;
+      });
     }
-    imageImportState.traceCells[index] = imageTraceTool;
+    imageImportState.traceCells[index] = paintedValue;
+    imageImportState.traceGoalColours[index] = (paintedValue === "." || paintedValue === "*" || paintedValue === "+")
+      ? (rainbowMode ? imagePaintColourAt(index) : DEFAULT_GOAL_COLOUR)
+      : null;
     imageTraceLastIndex = index;
     drawImageImportPreview();
   }
@@ -8785,6 +9457,7 @@ window.BOXXY_RELEASE = Object.freeze({
     imageTraceBtn?.classList.add("selected");
     imageImportReanalyseBtn?.classList.remove("selected");
     setImageTraceTool(imageTraceTool || " ");
+    syncImageRainbowControls();
     setImageImportStatus("Manual trace active. Paint components over the photograph, then press Import Level.", "success");
     drawImageImportPreview();
   }
@@ -8798,20 +9471,28 @@ window.BOXXY_RELEASE = Object.freeze({
     drawImageImportPreview();
   }
 
-  function buildImageImportRows() {
+  function buildImageImportData() {
     if (!imageImportState) throw new Error("No image data is ready to import.");
-    const rowsOut = [];
+    const rawRows = [];
+    const rawGoalColours = [];
+
     if (imageImportMode === "trace") {
       ensureTraceCells(false, " ");
       for (let y = 0; y < imageImportState.rows; y++) {
         let line = "";
+        const rowColours = [];
         for (let x = 0; x < imageImportState.cols; x++) {
-          const value = imageImportState.traceCells[y * imageImportState.cols + x];
+          const index = y * imageImportState.cols + x;
+          const value = imageImportState.traceCells[index];
           if (value === "void") line += " ";
           else if (value === " ") line += "-";
           else line += value;
+          rowColours[x] = (value === "." || value === "*" || value === "+")
+            ? (rainbowMode ? imageGoalColourAt(index) : DEFAULT_GOAL_COLOUR)
+            : null;
         }
-        rowsOut.push(line.replace(/\s+$/g, ""));
+        rawRows.push(line.replace(/\s+$/g, ""));
+        rawGoalColours.push(rowColours);
       }
     } else {
       if (!imageImportState.cellsData?.length || !imageImportState.clusters?.length) throw new Error("Press Auto Read Tiles first, or use Trace Manually.");
@@ -8819,19 +9500,39 @@ window.BOXXY_RELEASE = Object.freeze({
       if (missing.length) throw new Error(`Assign ${missing.length} tile group${missing.length === 1 ? "" : "s"}, or override every cell in those groups, before importing.`);
       for (let y = 0; y < imageImportState.rows; y++) {
         let line = "";
+        const rowColours = [];
         for (let x = 0; x < imageImportState.cols; x++) {
           const index = y * imageImportState.cols + x;
           const assignment = effectiveImageCellAssignment(index);
           if (assignment === "void") line += " ";
           else if (assignment === " ") line += "-";
           else line += assignment;
+          rowColours[x] = (assignment === "." || assignment === "*" || assignment === "+") ? DEFAULT_GOAL_COLOUR : null;
         }
-        rowsOut.push(line.replace(/\s+$/g, ""));
+        rawRows.push(line.replace(/\s+$/g, ""));
+        rawGoalColours.push(rowColours);
       }
     }
-    while (rowsOut.length > 1 && !rowsOut[0].trim()) rowsOut.shift();
-    while (rowsOut.length > 1 && !rowsOut.at(-1).trim()) rowsOut.pop();
-    return rowsOut;
+
+    let start = 0;
+    let end = rawRows.length;
+    while (end - start > 1 && !rawRows[start].trim()) start++;
+    while (end - start > 1 && !rawRows[end - 1].trim()) end--;
+    const rowsOut = rawRows.slice(start, end);
+    const goalColourMap = {};
+    if (rainbowMode) {
+      for (let sourceY = start; sourceY < end; sourceY++) {
+        const outputY = sourceY - start;
+        const row = rawRows[sourceY] || "";
+        for (let x = 0; x < row.length; x++) {
+          const value = row[x];
+          if (value !== "." && value !== "*" && value !== "+") continue;
+          const colour = GOAL_COLOURS?.normalise?.(rawGoalColours[sourceY]?.[x]) || DEFAULT_GOAL_COLOUR;
+          if (colour !== DEFAULT_GOAL_COLOUR) goalColourMap[`${x},${outputY}`] = colour;
+        }
+      }
+    }
+    return { rows: rowsOut, goalColours: goalColourMap, rainbowMode };
   }
 
   function syncImageGridDimensions(resetTrace = false) {
@@ -8847,6 +9548,10 @@ window.BOXXY_RELEASE = Object.freeze({
       imageImportState.cellOverrides = Array(nextCols * nextRows).fill(null);
       imageImportState.targetHints = Array(nextCols * nextRows).fill(false);
       imageImportState.traceCells = Array(nextCols * nextRows).fill(" ");
+      imageImportState.traceGoalColours = Array(nextCols * nextRows).fill(null);
+      imageImportState.traceDetectedColours = Array(nextCols * nextRows).fill(null);
+      imageAutoColourEnabled = false;
+      updateImageAutoColourButton();
       imageSelectedCellIndex = -1;
     imageSelectedClusterId = -1;
       updateImageCellOverridePanel();
@@ -8862,6 +9567,9 @@ window.BOXXY_RELEASE = Object.freeze({
     imageImportState.cellsData = [];
     imageImportState.cellOverrides = Array(imageImportState.cols * imageImportState.rows).fill(null);
     imageImportState.targetHints = Array(imageImportState.cols * imageImportState.rows).fill(false);
+    imageImportState.traceDetectedColours = Array(imageImportState.cols * imageImportState.rows).fill(null);
+    imageAutoColourEnabled = false;
+    updateImageAutoColourButton();
     imageSelectedCellIndex = -1;
     imageSelectedClusterId = -1;
     imageCornerPlaceIndex = -1;
@@ -8916,6 +9624,7 @@ window.BOXXY_RELEASE = Object.freeze({
     if (options.persist !== false) {
       try { localStorage.setItem(RAINBOW_PREF_KEY, rainbowMode ? "1" : "0"); } catch (_) {}
     }
+    syncImageRainbowControls();
     if (cells.length) {
       renderGrid();
       updateTextFromGrid();
@@ -9385,7 +10094,13 @@ window.BOXXY_RELEASE = Object.freeze({
       button.setAttribute("aria-pressed", String(selected));
     });
     goalPalette?.style.setProperty("--selected-goal-colour", GOAL_COLOURS?.PALETTE?.[activeGoalColour]?.hex || "#db3b27");
+    imageGoalColourButtons.forEach(button => {
+      const selected = (GOAL_COLOURS?.normalise?.(button.dataset.imageGoalColour) || DEFAULT_GOAL_COLOUR) === activeGoalColour;
+      button.classList.toggle("selected", selected);
+      button.setAttribute("aria-pressed", String(selected));
+    });
     if (announce) setStatus(`${GOAL_COLOURS?.PALETTE?.[activeGoalColour]?.label || "Red"} selected for new and repainted targets.`);
+    drawImageImportPreview();
   }
 
   function exportedRowWindow() {
@@ -11071,6 +11786,32 @@ window.BOXXY_RELEASE = Object.freeze({
     applyGoalStyle(button, colour);
     button.addEventListener("click", () => setActiveGoalColour(colour, true));
   });
+  imageRainbowModeInput?.addEventListener("change", () => {
+    setRainbowMode(imageRainbowModeInput.checked, { announce: false, persist: true });
+    setImageImportStatus(imageRainbowModeInput.checked
+      ? "Rainbow Mode on. Choose a paint colour or use Auto Detect Colours, then paint over the photograph."
+      : "Rainbow Mode off. Image targets will import as standard red.", "success");
+  });
+  imageGoalColourButtons.forEach(button => {
+    const colour = GOAL_COLOURS?.normalise?.(button.dataset.imageGoalColour) || DEFAULT_GOAL_COLOUR;
+    applyGoalStyle(button, colour);
+    button.addEventListener("click", () => {
+      imageAutoColourEnabled = false;
+      updateImageAutoColourButton();
+      setActiveGoalColour(colour, false);
+      setImageImportStatus(`${GOAL_COLOURS?.PALETTE?.[colour]?.label || "Target"} selected. New Rainbow boxes and targets will use this colour.`, "success");
+    });
+  });
+  syncImageRainbowControls();
+  updateImageAutoColourButton();
+  if (imageZoomLabel) imageZoomLabel.textContent = "100%";
+  imageAutoColourBtn?.addEventListener("click", () => {
+    try { detectImageTraceColours(); }
+    catch (error) { setImageImportStatus(error?.message || "Colours could not be detected from this image.", "error"); }
+  });
+  imageZoomOutBtn?.addEventListener("click", () => setImagePreviewZoom(imagePreviewZoom - .5));
+  imageZoomFitBtn?.addEventListener("click", () => setImagePreviewZoom(1));
+  imageZoomInBtn?.addEventListener("click", () => setImagePreviewZoom(imagePreviewZoom + .5));
 
   gridEl.addEventListener("pointerdown", event => {
     const cell = event.target.closest(".maker-cell");
@@ -11153,6 +11894,10 @@ window.BOXXY_RELEASE = Object.freeze({
       const loaded = await loadImageFromFile(file);
       imageImportLoaded = { image: loaded.image, name: file.name };
       imageImportState = createInitialImageImportState(loaded.image);
+      imagePreviewZoom = 1;
+      imageAutoColourEnabled = false;
+      updateImageAutoColourButton();
+      if (imageZoomLabel) imageZoomLabel.textContent = "100%";
       if (imageColsInput) imageColsInput.value = String(imageImportState.cols);
       if (imageRowsInput) imageRowsInput.value = String(imageImportState.rows);
       imageImportMode = "auto";
@@ -11288,8 +12033,31 @@ window.BOXXY_RELEASE = Object.freeze({
   imagePreviewCanvas?.addEventListener("pointerup", endImagePreviewPointer);
   imagePreviewCanvas?.addEventListener("pointercancel", endImagePreviewPointer);
 
+  imageFullscreenBtn?.addEventListener("click", () => {
+    setImageImportFullscreen(!imageImportModal?.classList.contains("fullscreen"));
+  });
+  document.addEventListener("fullscreenchange", () => {
+    if (!imageImportModal || document.fullscreenElement === imageImportModal) return;
+    if (!imageImportModal.classList.contains("fullscreen")) return;
+    imageImportModal.classList.remove("fullscreen");
+    if (imageFullscreenBtn) {
+      imageFullscreenBtn.setAttribute("aria-pressed", "false");
+      imageFullscreenBtn.textContent = "FULL SCREEN";
+    }
+    requestAnimationFrame(() => requestAnimationFrame(drawImageImportPreview));
+  });
   imageImportCloseBtn?.addEventListener("click", closeImageImportModal);
   imageImportCancelBtn?.addEventListener("click", closeImageImportModal);
+  document.addEventListener("keydown", event => {
+    if (imageImportModal?.hidden || event.key !== "Escape") return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    if (imageImportModal.classList.contains("fullscreen")) setImageImportFullscreen(false);
+    else closeImageImportModal();
+  }, { capture: true });
+  window.addEventListener("resize", () => {
+    if (!imageImportModal?.hidden) requestAnimationFrame(drawImageImportPreview);
+  });
   imageImportModal?.addEventListener("click", event => {
     if (event.target === imageImportModal) closeImageImportModal();
   });
@@ -11297,10 +12065,14 @@ window.BOXXY_RELEASE = Object.freeze({
   imageImportApplyBtn?.addEventListener("click", () => {
     try {
       syncImageGridDimensions();
-      const rowsFromImage = buildImageImportRows();
-      importRows(rowsFromImage);
+      const importedImage = buildImageImportData();
+      importRows(importedImage.rows, {
+        rainbowMode: importedImage.rainbowMode,
+        goalColours: importedImage.goalColours,
+        persistRainbow: true
+      });
       clearAttachedSolution(true);
-      setStatus(`Imported ${imageImportState.cols} × ${imageImportState.rows} level from image.`, "success");
+      setStatus(`Imported ${imageImportState.cols} × ${imageImportState.rows} level from image${importedImage.rainbowMode ? " in Rainbow Mode" : ""}.`, "success");
       closeImageImportModal();
     } catch (error) {
       setImageImportStatus(error?.message || "The image could not be imported.", "error");
@@ -11601,7 +12373,9 @@ window.BOXXY_RELEASE = Object.freeze({
   const closeBtn = document.getElementById("makerContactCloseBtn");
   const cancelBtn = document.getElementById("makerContactCancelBtn");
   const form = document.getElementById("makerContactForm");
+  const forgotPasswordBtn = document.getElementById("accountForgotPasswordBtn");
   const nameInput = document.getElementById("makerContactName");
+  const usernameInput = document.getElementById("makerContactUsername");
   const emailInput = document.getElementById("makerContactEmail");
   const commentInput = document.getElementById("makerContactComment");
   const websiteInput = document.getElementById("makerContactWebsite");
@@ -11627,6 +12401,22 @@ window.BOXXY_RELEASE = Object.freeze({
     window.setTimeout(() => nameInput?.focus(), 0);
   }
 
+  function openPasswordRecovery(event) {
+    lastOpener = event?.currentTarget || forgotPasswordBtn || openBtn || settingsOpenBtn;
+    const identity = String(document.querySelector('#accountLoginForm input[name="identity"]')?.value || "").trim();
+    if (identity) {
+      if (identity.includes("@")) {
+        if (emailInput && !emailInput.value) emailInput.value = identity;
+      } else if (usernameInput && !usernameInput.value) {
+        usernameInput.value = identity;
+      }
+    }
+    if (commentInput && !commentInput.value) commentInput.value = "I need help recovering my BOXXY password.";
+    modal.hidden = false;
+    setStatus("");
+    window.setTimeout(() => (nameInput?.value ? (usernameInput?.value ? emailInput : usernameInput) : nameInput)?.focus?.(), 0);
+  }
+
   function closeContact() {
     if (sending) return;
     modal.hidden = true;
@@ -11636,6 +12426,7 @@ window.BOXXY_RELEASE = Object.freeze({
 
   openBtn?.addEventListener("click", openContact);
   settingsOpenBtn?.addEventListener("click", openContact);
+  forgotPasswordBtn?.addEventListener("click", openPasswordRecovery);
   closeBtn?.addEventListener("click", closeContact);
   cancelBtn?.addEventListener("click", closeContact);
   modal.addEventListener("click", event => {
@@ -11654,6 +12445,7 @@ window.BOXXY_RELEASE = Object.freeze({
     if (sending) return;
 
     const name = String(nameInput?.value || "").trim();
+    const username = String(usernameInput?.value || "").trim();
     const email = String(emailInput?.value || "").trim();
     const comment = String(commentInput?.value || "").trim();
 
@@ -11682,6 +12474,7 @@ window.BOXXY_RELEASE = Object.freeze({
         credentials: "same-origin",
         body: JSON.stringify({
           name,
+          username,
           email,
           comment,
           website: String(websiteInput?.value || ""),
