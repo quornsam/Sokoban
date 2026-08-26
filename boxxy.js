@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "305",
+  version: "306",
   lastUpdated: "2026-08-26"
 });
+/* BOXXY v306 — Turbo keyboard taps retain the normal walk/push animation; held repeats run without animation at Turbo speed. */
 /* BOXXY v305 — Turbo keyboard input keeps a tap to one square; sustained holds engage Turbo repeat speed. */
 /* BOXXY v304 — Starry Night crescent optically aligned with the header medal rail across responsive sizes. */
 /* BOXXY v302 — Starry Night levels 1–24 renamed for the 24 brightest night-sky stars, faintest-to-brightest. */
@@ -6146,12 +6147,13 @@ window.BOXXY_RELEASE = Object.freeze({
     scheduleIdle();
   }
 
-  function move(dx, dy, holdBlocked = false, fromAutoplay = false, facingOverride = "") {
+  function move(dx, dy, holdBlocked = false, fromAutoplay = false, facingOverride = "", forceTurboAnimation = false) {
     if (mouseSupportBusy && !mouseSupportExecutingStep) stopMouseSupportRoute();
     if (!mouseSupportExecutingStep && mouseSupportSelectedBoxIndex >= 0) clearMouseSupportOverlay();
     if (completed || (autoplayRunning && !fromAutoplay)) return;
     ensureAudio();
     clearTimeout(animTimer);
+    const turboAnimationSuppressed = boxxyInstantSpeedActive() && !forceTurboAnimation;
     const previousPlayer = [...player];
     boardStepMotion = null;
     const attemptedFacing = DELTA_TO_FACING(dx, dy);
@@ -6209,7 +6211,7 @@ window.BOXXY_RELEASE = Object.freeze({
       facing = facingOverride || attemptedFacing;
       sfx.push();
       if (isGoal(bx, by)) sfx.goal();
-      if (boxxyInstantSpeedActive()) render("idle");
+      if (turboAnimationSuppressed) render("idle");
       else render("pushing");
     } else {
       blockedPushHeld = false;
@@ -6226,14 +6228,17 @@ window.BOXXY_RELEASE = Object.freeze({
       if (!fromAutoplay) addLifetimeStat(ALL_TIME_STEPS_KEY);
       facing = facingOverride || attemptedFacing;
       sfx.walk();
-      if (boxxyInstantSpeedActive()) render("idle");
+      if (turboAnimationSuppressed) render("idle");
       else render("walking");
     }
 
     playedRoute += DELTA_TO_CODE(dx, dy);
-    if (!boxxyInstantSpeedActive()) {
+    if (!turboAnimationSuppressed) {
       scheduleIdle();
-      animTimer = setTimeout(() => render("idle"), scaledBoxxyDelay(180));
+      const animationHold = boxxyInstantSpeedActive() && forceTurboAnimation
+        ? 180
+        : scaledBoxxyDelay(180);
+      animTimer = setTimeout(() => render("idle"), animationHold);
     }
     if (solved()) finish();
   }
@@ -7143,7 +7148,9 @@ window.BOXXY_RELEASE = Object.freeze({
   function startKeyboardMove(directionKey, delta) {
     clearKeyboardMoveRepeat();
     keyboardMoveRepeatKey = directionKey;
-    move(...delta, true);
+    // A keyboard tap should still look like a normal Boxxy step in Turbo.
+    // Only the repeated movement after the hold threshold suppresses animation.
+    move(...delta, true, false, "", true);
     if (blockedPushHeld) return;
 
     keyboardMoveRepeatDelay = window.setTimeout(() => {
