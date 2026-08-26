@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "301",
+  version: "302",
   lastUpdated: "2026-08-26"
 });
+/* BOXXY v302 — Starry Night levels 1–24 renamed for the 24 brightest night-sky stars, faintest-to-brightest. */
 /* BOXXY v301 — renamed the unlocked very-fast speed from Instant to Turbo; movement behaviour is unchanged. */
 /* BOXXY v300 — Starry Night restored on the v298 performance core; Instant Move unlocks after Level 24. */
 /* BOXXY v298 — automatic large-level performance mode for boards wider or taller than 50 cells. */

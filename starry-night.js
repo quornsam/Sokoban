@@ -16,7 +16,7 @@
     {
       "rank": 1,
       "sourceNumber": "starry-night-1",
-      "name": "Star11",
+      "name": "Shaula",
       "author": "Sam Cornwell",
       "tier": "STARRY NIGHT",
       "minimum": null,
@@ -36,7 +36,7 @@
     {
       "rank": 2,
       "sourceNumber": "starry-night-2",
-      "name": "Star0",
+      "name": "Castor",
       "author": "Sam Cornwell",
       "tier": "STARRY NIGHT",
       "minimum": null,
@@ -56,7 +56,7 @@
     {
       "rank": 3,
       "sourceNumber": "starry-night-3",
-      "name": "Star1",
+      "name": "Adhara",
       "author": "Sam Cornwell",
       "tier": "STARRY NIGHT",
       "minimum": null,
@@ -76,7 +76,7 @@
     {
       "rank": 4,
       "sourceNumber": "starry-night-4",
-      "name": "Star2",
+      "name": "Regulus",
       "author": "Sam Cornwell",
       "tier": "STARRY NIGHT",
       "minimum": null,
@@ -96,7 +96,7 @@
     {
       "rank": 5,
       "sourceNumber": "starry-night-5",
-      "name": "Stars17",
+      "name": "Mimosa",
       "author": "Sam Cornwell",
       "tier": "STARRY NIGHT",
       "minimum": null,
@@ -116,7 +116,7 @@
     {
       "rank": 6,
       "sourceNumber": "starry-night-6",
-      "name": "Stars23",
+      "name": "Deneb",
       "author": "Sam Cornwell",
       "tier": "STARRY NIGHT",
       "minimum": null,
@@ -138,7 +138,7 @@
     {
       "rank": 7,
       "sourceNumber": "starry-night-7",
-      "name": "Stars26",
+      "name": "Fomalhaut",
       "author": "Sam Cornwell",
       "tier": "STARRY NIGHT",
       "minimum": null,
@@ -160,7 +160,7 @@
     {
       "rank": 8,
       "sourceNumber": "starry-night-8",
-      "name": "Stars25",
+      "name": "Pollux",
       "author": "Sam Cornwell",
       "tier": "STARRY NIGHT",
       "minimum": null,
@@ -182,7 +182,7 @@
     {
       "rank": 9,
       "sourceNumber": "starry-night-9",
-      "name": "Stars27",
+      "name": "Spica",
       "author": "Sam Cornwell",
       "tier": "STARRY NIGHT",
       "minimum": null,
@@ -204,7 +204,7 @@
     {
       "rank": 10,
       "sourceNumber": "starry-night-10",
-      "name": "Stars24",
+      "name": "Antares",
       "author": "Sam Cornwell",
       "tier": "STARRY NIGHT",
       "minimum": null,
@@ -226,7 +226,7 @@
     {
       "rank": 11,
       "sourceNumber": "starry-night-11",
-      "name": "Star5",
+      "name": "Aldebaran",
       "author": "Sam Cornwell",
       "tier": "STARRY NIGHT",
       "minimum": null,
@@ -250,7 +250,7 @@
     {
       "rank": 12,
       "sourceNumber": "starry-night-12",
-      "name": "Star6",
+      "name": "Acrux",
       "author": "Sam Cornwell",
       "tier": "STARRY NIGHT",
       "minimum": null,
@@ -274,7 +274,7 @@
     {
       "rank": 13,
       "sourceNumber": "starry-night-13",
-      "name": "Star4",
+      "name": "Altair",
       "author": "Sam Cornwell",
       "tier": "STARRY NIGHT",
       "minimum": null,
@@ -298,7 +298,7 @@
     {
       "rank": 14,
       "sourceNumber": "starry-night-14",
-      "name": "Star7",
+      "name": "Hadar",
       "author": "Sam Cornwell",
       "tier": "STARRY NIGHT",
       "minimum": null,
@@ -322,7 +322,7 @@
     {
       "rank": 15,
       "sourceNumber": "starry-night-15",
-      "name": "Stars18",
+      "name": "Betelgeuse",
       "author": "Sam Cornwell",
       "tier": "STARRY NIGHT",
       "minimum": null,
@@ -346,7 +346,7 @@
     {
       "rank": 16,
       "sourceNumber": "starry-night-16",
-      "name": "Stars8",
+      "name": "Achernar",
       "author": "Sam Cornwell",
       "tier": "STARRY NIGHT",
       "minimum": null,
@@ -372,7 +372,7 @@
     {
       "rank": 17,
       "sourceNumber": "starry-night-17",
-      "name": "Stars9",
+      "name": "Procyon",
       "author": "Sam Cornwell",
       "tier": "STARRY NIGHT",
       "minimum": null,
@@ -398,7 +398,7 @@
     {
       "rank": 18,
       "sourceNumber": "starry-night-18",
-      "name": "Stars10",
+      "name": "Rigel",
       "author": "Sam Cornwell",
       "tier": "STARRY NIGHT",
       "minimum": null,
@@ -424,7 +424,7 @@
     {
       "rank": 19,
       "sourceNumber": "starry-night-19",
-      "name": "Stars16",
+      "name": "Capella",
       "author": "Sam Cornwell",
       "tier": "STARRY NIGHT",
       "minimum": null,
@@ -450,7 +450,7 @@
     {
       "rank": 20,
       "sourceNumber": "starry-night-20",
-      "name": "Stars15",
+      "name": "Vega",
       "author": "Sam Cornwell",
       "tier": "STARRY NIGHT",
       "minimum": null,
@@ -476,7 +476,7 @@
     {
       "rank": 21,
       "sourceNumber": "starry-night-21",
-      "name": "Stars33",
+      "name": "Arcturus",
       "author": "Sam Cornwell",
       "tier": "STARRY NIGHT",
       "minimum": null,
@@ -504,7 +504,7 @@
     {
       "rank": 22,
       "sourceNumber": "starry-night-22",
-      "name": "Stars29",
+      "name": "Alpha Centauri",
       "author": "Sam Cornwell",
       "tier": "STARRY NIGHT",
       "minimum": null,
@@ -532,7 +532,7 @@
     {
       "rank": 23,
       "sourceNumber": "starry-night-23",
-      "name": "Stars31",
+      "name": "Canopus",
       "author": "Sam Cornwell",
       "tier": "STARRY NIGHT",
       "minimum": null,
@@ -560,7 +560,7 @@
     {
       "rank": 24,
       "sourceNumber": "starry-night-24",
-      "name": "Stars32",
+      "name": "Sirius",
       "author": "Sam Cornwell",
       "tier": "STARRY NIGHT",
       "minimum": null,
