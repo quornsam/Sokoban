@@ -4551,6 +4551,19 @@ body.maker-editor-fullscreen{overflow:hidden}
 .legal-contact{padding:18px;background:#fff8ed}
 .legal-small{font-size:13px!important;color:#514b43}
 .legal-version{font-size:10px!important;font-weight:850!important;letter-spacing:.1em;opacity:.68}
+/* BOXXY v308 — first-50 BOXXY Originals completion board. */
+.originals-completion-section{padding-inline:0}
+.originals-completion-section>h3,.originals-completion-section>p{margin-inline:0}
+.originals-completion-board{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px;margin-top:13px}
+.originals-completion-slot{position:relative;min-height:72px;padding:9px 8px 8px 33px;border:2px solid var(--ink);background:#f3eadc;display:flex;flex-direction:column;justify-content:center;gap:3px;box-shadow:2px 2px 0 rgba(23,23,25,.13)}
+.originals-completion-slot.claimed{background:#e7f3e9;border-color:#2f8f5b}
+.originals-completion-place{position:absolute;left:7px;top:7px;min-width:19px;height:19px;padding:0 3px;border:1.5px solid currentColor;background:#fffaf2;display:grid;place-items:center;font-size:8px;font-weight:950;line-height:1}
+.originals-completion-slot strong{font-size:11px;line-height:1.05;overflow-wrap:anywhere}
+.originals-completion-slot small{font-size:7px;font-weight:900;letter-spacing:.08em;color:#71685e}
+.originals-completion-slot.unclaimed strong{font-size:8px;letter-spacing:.06em;color:#7b7268}
+.originals-completion-slot.unclaimed small{opacity:.55}
+@media(max-width:700px){.originals-completion-board{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.originals-completion-slot{min-height:62px}}
+@media(max-width:390px){.originals-completion-board{grid-template-columns:1fr}}
 
 .zen-next-btn{position:fixed;z-index:8450;display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:138px;height:44px;padding:7px 8px 7px 14px;border:2px solid var(--ink);border-radius:10px;background:var(--ink);color:#fff;font-size:10px;font-weight:950;letter-spacing:.08em;box-shadow:5px 5px 0 var(--red);touch-action:manipulation}
 .zen-next-btn[hidden]{display:none!important}

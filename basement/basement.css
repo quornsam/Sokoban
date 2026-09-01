@@ -1,3 +1,4 @@
+/* BOXXY v308 — ordered progress, all-time time labels, earned badges and outfit previews. */
 :root{--ink:#171719;--paper:#f7f0e5;--cream:#efe5d4;--yellow:#e5b32a;--blue:#20539a;--green:#2f8f5b;--red:#db3b27}
 *{box-sizing:border-box}
 html,body{margin:0;min-height:100%;background:var(--cream);color:var(--ink);font-family:Arial,Helvetica,sans-serif}
@@ -41,7 +42,7 @@ table{width:100%;border-collapse:collapse;min-width:1320px}th,td{padding:10px 11
 @media(max-width:430px){.dashboard-summary{grid-template-columns:1fr}.user-card-grid{grid-template-columns:1fr}.detail-grid{grid-template-columns:1fr}.detail-grid>div,.detail-grid>div:nth-child(2n),.detail-grid>div:nth-child(3n){border-right:0}.detail-game-stats{grid-template-columns:1fr}}
 
 /* BOXXY v284 — recent-online marker and seven-day activity strip. */
-table{min-width:1460px}
+table{min-width:1640px}
 .user-with-status{display:inline-flex;align-items:center;gap:6px}
 .online-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#24a45a;box-shadow:0 0 0 2px rgba(36,164,90,.13);flex:0 0 auto}
 .activity-week{display:flex;align-items:flex-end;gap:5px;min-height:40px}
@@ -62,3 +63,43 @@ table{min-width:1460px}
 .detail-body .activity-day i{width:15px;height:15px}
 .detail-body .activity-day span{font-size:7px}
 @media(max-width:760px){.activity-week-compact{margin:8px 0 2px}.detail-body .activity-week{gap:7px;justify-content:space-between}.detail-body .activity-day{min-width:20px}}
+
+
+/* BOXXY v308 — user identity, outfit and medal presentation. */
+.basement-user-identity{display:flex;align-items:center;gap:8px;min-width:185px}
+.basement-user-copy{min-width:0;display:grid;gap:4px}
+.basement-avatar{display:block;width:48px;height:auto;aspect-ratio:90/78;flex:0 0 auto;border:1px solid #c8bdaf;background:#efe5d4;object-fit:contain}
+.basement-avatar-large{width:92px;border:2px solid var(--ink);background:#fffaf1}
+.basement-medals{display:flex;align-items:center;flex-wrap:wrap;gap:3px;min-height:20px}
+.basement-medal{width:21px;height:21px;display:grid;place-items:center;filter:drop-shadow(1px 1px 0 rgba(23,23,25,.25));flex:0 0 auto}
+.basement-medal svg,.basement-medal img{display:block;width:100%;height:100%;object-fit:contain}
+.basement-medal svg{overflow:visible}.basement-medal path{fill:var(--medal-colour,var(--red));stroke:#f2c121;stroke-width:9;stroke-linejoin:round;paint-order:stroke fill}
+.basement-medal-moon img{transform:translateY(4%)}
+.basement-streak{position:relative;width:16px;height:21px;display:block;filter:drop-shadow(1px 1px 0 rgba(23,23,25,.25));flex:0 0 auto}
+.basement-streak i{position:absolute;inset:0;background:center/100% 100% no-repeat}
+.basement-streak b{position:absolute;z-index:1;left:50%;top:68%;transform:translate(-50%,-50%);color:#fff;font:1000 7px/1 Arial,sans-serif;text-shadow:-1px 0 #111,1px 0 #111,0 -1px #111,0 1px #111}
+.basement-streak[data-tier="green"] i{background-image:url("../assets/ui/streak-flames/streak-green.png")}
+.basement-streak[data-tier="blue"] i{background-image:url("../assets/ui/streak-flames/streak-blue.png")}
+.basement-streak[data-tier="red"] i{background-image:url("../assets/ui/streak-flames/streak-red.png")}
+.basement-streak[data-tier="fire"] i{background-image:url("../assets/ui/streak-flames/streak-fire.png")}
+.basement-streak[data-tier="purple"] i{background-image:url("../assets/ui/streak-flames/streak-purple.png")}
+.basement-streak[data-tier="silver"] i{background-image:url("../assets/ui/streak-flames/streak-silver.png")}
+.outfit-mini{display:flex;align-items:center;gap:3px;color:#71685e;font-size:6px;font-weight:1000;letter-spacing:.06em}
+.outfit-mini i,.outfit-swatch{display:inline-block;width:10px;height:10px;border:1px solid var(--ink);background:var(--swatch,#777);flex:0 0 auto}
+.progress-stack{display:grid;gap:3px;min-width:150px}
+.progress-stack>div{display:grid;grid-template-columns:54px minmax(0,1fr);gap:5px;align-items:baseline}
+.progress-stack b{font-size:7px;letter-spacing:.06em}
+.progress-stack span{font-size:7px;line-height:1.25;color:#5f5850;white-space:nowrap}
+.user-total-time{display:grid;justify-items:end;align-content:start;font-size:9px;font-weight:1000;white-space:nowrap}
+.user-total-time small{font-size:6px;color:#71685e;letter-spacing:.08em}
+.user-card-progress .progress-stack{margin-top:4px}.user-card-progress .progress-stack>div{grid-template-columns:50px 1fr}
+.detail-body .basement-medals{padding:10px;border:2px solid var(--ink);background:#fffaf1;gap:7px;min-height:48px}
+.detail-body .basement-medal{width:34px;height:34px}.detail-body .basement-streak{width:26px;height:34px}.detail-body .basement-streak b{font-size:10px}
+.detail-outfit{display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px;align-items:center;padding:12px;border:2px solid var(--ink);background:#fffaf1}
+.detail-outfit-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+.detail-outfit-grid>div{min-width:0;padding:8px;border:1px solid #c8bdaf;background:var(--paper)}
+.detail-outfit-grid span{display:block;color:#71685e;font-size:6px;font-weight:1000;letter-spacing:.08em;margin-bottom:4px}
+.detail-outfit-grid strong{display:flex;align-items:center;gap:5px;font-size:8px;overflow-wrap:anywhere}
+.detail-progress{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media(max-width:760px){.basement-user-identity{min-width:0}.basement-avatar{width:54px}.user-card-top{align-items:flex-start}.progress-stack span{white-space:normal}.detail-outfit{grid-template-columns:1fr}.basement-avatar-large{width:110px;margin:auto}.detail-outfit-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:430px){.detail-outfit-grid{grid-template-columns:1fr}.progress-stack>div{grid-template-columns:50px 1fr}}

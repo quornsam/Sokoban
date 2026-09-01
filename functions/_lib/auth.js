@@ -255,6 +255,7 @@ export function progressSummary(progressValue) {
   const progress = parseProgress(progressValue);
   const packs = {};
   let dailyCompleted = 0;
+  let dailyStreak = 0;
 
   for (const [key, value] of Object.entries(progress)) {
     let match = /^boxxy-pack-(.+)-completed-v1$/.exec(key);
@@ -283,6 +284,13 @@ export function progressSummary(progressValue) {
         const parsed = JSON.parse(value);
         dailyCompleted = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? Object.keys(parsed).length : 0;
       } catch (_) {}
+      continue;
+    }
+    if (key === "boxxy-daily-streak-v1") {
+      try {
+        const parsed = JSON.parse(value);
+        dailyStreak = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? Math.max(0, Math.trunc(Number(parsed.count) || 0)) : 0;
+      } catch (_) {}
     }
   }
 
@@ -292,10 +300,16 @@ export function progressSummary(progressValue) {
     if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) catalog = parsed;
   } catch (_) {}
 
+  for (const [packId, catalogEntryValue] of Object.entries(catalog)) {
+    if (!packs[packId]) packs[packId] = {};
+    const catalogEntry = catalogEntryValue && typeof catalogEntryValue === "object" ? catalogEntryValue : {};
+    packs[packId].name = String(catalogEntry.name || packId);
+    packs[packId].levelCount = Math.max(0, Number(catalogEntry.levels) || 0);
+  }
   for (const [packId, data] of Object.entries(packs)) {
-    const catalogEntry = catalog[packId] && typeof catalog[packId] === "object" ? catalog[packId] : {};
-    data.name = String(catalogEntry.name || packId);
-    data.levelCount = Math.max(0, Number(catalogEntry.levels) || 0);
+    if (data.name) continue;
+    data.name = packId;
+    data.levelCount = Math.max(0, Number(data.levelCount) || 0);
   }
 
   const levelsCompleted = Object.values(packs).reduce((sum, pack) => sum + Math.max(0, Number(pack.completed) || 0), 0) + dailyCompleted;
@@ -362,6 +376,7 @@ export function progressSummary(progressValue) {
   return {
     activePack: String(progress["boxxy-active-pack-v2"] || ""),
     dailyCompleted,
+    dailyStreak,
     levelsCompleted,
     packsCompleted,
     totalSteps: Math.max(0, Math.trunc(Number(progress["boxxy-all-time-steps-v1"]) || 0)),

@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "307",
-  lastUpdated: "2026-08-26"
+  version: "308",
+  lastUpdated: "2026-09-01"
 });
+/* BOXXY v308 — cleaner level-picker titles plus the BOXXY Originals first-50 completion board. */
 /* BOXXY v307 — Turbo reuses the cached piece renderer so rapid movement does not repeatedly rebuild the board DOM or disturb header medal painting. */
 /* BOXXY v306 — Turbo keyboard taps retain the normal walk/push animation; held repeats run without animation at Turbo speed. */
 /* BOXXY v305 — Turbo keyboard input keeps a tap to one square; sustained holds engage Turbo repeat speed. */
@@ -2079,6 +2080,7 @@ window.BOXXY_RELEASE = Object.freeze({
   const legalCloseBtn = document.getElementById("legalCloseBtn");
   const legalVersion = document.getElementById("legalVersion");
   const legalLastUpdated = document.getElementById("legalLastUpdated");
+  const originalsCompletionBoard = document.getElementById("originalsCompletionBoard");
   const autoSolveBtn = document.getElementById("autoSolveBtn");
   const cancelGuidedBtn = document.getElementById("cancelGuidedBtn");
   const instruction = document.querySelector(".instruction");
@@ -2701,9 +2703,41 @@ window.BOXXY_RELEASE = Object.freeze({
     }
   }
 
+  const ORIGINALS_COMPLETION_BOARD_SIZE = 50;
+  const ORIGINALS_COMPLETERS = Object.freeze([
+    { name: "Anian Wu", country: "USA" },
+    { name: "Logan Stipe", country: "USA" },
+    { name: "Stephen Wilbourne", country: "Australia" }
+  ]);
+
+  function renderOriginalsCompletionBoard() {
+    if (!originalsCompletionBoard || originalsCompletionBoard.childElementCount) return;
+    const fragment = document.createDocumentFragment();
+    for (let index = 0; index < ORIGINALS_COMPLETION_BOARD_SIZE; index++) {
+      const finisher = ORIGINALS_COMPLETERS[index] || null;
+      const slot = document.createElement("div");
+      slot.className = `originals-completion-slot${finisher ? " claimed" : " unclaimed"}`;
+
+      const place = document.createElement("span");
+      place.className = "originals-completion-place";
+      place.textContent = String(index + 1);
+
+      const name = document.createElement("strong");
+      name.textContent = finisher?.name || "UNCLAIMED";
+
+      const country = document.createElement("small");
+      country.textContent = finisher?.country || "AVAILABLE";
+
+      slot.append(place, name, country);
+      fragment.appendChild(slot);
+    }
+    originalsCompletionBoard.appendChild(fragment);
+  }
+
   function openLegalModal() {
     if (!legalModal) return;
     renderReleaseMetadata();
+    renderOriginalsCompletionBoard();
     legalModal.hidden = false;
     requestAnimationFrame(() => legalCloseBtn?.focus());
   }
@@ -6654,7 +6688,7 @@ window.BOXXY_RELEASE = Object.freeze({
     const pickerPack = levelPickerPack;
     levelButtons.dataset.packId = pickerPack.id;
     levelButtons.innerHTML = "";
-    if (levelPickerTitle) levelPickerTitle.textContent = `${String(pickerPack.displayName || pickerPack.title || "CHOOSE").toUpperCase()} LEVELS`;
+    if (levelPickerTitle) levelPickerTitle.textContent = packCollectionLabel(pickerPack).toUpperCase();
 
     const dailyButton = document.createElement("button");
     dailyButton.type = "button";
