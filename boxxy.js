@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "314",
+  version: "315",
   lastUpdated: "2026-09-03"
 });
+/* BOXXY v315 — Mouse Control setting warns when Daily fastest-time leaderboard eligibility would be affected. */
 /* BOXXY v314 — mobile typography/readability pass; gameplay and Daily leaderboard logic unchanged. */
 /* BOXXY v313 — Daily Fastest Today panel matches the Today card height on desktop. */
 /* BOXXY v312 — Daily archive leaderboard-name correction. */
@@ -1990,6 +1991,7 @@ window.BOXXY_RELEASE = Object.freeze({
   const settingsSpeedSelect = document.getElementById("settingsSpeedSelect");
   const settingsMouseRow = document.getElementById("settingsMouseRow");
   const settingsMouseToggle = document.getElementById("settingsMouseToggle");
+  const settingsMouseLeaderboardWarning = document.getElementById("settingsMouseLeaderboardWarning");
   const settingsControlsPanel = document.getElementById("settingsControlsPanel");
   const settingsContactBtn = document.getElementById("settingsContactBtn");
   const levelBtn = document.getElementById("levelBtn");
@@ -4805,6 +4807,9 @@ window.BOXXY_RELEASE = Object.freeze({
     settingsMouseToggle.disabled = !available;
     settingsMouseToggle.setAttribute("aria-pressed", String(available && mouseSupportEnabled));
     settingsMouseToggle.textContent = available && mouseSupportEnabled ? "ON" : "OFF";
+    if (settingsMouseLeaderboardWarning) {
+      settingsMouseLeaderboardWarning.hidden = !(available && mouseSupportEnabled);
+    }
   }
 
   function setSettingsMouseSupport(enabled) {
