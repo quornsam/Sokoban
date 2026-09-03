@@ -159,7 +159,7 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=308">
+<link rel="stylesheet" href="styles.css?v=313">
 <link rel="stylesheet" href="how-to-play.css?v=225">
 <link rel="preload" as="image" href="assets/board/boxes/box-default-yellow.png?v=226">
 <link rel="preload" as="image" href="assets/board/goals/goal-red.png?v=226">
@@ -572,6 +572,21 @@
       </div>
     </div>
     <div id="dailyArchiveMonths" class="daily-archive-months" aria-label="Available Daily Boxxy puzzles"></div>
+  </section>
+</div>
+
+<div id="dailyLeaderboardModal" class="modal daily-leaderboard-modal" hidden>
+  <section class="daily-leaderboard-card" role="dialog" aria-modal="true" aria-labelledby="dailyLeaderboardTitle" aria-describedby="dailyLeaderboardDate">
+    <header class="daily-leaderboard-head">
+      <div>
+        <span class="complete-kicker">DAILY BOXXY</span>
+        <h2 id="dailyLeaderboardTitle">FASTEST TIMES</h2>
+        <p id="dailyLeaderboardDate"></p>
+      </div>
+      <button id="dailyLeaderboardCloseBtn" class="daily-leaderboard-close" type="button" aria-label="Close fastest times">×</button>
+    </header>
+    <div id="dailyLeaderboardList" class="daily-leaderboard-list" aria-live="polite"></div>
+    <p class="daily-leaderboard-note">Sign in with your account if you want to see your score here too.</p>
   </section>
 </div>
 
@@ -1245,7 +1260,7 @@
 <script src="daily-puzzles/boxxy-daily-loader.js?v=217"></script>
 <script src="levels.js?v=268"></script>
 <script src="starry-night.js?v=302"></script>
-<script src="boxxy.js?v=308"></script>
+<script src="boxxy.js?v=313"></script>
 <script src="account.js?v=291"></script>
 <script src="pack-builder.js?v=216"></script>
 <script src="how-to-play.js?v=153"></script>
