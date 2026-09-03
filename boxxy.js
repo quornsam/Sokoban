@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "313",
+  version: "314",
   lastUpdated: "2026-09-03"
 });
+/* BOXXY v314 — mobile typography/readability pass; gameplay and Daily leaderboard logic unchanged. */
 /* BOXXY v313 — Daily Fastest Today panel matches the Today card height on desktop. */
 /* BOXXY v312 — Daily archive leaderboard-name correction. */
 /* BOXXY v311 — Daily archive desktop centring and completed-card outline refinement. */
