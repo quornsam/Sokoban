@@ -6,10 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "310",
+  version: "311",
   lastUpdated: "2026-09-03"
 });
-/* BOXXY v310 — Daily leaderboard layout, full rankings, medals, and mouse-play leaderboard eligibility. */
+/* BOXXY v311 — Daily archive desktop centring and completed-card outline refinement. */
 /* BOXXY v309 — Daily archive highlights today and adds signed-in fastest-time leaderboards. */
 /* BOXXY v308 — cleaner level-picker titles plus the BOXXY Originals first-50 completion board. */
 /* BOXXY v307 — Turbo reuses the cached piece renderer so rapid movement does not repeatedly rebuild the board DOM or disturb header medal painting. */
