@@ -6806,9 +6806,33 @@ body.large-level-performance .instruction .thought-text{
   .daily-archive-today-leaders{grid-column:auto}
 }
 
-/* Completed historic Dailies retain the green completion outline. */
-.daily-archive-date-card.completed:not(.daily-archive-today-card){
-  border-color:#236d43;
-  outline:2px solid #2f8f5b;
-  outline-offset:1px;
+/* BOXXY v312 — Daily archive corrections.
+   Desktop: keep the compact Today group centred, but stack its top-three
+   leaderboard rows so usernames always have usable width. Mobile is unchanged.
+   Completed historic Dailies get an explicit visible green frame. */
+@media (min-width:821px){
+  .daily-archive-today-feature{align-items:start}
+  .daily-archive-today-list{grid-template-columns:1fr}
+  .daily-archive-today-list .daily-leaderboard-row{
+    border-right:0;
+    border-bottom:1px solid rgba(23,23,25,.22);
+  }
+  .daily-archive-today-list .daily-leaderboard-row:last-child{border-bottom:0}
 }
+
+.daily-archive-date-card.completed:not(.daily-archive-today-card){
+  position:relative;
+  border-color:#2f8f5b!important;
+  background:#e8f4eb!important;
+  box-shadow:2px 2px 0 rgba(47,143,91,.32)!important;
+  outline:none!important;
+}
+.daily-archive-date-card.completed:not(.daily-archive-today-card)::after{
+  content:"";
+  position:absolute;
+  inset:-2px;
+  border:3px solid #2f8f5b;
+  pointer-events:none;
+  z-index:6;
+}
+

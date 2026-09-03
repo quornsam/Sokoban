@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "311",
+  version: "312",
   lastUpdated: "2026-09-03"
 });
+/* BOXXY v312 — Daily archive leaderboard-name and historic completion-frame corrections. */
 /* BOXXY v311 — Daily archive desktop centring and completed-card outline refinement. */
 /* BOXXY v309 — Daily archive highlights today and adds signed-in fastest-time leaderboards. */
 /* BOXXY v308 — cleaner level-picker titles plus the BOXXY Originals first-50 completion board. */
