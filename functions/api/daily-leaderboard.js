@@ -19,7 +19,9 @@ export async function onRequestGet(context) {
     if (!dateKey) return json({ ok: false, error: "A valid Daily Boxxy date is required." }, 400);
 
     const secondsPath = `$."${dateKey}".seconds`;
+    const movesPath = `$."${dateKey}".moves`;
     const leaderboardSecondsPath = `$."${dateKey}".leaderboardSeconds`;
+    const leaderboardMovesPath = `$."${dateKey}".leaderboardMoves`;
     const leaderboardTrackedPath = `$."${dateKey}".leaderboardTracked`;
     const result = await db.prepare(`
       WITH daily_records AS (
@@ -36,18 +38,33 @@ export async function onRequestGet(context) {
               CAST(json_extract(daily_json, ?) AS INTEGER)
             ELSE
               CAST(json_extract(daily_json, ?) AS INTEGER)
-          END AS seconds
+          END AS seconds,
+          CASE
+            WHEN json_extract(daily_json, ?) = 1 THEN
+              COALESCE(
+                CAST(json_extract(daily_json, ?) AS INTEGER),
+                CAST(json_extract(daily_json, ?) AS INTEGER)
+              )
+            ELSE
+              CAST(json_extract(daily_json, ?) AS INTEGER)
+          END AS moves
         FROM daily_records
       )
-      SELECT username, seconds
+      SELECT username, seconds, moves
       FROM daily_times
       WHERE seconds IS NOT NULL AND seconds > 0
       ORDER BY seconds ASC, username COLLATE NOCASE ASC
-    `).bind(leaderboardTrackedPath, leaderboardSecondsPath, secondsPath).all();
+    `).bind(
+      leaderboardTrackedPath, leaderboardSecondsPath, secondsPath,
+      leaderboardTrackedPath, leaderboardMovesPath, movesPath, movesPath
+    ).all();
 
     const entries = (result.results || []).map(row => ({
       username: String(row.username || "").slice(0, 20),
-      seconds: Math.max(0, Math.trunc(Number(row.seconds) || 0))
+      seconds: Math.max(0, Math.trunc(Number(row.seconds) || 0)),
+      moves: Number.isFinite(Number(row.moves)) && Number(row.moves) >= 0
+        ? Math.trunc(Number(row.moves))
+        : null
     }));
 
     return json({ ok: true, date: dateKey, entries }, 200, {

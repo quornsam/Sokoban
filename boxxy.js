@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "315",
+  version: "316",
   lastUpdated: "2026-09-03"
 });
+/* BOXXY v316 — Daily fastest-time leaderboards also show moves used; fastest eligible time now preserves its matching move count. */
 /* BOXXY v315 — Mouse Control setting warns when Daily fastest-time leaderboard eligibility would be affected. */
 /* BOXXY v314 — mobile typography/readability pass; gameplay and Daily leaderboard logic unchanged. */
 /* BOXXY v313 — Daily Fastest Today panel matches the Today card height on desktop. */
@@ -1125,6 +1126,9 @@ window.BOXXY_RELEASE = Object.freeze({
           ? Number(previous.leaderboardSeconds)
           : null)
       : (Number.isFinite(previousSeconds) && previousSeconds > 0 ? previousSeconds : null);
+    const previousLeaderboardMoves = Number.isFinite(Number(previous?.leaderboardMoves))
+      ? Math.max(0, Math.trunc(Number(previous.leaderboardMoves)))
+      : (previous?.leaderboardTracked === true ? null : (Number.isFinite(previousMoves) ? Math.max(0, Math.trunc(previousMoves)) : null));
     const attemptLeaderboardSeconds = result.leaderboardEligible === false ? null : attempt.seconds;
 
     if (!previous || !Number.isFinite(previousMoves) || attempt.moves < Math.max(0, previousMoves)) {
@@ -1138,10 +1142,25 @@ window.BOXXY_RELEASE = Object.freeze({
       };
     }
 
-    const eligibleTimes = [previousLeaderboardSeconds, attemptLeaderboardSeconds]
-      .filter(value => Number.isFinite(value) && value > 0);
+    let leaderboardSeconds = Number.isFinite(previousLeaderboardSeconds) && previousLeaderboardSeconds > 0
+      ? previousLeaderboardSeconds
+      : null;
+    let leaderboardMoves = Number.isFinite(previousLeaderboardMoves)
+      ? previousLeaderboardMoves
+      : null;
+    if (Number.isFinite(attemptLeaderboardSeconds) && attemptLeaderboardSeconds > 0) {
+      const isFaster = leaderboardSeconds === null || attemptLeaderboardSeconds < leaderboardSeconds;
+      const isEqualButFewerMoves = attemptLeaderboardSeconds === leaderboardSeconds
+        && (leaderboardMoves === null || attempt.moves < leaderboardMoves);
+      if (isFaster || isEqualButFewerMoves) {
+        leaderboardSeconds = attemptLeaderboardSeconds;
+        leaderboardMoves = attempt.moves;
+      }
+    }
     completions[key].leaderboardTracked = true;
-    completions[key].leaderboardSeconds = eligibleTimes.length ? Math.min(...eligibleTimes) : null;
+    completions[key].leaderboardSeconds = leaderboardSeconds;
+    if (leaderboardMoves === null) delete completions[key].leaderboardMoves;
+    else completions[key].leaderboardMoves = leaderboardMoves;
     writeDailyCompletions(completions);
     return completions[key];
   }
@@ -2962,7 +2981,10 @@ window.BOXXY_RELEASE = Object.freeze({
       const entries = Array.isArray(data?.entries)
         ? data.entries.map(entry => ({
             username: String(entry?.username || "").trim(),
-            seconds: Math.max(0, Math.trunc(Number(entry?.seconds) || 0))
+            seconds: Math.max(0, Math.trunc(Number(entry?.seconds) || 0)),
+            moves: Number.isFinite(Number(entry?.moves)) && Number(entry.moves) >= 0
+              ? Math.trunc(Number(entry.moves))
+              : null
           })).filter(entry => entry.username)
         : [];
       dailyLeaderboardCache.set(key, { loadedAt: Date.now(), entries });
@@ -3006,7 +3028,10 @@ window.BOXXY_RELEASE = Object.freeze({
       const time = document.createElement("b");
       time.className = "daily-leaderboard-time";
       time.textContent = formatClockDuration(entry.seconds);
-      row.append(rank, name, time);
+      const moves = document.createElement("span");
+      moves.className = "daily-leaderboard-moves";
+      moves.textContent = Number.isFinite(Number(entry.moves)) ? `${Math.max(0, Math.trunc(Number(entry.moves)))} MOVES` : "— MOVES";
+      row.append(rank, name, time, moves);
       container.appendChild(row);
     });
   }
