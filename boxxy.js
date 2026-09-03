@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "309",
+  version: "310",
   lastUpdated: "2026-09-03"
 });
+/* BOXXY v310 — Daily leaderboard layout, full rankings, medals, and mouse-play leaderboard eligibility. */
 /* BOXXY v309 — Daily archive highlights today and adds signed-in fastest-time leaderboards. */
 /* BOXXY v308 — cleaner level-picker titles plus the BOXXY Originals first-50 completion board. */
 /* BOXXY v307 — Turbo reuses the cached piece renderer so rapid movement does not repeatedly rebuild the board DOM or disturb header medal painting. */
@@ -1115,6 +1116,13 @@ window.BOXXY_RELEASE = Object.freeze({
     const previousMoves = Number(previous?.moves);
     const previousPushes = Number(previous?.pushes);
     const previousSeconds = Number(previous?.seconds);
+    const previousLeaderboardSeconds = previous?.leaderboardTracked === true
+      ? (Number.isFinite(Number(previous?.leaderboardSeconds)) && Number(previous.leaderboardSeconds) > 0
+          ? Number(previous.leaderboardSeconds)
+          : null)
+      : (Number.isFinite(previousSeconds) && previousSeconds > 0 ? previousSeconds : null);
+    const attemptLeaderboardSeconds = result.leaderboardEligible === false ? null : attempt.seconds;
+
     if (!previous || !Number.isFinite(previousMoves) || attempt.moves < Math.max(0, previousMoves)) {
       completions[key] = attempt;
     } else {
@@ -1125,6 +1133,11 @@ window.BOXXY_RELEASE = Object.freeze({
         completedAt: attempt.completedAt
       };
     }
+
+    const eligibleTimes = [previousLeaderboardSeconds, attemptLeaderboardSeconds]
+      .filter(value => Number.isFinite(value) && value > 0);
+    completions[key].leaderboardTracked = true;
+    completions[key].leaderboardSeconds = eligibleTimes.length ? Math.min(...eligibleTimes) : null;
     writeDailyCompletions(completions);
     return completions[key];
   }
@@ -2187,6 +2200,7 @@ window.BOXXY_RELEASE = Object.freeze({
   let mouseSupportSelectedBoxIndex = -1;
   let mouseSupportPlans = new Map();
   let mouseSupportIgnoreClickUntil = 0;
+  let dailyMouseSupportUsed = false;
   let firstPersonMode = false;
   let firstPersonHeading = 2;
   let firstPersonClickCount = 0;
@@ -2953,7 +2967,7 @@ window.BOXXY_RELEASE = Object.freeze({
     }
   }
 
-  function renderDailyLeaderboardRows(container, entries, limit = 10) {
+  function renderDailyLeaderboardRows(container, entries, limit = 0) {
     if (!container) return;
     container.innerHTML = "";
     if (entries === null) {
@@ -2963,7 +2977,9 @@ window.BOXXY_RELEASE = Object.freeze({
       container.appendChild(unavailable);
       return;
     }
-    const visible = Array.isArray(entries) ? entries.slice(0, Math.max(1, Number(limit) || 10)) : [];
+    const allEntries = Array.isArray(entries) ? entries : [];
+    const numericLimit = Number(limit) || 0;
+    const visible = numericLimit > 0 ? allEntries.slice(0, numericLimit) : allEntries;
     if (!visible.length) {
       const empty = document.createElement("p");
       empty.className = "daily-leaderboard-empty";
@@ -2971,12 +2987,14 @@ window.BOXXY_RELEASE = Object.freeze({
       container.appendChild(empty);
       return;
     }
+    const medals = ["🥇", "🥈", "🥉"];
     visible.forEach((entry, index) => {
       const row = document.createElement("div");
       row.className = "daily-leaderboard-row";
       const rank = document.createElement("span");
       rank.className = "daily-leaderboard-rank";
-      rank.textContent = String(index + 1);
+      rank.textContent = medals[index] || String(index + 1);
+      if (index < 3) rank.classList.add("medal");
       const name = document.createElement("strong");
       name.className = "daily-leaderboard-name";
       name.textContent = String(entry.username || "");
@@ -2988,7 +3006,7 @@ window.BOXXY_RELEASE = Object.freeze({
     });
   }
 
-  async function loadDailyLeaderboardInto(container, puzzle, limit = 10) {
+  async function loadDailyLeaderboardInto(container, puzzle, limit = 0) {
     if (!container || !puzzle?.date) return;
     const dateKey = String(puzzle.date);
     container.dataset.dailyLeaderboardDate = dateKey;
@@ -3002,7 +3020,7 @@ window.BOXXY_RELEASE = Object.freeze({
     if (!dailyLeaderboardModal || !puzzle?.date) return;
     if (dailyLeaderboardTitle) dailyLeaderboardTitle.textContent = `DAILY #${Number(puzzle.sequence) || ""} · FASTEST TIMES`;
     if (dailyLeaderboardDate) dailyLeaderboardDate.textContent = formatDailyDate(puzzle.date, { weekday: true, long: true, year: true });
-    if (dailyLeaderboardList) loadDailyLeaderboardInto(dailyLeaderboardList, puzzle, 10);
+    if (dailyLeaderboardList) loadDailyLeaderboardInto(dailyLeaderboardList, puzzle, 0);
     dailyLeaderboardModal.hidden = false;
     requestAnimationFrame(() => dailyLeaderboardCloseBtn?.focus?.({ preventScroll: true }));
   }
@@ -6010,6 +6028,7 @@ window.BOXXY_RELEASE = Object.freeze({
     sharedPuzzleName = "";
     dailyMode = true;
     dailyPuzzle = puzzle;
+    dailyMouseSupportUsed = false;
     window.BOXXY_SHARED_MODE = false;
     document.body.classList.remove("maker-testing", "shared-puzzle");
     document.body.classList.add("daily-mode");
@@ -6464,7 +6483,8 @@ window.BOXXY_RELEASE = Object.freeze({
         moves,
         pushes,
         seconds: completionSeconds,
-        completedAt: Date.now()
+        completedAt: Date.now(),
+        leaderboardEligible: !dailyMouseSupportUsed
       });
       dailyLeaderboardCache.delete(String(dailyPuzzle.date));
       const streakResult = awardDailyStreakForCompletion(dailyPuzzle.date);
@@ -7115,6 +7135,7 @@ window.BOXXY_RELEASE = Object.freeze({
     stopMouseSupportRoute();
     clearMouseSupportOverlay();
     mouseSupportBusy = true;
+    if (dailyMode) dailyMouseSupportUsed = true;
     document.body.classList.add("mouse-support-busy");
     showCharacterThought(description, true);
     let stepIndex = 0;
