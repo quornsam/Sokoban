@@ -35,9 +35,9 @@ export async function onRequestGet(context) {
           username,
           CASE
             WHEN json_extract(daily_json, ?) = 1 THEN
-              CAST(json_extract(daily_json, ?) AS INTEGER)
+              CAST(json_extract(daily_json, ?) AS REAL)
             ELSE
-              CAST(json_extract(daily_json, ?) AS INTEGER)
+              CAST(json_extract(daily_json, ?) AS REAL)
           END AS seconds,
           CASE
             WHEN json_extract(daily_json, ?) = 1 THEN
@@ -61,7 +61,7 @@ export async function onRequestGet(context) {
 
     const entries = (result.results || []).map(row => ({
       username: String(row.username || "").slice(0, 20),
-      seconds: Math.max(0, Math.trunc(Number(row.seconds) || 0)),
+      seconds: Math.max(0, Math.round((Number(row.seconds) || 0) * 100) / 100),
       moves: Number.isFinite(Number(row.moves)) && Number(row.moves) >= 0
         ? Math.trunc(Number(row.moves))
         : null
