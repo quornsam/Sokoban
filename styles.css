@@ -6929,3 +6929,109 @@ body.large-level-performance .instruction .thought-text{
   .daily-complete-result-value{font-size:16px}
   .daily-complete-streak-message{margin-top:5px;font-size:9.5px;line-height:1.2}
 }
+
+/* BOXXY v319 — ordinary completion result: level title plus one coherent result system. */
+.complete-card:not(.daily-complete):not(.final-complete) #completeText{
+  width:100%;
+  max-width:none;
+  margin:0 0 18px;
+  font-family:inherit;
+}
+.standard-complete-level-title{
+  display:block;
+  margin:0 0 10px;
+  font-family:inherit;
+  font-size:12px;
+  line-height:1.25;
+  font-weight:950;
+  letter-spacing:.055em;
+  text-transform:uppercase;
+  overflow-wrap:anywhere;
+}
+.standard-complete-result{
+  display:grid;
+  grid-template-columns:1.45fr repeat(2,minmax(0,1fr));
+  width:100%;
+  border:2px solid var(--ink);
+  background:#fff9ee;
+  box-shadow:4px 4px 0 rgba(23,23,25,.14);
+  font-family:inherit;
+}
+.standard-complete-result-item{
+  min-width:0;
+  padding:8px 9px 9px;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:4px;
+  font-family:inherit;
+}
+.standard-complete-result-item + .standard-complete-result-item{
+  border-left:1px solid rgba(23,23,25,.28);
+}
+.standard-complete-result-label{
+  font-family:inherit;
+  font-size:8px;
+  line-height:1;
+  font-weight:950;
+  letter-spacing:.11em;
+  color:#71675a;
+}
+.standard-complete-result-value{
+  max-width:100%;
+  font-family:inherit;
+  font-size:19px;
+  line-height:1;
+  font-weight:950;
+  font-variant-numeric:tabular-nums;
+  letter-spacing:-.025em;
+  white-space:nowrap;
+}
+.standard-complete-result-time .time-fraction{
+  display:inline;
+  font-family:inherit;
+  font-size:.62em;
+  white-space:nowrap;
+}
+.standard-complete-note{
+  display:block;
+  margin-top:9px;
+  font-family:inherit;
+  font-size:9px;
+  line-height:1.25;
+  font-weight:900;
+  letter-spacing:.07em;
+  color:#655d54;
+}
+
+@media(max-width:560px){
+  .complete-card:not(.daily-complete):not(.final-complete) #completeText{margin-bottom:13px}
+  .standard-complete-level-title{margin-bottom:8px;font-size:10px;line-height:1.2}
+  .standard-complete-result{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .standard-complete-result-time{grid-column:1 / -1;flex-direction:row;align-items:baseline;justify-content:space-between;gap:8px;border-bottom:1px solid rgba(23,23,25,.28)}
+  .standard-complete-result-item{padding:7px 8px 8px}
+  .standard-complete-result-item:nth-child(3){border-left:1px solid rgba(23,23,25,.28)}
+  .standard-complete-result-value{font-size:17px}
+  .standard-complete-result-time .standard-complete-result-value{font-size:19px}
+  .standard-complete-note{margin-top:7px;font-size:8px}
+}
+
+@media(max-width:390px){
+  .standard-complete-level-title{font-size:9px}
+  .standard-complete-result-item{padding-inline:7px}
+  .standard-complete-result-label{font-size:7px}
+  .standard-complete-result-value{font-size:16px}
+  .standard-complete-result-time .standard-complete-result-value{font-size:18px}
+}
+
+@media(max-height:500px) and (orientation:landscape){
+  .complete-card:not(.daily-complete):not(.final-complete) #completeText{margin-bottom:8px}
+  .standard-complete-level-title{margin-bottom:5px;font-size:8px}
+  .standard-complete-result-item{padding:5px 7px 6px;gap:2px}
+  .standard-complete-result-value{font-size:15px}
+  .standard-complete-result-time .standard-complete-result-value{font-size:16px}
+  .standard-complete-note{margin-top:5px;font-size:7px}
+}
+@media(max-width:560px){
+  .standard-complete-result-item:nth-child(2){border-left:0}
+}

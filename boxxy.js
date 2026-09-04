@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "318",
+  version: "319",
   lastUpdated: "2026-09-04"
 });
+/* BOXXY v319 — ordinary puzzle completion modals now show the level title and a tidy responsive TIME / MOVES / PUSHES result block. */
 /* BOXXY v318 — completion-time presentation is reorganised for clean decimal alignment across screen sizes; gameplay clock fractions stay on one line. */
 /* BOXXY v317 — timers begin on the first successful move, completed times retain hundredths, and anonymous analytics label visits as new or returning without sending the local marker. */
 /* BOXXY v316 — Daily fastest-time leaderboards also show moves used; fastest eligible time now preserves its matching move count. */
@@ -6757,21 +6758,46 @@ window.BOXXY_RELEASE = Object.freeze({
           ? "TURBO<br>UNLOCKED"
           : solvedWithWalkthrough ? "GUIDED<br>SOLVE" : "PUZZLE<br>CLEARED";
         const statedMinimum = Number(levelData.minimum);
-        let summary;
+        const levelTitleText = String(levelData?.name || `Level ${levelIndex + 1}`).trim() || `Level ${levelIndex + 1}`;
+        const safeLevelTitle = levelTitleText.replace(/[&<>"']/g, character => ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#39;"
+        })[character]);
+        let completionNote = "";
         if (Number.isFinite(statedMinimum) && statedMinimum > 0) {
           const difference = moves - statedMinimum;
-          summary = difference === 0
-            ? `Perfect route: ${moves} moves and ${pushes} pushes.`
-            : `Solved in ${moves} moves and ${pushes} pushes — ${difference} over the minimum.`;
-        } else {
-          summary = `Solved in ${moves} moves and ${pushes} pushes.`;
+          completionNote = difference === 0
+            ? "PERFECT ROUTE"
+            : `${difference} ${difference === 1 ? "MOVE" : "MOVES"} OVER MINIMUM`;
+        }
+        if (solvedWithWalkthrough) {
+          completionNote = completionNote
+            ? `${completionNote} · GUIDED SOLVE`
+            : "GUIDED SOLVE · COMPLETED";
         }
         if (isInstantUnlockCompletion) {
           completeText.innerHTML = `You can now select <strong>Turbo</strong> from Menu → Boxxy Speed. Boxxy moves at maximum speed. This will be useful for Level 25.<br><br>Level 24 completed in ${moves} moves and ${pushes} pushes.`;
         } else {
-          completeText.textContent = solvedWithWalkthrough
-            ? `${summary} This level is now counted as completed, and its button will appear in yellow.`
-            : summary;
+          completeText.innerHTML = `
+            <span class="standard-complete-level-title">LEVEL ${levelIndex + 1} · ${safeLevelTitle}</span>
+            <span class="standard-complete-result" aria-label="${safeLevelTitle}. Completed in ${formatClockDuration(completionDurationSeconds)}, ${moves} ${moves === 1 ? "move" : "moves"}, ${pushes} ${pushes === 1 ? "push" : "pushes"}">
+              <span class="standard-complete-result-item standard-complete-result-time">
+                <span class="standard-complete-result-label">TIME</span>
+                <strong class="standard-complete-result-value">${formatPreciseClockHtml(completionDurationSeconds)}</strong>
+              </span>
+              <span class="standard-complete-result-item">
+                <span class="standard-complete-result-label">MOVES</span>
+                <strong class="standard-complete-result-value">${moves}</strong>
+              </span>
+              <span class="standard-complete-result-item">
+                <span class="standard-complete-result-label">PUSHES</span>
+                <strong class="standard-complete-result-value">${pushes}</strong>
+              </span>
+            </span>
+            ${completionNote ? `<span class="standard-complete-note">${completionNote}</span>` : ""}`;
         }
         if (nextBtnLabel) nextBtnLabel.textContent = "NEXT LEVEL";
         if (nextBtnIcon) nextBtnIcon.textContent = "→";
