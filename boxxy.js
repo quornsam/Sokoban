@@ -6,9 +6,12 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "316",
-  lastUpdated: "2026-09-03"
+  version: "319",
+  lastUpdated: "2026-09-04"
 });
+/* BOXXY v319 — ordinary puzzle completion modals now show the level title and a tidy responsive TIME / MOVES / PUSHES result block. */
+/* BOXXY v318 — completion-time presentation is reorganised for clean decimal alignment across screen sizes; gameplay clock fractions stay on one line. */
+/* BOXXY v317 — timers begin on the first successful move, completed times retain hundredths, and anonymous analytics label visits as new or returning without sending the local marker. */
 /* BOXXY v316 — Daily fastest-time leaderboards also show moves used; fastest eligible time now preserves its matching move count. */
 /* BOXXY v315 — Mouse Control setting warns when Daily fastest-time leaderboard eligibility would be affected. */
 /* BOXXY v314 — mobile typography/readability pass; gameplay and Daily leaderboard logic unchanged. */
@@ -1279,6 +1282,16 @@ window.BOXXY_RELEASE = Object.freeze({
   const ALL_TIME_PUSHES_KEY = "boxxy-all-time-pushes-v1";
   const LEVEL_ATTEMPTS_KEY = "boxxy-level-attempts-v1";
   const DEVICE_ID_KEY = "boxxy-device-id-v1";
+  /* Analytics only receives this category, never the local device marker itself.
+     Capture it once, before the current page can create a marker, so the first
+     visit remains "new" for that whole visit and later visits are "returning". */
+  const BOXXY_ANALYTICS_VISITOR_TYPE = (() => {
+    try {
+      return String(localStorage.getItem(DEVICE_ID_KEY) || "").trim() ? "returning" : "new";
+    } catch (_) {
+      return "unknown";
+    }
+  })();
   const packStorageKeyFor = (packId, suffix) => `boxxy-pack-${packId}-${suffix}-v1`;
 
   function starryNightLevel24AlreadyComplete() {
@@ -1763,6 +1776,8 @@ window.BOXXY_RELEASE = Object.freeze({
     completed = false;
     modal.hidden = true;
     startedAt = Date.now() - Math.max(0, Number(currentCheckpoint.elapsedMs) || 0);
+    clearInterval(timer);
+    timer = setInterval(updateTime, 250);
     render("idle");
     updateTime();
     scheduleIdle();
@@ -2304,6 +2319,7 @@ window.BOXXY_RELEASE = Object.freeze({
       const payload = {
         game: "BOXXY",
         game_version: Number(window.BOXXY_RELEASE?.version || 0),
+        visitor_type: BOXXY_ANALYTICS_VISITOR_TYPE,
         orientation: boxxyAnalyticsOrientation(),
         input_mode: boxxyAnalyticsInputMode(),
         ...properties
@@ -2341,7 +2357,8 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   function elapsedLevelSeconds() {
-    return startedAt ? Math.max(0, Math.round((Date.now() - startedAt) / 1000)) : 0;
+    if (!startedAt) return 0;
+    return Math.max(0, Math.round((Date.now() - startedAt) / 10) / 100);
   }
 
   /* BOXXY v173 — one exact 6 × 5 completion sprite sheet.
@@ -2981,7 +2998,7 @@ window.BOXXY_RELEASE = Object.freeze({
       const entries = Array.isArray(data?.entries)
         ? data.entries.map(entry => ({
             username: String(entry?.username || "").trim(),
-            seconds: Math.max(0, Math.trunc(Number(entry?.seconds) || 0)),
+            seconds: Math.max(0, Math.round((Number(entry?.seconds) || 0) * 100) / 100),
             moves: Number.isFinite(Number(entry?.moves)) && Number(entry.moves) >= 0
               ? Math.trunc(Number(entry.moves))
               : null
@@ -3027,7 +3044,7 @@ window.BOXXY_RELEASE = Object.freeze({
       name.textContent = String(entry.username || "");
       const time = document.createElement("b");
       time.className = "daily-leaderboard-time";
-      time.textContent = formatClockDuration(entry.seconds);
+      setPreciseClockContent(time, entry.seconds);
       const moves = document.createElement("span");
       moves.className = "daily-leaderboard-moves";
       moves.textContent = Number.isFinite(Number(entry.moves)) ? `${Math.max(0, Math.trunc(Number(entry.moves)))} MOVES` : "— MOVES";
@@ -3110,7 +3127,11 @@ window.BOXXY_RELEASE = Object.freeze({
       const movesStat = document.createElement("div");
       movesStat.innerHTML = `<span>MOVES</span><strong>${Math.max(0, Number(result.moves) || 0)}</strong>`;
       const timeStat = document.createElement("div");
-      timeStat.innerHTML = `<span>TIME</span><strong>${formatClockDuration(result.seconds)}</strong>`;
+      const timeLabel = document.createElement("span");
+      timeLabel.textContent = "TIME";
+      const timeValue = document.createElement("strong");
+      setPreciseClockContent(timeValue, result.seconds);
+      timeStat.append(timeLabel, timeValue);
       stats.append(movesStat, timeStat);
     } else {
       const gap = document.createElement("p");
@@ -5924,8 +5945,20 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   function updateTime() {
+    if (!startedAt) {
+      timeEl.textContent = "00:00";
+      return;
+    }
     const seconds = Math.floor((Date.now() - startedAt) / 1000);
     timeEl.textContent = `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
+  }
+
+  function startLevelTimerIfNeeded() {
+    if (startedAt || completed) return;
+    startedAt = Date.now();
+    clearInterval(timer);
+    timer = setInterval(updateTime, 250);
+    updateTime();
   }
 
   function scheduleIdle() {
@@ -5972,13 +6005,40 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   function formatClockDuration(totalSeconds) {
-    const seconds = Math.max(0, Math.floor(Number(totalSeconds) || 0));
+    const hundredths = Math.max(0, Math.round((Number(totalSeconds) || 0) * 100));
+    const seconds = Math.floor(hundredths / 100);
+    const fraction = hundredths % 100;
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const remainder = seconds % 60;
-    return hours
+    const clock = hours
       ? `${hours}:${String(minutes).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`
       : `${String(minutes).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`;
+    return `${clock}.${String(fraction).padStart(2, "0")}`;
+  }
+
+  function preciseClockParts(totalSeconds) {
+    const formatted = formatClockDuration(totalSeconds);
+    const decimalIndex = formatted.lastIndexOf(".");
+    return {
+      whole: decimalIndex >= 0 ? formatted.slice(0, decimalIndex) : formatted,
+      fraction: decimalIndex >= 0 ? formatted.slice(decimalIndex) : ".00"
+    };
+  }
+
+  function setPreciseClockContent(element, totalSeconds) {
+    if (!element) return;
+    const { whole, fraction } = preciseClockParts(totalSeconds);
+    element.textContent = whole;
+    const fractionSpan = document.createElement("span");
+    fractionSpan.className = "time-fraction";
+    fractionSpan.textContent = fraction;
+    element.appendChild(fractionSpan);
+  }
+
+  function formatPreciseClockHtml(totalSeconds) {
+    const { whole, fraction } = preciseClockParts(totalSeconds);
+    return `${whole}<span class="time-fraction">${fraction}</span>`;
   }
 
   function formatDailyShareDuration(totalSeconds) {
@@ -6120,9 +6180,9 @@ window.BOXXY_RELEASE = Object.freeze({
     scheduleBoardResize();
     creditTitle.textContent = `DAILY BOXXY · #${Number(puzzle.sequence) || ""}`;
     creditSub.textContent = `SAM CORNWELL · ${width}×${height} · ${boxes.length} ${boxes.length === 1 ? "BOX" : "BOXES"}`;
-    startedAt = Date.now();
+    startedAt = 0;
     clearInterval(timer);
-    timer = setInterval(updateTime, 250);
+    timer = null;
     buildFloor();
     buildVoid();
     buildWalls();
@@ -6215,9 +6275,9 @@ window.BOXXY_RELEASE = Object.freeze({
       ? `${levelData.pushMinimum} ${levelData.pushMinimum === 1 ? "PUSH" : "PUSHES"}`
       : `${boxes.length} ${boxes.length === 1 ? "BOX" : "BOXES"}`;
     creditSub.textContent = `${String(creditedAuthor).toUpperCase()} · ${width}×${height} · ${measureWord}`;
-    startedAt = Date.now();
+    startedAt = 0;
     clearInterval(timer);
-    timer = setInterval(updateTime, 250);
+    timer = null;
     buildFloor();
     buildVoid();
     buildWalls();
@@ -6310,9 +6370,9 @@ window.BOXXY_RELEASE = Object.freeze({
       scheduleBoardResize();
       creditTitle.textContent = shared ? customName.toUpperCase() : `LEVEL MAKER · ${customName.toUpperCase()}`;
       creditSub.textContent = `${shared ? "SHARED PUZZLE · " : ""}${width}×${height} · ${boxes.length} ${boxes.length === 1 ? "BOX" : "BOXES"}`;
-      startedAt = Date.now();
+      startedAt = 0;
       clearInterval(timer);
-      timer = setInterval(updateTime, 250);
+      timer = null;
       buildFloor();
       buildVoid();
       buildWalls();
@@ -6437,6 +6497,7 @@ window.BOXXY_RELEASE = Object.freeze({
         if (!holdBlocked) animTimer = setTimeout(() => render("idle"), scaledBoxxyDelay(180));
         return;
       }
+      startLevelTimerIfNeeded();
       blockedPushHeld = false;
       redoHistory = [];
       history.push(snapshot());
@@ -6470,6 +6531,7 @@ window.BOXXY_RELEASE = Object.freeze({
       if (turboAnimationSuppressed) render("idle");
       else render("pushing");
     } else {
+      startLevelTimerIfNeeded();
       blockedPushHeld = false;
       redoHistory = [];
       history.push(snapshot());
@@ -6508,10 +6570,12 @@ window.BOXXY_RELEASE = Object.freeze({
     completed = true;
     clearTimeout(animTimer);
     clearInterval(timer);
+    timer = null;
+    const completionSeconds = elapsedLevelSeconds();
+    setPreciseClockContent(timeEl, completionSeconds);
     if (!makerTesting && !sharedPuzzleMode && !dailyMode) clearCurrentCheckpoint();
 
     if (dailyMode && dailyPuzzle) {
-      const completionSeconds = elapsedLevelSeconds();
       recordDailyCompletion(dailyPuzzle, {
         moves,
         pushes,
@@ -6541,7 +6605,18 @@ window.BOXXY_RELEASE = Object.freeze({
       } else {
         streakMessage = `Historical Daily Boxxys do not change your streak. Your current streak is ${streakResult.count}.`;
       }
-      completeText.textContent = `Completed in ${formatClockDuration(completionSeconds)} and ${moves} ${moves === 1 ? "move" : "moves"}. ${streakMessage}`;
+      completeText.innerHTML = `
+        <span class="daily-complete-result" aria-label="Completed in ${formatClockDuration(completionSeconds)}, ${moves} ${moves === 1 ? "move" : "moves"}">
+          <span class="daily-complete-result-item">
+            <span class="daily-complete-result-label">TIME</span>
+            <strong class="daily-complete-result-value daily-complete-result-time">${formatPreciseClockHtml(completionSeconds)}</strong>
+          </span>
+          <span class="daily-complete-result-item">
+            <span class="daily-complete-result-label">MOVES</span>
+            <strong class="daily-complete-result-value">${moves}</strong>
+          </span>
+        </span>
+        <span class="daily-complete-streak-message">${streakMessage}</span>`;
       if (dailyShareText) dailyShareText.value = buildDailyShareText(dailyPuzzle, { seconds: completionSeconds, moves });
       if (dailySharePanel) dailySharePanel.hidden = false;
       if (dailyShareStatus) dailyShareStatus.textContent = "";
@@ -6619,7 +6694,7 @@ window.BOXXY_RELEASE = Object.freeze({
       const bestKey = currentBestStorageKey(levelData);
       const oldBest = Number(readBest(levelData) || 0);
       const firstCompletion = !completedLevels.has(levelIndex);
-      const completionDurationSeconds = elapsedLevelSeconds();
+      const completionDurationSeconds = completionSeconds;
       const isNewBest = !solvedWithWalkthrough && (!oldBest || moves < oldBest);
       if (isNewBest) localStorage.setItem(bestKey, moves);
       recordLevelCompletionStats(activePack, levelIndex, {
@@ -6683,21 +6758,46 @@ window.BOXXY_RELEASE = Object.freeze({
           ? "TURBO<br>UNLOCKED"
           : solvedWithWalkthrough ? "GUIDED<br>SOLVE" : "PUZZLE<br>CLEARED";
         const statedMinimum = Number(levelData.minimum);
-        let summary;
+        const levelTitleText = String(levelData?.name || `Level ${levelIndex + 1}`).trim() || `Level ${levelIndex + 1}`;
+        const safeLevelTitle = levelTitleText.replace(/[&<>"']/g, character => ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#39;"
+        })[character]);
+        let completionNote = "";
         if (Number.isFinite(statedMinimum) && statedMinimum > 0) {
           const difference = moves - statedMinimum;
-          summary = difference === 0
-            ? `Perfect route: ${moves} moves and ${pushes} pushes.`
-            : `Solved in ${moves} moves and ${pushes} pushes — ${difference} over the minimum.`;
-        } else {
-          summary = `Solved in ${moves} moves and ${pushes} pushes.`;
+          completionNote = difference === 0
+            ? "PERFECT ROUTE"
+            : `${difference} ${difference === 1 ? "MOVE" : "MOVES"} OVER MINIMUM`;
+        }
+        if (solvedWithWalkthrough) {
+          completionNote = completionNote
+            ? `${completionNote} · GUIDED SOLVE`
+            : "GUIDED SOLVE · COMPLETED";
         }
         if (isInstantUnlockCompletion) {
           completeText.innerHTML = `You can now select <strong>Turbo</strong> from Menu → Boxxy Speed. Boxxy moves at maximum speed. This will be useful for Level 25.<br><br>Level 24 completed in ${moves} moves and ${pushes} pushes.`;
         } else {
-          completeText.textContent = solvedWithWalkthrough
-            ? `${summary} This level is now counted as completed, and its button will appear in yellow.`
-            : summary;
+          completeText.innerHTML = `
+            <span class="standard-complete-level-title">LEVEL ${levelIndex + 1} · ${safeLevelTitle}</span>
+            <span class="standard-complete-result" aria-label="${safeLevelTitle}. Completed in ${formatClockDuration(completionDurationSeconds)}, ${moves} ${moves === 1 ? "move" : "moves"}, ${pushes} ${pushes === 1 ? "push" : "pushes"}">
+              <span class="standard-complete-result-item standard-complete-result-time">
+                <span class="standard-complete-result-label">TIME</span>
+                <strong class="standard-complete-result-value">${formatPreciseClockHtml(completionDurationSeconds)}</strong>
+              </span>
+              <span class="standard-complete-result-item">
+                <span class="standard-complete-result-label">MOVES</span>
+                <strong class="standard-complete-result-value">${moves}</strong>
+              </span>
+              <span class="standard-complete-result-item">
+                <span class="standard-complete-result-label">PUSHES</span>
+                <strong class="standard-complete-result-value">${pushes}</strong>
+              </span>
+            </span>
+            ${completionNote ? `<span class="standard-complete-note">${completionNote}</span>` : ""}`;
         }
         if (nextBtnLabel) nextBtnLabel.textContent = "NEXT LEVEL";
         if (nextBtnIcon) nextBtnIcon.textContent = "→";
@@ -6878,9 +6978,11 @@ window.BOXXY_RELEASE = Object.freeze({
       const timeLabel = document.createElement("small");
       timeLabel.textContent = "TIME";
       const timeValue = document.createElement("strong");
-      timeValue.textContent = record && Number.isFinite(Number(record.seconds))
-        ? formatClockDuration(Math.max(0, Number(record.seconds)))
-        : "—";
+      if (record && Number.isFinite(Number(record.seconds))) {
+        setPreciseClockContent(timeValue, Math.max(0, Number(record.seconds)));
+      } else {
+        timeValue.textContent = "—";
+      }
       timeStat.append(timeLabel, timeValue);
 
       stats.append(movesStat, timeStat);

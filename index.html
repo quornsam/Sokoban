@@ -159,7 +159,7 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=316">
+<link rel="stylesheet" href="styles.css?v=319">
 <link rel="stylesheet" href="how-to-play.css?v=225">
 <link rel="preload" as="image" href="assets/board/boxes/box-default-yellow.png?v=226">
 <link rel="preload" as="image" href="assets/board/goals/goal-red.png?v=226">
@@ -1226,7 +1226,7 @@
         <p>BOXXY accounts are optional. You can continue playing without one and local progress remains stored by your browser on your own device.</p>
         <p>If you create an account, BOXXY stores your chosen username, email address, a one-way password hash, account dates, your sign-up and most recent IP address, most recent browser/device user-agent, accumulated active time while signed in, and the game progress/settings needed for cloud saving. This information is stored in Cloudflare D1 and is used to provide the account, synchronise progress, administer BOXXY and prevent abuse. BOXXY does not store your password in readable form.</p>
         <p>A strictly necessary secure session cookie is used while you are signed in. BOXXY does not use account email addresses for advertising. They may be used where reasonably necessary for account, security, abuse or support matters. You can delete your account from the account screen; this removes the cloud account and cloud progress but does not erase progress already stored in your browser.</p>
-        <p>BOXXY uses PostHog, hosted in the European Union, to measure visits and a small set of gameplay events: opening the game, choosing a puzzle pack, starting or restarting a level, completing a level and pressing next level. A completion event may include the puzzle pack, level number, moves, pushes, time taken, whether a guided solve was used and screen orientation.</p>
+        <p>BOXXY uses PostHog, hosted in the European Union, to measure visits and a small set of gameplay events: opening the game, choosing a puzzle pack, starting or restarting a level, completing a level and pressing next level. A gameplay event may include the puzzle pack, level number, moves, pushes, time taken, whether a guided solve was used, screen orientation and a simple “new” or “returning” visit label. That label is based only on whether this browser already had BOXXY’s existing local device marker when the page opened; the marker itself is not sent to PostHog.</p>
         <p>PostHog is configured in cookieless mode. It does not store BOXXY analytics identifiers in cookies, local storage or session storage and BOXXY does not send account usernames or email addresses to PostHog. URL query strings and fragments are removed before analytics events are sent.</p>
         <p>PostHog receives the ordinary technical information needed to deliver and measure a web request, such as browser and device information, page path and referrer. BOXXY asks PostHog to respect supported Do Not Track signals. You can read <a href="https://posthog.com/privacy" target="_blank" rel="noopener">PostHog's privacy information</a>.</p>
         <p>If you use the Contact Us form, your name, BOXXY username if provided, email address and comment are sent through Cloudflare Email Service to the BOXXY contact mailbox and are used only to deal with your message. The same applies to information you choose to send by email or as part of a prize claim.</p>
@@ -1264,7 +1264,7 @@
 <script src="daily-puzzles/boxxy-daily-loader.js?v=217"></script>
 <script src="levels.js?v=268"></script>
 <script src="starry-night.js?v=302"></script>
-<script src="boxxy.js?v=316"></script>
+<script src="boxxy.js?v=319"></script>
 <script src="account.js?v=291"></script>
 <script src="pack-builder.js?v=216"></script>
 <script src="how-to-play.js?v=153"></script>
