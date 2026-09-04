@@ -6846,3 +6846,86 @@ body.large-level-performance .instruction .thought-text{
   .daily-archive-today-list .daily-leaderboard-row:last-child{border-bottom:0}
 }
 
+
+
+/* BOXXY v318 — precise completion times stay visually grouped and readable. */
+.stats .time strong{
+  white-space:nowrap;
+}
+.stats .time strong .time-fraction{
+  display:inline;
+  white-space:nowrap;
+}
+
+.complete-card.daily-complete #completeText{
+  width:min(620px,100%);
+  max-width:none;
+  margin:0 0 15px;
+}
+.daily-complete-result{
+  width:100%;
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  border:2px solid var(--ink);
+  background:#fff9ee;
+  box-shadow:4px 4px 0 rgba(23,23,25,.14);
+}
+.daily-complete-result-item{
+  min-width:0;
+  padding:8px 12px 9px;
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:10px;
+}
+.daily-complete-result-item + .daily-complete-result-item{
+  border-left:1px solid rgba(23,23,25,.28);
+}
+.daily-complete-result-label{
+  flex:none;
+  font-size:8px;
+  line-height:1;
+  font-weight:950;
+  letter-spacing:.11em;
+  color:#71675a;
+}
+.daily-complete-result-value{
+  min-width:0;
+  font-size:20px;
+  line-height:1;
+  font-weight:1000;
+  font-variant-numeric:tabular-nums;
+  letter-spacing:-.025em;
+  white-space:nowrap;
+}
+.daily-complete-result-time .time-fraction{
+  display:inline;
+  font-size:.62em;
+  white-space:nowrap;
+}
+.daily-complete-streak-message{
+  display:block;
+  margin-top:10px;
+  font-size:12px;
+  line-height:1.35;
+}
+
+@media(max-width:760px){
+  .complete-card.daily-complete #completeText{margin-bottom:12px}
+  .daily-complete-result-item{padding:7px 9px 8px;gap:7px}
+  .daily-complete-result-value{font-size:18px}
+  .daily-complete-streak-message{margin-top:8px;font-size:11px;line-height:1.3}
+}
+
+@media(max-width:390px){
+  .daily-complete-result-item{padding-inline:7px}
+  .daily-complete-result-label{font-size:7px}
+  .daily-complete-result-value{font-size:16px}
+}
+
+@media(max-height:520px) and (orientation:landscape){
+  .complete-card.daily-complete #completeText{margin-bottom:6px}
+  .daily-complete-result-item{padding:5px 8px 6px}
+  .daily-complete-result-value{font-size:16px}
+  .daily-complete-streak-message{margin-top:5px;font-size:9.5px;line-height:1.2}
+}

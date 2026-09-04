@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "317",
+  version: "318",
   lastUpdated: "2026-09-04"
 });
+/* BOXXY v318 — completion-time presentation is reorganised for clean decimal alignment across screen sizes; gameplay clock fractions stay on one line. */
 /* BOXXY v317 — timers begin on the first successful move, completed times retain hundredths, and anonymous analytics label visits as new or returning without sending the local marker. */
 /* BOXXY v316 — Daily fastest-time leaderboards also show moves used; fastest eligible time now preserves its matching move count. */
 /* BOXXY v315 — Mouse Control setting warns when Daily fastest-time leaderboard eligibility would be affected. */
@@ -6603,7 +6604,18 @@ window.BOXXY_RELEASE = Object.freeze({
       } else {
         streakMessage = `Historical Daily Boxxys do not change your streak. Your current streak is ${streakResult.count}.`;
       }
-      completeText.innerHTML = `Completed in ${formatPreciseClockHtml(completionSeconds)} and ${moves} ${moves === 1 ? "move" : "moves"}. ${streakMessage}`;
+      completeText.innerHTML = `
+        <span class="daily-complete-result" aria-label="Completed in ${formatClockDuration(completionSeconds)}, ${moves} ${moves === 1 ? "move" : "moves"}">
+          <span class="daily-complete-result-item">
+            <span class="daily-complete-result-label">TIME</span>
+            <strong class="daily-complete-result-value daily-complete-result-time">${formatPreciseClockHtml(completionSeconds)}</strong>
+          </span>
+          <span class="daily-complete-result-item">
+            <span class="daily-complete-result-label">MOVES</span>
+            <strong class="daily-complete-result-value">${moves}</strong>
+          </span>
+        </span>
+        <span class="daily-complete-streak-message">${streakMessage}</span>`;
       if (dailyShareText) dailyShareText.value = buildDailyShareText(dailyPuzzle, { seconds: completionSeconds, moves });
       if (dailySharePanel) dailySharePanel.hidden = false;
       if (dailyShareStatus) dailyShareStatus.textContent = "";
