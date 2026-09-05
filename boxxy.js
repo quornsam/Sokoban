@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "321",
+  version: "322",
   lastUpdated: "2026-09-05"
 });
+/* BOXXY v322 — Fastest Today keeps its top-three entries stacked consistently across desktop, iPad and phone widths. */
 /* BOXXY v321 — Daily puzzle details add the player's local stats and highlight the signed-in player in fastest times. */
 /* BOXXY v320 — Daily cards open a puzzle-detail modal with fastest times and a Play Now / Play Again action; compact phone cards omit hundredths. */
 /* BOXXY v319 — ordinary puzzle completion modals now show the level title and a tidy responsive TIME / MOVES / PUSHES result block. */
