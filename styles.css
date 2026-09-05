@@ -2,6 +2,7 @@
  * BOXXY — Pushbox Puzzle
  * Copyright © 2026 Sam Cornwell. All rights reserved.
  * Personal non-commercial use only. See LICENSE.md.
+ * BOXXY v323: Daily detail stats use scoped label/value selectors so fractional times remain inline.
  * BOXXY v322: Fastest Today uses one consistent stacked leaderboard layout at every screen width.
  * BOXXY v321: Daily puzzle details show the player's stats and highlight their signed-in leaderboard row.
  * BOXXY v320: Daily puzzle-detail modal and compact-card time refinement.
@@ -6814,8 +6815,8 @@ body.large-level-performance .instruction .thought-text{
 .daily-detail-player-stats-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
 .daily-detail-player-stats-grid>div{min-width:0;padding:6px 7px}
 .daily-detail-player-stats-grid>div+div{border-left:1px solid rgba(23,23,25,.22)}
-.daily-detail-player-stats-grid span{display:block;color:#6b6155;font-size:6px;font-weight:1000;letter-spacing:.08em}
-.daily-detail-player-stats-grid strong{display:block;min-width:0;margin-top:2px;font-size:12px;line-height:1;white-space:nowrap}
+.daily-detail-player-stats-grid>div>span{display:block;color:#6b6155;font-size:6px;font-weight:1000;letter-spacing:.08em}
+.daily-detail-player-stats-grid>div>strong{display:block;min-width:0;margin-top:2px;font-size:12px;line-height:1;white-space:nowrap}
 .daily-detail-player-stats-grid .time-fraction{font-size:.58em}
 .daily-detail-play{min-height:48px;padding:10px 14px;border:2px solid var(--ink);background:var(--yellow);color:var(--ink);box-shadow:4px 4px 0 var(--red);font:1000 13px/1 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;letter-spacing:.08em;cursor:pointer}
 .daily-detail-play:active{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--red)}
@@ -6836,8 +6837,8 @@ body.large-level-performance .instruction .thought-text{
   .daily-detail-status{font-size:7.5px}
   .daily-detail-player-stats-title{padding:4px 6px 3px;font-size:6px}
   .daily-detail-player-stats-grid>div{padding:5px 5px}
-  .daily-detail-player-stats-grid span{font-size:5.5px}
-  .daily-detail-player-stats-grid strong{font-size:10.5px}
+  .daily-detail-player-stats-grid>div>span{font-size:5.5px}
+  .daily-detail-player-stats-grid>div>strong{font-size:10.5px}
   .daily-detail-play{min-height:43px;padding:8px 10px;font-size:11px;box-shadow:3px 3px 0 var(--red)}
   .daily-leaderboard-section-head{padding:7px 9px 6px}
   .daily-leaderboard-section-head span{font-size:6.5px}
