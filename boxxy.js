@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "320",
+  version: "321",
   lastUpdated: "2026-09-05"
 });
+/* BOXXY v321 — Daily puzzle details add the player's local stats and highlight the signed-in player in fastest times. */
 /* BOXXY v320 — Daily cards open a puzzle-detail modal with fastest times and a Play Now / Play Again action; compact phone cards omit hundredths. */
 /* BOXXY v319 — ordinary puzzle completion modals now show the level title and a tidy responsive TIME / MOVES / PUSHES result block. */
 /* BOXXY v318 — completion-time presentation is reorganised for clean decimal alignment across screen sizes; gameplay clock fractions stay on one line. */
@@ -2065,6 +2066,11 @@ window.BOXXY_RELEASE = Object.freeze({
   const dailyLeaderboardPlayBtn = document.getElementById("dailyLeaderboardPlayBtn");
   const dailyLeaderboardPlayLabel = document.getElementById("dailyLeaderboardPlayLabel");
   const dailyLeaderboardStatus = document.getElementById("dailyLeaderboardStatus");
+  const dailyLeaderboardPlayerStats = document.getElementById("dailyLeaderboardPlayerStats");
+  const dailyLeaderboardPlayerTime = document.getElementById("dailyLeaderboardPlayerTime");
+  const dailyLeaderboardPlayerMoves = document.getElementById("dailyLeaderboardPlayerMoves");
+  const dailyLeaderboardPlayerPushes = document.getElementById("dailyLeaderboardPlayerPushes");
+  const dailyLeaderboardNote = document.getElementById("dailyLeaderboardNote");
   const grandCelebration = document.getElementById("grandCelebration");
   const resetConfirmModal = document.getElementById("resetConfirmModal");
   const resetConfirmBtn = document.getElementById("resetConfirmBtn");
@@ -3017,6 +3023,31 @@ window.BOXXY_RELEASE = Object.freeze({
     }
   }
 
+  function signedInLeaderboardUsername() {
+    const accountDetails = document.getElementById("accountDetails");
+    const usernameValue = document.getElementById("accountUsernameValue");
+    if (!accountDetails || accountDetails.hidden || !usernameValue) return "";
+    const username = String(usernameValue.textContent || "").trim();
+    return username && username !== "—" ? username : "";
+  }
+
+  function updateDailyLeaderboardAccountNote() {
+    if (!dailyLeaderboardNote) return;
+    dailyLeaderboardNote.textContent = signedInLeaderboardUsername()
+      ? "Your signed-in name is highlighted in the high scores."
+      : "Sign in with your account if you want to see your score here too.";
+  }
+
+  function renderDailyPlayerStats(result) {
+    if (!dailyLeaderboardPlayerStats) return;
+    const hasResult = Boolean(result);
+    dailyLeaderboardPlayerStats.hidden = !hasResult;
+    if (!hasResult) return;
+    if (dailyLeaderboardPlayerTime) setPreciseClockContent(dailyLeaderboardPlayerTime, result.seconds);
+    if (dailyLeaderboardPlayerMoves) dailyLeaderboardPlayerMoves.textContent = String(Math.max(0, Number(result.moves) || 0));
+    if (dailyLeaderboardPlayerPushes) dailyLeaderboardPlayerPushes.textContent = String(Math.max(0, Number(result.pushes) || 0));
+  }
+
   function renderDailyLeaderboardRows(container, entries, limit = 0) {
     if (!container) return;
     container.innerHTML = "";
@@ -3038,9 +3069,14 @@ window.BOXXY_RELEASE = Object.freeze({
       return;
     }
     const medals = ["🥇", "🥈", "🥉"];
+    const signedInUsername = signedInLeaderboardUsername().toLocaleLowerCase();
     visible.forEach((entry, index) => {
       const row = document.createElement("div");
       row.className = "daily-leaderboard-row";
+      if (signedInUsername && String(entry.username || "").trim().toLocaleLowerCase() === signedInUsername) {
+        row.classList.add("is-current-user");
+        row.setAttribute("aria-current", "true");
+      }
       const rank = document.createElement("span");
       rank.className = "daily-leaderboard-rank";
       rank.textContent = medals[index] || String(index + 1);
@@ -3067,6 +3103,7 @@ window.BOXXY_RELEASE = Object.freeze({
     const entries = await fetchDailyLeaderboard(dateKey);
     if (container.dataset.dailyLeaderboardDate !== dateKey) return;
     renderDailyLeaderboardRows(container, entries, limit);
+    if (container === dailyLeaderboardList) updateDailyLeaderboardAccountNote();
   }
 
   function openDailyLeaderboard(puzzle) {
@@ -3082,6 +3119,8 @@ window.BOXXY_RELEASE = Object.freeze({
       dailyLeaderboardPlayBtn.setAttribute("aria-label", `${actionLabel}: Daily #${Number(puzzle.sequence) || ""}`);
     }
     if (dailyLeaderboardStatus) dailyLeaderboardStatus.textContent = result ? "COMPLETED" : "NOT YET COMPLETED";
+    renderDailyPlayerStats(result);
+    updateDailyLeaderboardAccountNote();
     if (dailyLeaderboardList) loadDailyLeaderboardInto(dailyLeaderboardList, puzzle, 0);
     dailyLeaderboardModal.hidden = false;
     requestAnimationFrame(() => dailyLeaderboardPlayBtn?.focus?.({ preventScroll: true }));

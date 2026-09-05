@@ -159,7 +159,7 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=320">
+<link rel="stylesheet" href="styles.css?v=321">
 <link rel="stylesheet" href="how-to-play.css?v=225">
 <link rel="preload" as="image" href="assets/board/boxes/box-default-yellow.png?v=226">
 <link rel="preload" as="image" href="assets/board/goals/goal-red.png?v=226">
@@ -595,6 +595,14 @@
       </div>
       <div class="daily-detail-action">
         <span id="dailyLeaderboardStatus" class="daily-detail-status">NOT YET COMPLETED</span>
+        <div id="dailyLeaderboardPlayerStats" class="daily-detail-player-stats" hidden>
+          <span class="daily-detail-player-stats-title">YOUR STATS</span>
+          <div class="daily-detail-player-stats-grid">
+            <div><span>TIME</span><strong id="dailyLeaderboardPlayerTime">—</strong></div>
+            <div><span>MOVES</span><strong id="dailyLeaderboardPlayerMoves">—</strong></div>
+            <div><span>PUSHES</span><strong id="dailyLeaderboardPlayerPushes">—</strong></div>
+          </div>
+        </div>
         <button id="dailyLeaderboardPlayBtn" class="daily-detail-play" type="button"><span id="dailyLeaderboardPlayLabel">PLAY NOW</span></button>
       </div>
     </div>
@@ -603,7 +611,7 @@
       <strong>FASTEST TIMES</strong>
     </div>
     <div id="dailyLeaderboardList" class="daily-leaderboard-list" aria-live="polite"></div>
-    <p class="daily-leaderboard-note">Sign in with your account if you want to see your score here too.</p>
+    <p id="dailyLeaderboardNote" class="daily-leaderboard-note">Sign in with your account if you want to see your score here too.</p>
   </section>
 </div>
 
@@ -1277,7 +1285,7 @@
 <script src="daily-puzzles/boxxy-daily-loader.js?v=217"></script>
 <script src="levels.js?v=268"></script>
 <script src="starry-night.js?v=302"></script>
-<script src="boxxy.js?v=320"></script>
+<script src="boxxy.js?v=321"></script>
 <script src="account.js?v=291"></script>
 <script src="pack-builder.js?v=216"></script>
 <script src="how-to-play.js?v=153"></script>
