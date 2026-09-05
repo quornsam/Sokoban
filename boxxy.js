@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "319",
-  lastUpdated: "2026-09-04"
+  version: "320",
+  lastUpdated: "2026-09-05"
 });
+/* BOXXY v320 — Daily cards open a puzzle-detail modal with fastest times and a Play Now / Play Again action; compact phone cards omit hundredths. */
 /* BOXXY v319 — ordinary puzzle completion modals now show the level title and a tidy responsive TIME / MOVES / PUSHES result block. */
 /* BOXXY v318 — completion-time presentation is reorganised for clean decimal alignment across screen sizes; gameplay clock fractions stay on one line. */
 /* BOXXY v317 — timers begin on the first successful move, completed times retain hundredths, and anonymous analytics label visits as new or returning without sending the local marker. */
@@ -2060,6 +2061,10 @@ window.BOXXY_RELEASE = Object.freeze({
   const dailyLeaderboardTitle = document.getElementById("dailyLeaderboardTitle");
   const dailyLeaderboardDate = document.getElementById("dailyLeaderboardDate");
   const dailyLeaderboardList = document.getElementById("dailyLeaderboardList");
+  const dailyLeaderboardPreviewCanvas = document.getElementById("dailyLeaderboardPreviewCanvas");
+  const dailyLeaderboardPlayBtn = document.getElementById("dailyLeaderboardPlayBtn");
+  const dailyLeaderboardPlayLabel = document.getElementById("dailyLeaderboardPlayLabel");
+  const dailyLeaderboardStatus = document.getElementById("dailyLeaderboardStatus");
   const grandCelebration = document.getElementById("grandCelebration");
   const resetConfirmModal = document.getElementById("resetConfirmModal");
   const resetConfirmBtn = document.getElementById("resetConfirmBtn");
@@ -2980,6 +2985,7 @@ window.BOXXY_RELEASE = Object.freeze({
 
   const dailyLeaderboardCache = new Map();
   const DAILY_LEADERBOARD_CACHE_MS = 15000;
+  let dailyLeaderboardActivePuzzle = null;
 
   async function fetchDailyLeaderboard(dateKey, { force = false } = {}) {
     const key = String(dateKey || "");
@@ -3065,15 +3071,25 @@ window.BOXXY_RELEASE = Object.freeze({
 
   function openDailyLeaderboard(puzzle) {
     if (!dailyLeaderboardModal || !puzzle?.date) return;
-    if (dailyLeaderboardTitle) dailyLeaderboardTitle.textContent = `DAILY #${Number(puzzle.sequence) || ""} · FASTEST TIMES`;
+    dailyLeaderboardActivePuzzle = puzzle;
+    const result = dailyCompletion(puzzle.date);
+    if (dailyLeaderboardTitle) dailyLeaderboardTitle.textContent = `DAILY #${Number(puzzle.sequence) || ""}`;
     if (dailyLeaderboardDate) dailyLeaderboardDate.textContent = formatDailyDate(puzzle.date, { weekday: true, long: true, year: true });
+    if (dailyLeaderboardPreviewCanvas) drawLevelThumbnail(dailyLeaderboardPreviewCanvas, puzzle);
+    if (dailyLeaderboardPlayLabel) dailyLeaderboardPlayLabel.textContent = result ? "PLAY AGAIN" : "PLAY NOW";
+    if (dailyLeaderboardPlayBtn) {
+      const actionLabel = result ? "Play Daily Boxxy again" : "Play Daily Boxxy now";
+      dailyLeaderboardPlayBtn.setAttribute("aria-label", `${actionLabel}: Daily #${Number(puzzle.sequence) || ""}`);
+    }
+    if (dailyLeaderboardStatus) dailyLeaderboardStatus.textContent = result ? "COMPLETED" : "NOT YET COMPLETED";
     if (dailyLeaderboardList) loadDailyLeaderboardInto(dailyLeaderboardList, puzzle, 0);
     dailyLeaderboardModal.hidden = false;
-    requestAnimationFrame(() => dailyLeaderboardCloseBtn?.focus?.({ preventScroll: true }));
+    requestAnimationFrame(() => dailyLeaderboardPlayBtn?.focus?.({ preventScroll: true }));
   }
 
   function closeDailyLeaderboard() {
     if (dailyLeaderboardModal) dailyLeaderboardModal.hidden = true;
+    dailyLeaderboardActivePuzzle = null;
   }
 
   function dailyArchivePlayPuzzle(puzzle) {
@@ -3091,8 +3107,8 @@ window.BOXXY_RELEASE = Object.freeze({
     const puzzleButton = document.createElement("button");
     puzzleButton.type = "button";
     puzzleButton.className = "daily-archive-puzzle-hit";
-    puzzleButton.setAttribute("aria-label", `Play Daily Boxxy #${Number(puzzle.sequence) || ""}, ${formatDailyDate(puzzle.date, { weekday: true, long: true, year: true })}`);
-    puzzleButton.addEventListener("click", () => dailyArchivePlayPuzzle(puzzle));
+    puzzleButton.setAttribute("aria-label", `View Daily Boxxy #${Number(puzzle.sequence) || ""}, ${formatDailyDate(puzzle.date, { weekday: true, long: true, year: true })}`);
+    puzzleButton.addEventListener("click", () => openDailyLeaderboard(puzzle));
 
     const cardHead = document.createElement("div");
     cardHead.className = "daily-archive-date-head";
@@ -7942,6 +7958,9 @@ window.BOXXY_RELEASE = Object.freeze({
   dailyArchiveCloseBtn?.addEventListener("click", closeDailyArchive);
   dailyArchiveModal?.addEventListener("click", event => { if (event.target === dailyArchiveModal) closeDailyArchive(); });
   dailyLeaderboardCloseBtn?.addEventListener("click", closeDailyLeaderboard);
+  dailyLeaderboardPlayBtn?.addEventListener("click", () => {
+    if (dailyLeaderboardActivePuzzle) dailyArchivePlayPuzzle(dailyLeaderboardActivePuzzle);
+  });
   dailyLeaderboardModal?.addEventListener("click", event => { if (event.target === dailyLeaderboardModal) closeDailyLeaderboard(); });
   dailyStreak?.addEventListener("click", () => {
     const puzzle = dailyPuzzleForToday();

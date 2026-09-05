@@ -159,7 +159,7 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=319">
+<link rel="stylesheet" href="styles.css?v=320">
 <link rel="stylesheet" href="how-to-play.css?v=225">
 <link rel="preload" as="image" href="assets/board/boxes/box-default-yellow.png?v=226">
 <link rel="preload" as="image" href="assets/board/goals/goal-red.png?v=226">
@@ -583,12 +583,25 @@
   <section class="daily-leaderboard-card" role="dialog" aria-modal="true" aria-labelledby="dailyLeaderboardTitle" aria-describedby="dailyLeaderboardDate">
     <header class="daily-leaderboard-head">
       <div>
-        <span class="complete-kicker">DAILY BOXXY</span>
-        <h2 id="dailyLeaderboardTitle">FASTEST TIMES</h2>
+        <span class="complete-kicker">BOXXY DAILYS</span>
+        <h2 id="dailyLeaderboardTitle">DAILY</h2>
         <p id="dailyLeaderboardDate"></p>
       </div>
-      <button id="dailyLeaderboardCloseBtn" class="daily-leaderboard-close" type="button" aria-label="Close fastest times">×</button>
+      <button id="dailyLeaderboardCloseBtn" class="daily-leaderboard-close" type="button" aria-label="Close Daily puzzle details">×</button>
     </header>
+    <div class="daily-detail-summary">
+      <div class="daily-detail-preview level-thumb-art">
+        <canvas id="dailyLeaderboardPreviewCanvas" class="level-thumb-canvas daily-detail-preview-canvas" aria-hidden="true"></canvas>
+      </div>
+      <div class="daily-detail-action">
+        <span id="dailyLeaderboardStatus" class="daily-detail-status">NOT YET COMPLETED</span>
+        <button id="dailyLeaderboardPlayBtn" class="daily-detail-play" type="button"><span id="dailyLeaderboardPlayLabel">PLAY NOW</span></button>
+      </div>
+    </div>
+    <div class="daily-leaderboard-section-head">
+      <span>SIGNED-IN PLAYERS</span>
+      <strong>FASTEST TIMES</strong>
+    </div>
     <div id="dailyLeaderboardList" class="daily-leaderboard-list" aria-live="polite"></div>
     <p class="daily-leaderboard-note">Sign in with your account if you want to see your score here too.</p>
   </section>
@@ -1264,7 +1277,7 @@
 <script src="daily-puzzles/boxxy-daily-loader.js?v=217"></script>
 <script src="levels.js?v=268"></script>
 <script src="starry-night.js?v=302"></script>
-<script src="boxxy.js?v=319"></script>
+<script src="boxxy.js?v=320"></script>
 <script src="account.js?v=291"></script>
 <script src="pack-builder.js?v=216"></script>
 <script src="how-to-play.js?v=153"></script>
