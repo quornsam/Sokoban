@@ -299,7 +299,16 @@
   function filteredUsers() {
     const query = String(searchInput?.value || "").trim().toLowerCase();
     if (!query) return users;
-    return users.filter(user => [user.username, user.email, user.signupIp, user.lastIp].some(value => String(value || "").toLowerCase().includes(query)));
+    return users.filter(user => [user.username, user.email, user.googleEmail, user.signupIp, user.lastIp].some(value => String(value || "").toLowerCase().includes(query)));
+  }
+  function googleBadge(user) {
+    return user?.googleLinked ? `<span class="google-badge">GOOGLE</span>` : "";
+  }
+  function emailCell(user) {
+    const google = user?.googleLinked
+      ? `<div class="google-email-line">${googleBadge(user)}<span>${escapeHtml(user.googleEmail || "—")}</span></div>`
+      : "";
+    return `<div>${escapeHtml(user.email)}</div>${google}`;
   }
   function renderUsers() {
     const list = filteredUsers();
@@ -309,14 +318,14 @@
           <div class="basement-user-identity">
             <canvas class="basement-avatar" data-avatar-user="${escapeHtml(user.id)}" width="90" height="78" aria-label="Current BOXXY character and outfit"></canvas>
             <div class="basement-user-copy">
-              <div class="user-main user-with-status">${onlineDot(user)}${escapeHtml(user.username)}</div>
+              <div class="user-main user-with-status">${onlineDot(user)}${escapeHtml(user.username)}${googleBadge(user)}</div>
               ${medalRail(user.summary)}
               ${outfitMini(user.summary)}
               ${boardStyleMini(user.summary)}
             </div>
           </div>
         </td>
-        <td>${escapeHtml(user.email)}</td>
+        <td>${emailCell(user)}</td>
         <td>${escapeHtml(dateTime(user.createdAt))}</td>
         <td>${escapeHtml(dateTime(user.lastSeenAt))}</td>
         <td><strong>${escapeHtml(duration(user.totalActiveSeconds))}</strong><div class="muted">all time</div></td>
@@ -330,11 +339,11 @@
         <div class="user-card-top">
           <div class="basement-user-identity">
             <canvas class="basement-avatar" data-avatar-user="${escapeHtml(user.id)}" width="90" height="78" aria-hidden="true"></canvas>
-            <div class="basement-user-copy"><span class="user-main user-with-status">${onlineDot(user)}${escapeHtml(user.username)}</span>${medalRail(user.summary)}${outfitMini(user.summary)}${boardStyleMini(user.summary)}</div>
+            <div class="basement-user-copy"><span class="user-main user-with-status">${onlineDot(user)}${escapeHtml(user.username)}${googleBadge(user)}</span>${medalRail(user.summary)}${outfitMini(user.summary)}${boardStyleMini(user.summary)}</div>
           </div>
           <span class="user-total-time"><small>TOTAL TIME</small>${escapeHtml(duration(user.totalActiveSeconds))}</span>
         </div>
-        <div class="muted">${escapeHtml(user.email)}</div>
+        <div class="muted basement-card-email">${emailCell(user)}</div>
         ${activityStrip(user.summary, true)}
         <div class="user-card-grid">
           <div><span>LAST ACTIVE</span><strong class="user-with-status">${onlineDot(user)}${escapeHtml(dateTime(user.lastSeenAt))}</strong></div>
@@ -391,6 +400,8 @@
         <div class="detail-grid">
           <div><span>USERNAME</span><strong>${escapeHtml(user.username)}</strong></div>
           <div><span>EMAIL</span><strong>${escapeHtml(user.email)}</strong></div>
+          <div><span>GOOGLE SIGN-IN</span><strong>${user.googleLinked ? '<span class="google-badge">GOOGLE</span> LINKED' : '—'}</strong></div>
+          <div><span>GOOGLE EMAIL</span><strong>${user.googleLinked ? escapeHtml(user.googleEmail || "—") : "—"}</strong></div>
           <div><span>ACCOUNT ID</span><strong>${escapeHtml(user.id)}</strong></div>
           <div><span>JOINED</span><strong>${escapeHtml(dateTime(user.createdAt))}</strong></div>
           <div><span>LAST LOGIN</span><strong>${escapeHtml(dateTime(user.lastLoginAt))}</strong></div>

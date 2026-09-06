@@ -1,3 +1,4 @@
+/* BOXXY v329 — optional Google sign-in links to the existing BOXXY user/session/save architecture. */
 /* BOXXY v327 — signed-in Daily completions request an immediate cloud sync so leaderboard results can refresh without waiting for the periodic sync. */
 /* BOXXY v323 — standard box and target style preference joins account cloud sync. */
 /* BOXXY v291 — redirect-safe offline cache generation for reliable iOS PWA relaunches. */
@@ -8,6 +9,7 @@
   "use strict";
 
   const API = "/api/account";
+  const GOOGLE_CLIENT_ID = "369102198200-ntq5mn9pb2s2ftf5h0uo6akm8ms6m25t.apps.googleusercontent.com";
   const SYNC_INTERVAL_MS = 30000;
   const ACTIVITY_SYNC_SECONDS = 300;
   const ACCOUNT_MARKER_KEY = "boxxy-account-known-v1";
@@ -50,8 +52,16 @@
   const backBtn = document.getElementById("accountBackBtn");
   const createModeBtn = document.getElementById("accountCreateModeBtn");
   const loginModeBtn = document.getElementById("accountLoginModeBtn");
+  const modeSwitch = document.getElementById("accountModeSwitch");
   const createForm = document.getElementById("accountCreateForm");
   const loginForm = document.getElementById("accountLoginForm");
+  const googleGuest = document.getElementById("accountGoogleGuest");
+  const googleSignInBtn = document.getElementById("accountGoogleSignInBtn");
+  const googleRegistration = document.getElementById("accountGoogleRegistration");
+  const googleRegistrationEmail = document.getElementById("accountGoogleRegistrationEmail");
+  const googleCreateForm = document.getElementById("accountGoogleCreateForm");
+  const googleCreateSubmit = document.getElementById("accountGoogleCreateSubmit");
+  const googleCreateCancel = document.getElementById("accountGoogleCreateCancel");
   const details = document.getElementById("accountDetails");
   const status = document.getElementById("accountStatus");
   const createSubmit = document.getElementById("accountCreateSubmit");
@@ -60,6 +70,10 @@
   const deleteForm = document.getElementById("accountDeleteForm");
   const deleteToggle = document.getElementById("accountDeleteToggle");
   const deleteCancel = document.getElementById("accountDeleteCancel");
+  const deleteText = document.getElementById("accountDeleteText");
+  const deletePasswordLabel = document.getElementById("accountDeletePasswordLabel");
+  const deletePasswordConfirm = document.getElementById("accountDeletePasswordConfirm");
+  const googleDeleteBtn = document.getElementById("accountGoogleDeleteBtn");
   const usernameValue = document.getElementById("accountUsernameValue");
   const emailValue = document.getElementById("accountEmailValue");
   const joinedValue = document.getElementById("accountJoinedValue");
@@ -73,6 +87,10 @@
   const medals = document.getElementById("accountMedals");
   const medalsEmpty = document.getElementById("accountMedalsEmpty");
   const accountGuest = document.getElementById("accountGuest");
+  const googleLinked = document.getElementById("accountGoogleLinked");
+  const googleLinkedEmail = document.getElementById("accountGoogleLinkedEmail");
+  const googleLink = document.getElementById("accountGoogleLink");
+  const googleLinkBtn = document.getElementById("accountGoogleLinkBtn");
   const offlineBtn = document.getElementById("accountOfflineBtn");
   const offlineHelp = document.getElementById("accountOfflineHelp");
   const offlineGuide = document.getElementById("accountOfflineGuide");
@@ -91,6 +109,9 @@
   let offlineBusy = false;
   let deferredAndroidInstallPrompt = null;
   let androidOfflineReady = false;
+  let googleReady = false;
+  let pendingGoogleCredential = "";
+  let googleRenderTimer = 0;
 
   function setStatus(message = "", kind = "") {
     if (!status) return;
@@ -100,7 +121,7 @@
 
   function setBusy(next) {
     busy = Boolean(next);
-    [createSubmit, loginSubmit, logoutBtn].forEach(button => {
+    [createSubmit, loginSubmit, googleCreateSubmit, logoutBtn, deletePasswordConfirm].forEach(button => {
       if (button) button.disabled = busy;
     });
   }
@@ -172,6 +193,9 @@
       localStorage.setItem(OFFLINE_ACCOUNT_SNAPSHOT_KEY, JSON.stringify({
         username: account.username || "",
         email: account.email || "",
+        googleLinked: Boolean(account.googleLinked),
+        googleEmail: account.googleEmail || "",
+        passwordEnabled: account.passwordEnabled !== false,
         createdAt: Number(account.createdAt) || 0,
         totalActiveSeconds: Number(account.totalActiveSeconds) || 0,
         progressUpdatedAt: Number(account.progressUpdatedAt) || 0
@@ -742,6 +766,171 @@
     return { response, data };
   }
 
+  function googleButtonWidth(container) {
+    const width = Math.floor(container?.getBoundingClientRect?.().width || 320);
+    return Math.max(220, Math.min(400, width));
+  }
+
+  function renderGoogleButton(container, state, text = "continue_with") {
+    if (!googleReady || !container || container.hidden) return;
+    try {
+      container.replaceChildren();
+      window.google.accounts.id.renderButton(container, {
+        type: "standard",
+        theme: "outline",
+        size: "large",
+        text,
+        shape: "rectangular",
+        logo_alignment: "left",
+        width: googleButtonWidth(container),
+        state
+      });
+    } catch (_) {}
+  }
+
+  function renderGoogleButtons() {
+    if (!googleReady) return;
+    if (!account && !pendingGoogleCredential) renderGoogleButton(googleSignInBtn, "guest", "signin_with");
+    if (account && !account.googleLinked) renderGoogleButton(googleLinkBtn, "link", "continue_with");
+    if (account && account.passwordEnabled === false && deleteForm && !deleteForm.hidden) {
+      renderGoogleButton(googleDeleteBtn, "delete", "continue_with");
+    }
+  }
+
+  function scheduleGoogleButtons() {
+    if (googleRenderTimer) cancelAnimationFrame(googleRenderTimer);
+    googleRenderTimer = requestAnimationFrame(() => {
+      googleRenderTimer = 0;
+      renderGoogleButtons();
+    });
+  }
+
+  function initialiseGoogleIdentity() {
+    if (googleReady || !window.google?.accounts?.id) return;
+    try {
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleGoogleCredential,
+        ux_mode: "popup",
+        auto_select: false
+      });
+      googleReady = true;
+      scheduleGoogleButtons();
+    } catch (_) {
+      googleReady = false;
+    }
+  }
+
+  function clearGoogleRegistration() {
+    pendingGoogleCredential = "";
+    if (googleCreateForm) googleCreateForm.reset();
+    if (googleRegistrationEmail) googleRegistrationEmail.textContent = "—";
+    renderMode();
+  }
+
+  function beginGoogleRegistration(credential, email) {
+    pendingGoogleCredential = String(credential || "");
+    if (googleRegistrationEmail) googleRegistrationEmail.textContent = String(email || "—");
+    renderMode();
+    requestAnimationFrame(() => googleCreateForm?.querySelector('input[name="username"]')?.focus?.({ preventScroll: true }));
+  }
+
+  function clearLocalAccountState() {
+    account = null;
+    activeSecondsDelta = 0;
+    lastSyncedFingerprint = "";
+    pendingGoogleCredential = "";
+    try { localStorage.removeItem(ACCOUNT_MARKER_KEY); } catch (_) {}
+    clearOfflineAccountSnapshot();
+    setOfflineRequestCookie(false);
+  }
+
+  function disableGoogleAutoSelect() {
+    try { window.google?.accounts?.id?.disableAutoSelect?.(); } catch (_) {}
+  }
+
+  async function handleGoogleCredential(result) {
+    const credential = String(result?.credential || "");
+    const state = String(result?.state || "guest");
+    if (!credential || busy) return;
+
+    if (state === "guest") {
+      setBusy(true);
+      setStatus("SIGNING IN WITH GOOGLE…");
+      try {
+        const { response, data } = await requestAccount({ action: "google_auth", googleCredential: credential });
+        if (!response.ok) {
+          setStatus(data.error || "Google sign in failed.", "error");
+          return;
+        }
+        if (data.googleRegistrationRequired) {
+          beginGoogleRegistration(credential, data.googleEmail);
+          setStatus("GOOGLE VERIFIED · CHOOSE A BOXXY USERNAME", "success");
+          return;
+        }
+        const changed = await absorbAccountResponse(data, { pushMerged: true });
+        setStatus("SIGNED IN WITH GOOGLE · PROGRESS SYNCED", "success");
+        if (changed) {
+          sessionStorage.setItem("boxxy-account-merge-reload-v1", "1");
+          setTimeout(() => location.reload(), 250);
+        }
+      } catch (_) {
+        setStatus("Google sign in could not reach the BOXXY account service.", "error");
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+
+    if (state === "link") {
+      if (!account) return;
+      setBusy(true);
+      setStatus("LINKING GOOGLE…");
+      try {
+        const { response, data } = await requestAccount({ action: "link_google", googleCredential: credential });
+        if (!response.ok) {
+          setStatus(data.error || "Google account could not be linked.", "error");
+          return;
+        }
+        if (data.account) account = data.account;
+        saveOfflineAccountSnapshot();
+        render();
+        setStatus("GOOGLE ACCOUNT LINKED", "success");
+      } catch (_) {
+        setStatus("Google linking could not reach the BOXXY account service.", "error");
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+
+    if (state === "delete") {
+      if (!account || account.passwordEnabled !== false) return;
+      setBusy(true);
+      setStatus("CONFIRMING WITH GOOGLE…");
+      try {
+        const { response, data } = await requestAccount({ action: "delete", googleCredential: credential });
+        if (!response.ok) {
+          setStatus(data.error || "Account could not be deleted.", "error");
+          return;
+        }
+        clearLocalAccountState();
+        disableGoogleAutoSelect();
+        if (deleteForm) {
+          deleteForm.reset();
+          deleteForm.hidden = true;
+        }
+        if (deleteToggle) deleteToggle.hidden = false;
+        setStatus("ACCOUNT DELETED · LOCAL GAME PROGRESS KEPT", "success");
+        render();
+      } catch (_) {
+        setStatus("Account service could not be reached.", "error");
+      } finally {
+        setBusy(false);
+      }
+    }
+  }
+
   function formatDate(timestamp) {
     if (!Number(timestamp)) return "—";
     try { return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" }).format(new Date(Number(timestamp))); }
@@ -800,6 +989,16 @@
     if (completeAccountPrompt) completeAccountPrompt.hidden = loggedIn;
     if (details) details.hidden = !loggedIn;
     if (loggedIn) {
+      if (googleLinked) googleLinked.hidden = !account.googleLinked;
+      if (googleLink) googleLink.hidden = Boolean(account.googleLinked);
+      if (googleLinkedEmail) googleLinkedEmail.textContent = account.googleEmail || account.email || "—";
+      const googleOnly = account.passwordEnabled === false;
+      if (deletePasswordLabel) deletePasswordLabel.hidden = googleOnly;
+      if (deletePasswordConfirm) deletePasswordConfirm.hidden = googleOnly;
+      if (googleDeleteBtn) googleDeleteBtn.hidden = !googleOnly;
+      if (deleteText) deleteText.textContent = googleOnly
+        ? "Deletes the BOXXY account and cloud copy. Confirm with the linked Google account. Progress already stored on this device remains here."
+        : "Deletes the BOXXY account and cloud copy. Progress already stored on this device remains here.";
       if (usernameValue) usernameValue.textContent = account.username || "—";
       if (emailValue) emailValue.textContent = account.email || "—";
       if (joinedValue) joinedValue.textContent = formatDate(account.createdAt);
@@ -814,20 +1013,28 @@
       renderMedals();
       saveOfflineAccountSnapshot();
       refreshOfflineButton();
-    } else if (offlineGuide) {
-      offlineGuide.hidden = true;
+    } else {
+      if (googleLinked) googleLinked.hidden = true;
+      if (googleLink) googleLink.hidden = false;
+      if (offlineGuide) offlineGuide.hidden = true;
     }
     renderMode();
+    scheduleGoogleButtons();
   }
 
   function renderMode() {
     const creating = mode === "create";
+    const googleRegistering = Boolean(pendingGoogleCredential);
     createModeBtn?.classList.toggle("active", creating);
     loginModeBtn?.classList.toggle("active", !creating);
     createModeBtn?.setAttribute("aria-pressed", String(creating));
     loginModeBtn?.setAttribute("aria-pressed", String(!creating));
-    if (createForm) createForm.hidden = !creating;
-    if (loginForm) loginForm.hidden = creating;
+    if (modeSwitch) modeSwitch.hidden = googleRegistering;
+    if (createForm) createForm.hidden = googleRegistering || !creating;
+    if (loginForm) loginForm.hidden = googleRegistering || creating;
+    if (googleGuest) googleGuest.hidden = googleRegistering;
+    if (googleRegistration) googleRegistration.hidden = !googleRegistering;
+    scheduleGoogleButtons();
   }
 
   function openAccount() {
@@ -1014,17 +1221,47 @@
     }
   });
 
+  googleCreateForm?.addEventListener("submit", async event => {
+    event.preventDefault();
+    if (busy || !pendingGoogleCredential) return;
+    const form = new FormData(googleCreateForm);
+    setBusy(true);
+    setStatus("CREATING BOXXY ACCOUNT…");
+    try {
+      const { response, data } = await requestAccount({
+        action: "google_register",
+        googleCredential: pendingGoogleCredential,
+        username: form.get("username"),
+        termsAccepted: form.get("termsAccepted") === "yes",
+        progress: collectCloudState()
+      });
+      if (!response.ok) {
+        setStatus(data.error || "Account could not be created.", "error");
+        return;
+      }
+      pendingGoogleCredential = "";
+      await absorbAccountResponse(data);
+      googleCreateForm.reset();
+      setStatus("ACCOUNT CREATED WITH GOOGLE · PROGRESS SAVED", "success");
+    } catch (_) {
+      setStatus("Account service could not be reached.", "error");
+    } finally {
+      setBusy(false);
+    }
+  });
+
+  googleCreateCancel?.addEventListener("click", () => {
+    clearGoogleRegistration();
+    setStatus("");
+  });
+
   logoutBtn?.addEventListener("click", async () => {
     if (busy) return;
     await syncNow(true);
     setBusy(true);
     try { await requestAccount({ action: "logout" }); } catch (_) {}
-    account = null;
-    activeSecondsDelta = 0;
-    lastSyncedFingerprint = "";
-    try { localStorage.removeItem(ACCOUNT_MARKER_KEY); } catch (_) {}
-    clearOfflineAccountSnapshot();
-    setOfflineRequestCookie(false);
+    clearLocalAccountState();
+    disableGoogleAutoSelect();
     setBusy(false);
     setStatus("SIGNED OUT", "success");
     render();
@@ -1034,7 +1271,8 @@
     if (!deleteForm) return;
     deleteForm.hidden = false;
     deleteToggle.hidden = true;
-    deleteForm.querySelector("input")?.focus?.();
+    if (account?.passwordEnabled === false) scheduleGoogleButtons();
+    else deleteForm.querySelector('input[name="password"]')?.focus?.();
   });
 
   deleteCancel?.addEventListener("click", () => {
@@ -1042,11 +1280,12 @@
     deleteForm.reset();
     deleteForm.hidden = true;
     if (deleteToggle) deleteToggle.hidden = false;
+    if (googleDeleteBtn) googleDeleteBtn.replaceChildren();
   });
 
   deleteForm?.addEventListener("submit", async event => {
     event.preventDefault();
-    if (busy || !account) return;
+    if (busy || !account || account.passwordEnabled === false) return;
     const form = new FormData(deleteForm);
     setBusy(true);
     setStatus("DELETING ACCOUNT…");
@@ -1056,12 +1295,8 @@
         setStatus(data.error || "Account could not be deleted.", "error");
         return;
       }
-      account = null;
-      activeSecondsDelta = 0;
-      lastSyncedFingerprint = "";
-      try { localStorage.removeItem(ACCOUNT_MARKER_KEY); } catch (_) {}
-      clearOfflineAccountSnapshot();
-      setOfflineRequestCookie(false);
+      clearLocalAccountState();
+      disableGoogleAutoSelect();
       deleteForm.reset();
       deleteForm.hidden = true;
       if (deleteToggle) deleteToggle.hidden = false;
@@ -1101,6 +1336,10 @@
     lastActivityTick = Date.now();
     if (document.visibilityState === "hidden" && account && activeSecondsDelta >= 30) syncNow(true);
   });
+
+  window.onGoogleLibraryLoad = initialiseGoogleIdentity;
+  initialiseGoogleIdentity();
+  window.addEventListener("resize", scheduleGoogleButtons);
 
   prepareAndroidInstallPrompt();
   seedLifetimeStats();
