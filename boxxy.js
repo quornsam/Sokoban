@@ -6,10 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "325",
+  version: "326",
   lastUpdated: "2026-09-06"
 });
-/* BOXXY v325 — board-style defaults use a stable two-part palette layout; Daily guided solves are available without affecting Daily results, streaks or leaderboards. */
+/* BOXXY v326 — existing Daily schedules corrected to standard board styling; Daily data and gameplay logic unchanged. */
 /* BOXXY v324 — board-style choices use preloaded crate artwork; default choices lead each palette and style changes wait for their board assets. */
 /* BOXXY v323 — standard box/target colour customisation reuses Rainbow assets without changing Rainbow levels. */
 /* BOXXY v322 — Fastest Today keeps its top-three entries stacked consistently across desktop, iPad and phone widths. */
