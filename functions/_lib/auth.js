@@ -251,6 +251,23 @@ export function secureCompare(a, b) {
   return constantTimeEqual(String(a || ""), String(b || ""));
 }
 
+const BOARD_STYLE_COLOURS = new Set([
+  "red", "blue", "green", "purple", "light-blue", "teal", "grey",
+  "burgundy", "brown", "orange", "yellow", "lime", "pink", "cream"
+]);
+
+function progressBoardStyle(progress) {
+  let raw = {};
+  try {
+    const parsed = JSON.parse(String(progress["boxxy-board-style-v1"] || "{}"));
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) raw = parsed;
+  } catch (_) {}
+  let box = BOARD_STYLE_COLOURS.has(String(raw.box || "")) ? String(raw.box) : "yellow";
+  let target = BOARD_STYLE_COLOURS.has(String(raw.target || "")) ? String(raw.target) : "red";
+  if (box === target) target = box === "red" ? "yellow" : "red";
+  return { box, target };
+}
+
 export function progressSummary(progressValue) {
   const progress = parseProgress(progressValue);
   const packs = {};
@@ -357,6 +374,7 @@ export function progressSummary(progressValue) {
     const parsed = JSON.parse(String(progress["push-bauhaus-character-style-v51"] || "{}"));
     if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) avatar = parsed;
   } catch (_) {}
+  const boardStyle = progressBoardStyle(progress);
 
   const activityDays = [];
   try {
@@ -385,6 +403,7 @@ export function progressSummary(progressValue) {
     attempts: attemptLevels,
     activityDays,
     avatar,
+    boardStyle,
     packs
   };
 }

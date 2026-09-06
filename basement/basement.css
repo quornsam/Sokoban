@@ -1,3 +1,4 @@
+/* BOXXY v323 — board style swatches join the existing Basement player style display. */
 /* BOXXY v308 — ordered progress, all-time time labels, earned badges and outfit previews. */
 :root{--ink:#171719;--paper:#f7f0e5;--cream:#efe5d4;--yellow:#e5b32a;--blue:#20539a;--green:#2f8f5b;--red:#db3b27}
 *{box-sizing:border-box}
@@ -84,8 +85,10 @@ table{min-width:1640px}
 .basement-streak[data-tier="fire"] i{background-image:url("../assets/ui/streak-flames/streak-fire.png")}
 .basement-streak[data-tier="purple"] i{background-image:url("../assets/ui/streak-flames/streak-purple.png")}
 .basement-streak[data-tier="silver"] i{background-image:url("../assets/ui/streak-flames/streak-silver.png")}
-.outfit-mini{display:flex;align-items:center;gap:3px;color:#71685e;font-size:6px;font-weight:1000;letter-spacing:.06em}
-.outfit-mini i,.outfit-swatch{display:inline-block;width:10px;height:10px;border:1px solid var(--ink);background:var(--swatch,#777);flex:0 0 auto}
+.outfit-mini,.board-style-mini{display:flex;align-items:center;gap:3px;color:#71685e;font-size:6px;font-weight:1000;letter-spacing:.06em}
+.board-style-mini{gap:4px}
+.board-style-mini span+span{margin-left:3px}
+.outfit-mini i,.board-style-mini i,.outfit-swatch{display:inline-block;width:10px;height:10px;border:1px solid var(--ink);background:var(--swatch,#777);flex:0 0 auto}
 .progress-stack{display:grid;gap:3px;min-width:150px}
 .progress-stack>div{display:grid;grid-template-columns:54px minmax(0,1fr);gap:5px;align-items:baseline}
 .progress-stack b{font-size:7px;letter-spacing:.06em}

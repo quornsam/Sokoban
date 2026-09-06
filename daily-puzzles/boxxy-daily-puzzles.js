@@ -47,8 +47,7 @@ window.BOXXY_DAILY_SCHEDULE = Object.freeze({
         "# ### # #",
         "#.  .  .#",
         "#########"
-      ],
-      "rainbowMode": true
+      ]
     },
     {
       "sequence": 3,
@@ -89,8 +88,7 @@ window.BOXXY_DAILY_SCHEDULE = Object.freeze({
         " ## $#  .#",
         "  ##    ##",
         "   ######"
-      ],
-      "rainbowMode": true
+      ]
     },
     {
       "sequence": 5,
@@ -130,8 +128,7 @@ window.BOXXY_DAILY_SCHEDULE = Object.freeze({
         "#  $  #.#",
         "#     #.#",
         "#########"
-      ],
-      "rainbowMode": true
+      ]
     },
     {
       "sequence": 7,
@@ -149,8 +146,7 @@ window.BOXXY_DAILY_SCHEDULE = Object.freeze({
         "# $ . #",
         "#@##  #",
         "#######"
-      ],
-      "rainbowMode": true
+      ]
     },
     {
       "sequence": 8,

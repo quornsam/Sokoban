@@ -1,8 +1,9 @@
-/* BOXXY v217 — loads the current Daily month and every earlier month needed by the playable archive. */
+/* BOXXY v218 — loads the Daily archive with an explicit schedule cache revision. */
 (() => {
   "use strict";
 
   const launchDate = "2026-08-30";
+  const scheduleRevision = "326";
   const validDate = value => /^\d{4}-\d{2}-\d{2}$/.test(String(value || ""));
   const localDateKey = (date = new Date()) => {
     const year = date.getFullYear();
@@ -41,7 +42,7 @@
 
   months.forEach(monthKey => {
     document.write('<script>window.BOXXY_DAILY_SCHEDULE=null;<\/script>');
-    document.write(`<script src="daily-puzzles/boxxy-daily-puzzles-${monthKey}.js"><\/script>`);
+    document.write(`<script src="daily-puzzles/boxxy-daily-puzzles-${monthKey}.js?v=${scheduleRevision}"><\/script>`);
     document.write(`<script>(function(){var schedule=window.BOXXY_DAILY_SCHEDULE;if(schedule&&schedule.frontEndEnabled!==false&&window.BOXXY_DAILY_SCHEDULES){window.BOXXY_DAILY_SCHEDULES.push(schedule);}})();<\/script>`);
   });
 

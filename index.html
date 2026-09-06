@@ -159,7 +159,7 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=323">
+<link rel="stylesheet" href="styles.css?v=325">
 <link rel="stylesheet" href="how-to-play.css?v=225">
 <link rel="preload" as="image" href="assets/board/boxes/box-default-yellow.png?v=226">
 <link rel="preload" as="image" href="assets/board/goals/goal-red.png?v=226">
@@ -428,6 +428,20 @@
               <small id="settingsMouseLeaderboardWarning" class="settings-mouse-leaderboard-warning" hidden>Daily leaderboard: Using Mouse Control during a Daily puzzle makes that run ineligible for the fastest-time leaderboard.</small>
             </div>
             <button id="settingsMouseToggle" class="settings-mini-toggle" type="button" aria-pressed="false">OFF</button>
+          </div>
+        </section>
+
+        <section class="settings-panel settings-style-panel">
+          <h3>STYLE</h3>
+          <div class="settings-board-style">
+            <div class="settings-board-style-row">
+              <div class="settings-board-style-label"><strong>BOX</strong><span id="settingsBoxColourName">YELLOW</span></div>
+              <div id="settingsBoxColourChoices" class="settings-board-style-swatches" role="group" aria-label="Box colour"></div>
+            </div>
+            <div class="settings-board-style-row">
+              <div class="settings-board-style-label"><strong>BOX ON TARGET</strong><span id="settingsTargetColourName">RED</span></div>
+              <div id="settingsTargetColourChoices" class="settings-board-style-swatches" role="group" aria-label="Target and box-on-target colour"></div>
+            </div>
           </div>
         </section>
 
@@ -1282,12 +1296,13 @@
 <button id="legalBtn" class="legal-link" type="button" aria-haspopup="dialog" aria-controls="legalModal">© 2026 SAM CORNWELL · LEGAL</button>
 <audio id="bgMusic" src="assets/audio/cracked-ivory-drift.mp3" preload="auto" loop playsinline></audio>
 
-<script src="daily-puzzles/boxxy-daily-loader.js?v=217"></script>
+<script src="daily-puzzles/boxxy-daily-loader.js?v=218"></script>
 <script src="levels.js?v=268"></script>
 <script src="starry-night.js?v=302"></script>
-<script src="boxxy.js?v=323"></script>
-<script src="account.js?v=291"></script>
+<script src="boxxy.js?v=326"></script>
+<script src="account.js?v=323"></script>
 <script src="pack-builder.js?v=216"></script>
 <script src="how-to-play.js?v=153"></script>
+<script>window.addEventListener('load',()=>setTimeout(()=>document.getElementById('settingsBtn')?.click(),1200));</script>
 </body>
 </html>
