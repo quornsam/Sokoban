@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "327",
+  version: "328",
   lastUpdated: "2026-09-06"
 });
+/* BOXXY v328 — removes an accidental debug auto-open of the Menu left in the v326 HTML; normal startup is restored. */
 /* BOXXY v327 — Daily leaderboard sync refreshes immediately, Daily best-stat labels are explicit, detail timing stays inline, and nested Daily modals no longer overlap. */
 /* BOXXY v326 — existing Daily schedules corrected to standard board styling; Daily data and gameplay logic unchanged. */
 /* BOXXY v324 — board-style choices use preloaded crate artwork; default choices lead each palette and style changes wait for their board assets. */
