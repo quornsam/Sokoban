@@ -1,3 +1,4 @@
+/* BOXXY v323 — standard box and target style preference joins account cloud sync. */
 /* BOXXY v291 — redirect-safe offline cache generation for reliable iOS PWA relaunches. */
 /* BOXXY v290 — Android native install handoff added without changing the iPhone or desktop offline flows. */
 /* BOXXY v289 — signed-in offline download, iPhone Home Screen handoff and offline account continuity. */
@@ -27,6 +28,7 @@
     "boxxy-speed-v1",
     "boxxy-mouse-support-v1",
     "boxxy-theme",
+    "boxxy-board-style-v1",
     "push-bauhaus-music",
     "push-bauhaus-character-style-v51",
     "push-bauhaus-v29-level",
@@ -719,6 +721,7 @@
         }
       } catch (_) {}
     });
+    if (changed) window.BoxxyBoardStyle?.reloadFromStorage?.();
     return changed;
   }
 

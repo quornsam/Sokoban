@@ -1,8 +1,8 @@
+/* BOXXY v323 — responsive standard board-style controls in Menu. */
 /*
  * BOXXY — Pushbox Puzzle
  * Copyright © 2026 Sam Cornwell. All rights reserved.
  * Personal non-commercial use only. See LICENSE.md.
- * BOXXY v323: Daily detail stats use scoped label/value selectors so fractional times remain inline.
  * BOXXY v322: Fastest Today uses one consistent stacked leaderboard layout at every screen width.
  * BOXXY v321: Daily puzzle details show the player's stats and highlight their signed-in leaderboard row.
  * BOXXY v320: Daily puzzle-detail modal and compact-card time refinement.
@@ -5843,6 +5843,17 @@ body.first-person-mode .board::after{
 .settings-panel{min-width:0;padding:16px;border:2px solid var(--ink);background:#fffaf1;box-shadow:4px 4px 0 rgba(23,23,25,.13)}
 .settings-panel h3,.settings-keyboard-view h3{margin:0 0 13px;font-size:17px;letter-spacing:.09em;line-height:1}
 .settings-panel p{margin:0 0 13px;color:#655c50;font-size:10px;line-height:1.4;font-weight:750}
+.settings-style-panel{grid-column:1/-1}
+.settings-board-style{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.settings-board-style-row{min-width:0;display:grid;gap:8px;padding:10px;border:1px solid #c4b9aa;background:#f7f0e5}
+.settings-board-style-label{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.settings-board-style-label strong{font-size:9px;font-weight:1000;letter-spacing:.1em}
+.settings-board-style-label span{color:#71685e;font-size:8px;font-weight:900;letter-spacing:.08em;white-space:nowrap}
+.settings-board-style-swatches{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
+.settings-board-style-swatch{position:relative;min-width:0;aspect-ratio:1;border:2px solid var(--ink);background:var(--style-colour,#777);box-shadow:2px 2px 0 rgba(23,23,25,.22);padding:0}
+.settings-board-style-swatch::after{content:"";position:absolute;inset:3px;border:1px solid rgba(255,255,255,.45);pointer-events:none}
+.settings-board-style-swatch.selected{outline:3px solid var(--blue);outline-offset:1px;z-index:1}
+.settings-board-style-swatch:focus-visible{outline:3px solid var(--red);outline-offset:2px}
 .settings-toggle-pair{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:13px}
 .settings-toggle{min-height:62px;padding:8px;border:2px solid var(--ink);background:#e6eee6;color:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;box-shadow:3px 3px 0 var(--ink)}
 .settings-toggle[aria-pressed="false"]{background:#e9e3da;color:#736b62;box-shadow:2px 2px 0 #8f877c}
@@ -5893,6 +5904,9 @@ body[data-boxxy-speed="fast"]{--boxxy-step-transition:.11s;--boxxy-motion-durati
   .settings-grid{grid-template-columns:1fr;gap:9px}
   .settings-panel{padding:12px;box-shadow:3px 3px 0 rgba(23,23,25,.12)}
   .settings-panel h3{font-size:14px;margin-bottom:10px}
+  .settings-board-style{grid-template-columns:1fr;gap:9px}
+  .settings-board-style-row{padding:9px}
+  .settings-board-style-swatches{gap:5px}
   .settings-toggle{min-height:52px}
   .settings-field select{min-height:38px;font-size:10px}
   .settings-panel p{font-size:10px;margin-bottom:10px}
@@ -6815,8 +6829,8 @@ body.large-level-performance .instruction .thought-text{
 .daily-detail-player-stats-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
 .daily-detail-player-stats-grid>div{min-width:0;padding:6px 7px}
 .daily-detail-player-stats-grid>div+div{border-left:1px solid rgba(23,23,25,.22)}
-.daily-detail-player-stats-grid>div>span{display:block;color:#6b6155;font-size:6px;font-weight:1000;letter-spacing:.08em}
-.daily-detail-player-stats-grid>div>strong{display:block;min-width:0;margin-top:2px;font-size:12px;line-height:1;white-space:nowrap}
+.daily-detail-player-stats-grid span{display:block;color:#6b6155;font-size:6px;font-weight:1000;letter-spacing:.08em}
+.daily-detail-player-stats-grid strong{display:block;min-width:0;margin-top:2px;font-size:12px;line-height:1;white-space:nowrap}
 .daily-detail-player-stats-grid .time-fraction{font-size:.58em}
 .daily-detail-play{min-height:48px;padding:10px 14px;border:2px solid var(--ink);background:var(--yellow);color:var(--ink);box-shadow:4px 4px 0 var(--red);font:1000 13px/1 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;letter-spacing:.08em;cursor:pointer}
 .daily-detail-play:active{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--red)}
@@ -6837,8 +6851,8 @@ body.large-level-performance .instruction .thought-text{
   .daily-detail-status{font-size:7.5px}
   .daily-detail-player-stats-title{padding:4px 6px 3px;font-size:6px}
   .daily-detail-player-stats-grid>div{padding:5px 5px}
-  .daily-detail-player-stats-grid>div>span{font-size:5.5px}
-  .daily-detail-player-stats-grid>div>strong{font-size:10.5px}
+  .daily-detail-player-stats-grid span{font-size:5.5px}
+  .daily-detail-player-stats-grid strong{font-size:10.5px}
   .daily-detail-play{min-height:43px;padding:8px 10px;font-size:11px;box-shadow:3px 3px 0 var(--red)}
   .daily-leaderboard-section-head{padding:7px 9px 6px}
   .daily-leaderboard-section-head span{font-size:6.5px}

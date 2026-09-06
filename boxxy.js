@@ -7,9 +7,9 @@
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
   version: "323",
-  lastUpdated: "2026-09-05"
+  lastUpdated: "2026-09-06"
 });
-/* BOXXY v323 — Daily detail stat labels/values are scoped so nested fractional time spans stay inline. */
+/* BOXXY v323 — standard box/target colour customisation reuses Rainbow assets without changing Rainbow levels. */
 /* BOXXY v322 — Fastest Today keeps its top-three entries stacked consistently across desktop, iPad and phone widths. */
 /* BOXXY v321 — Daily puzzle details add the player's local stats and highlight the signed-in player in fastest times. */
 /* BOXXY v320 — Daily cards open a puzzle-detail modal with fastest times and a Play Now / Play Again action; compact phone cards omit hundredths. */
@@ -214,6 +214,78 @@ window.BOXXY_RELEASE = Object.freeze({
   window.BoxxyGoalColours = Object.freeze({
     DEFAULT, BOARD_ASSET_REVISION, ORDER, PALETTE, normalise, normaliseMap, style,
     spritePath, versionedBoardAssetPath, decodeTextChar, isTextCode, encodeTextCell
+  });
+})();
+
+/* BOXXY v323 — player-selectable standard box and target colours. */
+(() => {
+  "use strict";
+  const STORAGE_KEY = "boxxy-board-style-v1";
+  const DEFAULT_STYLE = Object.freeze({ box: "yellow", target: "red" });
+  const palette = window.BoxxyGoalColours;
+  const COLOURS = Object.freeze((palette?.ORDER || []).filter(colour => colour !== "black"));
+
+  function allowed(value) {
+    const colour = String(value || "").trim().toLowerCase().replace(/_/g, "-");
+    return COLOURS.includes(colour) ? colour : "";
+  }
+
+  function normaliseStyle(value) {
+    const raw = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+    let box = allowed(raw.box) || DEFAULT_STYLE.box;
+    let target = allowed(raw.target) || DEFAULT_STYLE.target;
+    if (box === target) target = box === DEFAULT_STYLE.target ? DEFAULT_STYLE.box : DEFAULT_STYLE.target;
+    return { box, target };
+  }
+
+  function readStorage() {
+    try {
+      return normaliseStyle(JSON.parse(localStorage.getItem(STORAGE_KEY) || "null"));
+    } catch (_) {
+      return { ...DEFAULT_STYLE };
+    }
+  }
+
+  let style = readStorage();
+
+  function persist(notify = true) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(style)); } catch (_) {}
+    if (notify) window.dispatchEvent(new CustomEvent("boxxyboardstylechange", { detail: { ...style } }));
+  }
+
+  function set(category, value) {
+    if (category !== "box" && category !== "target") return false;
+    const colour = allowed(value);
+    if (!colour || style[category] === colour) return false;
+    const other = category === "box" ? "target" : "box";
+    const next = { ...style };
+    if (colour === next[other]) next[other] = next[category];
+    next[category] = colour;
+    style = normaliseStyle(next);
+    persist(true);
+    return true;
+  }
+
+  function reset() {
+    style = { ...DEFAULT_STYLE };
+    persist(true);
+  }
+
+  function reloadFromStorage() {
+    const next = readStorage();
+    if (next.box === style.box && next.target === style.target) return false;
+    style = next;
+    window.dispatchEvent(new CustomEvent("boxxyboardstylechange", { detail: { ...style } }));
+    return true;
+  }
+
+  window.addEventListener("storage", event => {
+    if (event.key === STORAGE_KEY) reloadFromStorage();
+  });
+
+  window.BoxxyBoardStyle = Object.freeze({
+    STORAGE_KEY, DEFAULT_STYLE, COLOURS, set, reset, reloadFromStorage,
+    get style() { return { ...style }; }
   });
 })();
 
@@ -942,6 +1014,7 @@ window.BOXXY_RELEASE = Object.freeze({
   "use strict";
 
   const GOAL_COLOURS = window.BoxxyGoalColours;
+  const BOARD_STYLE = window.BoxxyBoardStyle;
   const PACKS = Array.isArray(window.BOXXY_LEVEL_PACKS) && window.BOXXY_LEVEL_PACKS.length
     ? window.BOXXY_LEVEL_PACKS
     : [{
@@ -969,6 +1042,47 @@ window.BOXXY_RELEASE = Object.freeze({
     "alphabet-soup": "ALPHABET<br>SOUP",
     "starry-night": "STARRY<br>NIGHT"
   });
+
+  function levelUsesRainbowStyle(level) {
+    if (!level || typeof level !== "object") return false;
+    if (level.rainbowMode === true) return true;
+    const colourMap = level.goalColours && typeof level.goalColours === "object" && !Array.isArray(level.goalColours)
+      ? level.goalColours
+      : {};
+    if (Object.keys(colourMap).length) return true;
+    return Array.isArray(level.layout) && level.layout.some(row =>
+      [...String(row)].some(char => GOAL_COLOURS?.isTextCode?.(char))
+    );
+  }
+
+  function standardBoardStyle() {
+    const value = BOARD_STYLE?.style || {};
+    const box = BOARD_STYLE?.COLOURS?.includes?.(value.box) ? value.box : "yellow";
+    const target = BOARD_STYLE?.COLOURS?.includes?.(value.target) ? value.target : "red";
+    return box === target ? { box: "yellow", target: "red" } : { box, target };
+  }
+
+  function displayTargetColour(rawColour, level = levelData) {
+    return levelUsesRainbowStyle(level)
+      ? (GOAL_COLOURS?.normalise?.(rawColour) || "red")
+      : standardBoardStyle().target;
+  }
+
+  function displayBoxArtworkColour(level = levelData) {
+    if (levelUsesRainbowStyle(level)) return "default-yellow";
+    const colour = standardBoardStyle().box;
+    return colour === "yellow" ? "default-yellow" : colour;
+  }
+
+  function displayBoxHex(level = levelData) {
+    const colour = levelUsesRainbowStyle(level) ? "yellow" : standardBoardStyle().box;
+    return GOAL_COLOURS?.PALETTE?.[colour]?.hex || "#f9bc18";
+  }
+
+  function displayTargetHex(rawColour, level = levelData) {
+    const colour = displayTargetColour(rawColour, level);
+    return GOAL_COLOURS?.PALETTE?.[colour]?.hex || "#ec2826";
+  }
   const PACK_ARTWORK = Object.freeze({
     "boxxy-original-puzzle-pack-of-50-levels": {
       desktop: "assets/pack-art/boxxy-originals-banner.webp",
@@ -1924,14 +2038,18 @@ window.BOXXY_RELEASE = Object.freeze({
     const offsetX = (cssWidth - boardWidth) / 2;
     const offsetY = (cssHeight - boardHeight) / 2;
     const goalMap = level.goalColours && typeof level.goalColours === "object" ? level.goalColours : {};
+    const rainbowStyle = levelUsesRainbowStyle(level);
+    const standardStyle = standardBoardStyle();
 
     for (let y = minY; y <= maxY; y++) {
       for (let x = minX; x <= maxX; x++) {
         const raw = grid[y]?.[x] || " ";
         const decoded = GOAL_COLOURS?.decodeTextChar?.(raw);
         const char = decoded?.cell || raw;
-        const colourName = GOAL_COLOURS?.normalise?.(decoded?.colour || goalMap[`${x},${y}`]) || "red";
+        const sourceColourName = GOAL_COLOURS?.normalise?.(decoded?.colour || goalMap[`${x},${y}`]) || "red";
+        const colourName = rainbowStyle ? sourceColourName : standardStyle.target;
         const colour = GOAL_COLOURS?.PALETTE?.[colourName]?.hex || "#ec2826";
+        const boxColour = GOAL_COLOURS?.PALETTE?.[standardStyle.box]?.hex || "#f9bc18";
         const dx = offsetX + (x - minX) * cell;
         const dy = offsetY + (y - minY) * cell;
         const isWall = char === "#";
@@ -1960,7 +2078,7 @@ window.BOXXY_RELEASE = Object.freeze({
         }
         if (isBox) {
           const inset = Math.max(1, cell * .12);
-          context.fillStyle = isGoal ? colour : "#efbd25";
+          context.fillStyle = isGoal ? colour : (rainbowStyle ? "#efbd25" : boxColour);
           context.fillRect(dx + inset, dy + inset, Math.max(1, cell - inset * 2), Math.max(1, cell - inset * 2));
           context.strokeStyle = "rgba(55,38,18,.72)";
           context.lineWidth = Math.max(.8, cell * .07);
@@ -2030,6 +2148,10 @@ window.BOXXY_RELEASE = Object.freeze({
   const settingsMouseRow = document.getElementById("settingsMouseRow");
   const settingsMouseToggle = document.getElementById("settingsMouseToggle");
   const settingsMouseLeaderboardWarning = document.getElementById("settingsMouseLeaderboardWarning");
+  const settingsBoxColourChoices = document.getElementById("settingsBoxColourChoices");
+  const settingsTargetColourChoices = document.getElementById("settingsTargetColourChoices");
+  const settingsBoxColourName = document.getElementById("settingsBoxColourName");
+  const settingsTargetColourName = document.getElementById("settingsTargetColourName");
   const settingsControlsPanel = document.getElementById("settingsControlsPanel");
   const settingsContactBtn = document.getElementById("settingsContactBtn");
   const levelBtn = document.getElementById("levelBtn");
@@ -3991,21 +4113,21 @@ window.BOXXY_RELEASE = Object.freeze({
       applyBoardArtwork(
         goal.querySelector(".board-art-goal"),
         "goal",
-        goal.dataset.goalColour || "red"
+        goal.dataset.goalColour || displayTargetColour("red")
       );
     });
     pieceLayer?.querySelectorAll?.(".piece.box").forEach(box => {
       const colour = box.classList.contains("on-goal")
-        ? (box.dataset.goalColour || "red")
-        : "default-yellow";
+        ? (box.dataset.goalColour || displayTargetColour("red"))
+        : displayBoxArtworkColour();
       applyBoardArtwork(box.querySelector(".board-art-box"), "box", colour);
     });
   }
 
   function currentBoardAssetPaths() {
-    const paths = new Set([defaultBoxAssetPath()]);
+    const paths = new Set([boardAssetPath("box", displayBoxArtworkColour())]);
     for (const goal of goals) {
-      const colour = GOAL_COLOURS?.normalise?.(goal.colour) || "red";
+      const colour = displayTargetColour(goal.colour);
       paths.add(boardAssetPath("goal", colour));
       paths.add(boardAssetPath("box", colour));
     }
@@ -4904,6 +5026,61 @@ window.BOXXY_RELEASE = Object.freeze({
     if (persist) localStorage.setItem("boxxy-speed-v1", boxxySpeed);
   }
 
+  function boardStyleColourLabel(colour) {
+    return String(GOAL_COLOURS?.PALETTE?.[colour]?.label || colour || "").toUpperCase();
+  }
+
+  function updateBoardStyleControls() {
+    const style = standardBoardStyle();
+    if (settingsBoxColourName) settingsBoxColourName.textContent = boardStyleColourLabel(style.box);
+    if (settingsTargetColourName) settingsTargetColourName.textContent = boardStyleColourLabel(style.target);
+    document.querySelectorAll("[data-board-style-colour]").forEach(button => {
+      const category = button.dataset.boardStyleCategory;
+      const selected = style[category] === button.dataset.boardStyleColour;
+      button.classList.toggle("selected", selected);
+      button.setAttribute("aria-pressed", String(selected));
+    });
+  }
+
+  function buildBoardStyleControls() {
+    const build = (container, category) => {
+      if (!container) return;
+      container.replaceChildren();
+      (BOARD_STYLE?.COLOURS || []).forEach(colour => {
+        const entry = GOAL_COLOURS?.PALETTE?.[colour];
+        if (!entry) return;
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "settings-board-style-swatch";
+        button.dataset.boardStyleCategory = category;
+        button.dataset.boardStyleColour = colour;
+        button.title = entry.label;
+        button.setAttribute("aria-label", `${category === "box" ? "Box" : "Box on target"}: ${entry.label}`);
+        button.style.setProperty("--style-colour", entry.hex);
+        button.addEventListener("click", () => BOARD_STYLE?.set?.(category, colour));
+        container.appendChild(button);
+      });
+    };
+    build(settingsBoxColourChoices, "box");
+    build(settingsTargetColourChoices, "target");
+    updateBoardStyleControls();
+  }
+
+  function refreshBoardStylePresentation() {
+    updateBoardStyleControls();
+    if (Array.isArray(goals) && goals.length && goalLayer && pieceLayer) {
+      buildGoals();
+      resetLargePieceCache();
+      render("idle");
+    }
+    if (dailyArchiveModal && !dailyArchiveModal.hidden) renderDailyArchive();
+    if (dailyLeaderboardModal && !dailyLeaderboardModal.hidden && dailyLeaderboardActivePuzzle && dailyLeaderboardPreviewCanvas) {
+      drawLevelThumbnail(dailyLeaderboardPreviewCanvas, dailyLeaderboardActivePuzzle);
+    }
+  }
+
+  window.addEventListener("boxxyboardstylechange", refreshBoardStylePresentation);
+
   function updateSettingsMouseButton() {
     if (!settingsMouseToggle) return;
     const available = !settingsTouchDevice() && desktopEasterEggAvailable();
@@ -4938,6 +5115,7 @@ window.BOXXY_RELEASE = Object.freeze({
     applySelectedMusicTrack(false);
     updateInstantSpeedOption();
     applyBoxxySpeed(boxxySpeed, false);
+    updateBoardStyleControls();
     showSettingsMainView();
     settingsModal.hidden = false;
     settingsBtn?.setAttribute("aria-expanded", "true");
@@ -5483,7 +5661,7 @@ window.BOXXY_RELEASE = Object.freeze({
     context.globalAlpha = 1;
 
     goals.forEach(goal => {
-      const colour = FIRST_PERSON_GOAL_COLOURS[String(goal.colour || "red").toLowerCase()] || FIRST_PERSON_GOAL_COLOURS.red;
+      const colour = displayTargetHex(goal.colour);
       const points = [];
       for (let index = 0; index < 24; index++) {
         const theta = index / 24 * Math.PI * 2;
@@ -5507,9 +5685,9 @@ window.BOXXY_RELEASE = Object.freeze({
     context.globalAlpha = 1;
 
     const faces = [];
-    const addCuboid = ({ x0, z0, x1, z1, objectHeight, kind, colour, onGoal = false }) => {
+    const addCuboid = ({ x0, z0, x1, z1, objectHeight, kind, colour, topColour = "", onGoal = false }) => {
       const sideFill = kind === "wall" ? "#26383d" : colour;
-      const topFill = kind === "wall" ? "#78908f" : onGoal ? colour : "rgba(255,214,72,.70)";
+      const topFill = kind === "wall" ? "#78908f" : (topColour || colour);
       const edge = kind === "wall" ? "#c6dcda" : "rgba(255,246,205,.86)";
       const pushFace = (worldPoints, fill, top = false) => {
         const projected = firstPersonProjectedPolygon(worldPoints, view);
@@ -5552,10 +5730,7 @@ window.BOXXY_RELEASE = Object.freeze({
         renderZ = movingBox.fromZ + (movingBox.toZ - movingBox.fromZ) * motionEase;
       }
       const goal = goalAt(box.x, box.y);
-      const goalColour = FIRST_PERSON_GOAL_COLOURS[String(goal?.colour || "yellow").toLowerCase()] || "#efbd2c";
-      const fill = goal
-        ? `${goalColour}b8`
-        : "rgba(239,184,37,.68)";
+      const boxHex = goal ? displayTargetHex(goal.colour) : displayBoxHex();
       addCuboid({
         x0: renderX + 0.14,
         z0: renderZ + 0.14,
@@ -5563,7 +5738,8 @@ window.BOXXY_RELEASE = Object.freeze({
         z1: renderZ + 0.86,
         objectHeight: 0.72,
         kind: "box",
-        colour: fill,
+        colour: `${boxHex}b8`,
+        topColour: `${boxHex}d8`,
         onGoal: Boolean(goal)
       });
     });
@@ -5710,15 +5886,16 @@ window.BOXXY_RELEASE = Object.freeze({
   function buildGoals() {
     goalLayer.innerHTML = "";
     goals.forEach(goal => {
+      const colour = displayTargetColour(goal.colour);
       const cell = document.createElement("div");
       cell.className = "cell goal";
       cell.style.cssText = posStyle(goal.x, goal.y, depth(goal.y, "goal"));
-      GOAL_COLOURS?.style?.(cell, goal.colour);
+      GOAL_COLOURS?.style?.(cell, colour);
       const art = document.createElement("span");
       art.className = "board-art board-art-goal";
       art.setAttribute("aria-hidden", "true");
       cell.appendChild(art);
-      applyBoardArtwork(art, "goal", goal.colour);
+      applyBoardArtwork(art, "goal", colour);
       goalLayer.appendChild(cell);
     });
   }
@@ -5815,8 +5992,9 @@ window.BOXXY_RELEASE = Object.freeze({
     if (!box || !piece) return;
 
     const goal = goalAt(box.x, box.y);
-    const goalColour = goal ? (GOAL_COLOURS?.normalise?.(goal.colour) || "red") : "";
-    const stateToken = goal ? `goal:${goalColour}` : "floor";
+    const goalColour = goal ? displayTargetColour(goal.colour) : "";
+    const floorBoxColour = displayBoxArtworkColour();
+    const stateToken = goal ? `goal:${goalColour}` : `floor:${floorBoxColour}`;
 
     setLargePiecePosition(piece, box.x, box.y, depth(box.y, "box"));
 
@@ -5831,7 +6009,7 @@ window.BOXXY_RELEASE = Object.freeze({
         piece.style.removeProperty("--goal-sprite");
         piece.style.removeProperty("--box-sprite");
       }
-      applyBoardArtwork(piece.querySelector(".board-art-box"), "box", goal ? goalColour : "default-yellow");
+      applyBoardArtwork(piece.querySelector(".board-art-box"), "box", goal ? goalColour : floorBoxColour);
     }
 
     piece.classList.remove("pushing", "board-step");
@@ -5891,8 +6069,8 @@ window.BOXXY_RELEASE = Object.freeze({
       boxes.forEach((box, index) => {
         const piece = largeBoxPieces[index];
         const goal = goalAt(box.x, box.y);
-        const goalColour = goal ? (GOAL_COLOURS?.normalise?.(goal.colour) || "red") : "";
-        const stateToken = goal ? `goal:${goalColour}` : "floor";
+        const goalColour = goal ? displayTargetColour(goal.colour) : "";
+        const stateToken = goal ? `goal:${goalColour}` : `floor:${displayBoxArtworkColour()}`;
         if (!piece || piece.dataset.x !== String(box.x) || piece.dataset.y !== String(box.y)
           || piece.dataset.stateToken !== stateToken) {
           syncLargeBoxPiece(index, false, null);
@@ -5949,12 +6127,13 @@ window.BOXXY_RELEASE = Object.freeze({
         piece.style.setProperty("--from-x", activeBoardMotion.boxFromX);
         piece.style.setProperty("--from-y", activeBoardMotion.boxFromY);
       }
-      if (goal) GOAL_COLOURS?.style?.(piece, goal.colour);
+      const targetColour = goal ? displayTargetColour(goal.colour) : "";
+      if (goal) GOAL_COLOURS?.style?.(piece, targetColour);
       const art = document.createElement("span");
       art.className = "board-art board-art-box";
       art.setAttribute("aria-hidden", "true");
       piece.appendChild(art);
-      applyBoardArtwork(art, "box", goal ? goal.colour : "default-yellow");
+      applyBoardArtwork(art, "box", goal ? targetColour : displayBoxArtworkColour());
       pieceLayer.appendChild(piece);
     });
 
@@ -6199,7 +6378,8 @@ window.BOXXY_RELEASE = Object.freeze({
       pushMinimum: 0,
       solution: String(puzzle.solution || ""),
       layout: puzzle.layout.map(row => String(row)),
-      goalColours: puzzle.goalColours || {}
+      goalColours: puzzle.goalColours || {},
+      rainbowMode: Boolean(puzzle.rainbowMode)
     };
     const parsed = parseLayout(levelData.layout, levelData.goalColours);
     width = parsed.width;
@@ -6397,7 +6577,8 @@ window.BOXXY_RELEASE = Object.freeze({
         pushMinimum: parsed.boxes.length,
         solution: makerSolution,
         layout: cleanRows,
-        goalColours: makerGoalColours
+        goalColours: makerGoalColours,
+        rainbowMode: Boolean(options.rainbowMode) || Object.keys(makerGoalColours).length > 0
       };
       width = parsed.width;
       height = parsed.height;
@@ -8349,6 +8530,7 @@ window.BOXXY_RELEASE = Object.freeze({
     boardResizeObserver.observe(boardWrap);
   }
   updateFullscreenButton();
+  buildBoardStyleControls();
   updateSettingsDeviceAvailability();
   updateSoundButton();
   updateInstantSpeedOption();
