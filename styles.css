@@ -6477,6 +6477,7 @@ body[data-boxxy-speed="fast"]{--boxxy-step-transition:.11s;--boxxy-motion-durati
 }
 
 
+/* BOXXY v331 — Google disconnect control, aligned Google registration terms, and stable Google button layout. */
 /* BOXXY v329 — optional Google sign-in and linking inside the existing account sheet. */
 .account-google-guest{margin-top:14px}
 .account-google-divider{position:relative;display:flex;align-items:center;justify-content:center;margin:2px 0 12px;color:#71685e;font-size:8px;font-weight:1000;letter-spacing:.1em}
@@ -6492,6 +6493,7 @@ body[data-boxxy-speed="fast"]{--boxxy-step-transition:.11s;--boxxy-motion-durati
 .account-google-verified strong{font-size:11px;overflow-wrap:anywhere}
 .account-google-create-form{margin-top:11px}
 .account-google-create-form>label:first-child{grid-column:1/-1}
+.account-google-create-form>label.account-check{grid-column:1/-1;justify-self:start}
 .account-google-cancel{grid-column:1/-1;justify-self:center;border:0;background:transparent;color:#6b6257;text-decoration:underline;text-underline-offset:2px;font-size:8px;font-weight:950;letter-spacing:.07em;cursor:pointer}
 .account-google-card{margin:12px 0 0;padding:12px;border:2px solid var(--ink);background:#f7f0e5}
 .account-google-heading{display:block;margin:0 0 8px}
@@ -6499,6 +6501,11 @@ body[data-boxxy-speed="fast"]{--boxxy-step-transition:.11s;--boxxy-motion-durati
 .account-google-linked[hidden],.account-google-link[hidden]{display:none!important}
 .account-google-linked strong{color:#23734b;font-size:9px;font-weight:1000;letter-spacing:.07em}
 .account-google-linked span{font-size:9px;font-weight:800;overflow-wrap:anywhere}
+.account-google-disconnect{justify-self:start;margin:5px 0 0;padding:2px 0;border:0;background:transparent;color:#6b6257;text-decoration:underline;text-underline-offset:2px;font:inherit;font-size:8px;font-weight:950;letter-spacing:.06em;cursor:pointer}
+.account-google-disconnect:hover{color:var(--ink)}
+.account-google-disconnect:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.account-google-disconnect:disabled{opacity:.55;cursor:wait}
+.account-google-disconnect[hidden]{display:none!important}
 .account-google-link-title{display:block;margin:0 0 4px;font-size:9px;font-weight:1000;letter-spacing:.07em}
 .account-google-link p{margin:0 0 9px;text-align:left}
 .account-delete-actions .account-google-delete-button{min-height:40px}

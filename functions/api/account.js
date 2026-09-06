@@ -407,6 +407,29 @@ async function handleLinkGoogle(context, body) {
   return json(await accountPayload(db, refreshed));
 }
 
+async function handleDisconnectGoogle(context) {
+  const { env, request } = context;
+  const db = requireDatabase(env);
+  const user = await authenticatedUser(env, request);
+  if (!user) return json({ ok: false, authenticated: false, error: "Please sign in again." }, 401);
+
+  const authInfo = await userAuthInfo(db, user.id);
+  if (!authInfo.googleLinked) return json(await accountPayload(db, user));
+  if (!authInfo.passwordEnabled) {
+    return json({
+      ok: false,
+      error: "Google-only accounts cannot disconnect Google because that would leave no way to sign back in."
+    }, 409);
+  }
+
+  await db.prepare(`
+    DELETE FROM auth_identities
+    WHERE provider = 'google' AND user_id = ?
+  `).bind(user.id).run();
+
+  return json(await accountPayload(db, user));
+}
+
 async function handleSync(context, body) {
   const { env, request } = context;
   const db = requireDatabase(env);
@@ -473,6 +496,7 @@ export async function onRequest(context) {
     if (action === "google_auth") return await handleGoogleAuth(context, body);
     if (action === "google_register") return await handleGoogleRegister(context, body);
     if (action === "link_google") return await handleLinkGoogle(context, body);
+    if (action === "disconnect_google") return await handleDisconnectGoogle(context);
     if (action === "sync") return await handleSync(context, body);
     if (action === "logout") return await handleLogout(context);
     if (action === "delete") return await handleDelete(context, body);

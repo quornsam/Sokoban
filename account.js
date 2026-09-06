@@ -1,3 +1,4 @@
+/* BOXXY v331 — adds safe Google disconnect for password accounts and stabilises Google button rendering in the account sheet. */
 /* BOXXY v329 — optional Google sign-in links to the existing BOXXY user/session/save architecture. */
 /* BOXXY v327 — signed-in Daily completions request an immediate cloud sync so leaderboard results can refresh without waiting for the periodic sync. */
 /* BOXXY v323 — standard box and target style preference joins account cloud sync. */
@@ -89,6 +90,7 @@
   const accountGuest = document.getElementById("accountGuest");
   const googleLinked = document.getElementById("accountGoogleLinked");
   const googleLinkedEmail = document.getElementById("accountGoogleLinkedEmail");
+  const googleDisconnectBtn = document.getElementById("accountGoogleDisconnectBtn");
   const googleLink = document.getElementById("accountGoogleLink");
   const googleLinkBtn = document.getElementById("accountGoogleLinkBtn");
   const offlineBtn = document.getElementById("accountOfflineBtn");
@@ -121,7 +123,7 @@
 
   function setBusy(next) {
     busy = Boolean(next);
-    [createSubmit, loginSubmit, googleCreateSubmit, logoutBtn, deletePasswordConfirm].forEach(button => {
+    [createSubmit, loginSubmit, googleCreateSubmit, googleDisconnectBtn, logoutBtn, deletePasswordConfirm].forEach(button => {
       if (button) button.disabled = busy;
     });
   }
@@ -772,7 +774,10 @@
   }
 
   function renderGoogleButton(container, state, text = "continue_with") {
-    if (!googleReady || !container || container.hidden) return;
+    if (!googleReady || !container || container.hidden || container.getClientRects().length === 0) return;
+    const width = googleButtonWidth(container);
+    const renderKey = `${state}|${text}|${width}`;
+    if (container.dataset.googleRenderKey === renderKey && container.childElementCount > 0) return;
     try {
       container.replaceChildren();
       window.google.accounts.id.renderButton(container, {
@@ -782,10 +787,13 @@
         text,
         shape: "rectangular",
         logo_alignment: "left",
-        width: googleButtonWidth(container),
+        width,
         state
       });
-    } catch (_) {}
+      container.dataset.googleRenderKey = renderKey;
+    } catch (_) {
+      delete container.dataset.googleRenderKey;
+    }
   }
 
   function renderGoogleButtons() {
@@ -815,7 +823,7 @@
         auto_select: false
       });
       googleReady = true;
-      scheduleGoogleButtons();
+      renderGoogleButtons();
     } catch (_) {
       googleReady = false;
     }
@@ -989,10 +997,11 @@
     if (completeAccountPrompt) completeAccountPrompt.hidden = loggedIn;
     if (details) details.hidden = !loggedIn;
     if (loggedIn) {
+      const googleOnly = account.passwordEnabled === false;
       if (googleLinked) googleLinked.hidden = !account.googleLinked;
       if (googleLink) googleLink.hidden = Boolean(account.googleLinked);
       if (googleLinkedEmail) googleLinkedEmail.textContent = account.googleEmail || account.email || "—";
-      const googleOnly = account.passwordEnabled === false;
+      if (googleDisconnectBtn) googleDisconnectBtn.hidden = !account.googleLinked || googleOnly;
       if (deletePasswordLabel) deletePasswordLabel.hidden = googleOnly;
       if (deletePasswordConfirm) deletePasswordConfirm.hidden = googleOnly;
       if (googleDeleteBtn) googleDeleteBtn.hidden = !googleOnly;
@@ -1015,11 +1024,12 @@
       refreshOfflineButton();
     } else {
       if (googleLinked) googleLinked.hidden = true;
+      if (googleDisconnectBtn) googleDisconnectBtn.hidden = true;
       if (googleLink) googleLink.hidden = false;
       if (offlineGuide) offlineGuide.hidden = true;
     }
     renderMode();
-    scheduleGoogleButtons();
+    renderGoogleButtons();
   }
 
   function renderMode() {
@@ -1034,7 +1044,7 @@
     if (loginForm) loginForm.hidden = googleRegistering || creating;
     if (googleGuest) googleGuest.hidden = googleRegistering;
     if (googleRegistration) googleRegistration.hidden = !googleRegistering;
-    scheduleGoogleButtons();
+    renderGoogleButtons();
   }
 
   function openAccount() {
@@ -1265,6 +1275,32 @@
     setBusy(false);
     setStatus("SIGNED OUT", "success");
     render();
+  });
+
+  googleDisconnectBtn?.addEventListener("click", async () => {
+    if (busy || !account || !account.googleLinked || account.passwordEnabled === false) return;
+    const confirmed = window.confirm(
+      "Disconnect Google from this BOXXY account? Your username/password sign-in, progress and account history will stay unchanged."
+    );
+    if (!confirmed) return;
+
+    setBusy(true);
+    setStatus("DISCONNECTING GOOGLE…");
+    try {
+      const { response, data } = await requestAccount({ action: "disconnect_google" });
+      if (!response.ok) {
+        setStatus(data.error || "Google account could not be disconnected.", "error");
+        return;
+      }
+      if (data.account) account = data.account;
+      saveOfflineAccountSnapshot();
+      render();
+      setStatus("GOOGLE DISCONNECTED · BOXXY ACCOUNT KEPT", "success");
+    } catch (_) {
+      setStatus("Google disconnect could not reach the BOXXY account service.", "error");
+    } finally {
+      setBusy(false);
+    }
   });
 
   deleteToggle?.addEventListener("click", () => {
