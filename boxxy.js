@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "331",
+  version: "332",
   lastUpdated: "2026-09-06"
 });
+/* BOXXY v332 — custom and Rainbow board artwork now uses the existing persistent piece renderer so coloured boxes are not destroyed and repainted on every move. */
 /* BOXXY v331 — adds Google disconnect for password accounts, fixes Google account UI alignment/flicker, and brings the built-in Legal copy in line with Google authentication. */
 /* BOXXY v329 — adds optional Google authentication without changing BOXXY progress/session identity or the v298 large-level performance core. */
 /* BOXXY v328 — removes an accidental debug auto-open of the Menu left in the v326 HTML; normal startup is restored. */
@@ -6233,7 +6234,16 @@ window.BOXXY_RELEASE = Object.freeze({
     /* Turbo can issue movement updates faster than a display paints frames.
        Reuse the existing v298 persistent piece renderer for Turbo's idle-frame
        movement instead of rebuilding every box/player DOM node on every step. */
+    /* Coloured board artwork is noticeably expensive to destroy and recreate on
+       mobile Safari/WebKit. Reuse the proven v298 persistent piece renderer
+       whenever a standard custom palette or Rainbow artwork is active. Default
+       yellow/red boards keep their existing renderer and behaviour. */
+    const standardStyle = standardBoardStyle();
+    const persistentBoardArtwork = levelUsesRainbowStyle(levelData)
+      || standardStyle.box !== "yellow"
+      || standardStyle.target !== "red";
     const useCachedPieceRenderer = largeLevelPerformanceMode
+      || persistentBoardArtwork
       || (boxxyInstantSpeedActive() && anim === "idle");
     if (useCachedPieceRenderer) {
       renderLargeLevel(anim);
