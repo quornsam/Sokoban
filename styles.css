@@ -1,3 +1,4 @@
+/* BOXXY v324 — compact crate-art board-style choices with explicit default separation and responsive wrapping. */
 /* BOXXY v323 — responsive standard board-style controls in Menu. */
 /*
  * BOXXY — Pushbox Puzzle
@@ -5849,10 +5850,11 @@ body.first-person-mode .board::after{
 .settings-board-style-label{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
 .settings-board-style-label strong{font-size:9px;font-weight:1000;letter-spacing:.1em}
 .settings-board-style-label span{color:#71685e;font-size:8px;font-weight:900;letter-spacing:.08em;white-space:nowrap}
-.settings-board-style-swatches{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
-.settings-board-style-swatch{position:relative;min-width:0;aspect-ratio:1;border:2px solid var(--ink);background:var(--style-colour,#777);box-shadow:2px 2px 0 rgba(23,23,25,.22);padding:0}
-.settings-board-style-swatch::after{content:"";position:absolute;inset:3px;border:1px solid rgba(255,255,255,.45);pointer-events:none}
-.settings-board-style-swatch.selected{outline:3px solid var(--blue);outline-offset:1px;z-index:1}
+.settings-board-style-swatches{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.settings-board-style-swatch{position:relative;flex:0 0 40px;width:40px;height:40px;border:1px solid #a99d8d;background-color:#eee5d8;background-position:center;background-repeat:no-repeat;background-size:88% 88%;box-shadow:1px 1px 0 rgba(23,23,25,.18);padding:0}
+.settings-board-style-swatch.default-choice{margin-right:8px}
+.settings-board-style-swatch.default-choice::after{content:"";position:absolute;right:-8px;top:6px;bottom:6px;width:1px;background:#c4b9aa;pointer-events:none}
+.settings-board-style-swatch.selected{border:2px solid var(--ink);outline:2px solid var(--blue);outline-offset:1px;z-index:1}
 .settings-board-style-swatch:focus-visible{outline:3px solid var(--red);outline-offset:2px}
 .settings-toggle-pair{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:13px}
 .settings-toggle{min-height:62px;padding:8px;border:2px solid var(--ink);background:#e6eee6;color:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;box-shadow:3px 3px 0 var(--ink)}
@@ -5907,6 +5909,8 @@ body[data-boxxy-speed="fast"]{--boxxy-step-transition:.11s;--boxxy-motion-durati
   .settings-board-style{grid-template-columns:1fr;gap:9px}
   .settings-board-style-row{padding:9px}
   .settings-board-style-swatches{gap:5px}
+  .settings-board-style-swatch{flex-basis:38px;width:38px;height:38px}
+  .settings-board-style-swatch.default-choice{margin-right:7px}
   .settings-toggle{min-height:52px}
   .settings-field select{min-height:38px;font-size:10px}
   .settings-panel p{font-size:10px;margin-bottom:10px}
@@ -5921,6 +5925,7 @@ body[data-boxxy-speed="fast"]{--boxxy-step-transition:.11s;--boxxy-motion-durati
   .settings-card{width:min(820px,96vw);max-height:96dvh}
   .settings-head{padding:11px 15px 9px}.settings-head h2{font-size:32px}.settings-close{width:34px;height:34px;font-size:23px}
   .settings-main-view{padding:9px}.settings-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.settings-panel{padding:10px}
+  .settings-board-style-swatch{flex-basis:36px;width:36px;height:36px}
   .settings-toggle{min-height:46px}.settings-panel p{display:none}.settings-footer{padding:6px}
 }
 

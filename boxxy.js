@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "323",
+  version: "324",
   lastUpdated: "2026-09-06"
 });
+/* BOXXY v324 — board-style choices use preloaded crate artwork; default choices lead each palette and style changes wait for their board assets. */
 /* BOXXY v323 — standard box/target colour customisation reuses Rainbow assets without changing Rainbow levels. */
 /* BOXXY v322 — Fastest Today keeps its top-three entries stacked consistently across desktop, iPad and phone widths. */
 /* BOXXY v321 — Daily puzzle details add the player's local stats and highlight the signed-in player in fastest times. */
@@ -5030,6 +5031,68 @@ window.BOXXY_RELEASE = Object.freeze({
     return String(GOAL_COLOURS?.PALETTE?.[colour]?.label || colour || "").toUpperCase();
   }
 
+  function boardStyleDefaultColour(category) {
+    return category === "box" ? "yellow" : "red";
+  }
+
+  function boardStyleChoiceArtworkColour(category, colour) {
+    return category === "box" && colour === "yellow" ? "default-yellow" : colour;
+  }
+
+  function boardStyleChoiceAssetPath(category, colour) {
+    return boardAssetPath("box", boardStyleChoiceArtworkColour(category, colour));
+  }
+
+  function boardStyleColours(category) {
+    const colours = [...(BOARD_STYLE?.COLOURS || [])];
+    const defaultColour = boardStyleDefaultColour(category);
+    return [defaultColour, ...colours.filter(colour => colour !== defaultColour)];
+  }
+
+  function standardBoardStyleAssetPaths(style = standardBoardStyle()) {
+    const boxColour = style.box === "yellow" ? "default-yellow" : style.box;
+    return [
+      boardAssetPath("box", boxColour),
+      boardAssetPath("goal", style.target),
+      boardAssetPath("box", style.target)
+    ];
+  }
+
+  function ensureStandardBoardStyleAssets(style = standardBoardStyle()) {
+    return Promise.all(standardBoardStyleAssetPaths(style).map(ensureBoardAsset)).catch(() => []);
+  }
+
+  let boardStylePaletteAssetsPromise = null;
+
+  function prepareBoardStylePaletteAssets() {
+    if (boardStylePaletteAssetsPromise) return boardStylePaletteAssetsPromise;
+    const paths = new Set();
+    for (const colour of BOARD_STYLE?.COLOURS || []) {
+      paths.add(boardAssetPath("box", colour));
+      paths.add(boardAssetPath("goal", colour));
+    }
+    paths.add(defaultBoxAssetPath());
+    boardStylePaletteAssetsPromise = Promise.all([...paths].map(ensureBoardAsset))
+      .catch(() => [])
+      .then(results => {
+        paintBoardStyleChoices();
+        return results;
+      });
+    return boardStylePaletteAssetsPromise;
+  }
+
+  function paintBoardStyleChoices() {
+    document.querySelectorAll("[data-board-style-asset]").forEach(button => {
+      const canonical = button.dataset.boardStyleAsset || "";
+      const colour = button.dataset.boardStyleArtworkColour || "yellow";
+      const result = boardAssetResults.get(canonical);
+      button.style.backgroundImage = result?.ok
+        ? `url("${result.url}")`
+        : boardAssetFallback("box", colour);
+      button.dataset.boardStyleAssetReady = result ? "true" : "false";
+    });
+  }
+
   function updateBoardStyleControls() {
     const style = standardBoardStyle();
     if (settingsBoxColourName) settingsBoxColourName.textContent = boardStyleColourLabel(style.box);
@@ -5046,17 +5109,22 @@ window.BOXXY_RELEASE = Object.freeze({
     const build = (container, category) => {
       if (!container) return;
       container.replaceChildren();
-      (BOARD_STYLE?.COLOURS || []).forEach(colour => {
+      const defaultColour = boardStyleDefaultColour(category);
+      boardStyleColours(category).forEach(colour => {
         const entry = GOAL_COLOURS?.PALETTE?.[colour];
         if (!entry) return;
+        const artColour = boardStyleChoiceArtworkColour(category, colour);
+        const canonical = boardStyleChoiceAssetPath(category, colour);
         const button = document.createElement("button");
         button.type = "button";
-        button.className = "settings-board-style-swatch";
+        button.className = `settings-board-style-swatch${colour === defaultColour ? " default-choice" : ""}`;
         button.dataset.boardStyleCategory = category;
         button.dataset.boardStyleColour = colour;
-        button.title = entry.label;
-        button.setAttribute("aria-label", `${category === "box" ? "Box" : "Box on target"}: ${entry.label}`);
-        button.style.setProperty("--style-colour", entry.hex);
+        button.dataset.boardStyleArtworkColour = artColour;
+        button.dataset.boardStyleAsset = canonical;
+        button.title = `${entry.label}${colour === defaultColour ? " — default" : ""}`;
+        button.setAttribute("aria-label", `${category === "box" ? "Box" : "Box on target"}: ${entry.label}${colour === defaultColour ? ", default" : ""}`);
+        button.style.backgroundImage = boardAssetFallback("box", artColour);
         button.addEventListener("click", () => BOARD_STYLE?.set?.(category, colour));
         container.appendChild(button);
       });
@@ -5066,7 +5134,11 @@ window.BOXXY_RELEASE = Object.freeze({
     updateBoardStyleControls();
   }
 
-  function refreshBoardStylePresentation() {
+  let boardStyleRefreshToken = 0;
+  async function refreshBoardStylePresentation() {
+    const token = ++boardStyleRefreshToken;
+    await ensureStandardBoardStyleAssets();
+    if (token !== boardStyleRefreshToken) return;
     updateBoardStyleControls();
     if (Array.isArray(goals) && goals.length && goalLayer && pieceLayer) {
       buildGoals();
@@ -5107,7 +5179,7 @@ window.BOXXY_RELEASE = Object.freeze({
     if (settingsAccountView) settingsAccountView.hidden = true;
   }
 
-  function openSettings() {
+  async function openSettings() {
     if (!settingsModal) return;
     updateSettingsDeviceAvailability();
     updateSoundButton();
@@ -5115,6 +5187,7 @@ window.BOXXY_RELEASE = Object.freeze({
     applySelectedMusicTrack(false);
     updateInstantSpeedOption();
     applyBoxxySpeed(boxxySpeed, false);
+    await prepareBoardStylePaletteAssets();
     updateBoardStyleControls();
     showSettingsMainView();
     settingsModal.hidden = false;
@@ -8148,6 +8221,7 @@ window.BOXXY_RELEASE = Object.freeze({
     if (musicOn) startBackgroundMusic();
     else pauseBackgroundMusic();
   });
+  settingsBtn?.addEventListener("pointerdown", prepareBoardStylePaletteAssets, { passive: true });
   settingsBtn?.addEventListener("click", openSettings);
   settingsCloseBtn?.addEventListener("click", closeSettings);
   settingsModal?.addEventListener("click", event => { if (event.target === settingsModal) closeSettings(); });
