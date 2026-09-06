@@ -68,7 +68,7 @@ export async function onRequestGet(context) {
     }));
 
     return json({ ok: true, date: dateKey, entries }, 200, {
-      "cache-control": "public, max-age=10, s-maxage=10"
+      "cache-control": "no-store"
     });
   } catch (error) {
     console.error("BOXXY Daily leaderboard error", error);

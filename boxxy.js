@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "326",
+  version: "327",
   lastUpdated: "2026-09-06"
 });
+/* BOXXY v327 — Daily leaderboard sync refreshes immediately, Daily best-stat labels are explicit, detail timing stays inline, and nested Daily modals no longer overlap. */
 /* BOXXY v326 — existing Daily schedules corrected to standard board styling; Daily data and gameplay logic unchanged. */
 /* BOXXY v324 — board-style choices use preloaded crate artwork; default choices lead each palette and style changes wait for their board assets. */
 /* BOXXY v323 — standard box/target colour customisation reuses Rainbow assets without changing Rainbow levels. */
@@ -3118,6 +3119,7 @@ window.BOXXY_RELEASE = Object.freeze({
   const dailyLeaderboardCache = new Map();
   const DAILY_LEADERBOARD_CACHE_MS = 15000;
   let dailyLeaderboardActivePuzzle = null;
+  let dailyLeaderboardRequestSerial = 0;
 
   async function fetchDailyLeaderboard(dateKey, { force = false } = {}) {
     const key = String(dateKey || "");
@@ -3221,19 +3223,48 @@ window.BOXXY_RELEASE = Object.freeze({
     });
   }
 
-  async function loadDailyLeaderboardInto(container, puzzle, limit = 0) {
+  async function loadDailyLeaderboardInto(container, puzzle, limit = 0, { force = false } = {}) {
     if (!container || !puzzle?.date) return;
     const dateKey = String(puzzle.date);
+    const requestId = String(++dailyLeaderboardRequestSerial);
     container.dataset.dailyLeaderboardDate = dateKey;
-    container.innerHTML = '<p class="daily-leaderboard-empty">LOADING FASTEST TIMES…</p>';
-    const entries = await fetchDailyLeaderboard(dateKey);
-    if (container.dataset.dailyLeaderboardDate !== dateKey) return;
+    container.dataset.dailyLeaderboardRequest = requestId;
+    const cached = dailyLeaderboardCache.get(dateKey);
+    if (cached?.entries) renderDailyLeaderboardRows(container, cached.entries, limit);
+    else container.innerHTML = '<p class="daily-leaderboard-empty">LOADING FASTEST TIMES…</p>';
+    const entries = await fetchDailyLeaderboard(dateKey, { force });
+    if (container.dataset.dailyLeaderboardDate !== dateKey || container.dataset.dailyLeaderboardRequest !== requestId) return;
     renderDailyLeaderboardRows(container, entries, limit);
     if (container === dailyLeaderboardList) updateDailyLeaderboardAccountNote();
   }
 
+  async function refreshVisibleDailyLeaderboards(dateKey) {
+    const key = String(dateKey || "");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) return;
+    const targets = [...document.querySelectorAll('.daily-leaderboard-list[data-daily-leaderboard-date]')]
+      .filter(container => container.dataset.dailyLeaderboardDate === key);
+    targets.forEach(container => {
+      container.dataset.dailyLeaderboardRequest = String(++dailyLeaderboardRequestSerial);
+    });
+    dailyLeaderboardCache.delete(key);
+    const entries = await fetchDailyLeaderboard(key, { force: true });
+    targets.forEach(container => {
+      if (container.dataset.dailyLeaderboardDate !== key) return;
+      renderDailyLeaderboardRows(container, entries, container === dailyLeaderboardList ? 0 : 3);
+    });
+    if (dailyLeaderboardList?.dataset.dailyLeaderboardDate === key) updateDailyLeaderboardAccountNote();
+  }
+
+  let dailyLeaderboardReturnToArchive = false;
+
   function openDailyLeaderboard(puzzle) {
     if (!dailyLeaderboardModal || !puzzle?.date) return;
+    dailyLeaderboardReturnToArchive = Boolean(dailyArchiveModal && !dailyArchiveModal.hidden);
+    if (dailyLeaderboardReturnToArchive) {
+      window.clearInterval(dailyArchiveCountdownTimer);
+      dailyArchiveCountdownTimer = 0;
+      dailyArchiveModal.hidden = true;
+    }
     dailyLeaderboardActivePuzzle = puzzle;
     const result = dailyCompletion(puzzle.date);
     if (dailyLeaderboardTitle) dailyLeaderboardTitle.textContent = `DAILY #${Number(puzzle.sequence) || ""}`;
@@ -3247,18 +3278,28 @@ window.BOXXY_RELEASE = Object.freeze({
     if (dailyLeaderboardStatus) dailyLeaderboardStatus.textContent = result ? "COMPLETED" : "NOT YET COMPLETED";
     renderDailyPlayerStats(result);
     updateDailyLeaderboardAccountNote();
-    if (dailyLeaderboardList) loadDailyLeaderboardInto(dailyLeaderboardList, puzzle, 0);
+    if (dailyLeaderboardList) loadDailyLeaderboardInto(dailyLeaderboardList, puzzle, 0, { force: true });
     dailyLeaderboardModal.hidden = false;
     requestAnimationFrame(() => dailyLeaderboardPlayBtn?.focus?.({ preventScroll: true }));
   }
 
-  function closeDailyLeaderboard() {
+  function closeDailyLeaderboard(options = {}) {
+    const restoreArchive = options?.restoreArchive !== false;
     if (dailyLeaderboardModal) dailyLeaderboardModal.hidden = true;
     dailyLeaderboardActivePuzzle = null;
+    if (restoreArchive && dailyLeaderboardReturnToArchive && dailyArchiveModal) {
+      dailyLeaderboardReturnToArchive = false;
+      updateDailyArchiveCountdown();
+      window.clearInterval(dailyArchiveCountdownTimer);
+      dailyArchiveCountdownTimer = window.setInterval(updateDailyArchiveCountdown, 1000);
+      dailyArchiveModal.hidden = false;
+    } else if (!restoreArchive) {
+      dailyLeaderboardReturnToArchive = false;
+    }
   }
 
   function dailyArchivePlayPuzzle(puzzle) {
-    closeDailyLeaderboard();
+    closeDailyLeaderboard({ restoreArchive: false });
     closeDailyArchive();
     loadDailyPuzzle(puzzle);
   }
@@ -3306,10 +3347,10 @@ window.BOXXY_RELEASE = Object.freeze({
     stats.className = "daily-archive-date-stats";
     if (result) {
       const movesStat = document.createElement("div");
-      movesStat.innerHTML = `<span>MOVES</span><strong>${Math.max(0, Number(result.moves) || 0)}</strong>`;
+      movesStat.innerHTML = `<span>BEST MOVES</span><strong>${Math.max(0, Number(result.moves) || 0)}</strong>`;
       const timeStat = document.createElement("div");
       const timeLabel = document.createElement("span");
-      timeLabel.textContent = "TIME";
+      timeLabel.textContent = "BEST TIME";
       const timeValue = document.createElement("strong");
       setPreciseClockContent(timeValue, result.seconds);
       timeStat.append(timeLabel, timeValue);
@@ -6920,6 +6961,9 @@ window.BOXXY_RELEASE = Object.freeze({
           leaderboardEligible: !dailyMouseSupportUsed
         });
         dailyLeaderboardCache.delete(String(dailyPuzzle.date));
+        window.dispatchEvent(new CustomEvent("boxxydailycompletionrecorded", {
+          detail: { date: String(dailyPuzzle.date) }
+        }));
         streakResult = awardDailyStreakForCompletion(dailyPuzzle.date);
         if (streakResult.changed) {
           streakMessage = `Your Daily Boxxy streak is now ${streakResult.count}.`;
@@ -8279,6 +8323,11 @@ window.BOXXY_RELEASE = Object.freeze({
   packModal?.addEventListener("click", event => { if (event.target === packModal) closePackModal(); });
   dailyArchiveCloseBtn?.addEventListener("click", closeDailyArchive);
   dailyArchiveModal?.addEventListener("click", event => { if (event.target === dailyArchiveModal) closeDailyArchive(); });
+  window.addEventListener("boxxyaccountdailysynced", event => {
+    const dateKey = String(event?.detail?.date || "");
+    if (dateKey) refreshVisibleDailyLeaderboards(dateKey);
+  });
+
   dailyLeaderboardCloseBtn?.addEventListener("click", closeDailyLeaderboard);
   dailyLeaderboardPlayBtn?.addEventListener("click", () => {
     if (dailyLeaderboardActivePuzzle) dailyArchivePlayPuzzle(dailyLeaderboardActivePuzzle);

@@ -1,3 +1,4 @@
+/* BOXXY v327 — signed-in Daily completions request an immediate cloud sync so leaderboard results can refresh without waiting for the periodic sync. */
 /* BOXXY v323 — standard box and target style preference joins account cloud sync. */
 /* BOXXY v291 — redirect-safe offline cache generation for reliable iOS PWA relaunches. */
 /* BOXXY v290 — Android native install handoff added without changing the iPhone or desktop offline flows. */
@@ -1079,6 +1080,15 @@
     lastActivityTick = now;
     if (account && document.visibilityState === "visible" && document.hasFocus()) activeSecondsDelta += seconds;
   }, 5000);
+
+  window.addEventListener("boxxydailycompletionrecorded", async event => {
+    if (!account) return;
+    const dateKey = String(event?.detail?.date || "");
+    const synced = await syncNow(true);
+    if (synced && dateKey) {
+      window.dispatchEvent(new CustomEvent("boxxyaccountdailysynced", { detail: { date: dateKey } }));
+    }
+  });
 
   setInterval(() => { syncNow(false); }, SYNC_INTERVAL_MS);
   window.addEventListener("pagehide", () => {
