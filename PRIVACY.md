@@ -1,6 +1,6 @@
 # BOXXY Privacy Information
 
-Effective: 20 August 2026
+Effective: 6 September 2026
 
 BOXXY is delivered through Cloudflare. Accounts are optional; the game remains playable without one.
 
@@ -12,9 +12,11 @@ If you do not sign in, normal game progress remains on that device only.
 
 ## Optional BOXXY accounts
 
-If you create an account, BOXXY stores your chosen username, email address, a one-way password hash, account dates, your sign-up and most recent IP address, most recent browser/device user-agent, accumulated active time while signed in, and the game progress/settings needed for cloud saving.
+If you create an account with a BOXXY password, BOXXY stores your chosen username, email address, a one-way password hash, account dates, your sign-up and most recent IP address, most recent browser/device user-agent, accumulated active time while signed in, and the game progress/settings needed for cloud saving. Passwords are not stored in readable form.
 
-Account information and cloud progress are stored in Cloudflare D1. They are used to provide the account, synchronise progress between devices, administer BOXXY and prevent abuse. Passwords are not stored in readable form.
+You may instead use Sign in with Google, or link Google to an existing BOXXY account. BOXXY stores Google's stable account identifier (`sub`) and the verified Google email address so that Google sign-in can resolve to the same BOXXY user ID. Google-only accounts do not have BOXXY password login enabled. BOXXY does not receive or store your Google password. Google processes the authentication step under Google's own privacy terms.
+
+Account information, linked authentication information and cloud progress are stored in Cloudflare D1. They are used to provide the account, synchronise progress between devices, administer BOXXY and prevent abuse.
 
 A secure, strictly necessary session cookie is used while you are signed in. Account email addresses are not used for advertising. They may be used where reasonably necessary for account, security, abuse or support matters.
 

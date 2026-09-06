@@ -200,7 +200,7 @@ export function safeProgressJson(value, maxBytes = 256000) {
   return text;
 }
 
-export function publicAccount(user) {
+export function publicAccount(user, authInfo = {}) {
   return {
     id: String(user.id),
     username: String(user.username),
@@ -208,7 +208,10 @@ export function publicAccount(user) {
     createdAt: Number(user.created_at) || 0,
     lastSeenAt: Number(user.last_seen_at) || 0,
     totalActiveSeconds: Math.max(0, Number(user.total_active_seconds) || 0),
-    progressUpdatedAt: Number(user.progress_updated_at) || 0
+    progressUpdatedAt: Number(user.progress_updated_at) || 0,
+    googleLinked: Boolean(authInfo.googleLinked),
+    googleEmail: String(authInfo.googleEmail || ""),
+    passwordEnabled: authInfo.passwordEnabled !== false
   };
 }
 

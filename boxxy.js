@@ -6,9 +6,11 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "328",
+  version: "331",
   lastUpdated: "2026-09-06"
 });
+/* BOXXY v331 — adds Google disconnect for password accounts, fixes Google account UI alignment/flicker, and brings the built-in Legal copy in line with Google authentication. */
+/* BOXXY v329 — adds optional Google authentication without changing BOXXY progress/session identity or the v298 large-level performance core. */
 /* BOXXY v328 — removes an accidental debug auto-open of the Menu left in the v326 HTML; normal startup is restored. */
 /* BOXXY v327 — Daily leaderboard sync refreshes immediately, Daily best-stat labels are explicit, detail timing stays inline, and nested Daily modals no longer overlap. */
 /* BOXXY v326 — existing Daily schedules corrected to standard board styling; Daily data and gameplay logic unchanged. */

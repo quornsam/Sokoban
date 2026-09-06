@@ -11,6 +11,7 @@ import {
   parseProgress,
   progressSummary
 } from "../_lib/auth.js";
+import { ensureGoogleAuthSchema } from "../_lib/google-auth.js";
 
 async function readBody(request) {
   try { return await request.json(); }
@@ -34,19 +35,14 @@ async function login(context, body) {
   return json({ ok: true, authenticated: true }, 200, { "set-cookie": session.header });
 }
 
-async function listUsers(context) {
-  const db = requireDatabase(context.env);
-  const result = await db.prepare(`
-    SELECT id, username, email, created_at, last_login_at, last_seen_at,
-           signup_ip, last_ip, user_agent, total_active_seconds,
-           progress_json, progress_updated_at
-    FROM users
-    ORDER BY last_seen_at DESC, created_at DESC
-  `).all();
-  const users = (result.results || []).map(user => ({
+function mappedUser(user, includeProgress = false) {
+  const value = {
     id: user.id,
     username: user.username,
     email: user.email,
+    googleLinked: Boolean(user.google_sub),
+    googleEmail: user.google_email || "",
+    passwordEnabled: user.password_enabled == null ? true : Number(user.password_enabled) !== 0,
     createdAt: Number(user.created_at) || 0,
     lastLoginAt: Number(user.last_login_at) || 0,
     lastSeenAt: Number(user.last_seen_at) || 0,
@@ -56,43 +52,54 @@ async function listUsers(context) {
     totalActiveSeconds: Math.max(0, Number(user.total_active_seconds) || 0),
     progressUpdatedAt: Number(user.progress_updated_at) || 0,
     summary: progressSummary(user.progress_json)
-  }));
+  };
+  if (includeProgress) value.progress = parseProgress(user.progress_json);
+  return value;
+}
+
+async function listUsers(context) {
+  const db = requireDatabase(context.env);
+  const result = await db.prepare(`
+    SELECT u.id, u.username, u.email, u.created_at, u.last_login_at, u.last_seen_at,
+           u.signup_ip, u.last_ip, u.user_agent, u.total_active_seconds,
+           u.progress_json, u.progress_updated_at,
+           ai.provider_subject AS google_sub, ai.provider_email AS google_email,
+           uas.password_enabled AS password_enabled
+    FROM users u
+    LEFT JOIN auth_identities ai
+      ON ai.user_id = u.id AND ai.provider = 'google'
+    LEFT JOIN user_auth_state uas
+      ON uas.user_id = u.id
+    ORDER BY u.last_seen_at DESC, u.created_at DESC
+  `).all();
+  const users = (result.results || []).map(user => mappedUser(user));
   return json({ ok: true, authenticated: true, users });
 }
 
 async function userDetail(context, id) {
   const db = requireDatabase(context.env);
   const user = await db.prepare(`
-    SELECT id, username, email, created_at, last_login_at, last_seen_at,
-           signup_ip, last_ip, user_agent, total_active_seconds,
-           progress_json, progress_updated_at
-    FROM users WHERE id = ? LIMIT 1
+    SELECT u.id, u.username, u.email, u.created_at, u.last_login_at, u.last_seen_at,
+           u.signup_ip, u.last_ip, u.user_agent, u.total_active_seconds,
+           u.progress_json, u.progress_updated_at,
+           ai.provider_subject AS google_sub, ai.provider_email AS google_email,
+           uas.password_enabled AS password_enabled
+    FROM users u
+    LEFT JOIN auth_identities ai
+      ON ai.user_id = u.id AND ai.provider = 'google'
+    LEFT JOIN user_auth_state uas
+      ON uas.user_id = u.id
+    WHERE u.id = ? LIMIT 1
   `).bind(id).first();
   if (!user) return json({ ok: false, error: "User not found." }, 404);
-  return json({
-    ok: true,
-    authenticated: true,
-    user: {
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      createdAt: Number(user.created_at) || 0,
-      lastLoginAt: Number(user.last_login_at) || 0,
-      lastSeenAt: Number(user.last_seen_at) || 0,
-      signupIp: user.signup_ip || "",
-      lastIp: user.last_ip || "",
-      userAgent: user.user_agent || "",
-      totalActiveSeconds: Math.max(0, Number(user.total_active_seconds) || 0),
-      progressUpdatedAt: Number(user.progress_updated_at) || 0,
-      summary: progressSummary(user.progress_json),
-      progress: parseProgress(user.progress_json)
-    }
-  });
+  return json({ ok: true, authenticated: true, user: mappedUser(user, true) });
 }
 
 export async function onRequest(context) {
   try {
-    requireDatabase(context.env);
+    const db = requireDatabase(context.env);
+    await ensureGoogleAuthSchema(db);
+
     if (context.request.method === "POST") {
       const body = await readBody(context.request);
       const action = String(body.action || "").toLowerCase();

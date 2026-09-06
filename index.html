@@ -159,7 +159,7 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=327">
+<link rel="stylesheet" href="styles.css?v=331">
 <link rel="stylesheet" href="how-to-play.css?v=225">
 <link rel="preload" as="image" href="assets/board/boxes/box-default-yellow.png?v=226">
 <link rel="preload" as="image" href="assets/board/goals/goal-red.png?v=226">
@@ -482,7 +482,7 @@
         </header>
 
         <div id="accountGuest">
-          <div class="account-mode-switch" role="group" aria-label="Account action">
+          <div id="accountModeSwitch" class="account-mode-switch" role="group" aria-label="Account action">
             <button id="accountCreateModeBtn" class="active" type="button" aria-pressed="true">CREATE ACCOUNT</button>
             <button id="accountLoginModeBtn" type="button" aria-pressed="false">SIGN IN</button>
           </div>
@@ -501,6 +501,26 @@
             <button id="accountLoginSubmit" class="account-primary" type="submit">SIGN IN</button>
             <button id="accountForgotPasswordBtn" class="account-forgot-link" type="button">FORGOT PASSWORD?</button>
           </form>
+
+          <section id="accountGoogleGuest" class="account-google-guest" aria-label="Google sign in">
+            <div class="account-google-divider"><span>OR</span></div>
+            <div id="accountGoogleSignInBtn" class="account-google-button"></div>
+            <p>Use Google to sign in, or to make a new BOXXY account without a BOXXY password.</p>
+          </section>
+
+          <section id="accountGoogleRegistration" class="account-google-registration" hidden>
+            <div class="account-google-verified">
+              <span>GOOGLE ACCOUNT VERIFIED</span>
+              <strong id="accountGoogleRegistrationEmail">—</strong>
+            </div>
+            <p>Choose the BOXXY username that will appear on your account and leaderboards.</p>
+            <form id="accountGoogleCreateForm" class="account-form account-google-create-form" novalidate>
+              <label><span>BOXXY USERNAME</span><input name="username" type="text" minlength="3" maxlength="20" pattern="[A-Za-z0-9_-]+" autocomplete="username" required></label>
+              <label class="account-check"><input name="termsAccepted" type="checkbox" value="yes" required><span>I agree to the <a href="legal.html" target="_blank" rel="noopener">account and privacy information</a>.</span></label>
+              <button id="accountGoogleCreateSubmit" class="account-primary" type="submit">CREATE BOXXY ACCOUNT</button>
+              <button id="accountGoogleCreateCancel" class="account-google-cancel" type="button">CANCEL</button>
+            </form>
+          </section>
         </div>
 
         <section id="accountDetails" class="account-details" hidden>
@@ -528,6 +548,19 @@
             <div><span>LAST CLOUD SAVE</span><strong id="accountSyncValue">—</strong></div>
           </div>
           <p class="account-small">Your local game remains playable without an account. While signed in, progress is also copied to BOXXY so it can follow you to another device.</p>
+          <section class="account-google-card" aria-labelledby="accountGoogleHeading">
+            <span id="accountGoogleHeading" class="account-google-heading">GOOGLE SIGN-IN</span>
+            <div id="accountGoogleLinked" class="account-google-linked" hidden>
+              <strong>GOOGLE LINKED</strong>
+              <span id="accountGoogleLinkedEmail">—</span>
+              <button id="accountGoogleDisconnectBtn" class="account-google-disconnect" type="button" hidden>DISCONNECT GOOGLE</button>
+            </div>
+            <div id="accountGoogleLink" class="account-google-link">
+              <strong class="account-google-link-title">LINK GOOGLE ACCOUNT</strong>
+              <p>Link Google as an additional way to sign in to this same BOXXY account.</p>
+              <div id="accountGoogleLinkBtn" class="account-google-button"></div>
+            </div>
+          </section>
           <section class="account-offline-card" aria-labelledby="accountOfflineHeading">
             <span id="accountOfflineHeading" class="account-offline-heading">OFFLINE PLAY</span>
             <button id="accountOfflineBtn" class="account-offline-button" type="button">DOWNLOAD FOR OFFLINE PLAY</button>
@@ -540,11 +573,12 @@
           <button id="accountLogoutBtn" class="account-secondary" type="button">SIGN OUT</button>
           <button id="accountDeleteToggle" class="account-danger-link" type="button">DELETE ACCOUNT…</button>
           <form id="accountDeleteForm" class="account-delete-form" hidden>
-            <p>Deletes the BOXXY account and cloud copy. Progress already stored on this device remains here.</p>
-            <label><span>CONFIRM PASSWORD</span><input name="password" type="password" maxlength="128" autocomplete="current-password" required></label>
-            <div>
+            <p id="accountDeleteText">Deletes the BOXXY account and cloud copy. Progress already stored on this device remains here.</p>
+            <label id="accountDeletePasswordLabel"><span>CONFIRM PASSWORD</span><input name="password" type="password" maxlength="128" autocomplete="current-password"></label>
+            <div class="account-delete-actions">
               <button id="accountDeleteCancel" type="button">CANCEL</button>
-              <button class="account-delete-confirm" type="submit">DELETE ACCOUNT</button>
+              <button id="accountDeletePasswordConfirm" class="account-delete-confirm" type="submit">DELETE ACCOUNT</button>
+              <div id="accountGoogleDeleteBtn" class="account-google-button account-google-delete-button" hidden></div>
             </div>
           </form>
         </section>
@@ -1259,8 +1293,9 @@
       <section class="legal-section">
         <h3>Privacy, analytics, accounts and progress</h3>
         <p>BOXXY accounts are optional. You can continue playing without one and local progress remains stored by your browser on your own device.</p>
-        <p>If you create an account, BOXXY stores your chosen username, email address, a one-way password hash, account dates, your sign-up and most recent IP address, most recent browser/device user-agent, accumulated active time while signed in, and the game progress/settings needed for cloud saving. This information is stored in Cloudflare D1 and is used to provide the account, synchronise progress, administer BOXXY and prevent abuse. BOXXY does not store your password in readable form.</p>
-        <p>A strictly necessary secure session cookie is used while you are signed in. BOXXY does not use account email addresses for advertising. They may be used where reasonably necessary for account, security, abuse or support matters. You can delete your account from the account screen; this removes the cloud account and cloud progress but does not erase progress already stored in your browser.</p>
+        <p>If you create an account with a BOXXY password, BOXXY stores your chosen username, email address, a one-way password hash, account dates, your sign-up and most recent IP address, most recent browser/device user-agent, accumulated active time while signed in, and the game progress/settings needed for cloud saving. BOXXY does not store your password in readable form.</p>
+        <p>You may instead use Sign in with Google, or link Google to an existing BOXXY account. BOXXY stores Google's stable account identifier and the verified Google email address so that Google sign-in resolves to the same BOXXY user ID. Google-only accounts do not have BOXXY password login enabled. BOXXY does not receive or store your Google password. Google processes the authentication step under Google's own privacy terms.</p>
+        <p>Account information, linked authentication information and cloud progress are stored in Cloudflare D1 and are used to provide the account, synchronise progress, administer BOXXY and prevent abuse. A strictly necessary secure session cookie is used while you are signed in. BOXXY does not use account email addresses for advertising. They may be used where reasonably necessary for account, security, abuse or support matters. You can delete your account from the account screen; this removes the cloud account and cloud progress but does not erase progress already stored in your browser.</p>
         <p>BOXXY uses PostHog, hosted in the European Union, to measure visits and a small set of gameplay events: opening the game, choosing a puzzle pack, starting or restarting a level, completing a level and pressing next level. A gameplay event may include the puzzle pack, level number, moves, pushes, time taken, whether a guided solve was used, screen orientation and a simple “new” or “returning” visit label. That label is based only on whether this browser already had BOXXY’s existing local device marker when the page opened; the marker itself is not sent to PostHog.</p>
         <p>PostHog is configured in cookieless mode. It does not store BOXXY analytics identifiers in cookies, local storage or session storage and BOXXY does not send account usernames or email addresses to PostHog. URL query strings and fragments are removed before analytics events are sent.</p>
         <p>PostHog receives the ordinary technical information needed to deliver and measure a web request, such as browser and device information, page path and referrer. BOXXY asks PostHog to respect supported Do Not Track signals. You can read <a href="https://posthog.com/privacy" target="_blank" rel="noopener">PostHog's privacy information</a>.</p>
@@ -1299,8 +1334,9 @@
 <script src="daily-puzzles/boxxy-daily-loader.js?v=218"></script>
 <script src="levels.js?v=268"></script>
 <script src="starry-night.js?v=302"></script>
-<script src="boxxy.js?v=328"></script>
-<script src="account.js?v=327"></script>
+<script src="boxxy.js?v=331"></script>
+<script src="account.js?v=331"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="pack-builder.js?v=216"></script>
 <script src="how-to-play.js?v=153"></script>
 </body>
