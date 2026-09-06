@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "324",
+  version: "325",
   lastUpdated: "2026-09-06"
 });
+/* BOXXY v325 — board-style defaults use a stable two-part palette layout; Daily guided solves are available without affecting Daily results, streaks or leaderboards. */
 /* BOXXY v324 — board-style choices use preloaded crate artwork; default choices lead each palette and style changes wait for their board assets. */
 /* BOXXY v323 — standard box/target colour customisation reuses Rainbow assets without changing Rainbow levels. */
 /* BOXXY v322 — Fastest Today keeps its top-three entries stacked consistently across desktop, iPad and phone widths. */
@@ -5106,28 +5107,44 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   function buildBoardStyleControls() {
+    const buildButton = (category, colour, isDefault = false) => {
+      const entry = GOAL_COLOURS?.PALETTE?.[colour];
+      if (!entry) return null;
+      const artColour = boardStyleChoiceArtworkColour(category, colour);
+      const canonical = boardStyleChoiceAssetPath(category, colour);
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = `settings-board-style-swatch${isDefault ? " default-choice" : ""}`;
+      button.dataset.boardStyleCategory = category;
+      button.dataset.boardStyleColour = colour;
+      button.dataset.boardStyleArtworkColour = artColour;
+      button.dataset.boardStyleAsset = canonical;
+      button.title = `${entry.label}${isDefault ? " — default" : ""}`;
+      button.setAttribute("aria-label", `${category === "box" ? "Box" : "Box on target"}: ${entry.label}${isDefault ? ", default" : ""}`);
+      button.style.backgroundImage = boardAssetFallback("box", artColour);
+      button.addEventListener("click", () => BOARD_STYLE?.set?.(category, colour));
+      return button;
+    };
+
     const build = (container, category) => {
       if (!container) return;
       container.replaceChildren();
       const defaultColour = boardStyleDefaultColour(category);
-      boardStyleColours(category).forEach(colour => {
-        const entry = GOAL_COLOURS?.PALETTE?.[colour];
-        if (!entry) return;
-        const artColour = boardStyleChoiceArtworkColour(category, colour);
-        const canonical = boardStyleChoiceAssetPath(category, colour);
-        const button = document.createElement("button");
-        button.type = "button";
-        button.className = `settings-board-style-swatch${colour === defaultColour ? " default-choice" : ""}`;
-        button.dataset.boardStyleCategory = category;
-        button.dataset.boardStyleColour = colour;
-        button.dataset.boardStyleArtworkColour = artColour;
-        button.dataset.boardStyleAsset = canonical;
-        button.title = `${entry.label}${colour === defaultColour ? " — default" : ""}`;
-        button.setAttribute("aria-label", `${category === "box" ? "Box" : "Box on target"}: ${entry.label}${colour === defaultColour ? ", default" : ""}`);
-        button.style.backgroundImage = boardAssetFallback("box", artColour);
-        button.addEventListener("click", () => BOARD_STYLE?.set?.(category, colour));
-        container.appendChild(button);
-      });
+      const defaultGroup = document.createElement("div");
+      defaultGroup.className = "settings-board-style-default";
+      const paletteGroup = document.createElement("div");
+      paletteGroup.className = "settings-board-style-options";
+
+      const defaultButton = buildButton(category, defaultColour, true);
+      if (defaultButton) defaultGroup.appendChild(defaultButton);
+      boardStyleColours(category)
+        .filter(colour => colour !== defaultColour)
+        .forEach(colour => {
+          const button = buildButton(category, colour, false);
+          if (button) paletteGroup.appendChild(button);
+        });
+
+      container.append(defaultGroup, paletteGroup);
     };
     build(settingsBoxColourChoices, "box");
     build(settingsTargetColourChoices, "target");
@@ -6409,7 +6426,8 @@ window.BOXXY_RELEASE = Object.freeze({
     await copyDailyResult();
   }
 
-  function loadDailyPuzzle(puzzle = dailyPuzzleForToday(), preserveBackground = false) {
+  function loadDailyPuzzle(puzzle = dailyPuzzleForToday(), preserveBackground = false, options = {}) {
+    const guidedRestart = Boolean(options.guidedRestart);
     if (konamiShowcaseActive) { konamiShowcaseActive = false; stopKonamiMusic(); }
     resetMouseSupportInteraction();
     if (!puzzle || !Array.isArray(puzzle.layout) || !puzzle.layout.length) {
@@ -6502,12 +6520,14 @@ window.BOXXY_RELEASE = Object.freeze({
     scheduleIdle();
     if (thoughtText) thoughtText.textContent = `Daily Boxxy #${Number(puzzle.sequence) || ""}. One puzzle. One day. Good luck.`;
     refreshLevelButtons();
-    recordLevelAttempt("daily-boxxy", String(puzzle.date || puzzle.sequence || "daily"), {
-      packName: "Daily Boxxy",
-      levelNumber: Number(puzzle.sequence) || 0,
-      levelName: String(puzzle.date || "Daily Boxxy")
-    });
-    captureBoxxyAnalytics("daily_puzzle_started", currentLevelAnalytics());
+    if (!guidedRestart) {
+      recordLevelAttempt("daily-boxxy", String(puzzle.date || puzzle.sequence || "daily"), {
+        packName: "Daily Boxxy",
+        levelNumber: Number(puzzle.sequence) || 0,
+        levelName: String(puzzle.date || "Daily Boxxy")
+      });
+      captureBoxxyAnalytics("daily_puzzle_started", currentLevelAnalytics());
+    }
     return true;
   }
 
@@ -6887,15 +6907,29 @@ window.BOXXY_RELEASE = Object.freeze({
     if (!makerTesting && !sharedPuzzleMode && !dailyMode) clearCurrentCheckpoint();
 
     if (dailyMode && dailyPuzzle) {
-      recordDailyCompletion(dailyPuzzle, {
-        moves,
-        pushes,
-        seconds: completionSeconds,
-        completedAt: Date.now(),
-        leaderboardEligible: !dailyMouseSupportUsed
-      });
-      dailyLeaderboardCache.delete(String(dailyPuzzle.date));
-      const streakResult = awardDailyStreakForCompletion(dailyPuzzle.date);
+      const solvedWithGuidedRoute = autoplayRunning || guidedSolveUsed;
+      let streakMessage = "Guided solves do not count as a Daily completion, streak or fastest time.";
+      let streakResult = null;
+
+      if (!solvedWithGuidedRoute) {
+        recordDailyCompletion(dailyPuzzle, {
+          moves,
+          pushes,
+          seconds: completionSeconds,
+          completedAt: Date.now(),
+          leaderboardEligible: !dailyMouseSupportUsed
+        });
+        dailyLeaderboardCache.delete(String(dailyPuzzle.date));
+        streakResult = awardDailyStreakForCompletion(dailyPuzzle.date);
+        if (streakResult.changed) {
+          streakMessage = `Your Daily Boxxy streak is now ${streakResult.count}.`;
+        } else if (String(dailyPuzzle.date) === activeDailyDateKey()) {
+          streakMessage = `Your Daily Boxxy streak remains ${streakResult.count}.`;
+        } else {
+          streakMessage = `Historical Daily Boxxys do not change your streak. Your current streak is ${streakResult.count}.`;
+        }
+      }
+
       completeMode = "daily";
       completionPackContext = null;
       hidePackCompletionStats();
@@ -6905,17 +6939,9 @@ window.BOXXY_RELEASE = Object.freeze({
       if (finalPackPicker) finalPackPicker.hidden = true;
       if (finalPackStatus) finalPackStatus.textContent = "";
       if (completeKicker) completeKicker.textContent = `DAILY BOXXY #${Number(dailyPuzzle.sequence) || ""}`;
-      if (completeTitle) completeTitle.textContent = "DAILY COMPLETE";
+      if (completeTitle) completeTitle.textContent = solvedWithGuidedRoute ? "GUIDED SOLVE" : "DAILY COMPLETE";
       if (completedPackHeading) completedPackHeading.textContent = formatDailyDate(dailyPuzzle.date, { weekday: true, long: true, year: true });
       if (makerApplySolveBtn) makerApplySolveBtn.hidden = true;
-      let streakMessage;
-      if (streakResult.changed) {
-        streakMessage = `Your Daily Boxxy streak is now ${streakResult.count}.`;
-      } else if (String(dailyPuzzle.date) === activeDailyDateKey()) {
-        streakMessage = `Your Daily Boxxy streak remains ${streakResult.count}.`;
-      } else {
-        streakMessage = `Historical Daily Boxxys do not change your streak. Your current streak is ${streakResult.count}.`;
-      }
       completeText.innerHTML = `
         <span class="daily-complete-result" aria-label="Completed in ${formatClockDuration(completionSeconds)}, ${moves} ${moves === 1 ? "move" : "moves"}">
           <span class="daily-complete-result-item">
@@ -6928,21 +6954,23 @@ window.BOXXY_RELEASE = Object.freeze({
           </span>
         </span>
         <span class="daily-complete-streak-message">${streakMessage}</span>`;
-      if (dailyShareText) dailyShareText.value = buildDailyShareText(dailyPuzzle, { seconds: completionSeconds, moves });
-      if (dailySharePanel) dailySharePanel.hidden = false;
+      if (dailyShareText) dailyShareText.value = solvedWithGuidedRoute ? "" : buildDailyShareText(dailyPuzzle, { seconds: completionSeconds, moves });
+      if (dailySharePanel) dailySharePanel.hidden = solvedWithGuidedRoute;
       if (dailyShareStatus) dailyShareStatus.textContent = "";
       setCompletionActionMode("daily");
       updateDailyStreak();
       updateDailyQuotePrompt();
       refreshLevelButtons();
       renderDailyArchive();
-      captureBoxxyAnalytics("daily_puzzle_completed", currentLevelAnalytics({
-        moves: Number(moves),
-        pushes: Number(pushes),
-        duration_seconds: completionSeconds,
-        streak_days: streakResult.count,
-        streak_incremented: streakResult.changed
-      }));
+      if (!solvedWithGuidedRoute && streakResult) {
+        captureBoxxyAnalytics("daily_puzzle_completed", currentLevelAnalytics({
+          moves: Number(moves),
+          pushes: Number(pushes),
+          duration_seconds: completionSeconds,
+          streak_days: streakResult.count,
+          streak_incremented: streakResult.changed
+        }));
+      }
     } else if (sharedPuzzleMode) {
       completeMode = "shared";
       completionPackContext = null;
@@ -7727,13 +7755,9 @@ window.BOXXY_RELEASE = Object.freeze({
 
   function startAutoplay() {
     resetMouseSupportInteraction();
-    if (dailyMode) {
-      if (thoughtText) thoughtText.textContent = "Guided solve is unavailable for the Daily Boxxy.";
-      resetGuidedSolveSecret();
-      return;
-    }
     if (!desktopEasterEggAvailable() || autoplayRunning) return;
     const testingMaker = makerTesting;
+    const guidedDailyPuzzle = dailyMode && dailyPuzzle ? dailyPuzzle : null;
     const solution = String(testingMaker ? makerSolution : levelData?.solution || "").replace(/[^udlrUDLR]/g, "");
     if (!solution) {
       if (thoughtText) thoughtText.textContent = testingMaker
@@ -7752,6 +7776,8 @@ window.BOXXY_RELEASE = Object.freeze({
         goalColours: makerGoalColours
       }) : { ok: false };
       if (!restarted?.ok) return;
+    } else if (guidedDailyPuzzle) {
+      if (!loadDailyPuzzle(guidedDailyPuzzle, true, { guidedRestart: true })) return;
     } else {
       loadLevel(levelIndex, true, true);
     }
