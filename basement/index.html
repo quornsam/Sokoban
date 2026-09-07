@@ -7,7 +7,7 @@
 <meta name="theme-color" content="#efe5d4">
 <title>BOXXY Basement</title>
 <link rel="icon" href="../assets/ui/icons/boxxy-yellow-crate-v150.ico" sizes="any">
-<link rel="stylesheet" href="basement.css?v=335">
+<link rel="stylesheet" href="basement.css?v=336">
 </head>
 <body>
 <main class="basement-shell">
@@ -47,9 +47,9 @@
       <input id="searchInput" type="search" placeholder="Search username, email or IP…" aria-label="Search account holders" hidden>
       <label class="basement-zoom">TEXT SIZE
         <select id="textSizeSelect" aria-label="Basement text size">
-          <option value="1">100%</option><option value="1.25">125%</option>
-          <option value="1.5">150%</option><option value="1.75">175%</option>
-          <option value="2">200%</option>
+          <option value="0.85">85% · COMPACT</option><option value="1" selected>100% · NORMAL</option>
+          <option value="1.15">115% · LARGER</option><option value="1.3">130% · LARGE</option>
+          <option value="1.5">150% · EXTRA LARGE</option>
         </select>
       </label>
       <button id="refreshBtn" type="button">REFRESH</button>
@@ -60,31 +60,13 @@
         <button id="sortDirectionBtn" type="button" aria-label="Reverse sort direction">↓ DESCENDING</button>
       </div>
 
-    <p class="table-hint">Click a column heading to sort. Scroll sideways to see the other columns.</p>
+    <p class="table-hint">Click a column heading to sort. All additional columns are available in the sort selector and player details.</p>
     <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th data-sort-column="username"><button type="button" data-sort="username" aria-label="Sort by user">USER<span class="sort-indicator" aria-hidden="true"></span></button></th>
-            <th data-sort-column="email"><button type="button" data-sort="email" aria-label="Sort by email">EMAIL<span class="sort-indicator" aria-hidden="true"></span></button></th>
-            <th data-sort-column="createdAt"><button type="button" data-sort="createdAt" aria-label="Sort by joined">JOINED<span class="sort-indicator" aria-hidden="true"></span></button></th>
-            <th data-sort-column="lastSeenAt"><button type="button" data-sort="lastSeenAt" aria-label="Sort by last active">LAST ACTIVE<span class="sort-indicator" aria-hidden="true"></span></button></th>
-            <th data-sort-column="totalActiveSeconds"><button type="button" data-sort="totalActiveSeconds" aria-label="Sort by total time">TOTAL TIME<span class="sort-indicator" aria-hidden="true"></span></button></th>
-            <th data-sort-column="levelsCompleted"><button type="button" data-sort="levelsCompleted" aria-label="Sort by levels">LEVELS<span class="sort-indicator" aria-hidden="true"></span></button></th>
-            <th data-sort-column="packsCompleted"><button type="button" data-sort="packsCompleted" aria-label="Sort by packs">PACKS<span class="sort-indicator" aria-hidden="true"></span></button></th>
-            <th data-sort-column="totalSteps"><button type="button" data-sort="totalSteps" aria-label="Sort by steps">STEPS<span class="sort-indicator" aria-hidden="true"></span></button></th>
-            <th data-sort-column="totalPushes"><button type="button" data-sort="totalPushes" aria-label="Sort by pushes">PUSHES<span class="sort-indicator" aria-hidden="true"></span></button></th>
-            <th data-sort-column="totalAttempts"><button type="button" data-sort="totalAttempts" aria-label="Sort by attempts">ATTEMPTS<span class="sort-indicator" aria-hidden="true"></span></button></th>
-            <th data-sort-column="dailyStreak"><button type="button" data-sort="dailyStreak" aria-label="Sort by daily streak">DAILY STREAK<span class="sort-indicator" aria-hidden="true"></span></button></th>
-            <th data-sort-column="activity7d"><button type="button" data-sort="activity7d" aria-label="Sort by activity over the last seven days">ACTIVITY 7D<span class="sort-indicator" aria-hidden="true"></span></button></th>
-            <th>PROGRESS</th>
-            <th data-sort-column="lastIp"><button type="button" data-sort="lastIp" aria-label="Sort by ip">IP<span class="sort-indicator" aria-hidden="true"></span></button></th>
-          </tr>
-        </thead>
-        <tbody id="userRows"></tbody>
+      <table class="players-table"><colgroup><col style="width:25%"><col style="width:16%"><col style="width:13%"><col style="width:10%"><col style="width:10%"><col style="width:13%"><col style="width:13%"></colgroup>
+        <thead><tr><th data-sort-column="username"><button type="button" data-sort="username">USER<span class="sort-indicator" aria-hidden="true"></span></button></th><th data-sort-column="lastSeenAt"><button type="button" data-sort="lastSeenAt">LAST ACTIVE<span class="sort-indicator" aria-hidden="true"></span></button></th><th data-sort-column="totalActiveSeconds"><button type="button" data-sort="totalActiveSeconds">TOTAL TIME<span class="sort-indicator" aria-hidden="true"></span></button></th><th data-sort-column="levelsCompleted"><button type="button" data-sort="levelsCompleted">LEVELS<span class="sort-indicator" aria-hidden="true"></span></button></th><th data-sort-column="packsCompleted"><button type="button" data-sort="packsCompleted">PACKS<span class="sort-indicator" aria-hidden="true"></span></button></th><th data-sort-column="totalSteps"><button type="button" data-sort="totalSteps">STEPS<span class="sort-indicator" aria-hidden="true"></span></button></th><th data-sort-column="totalPushes"><button type="button" data-sort="totalPushes">PUSHES<span class="sort-indicator" aria-hidden="true"></span></button></th></tr></thead><tbody id="userRows"></tbody>
       </table>
     </div>
-    <div id="userCards" class="user-cards"></div>
+    <div id="userCards" class="user-cards" aria-label="Player account cards"></div>
     </section>
     <section id="completionsPanel" class="basement-completions" aria-label="Pack completion history" hidden>
       <div id="completionPackCards" class="completion-pack-cards" aria-label="Pack completion totals"></div>
@@ -94,7 +76,7 @@
       </div>
       <p class="completion-explanation">A pack is complete only when every level is recorded as completed. Dated results are ordered by their recorded first-completion time. Older completions without an original date are listed separately and are not assigned an invented rank. Times are shown in UK time.</p>
       <label class="review-toggle"><input id="completionReviewToggle" type="checkbox"> Show records needing review</label>
-      <p class="table-hint">Scroll sideways to see every column. Dated results are ranked within each pack.</p>
+      <p class="table-hint">Dated results are ranked within each pack. Open a player to see their full account history.</p>
       <div class="table-wrap">
         <table class="completion-table">
           <thead><tr><th>DATED ORDER</th><th>PLAYER</th><th>LEVEL PACK</th><th>COMPLETED · UK TIME</th><th>STATUS</th></tr></thead>
@@ -129,9 +111,13 @@
 <div id="practiceModal" class="practice-modal" hidden>
   <section class="practice-dialog" role="dialog" aria-modal="true" aria-labelledby="practiceModalTitle">
     <header><div><span>PRIVATE DAILY PRACTICE</span><h2 id="practiceModalTitle">DAILY</h2><p>No saved statistics or public results.</p></div><button id="practiceClose" type="button">BACK TO LEVELS ×</button></header>
+    <div id="practiceLoadStatus" class="practice-load-status" role="status" aria-live="polite" hidden>
+      <p id="practiceLoadMessage">Preparing private practice…</p>
+      <button id="practiceRetry" type="button" hidden>RETRY PRACTICE</button>
+    </div>
     <iframe id="practiceFrame" title="BOXXY private Daily practice" sandbox="allow-scripts" referrerpolicy="no-referrer" allow="fullscreen" allowfullscreen></iframe>
   </section>
 </div>
-<script src="basement.js?v=335"></script>
+<script src="basement.js?v=336"></script>
 </body>
 </html>

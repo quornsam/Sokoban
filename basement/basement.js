@@ -1,3 +1,4 @@
+/* BOXXY v336 — fit-to-window admin, normal document scrolling and private practice load reporting. */
 /* BOXXY v335 — verified completion views, responsive type and private prepared Daily catalogue. */
 /* BOXXY v334 — sortable player totals, chronological pack completion records and readable text controls. */
 /* BOXXY v323 — Basement shows each signed-in player’s standard board colour choices. */
@@ -47,6 +48,11 @@
   const practiceModalTitle = document.getElementById("practiceModalTitle");
   const practiceClose = document.getElementById("practiceClose");
   const practiceFrame = document.getElementById("practiceFrame");
+  const practiceLoadStatus=document.getElementById("practiceLoadStatus");
+  const practiceLoadMessage=document.getElementById("practiceLoadMessage");
+  const practiceRetry=document.getElementById("practiceRetry");
+  let practiceSession=null;
+  let practiceTimeout=0;
   let preparedDailies = [];
   let practiceLoaded = false;
   let practiceBusy = false;
@@ -477,9 +483,9 @@
       const previous=item.needsReview&&item.previousRecord
         ? `<div class="muted">Previous ledger entry retained for review. Recorded ${escapeHtml(dateTime(item.previousRecord.recordedAt))}.</div>` : "";
       return `<tr class="${item.needsReview ? "review-row" : item.historical ? "historical-row" : ""}" data-user-id="${escapeHtml(item.userId)}" tabindex="0">
-        <td class="completion-rank">${rank}</td><td><strong>${escapeHtml(item.username)}</strong></td>
-        <td>${escapeHtml(item.packName)}</td><td class="completion-date">${escapeHtml(date)}</td>
-        <td><span class="completion-badge">${escapeHtml(completionStatusText(item))}</span>${item.needsReview&&item.reviewReason ? `<div class="muted">${escapeHtml(item.reviewReason)}</div>` : ""}${previous}</td></tr>`;
+        <td class="completion-rank" data-label="DATED ORDER">${rank}</td><td data-label="PLAYER"><strong>${escapeHtml(item.username)}</strong></td>
+        <td data-label="LEVEL PACK">${escapeHtml(item.packName)}</td><td class="completion-date" data-label="COMPLETED · UK TIME">${escapeHtml(date)}</td>
+        <td data-label="STATUS"><span class="completion-badge">${escapeHtml(completionStatusText(item))}</span>${item.needsReview&&item.reviewReason ? `<div class="muted">${escapeHtml(item.reviewReason)}</div>` : ""}${previous}</td></tr>`;
     }).join("");
     const dated=list.filter(item=>item.complete&&!item.historical&&!item.needsReview).length;
     const complete=list.filter(item=>item.complete&&!item.needsReview).length;
@@ -580,22 +586,103 @@
     }catch(error){setStatus(practiceStatus,error.message||"Could not load Daily puzzles.","error");}
     finally{practiceBusy=false;}
   }
-  function openPractice(date) {
+  // The private iframe has an opaque origin. The existing character renderer
+  // must receive origin-clean spritesheets before it draws them to canvas.
+  // Public image assets are fetched by the authenticated parent and reused
+  // across practice sessions. No browser storage or account data is copied.
+  const PRIVATE_CHARACTER_ASSETS=["boy","girl"].flatMap(body=>
+    ["base","hair","shoes","skin","trousers","tshirt"].map(layer=>`assets/characters/${body}/${layer}.png`));
+  let privateImageAssetsPromise=null;
+  function loadPrivateImageAssets() {
+    if(privateImageAssetsPromise)return privateImageAssetsPromise;
+    privateImageAssetsPromise=Promise.all(PRIVATE_CHARACTER_ASSETS.map(async path=>{
+      const response=await fetch(`/${path}`,{credentials:"same-origin",cache:"force-cache"});
+      if(!response.ok)throw new Error(`Could not load practice artwork: ${path}`);
+      const blob=await response.blob();
+      const dataUrl=await new Promise((resolve,reject)=>{
+        const reader=new FileReader();
+        reader.onload=()=>resolve(reader.result);
+        reader.onerror=()=>reject(new Error(`Could not prepare practice artwork: ${path}`));
+        reader.readAsDataURL(blob);
+      });
+      return [path,dataUrl];
+    })).then(entries=>Object.fromEntries(entries)).catch(error=>{privateImageAssetsPromise=null;throw error;});
+    return privateImageAssetsPromise;
+  }
+  function practiceLoading(message, error=false) {
+    if (!practiceLoadStatus) return;
+    practiceLoadStatus.hidden=false;
+    practiceLoadMessage.textContent=message;
+    practiceRetry.hidden=!error;
+  }
+  async function openPractice(date) {
     const puzzle=preparedDailies.find(item=>item.date===date);
     if(!puzzle||!practiceModal||!practiceFrame)return;
-    lastPracticeFocus=document.activeElement;
+    if(practiceModal.hidden)lastPracticeFocus=document.activeElement;
+    clearTimeout(practiceTimeout);
+    practiceSession?.controller?.abort();
+    const requestId=crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+    const controller=new AbortController();
+    practiceSession={date,requestId,controller};
     practiceModalTitle.textContent=`DAILY #${Number(puzzle.sequence)||"?"} · ${puzzle.date}`;
     practiceModal.hidden=false;
-    practiceFrame.src=`/basement/practice?date=${encodeURIComponent(date)}&v=335`;
+    practiceFrame.hidden=false;
+    practiceFrame.srcdoc="";
+    practiceLoading("Preparing private Daily practice…");
+    practiceTimeout=setTimeout(()=>{
+      if(practiceSession?.requestId===requestId)practiceLoading("The practice window did not finish loading. Please retry.",true);
+    },50000);
     requestAnimationFrame(()=>practiceClose?.focus());
+    try {
+      // The authenticated parent makes the request. An opaque sandboxed
+      // iframe cannot reliably send a SameSite=Lax Basement session cookie.
+      const response=await fetch(`/basement/practice?date=${encodeURIComponent(date)}&requestId=${encodeURIComponent(requestId)}&v=336`,{
+        credentials:"same-origin",cache:"no-store",signal:controller.signal,
+        headers:{Accept:"text/html"}
+      });
+      const source=await response.text();
+      if(practiceSession?.requestId!==requestId)return;
+      if(!response.ok)throw new Error(source.slice(0,400)||`Practice request failed (${response.status}).`);
+      if(!response.headers.get("content-type")?.includes("text/html") || !source.includes('practice-runtime.js?v=336'))
+        throw new Error("The practice page is missing or does not match v336. Re-upload the complete replacement.");
+      practiceLoading("Preparing private character artwork…");
+      const privateAssets=await loadPrivateImageAssets();
+      if(practiceSession?.requestId!==requestId)return;
+      if(!source.includes("__BOXXY_PRIVATE_ASSET_DATA__"))throw new Error("The private practice page does not match v336.");
+      const assetPayload=JSON.stringify(privateAssets).replace(/</g,"\\u003c").replace(/>/g,"\\u003e").replace(/&/g,"\\u0026");
+      practiceLoading("Loading the private game…");
+      practiceFrame.srcdoc=source.replace("__BOXXY_PRIVATE_ASSET_DATA__",assetPayload);
+    } catch(error) {
+      if(practiceSession?.requestId!==requestId||error.name==="AbortError")return;
+      clearTimeout(practiceTimeout);
+      practiceLoading(error.message||"Could not load private practice.",true);
+    }
   }
   function closePractice() {
     if(!practiceModal||practiceModal.hidden)return;
+    clearTimeout(practiceTimeout);
+    practiceSession?.controller?.abort();
+    practiceSession=null;
+    if(practiceFrame)practiceFrame.srcdoc="";
     practiceFrame?.removeAttribute("src");
+    practiceFrame.hidden=true;
+    practiceLoadStatus.hidden=true;
     practiceModal.hidden=true;
     if(lastPracticeFocus?.isConnected)lastPracticeFocus.focus();
     lastPracticeFocus=null;
   }
+  window.addEventListener("message",event=>{
+    if(event.source!==practiceFrame?.contentWindow||event.origin!=="null"||!practiceSession||practiceModal.hidden)return;
+    const data=event.data;
+    if(!data||typeof data!=="object"||data.requestId!==practiceSession.requestId||data.date!==practiceSession.date)return;
+    if(data.type==="BOXXY_PRACTICE_READY"){
+      clearTimeout(practiceTimeout);practiceLoadStatus.hidden=true;practiceFrame.hidden=false;
+      practiceFrame.focus();
+    } else if(data.type==="BOXXY_PRACTICE_ERROR"){
+      clearTimeout(practiceTimeout);practiceLoading(String(data.message||"Could not load private practice.").slice(0,500),true);
+    } else if(data.type==="BOXXY_PRACTICE_RETRY")openPractice(practiceSession.date);
+  });
+  practiceRetry?.addEventListener("click",()=>{if(practiceSession)openPractice(practiceSession.date);});
   practiceSearch?.addEventListener("input",renderPracticeCards);
   practiceFilter?.addEventListener("change",renderPracticeCards);
   practiceCards?.addEventListener("click",event=>{
@@ -618,33 +705,22 @@
     return `<div>${escapeHtml(user.email)}</div>${google}`;
   }
   function renderUsers() {
-    const list = filteredUsers();
-    if (userRows) userRows.innerHTML = list.map(user => `
-      <tr data-user-id="${escapeHtml(user.id)}" tabindex="0">
-        <td>
-          <div class="basement-user-identity">
-            <canvas class="basement-avatar" data-avatar-user="${escapeHtml(user.id)}" width="90" height="78" aria-label="Current BOXXY character and outfit"></canvas>
-            <div class="basement-user-copy">
-              <div class="user-main user-with-status">${onlineDot(user)}${escapeHtml(user.username)}${googleBadge(user)}</div>
-              ${medalRail(user.summary)}${outfitMini(user.summary)}${boardStyleMini(user.summary)}
-            </div>
-          </div>
-        </td>
-        <td>${emailCell(user)}</td>
-        <td>${escapeHtml(dateTime(user.createdAt))}</td>
-        <td>${escapeHtml(dateTime(user.lastSeenAt))}</td>
-        <td><strong>${escapeHtml(duration(user.totalActiveSeconds))}</strong></td>
-        <td class="numeric-cell">${Number(user.summary?.levelsCompleted || 0).toLocaleString("en-GB")}</td>
-        <td class="numeric-cell">${Number(user.summary?.packsCompleted || 0).toLocaleString("en-GB")}</td>
-        <td class="numeric-cell">${Number(user.summary?.totalSteps || 0).toLocaleString("en-GB")}</td>
-        <td class="numeric-cell">${Number(user.summary?.totalPushes || 0).toLocaleString("en-GB")}</td>
-        <td class="numeric-cell">${Number(user.summary?.totalAttempts || 0).toLocaleString("en-GB")}</td>
-        <td class="numeric-cell">${Number(user.summary?.dailyStreak || 0).toLocaleString("en-GB")}</td>
-        <td>${activityStrip(user.summary, true)}</td>
-        <td>${progressHtml(user.summary)}</td>
-        <td><div>${escapeHtml(user.lastIp || "—")}</div><div class="muted">signup ${escapeHtml(user.signupIp || "—")}</div></td>
-      </tr>`).join("");
-    if (userCards) userCards.replaceChildren();
+    const list=filteredUsers();
+    const number=value=>Number(value||0).toLocaleString("en-GB");
+    if(userRows)userRows.innerHTML=list.map(user=>`<tr data-user-id="${escapeHtml(user.id)}" tabindex="0">
+      <td><div class="basement-user-identity"><canvas class="basement-avatar" data-avatar-user="${escapeHtml(user.id)}" width="90" height="78" aria-label="Current character"></canvas><div class="basement-user-copy"><div class="user-main user-with-status">${onlineDot(user)}${escapeHtml(user.username)}${googleBadge(user)}</div>${medalRail(user.summary)}${outfitMini(user.summary)}${boardStyleMini(user.summary)}</div></div></td>
+      <td>${escapeHtml(dateTime(user.lastSeenAt))}</td>
+      <td><strong>${escapeHtml(duration(user.totalActiveSeconds))}</strong></td>
+      <td class="numeric-cell">${number(user.summary?.levelsCompleted)}</td>
+      <td class="numeric-cell">${number(user.summary?.packsCompleted)}</td>
+      <td class="numeric-cell">${number(user.summary?.totalSteps)}</td>
+      <td class="numeric-cell">${number(user.summary?.totalPushes)}</td>
+    </tr>`).join("");
+    if(userCards)userCards.innerHTML=list.map(user=>`<button type="button" class="user-card" data-user-id="${escapeHtml(user.id)}" aria-label="Open ${escapeHtml(user.username)} account">
+      <div class="user-card-heading"><canvas class="basement-avatar" data-avatar-user="${escapeHtml(user.id)}" width="90" height="78" aria-hidden="true"></canvas><div><div class="user-main user-with-status">${onlineDot(user)}${escapeHtml(user.username)}${googleBadge(user)}</div><span class="muted">${escapeHtml(user.email)}</span></div></div>
+      <div class="user-card-grid"><div><span>LEVELS</span><strong>${number(user.summary?.levelsCompleted)}</strong></div><div><span>PACKS</span><strong>${number(user.summary?.packsCompleted)}</strong></div><div><span>STEPS</span><strong>${number(user.summary?.totalSteps)}</strong></div><div><span>PUSHES</span><strong>${number(user.summary?.totalPushes)}</strong></div></div>
+      <div class="user-card-footer"><span>LAST ACTIVE</span><strong>${escapeHtml(dateTime(user.lastSeenAt))}</strong></div>
+    </button>`).join("");
     renderAvatarCanvases(list);
   }
   async function loadUsers() {
@@ -759,17 +835,17 @@
   });
   completionRows?.addEventListener("click", event => { const row = event.target.closest("[data-user-id]"); if (row) openDetail(row.dataset.userId); });
   completionRows?.addEventListener("keydown", event => { if (event.key === "Enter") { const row = event.target.closest("[data-user-id]"); if (row) openDetail(row.dataset.userId); } });
-  const TEXT_SCALE_KEY = "boxxy-basement-text-scale-v2";
+  const TEXT_SCALE_KEY = "boxxy-basement-text-scale-v3";
   function applyTextScale(value) {
-    const scale = [1,1.25,1.5,1.75,2].includes(Number(value)) ? Number(value) : 1;
-    document.documentElement.style.setProperty("--admin-font-size", `${16 * scale}px`);
-    if (textSizeSelect) textSizeSelect.value = String(scale);
-    try { localStorage.setItem(TEXT_SCALE_KEY, String(scale)); } catch (_) {}
+    const scale=[0.85,1,1.15,1.3,1.5].includes(Number(value))?Number(value):1;
+    document.documentElement.style.setProperty("--admin-font-size",`${16*scale}px`);
+    if(textSizeSelect)textSizeSelect.value=String(scale);
+    try{localStorage.setItem(TEXT_SCALE_KEY,String(scale));}catch(_){}
   }
-  let savedTextScale = 1;
-  try { savedTextScale = localStorage.getItem(TEXT_SCALE_KEY) || 1; } catch (_) {}
+  let savedTextScale=1;
+  try{savedTextScale=localStorage.getItem(TEXT_SCALE_KEY)||1;}catch(_){}
   applyTextScale(savedTextScale);
-  textSizeSelect?.addEventListener("change", () => applyTextScale(textSizeSelect.value));
+  textSizeSelect?.addEventListener("change",()=>applyTextScale(textSizeSelect.value));
   searchInput?.addEventListener("input", renderUsers);
   userRows?.addEventListener("click", event => { const row = event.target.closest("[data-user-id]"); if (row) openDetail(row.dataset.userId); });
   userRows?.addEventListener("keydown", event => { if (event.key === "Enter") { const row = event.target.closest("[data-user-id]"); if (row) openDetail(row.dataset.userId); } });

@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "335",
+  version: "336",
   lastUpdated: "2026-09-07"
 });
+/* BOXXY v336 — private practice startup diagnostics and isolated storage bindings; normal gameplay unchanged. */
 /* BOXXY v335 — private Basement practice uses the existing engine with isolated storage. */
 /* BOXXY v334 — Basement sorting and immutable pack-completion records; private, stat-free Daily practice in Secret Workshop. */
 /* BOXXY v333 — custom-colour boxes on targets keep the guarded board-art loader/fallback path; Matthias Meger added as the fourth BOXXY Originals completer. */
@@ -656,7 +657,7 @@ window.BOXXY_RELEASE = Object.freeze({
       image.decoding = "async";
       image.onload = () => resolve(image);
       image.onerror = () => reject(new Error(`Could not load ${src}`));
-      image.src = src;
+      image.src = window.BOXXY_PRIVATE_PRACTICE_ASSET_URL?.(src) || src;
     });
     images.set(src, promise);
     return promise;

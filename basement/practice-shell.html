@@ -11,29 +11,35 @@
 <base href="/">
 <meta name="referrer" content="no-referrer">
 <script>
-  "use strict";
-  // An opaque-origin sandbox and an in-memory Storage implementation keep
-  // this entire game instance separate from every real BOXXY browser save.
-  const privateStore = () => {
-    const data = new Map();
-    return Object.freeze({
-      get length(){return data.size;},
-      key(index){return [...data.keys()][index] ?? null;},
-      getItem(key){return data.get(String(key)) ?? null;},
-      setItem(key,value){data.set(String(key),String(value));},
-      removeItem(key){data.delete(String(key));},
-      clear(){data.clear();}
-    });
-  };
-  Object.defineProperty(window,"localStorage",{configurable:false,value:privateStore()});
-  Object.defineProperty(window,"sessionStorage",{configurable:false,value:privateStore()});
-  window.BOXXY_PRIVATE_PRACTICE = __BOXXY_PRIVATE_PRACTICE_DATA__;
-  window.BOXXY_PRACTICE_MODE = true;
-  window.BOXXY_DAILY_SCHEDULES = [];
-  window.BOXXY_DAILY_SCHEDULE = null;
-  window.BOXXY_DAILY_LAUNCH_DATE = "2026-08-30";
-  document.documentElement.classList.add("private-practice");
+"use strict";
+// These global lexical bindings are resolved by the existing classic game
+// scripts. Native browser storage is never accessed or replaced.
+const privateStore = () => {
+  const data = new Map();
+  return Object.freeze({
+    get length(){return data.size;},
+    key(index){return [...data.keys()][index] ?? null;},
+    getItem(key){return data.get(String(key)) ?? null;},
+    setItem(key,value){data.set(String(key),String(value));},
+    removeItem(key){data.delete(String(key));},
+    clear(){data.clear();}
+  });
+};
+const localStorage = privateStore();
+const sessionStorage = privateStore();
+const privateAssets = __BOXXY_PRIVATE_ASSET_DATA__;
+window.BOXXY_PRIVATE_PRACTICE_ASSET_URL = path => {
+  const key = String(path || "").replace(/^\/+/, "").split("?")[0];
+  return privateAssets[key] || path;
+};
+window.BOXXY_PRIVATE_PRACTICE = __BOXXY_PRIVATE_PRACTICE_DATA__;
+window.BOXXY_PRACTICE_MODE = true;
+window.BOXXY_DAILY_SCHEDULES = [];
+window.BOXXY_DAILY_SCHEDULE = null;
+window.BOXXY_DAILY_LAUNCH_DATE = "2026-08-30";
+document.documentElement.classList.add("private-practice");
 </script>
+<script src="/basement/practice-runtime.js?v=336"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#efe5d4">
 <meta name="copyright" content="Copyright © 2026 Sam Cornwell. All rights reserved.">
@@ -55,48 +61,7 @@
 <meta name="twitter:description" content="Play BOXXY, a free online Sokoban-style pushbox puzzle game with original levels, classic puzzle packs, mobile controls and no account required.">
 <meta name="twitter:image" content="https://boxxy.io/assets/ui/boxxy-splash.png">
 <meta name="application-name" content="BOXXY">
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@graph": [
-    {
-      "@type": "WebSite",
-      "@id": "https://boxxy.io/#website",
-      "url": "https://boxxy.io/",
-      "name": "BOXXY",
-      "alternateName": ["BOXXY — Pushbox Puzzle", "boxxy.io"],
-      "description": "A free online Sokoban-style pushbox puzzle game with original levels, classic puzzle packs and mobile controls.",
-      "inLanguage": "en-GB"
-    },
-    {
-      "@type": "VideoGame",
-      "@id": "https://boxxy.io/#game",
-      "url": "https://boxxy.io/",
-      "name": "BOXXY",
-      "alternateName": "BOXXY — Pushbox Puzzle",
-      "description": "A free online Sokoban-style pushbox puzzle game with original levels, classic puzzle packs and mobile controls.",
-      "image": "https://boxxy.io/assets/ui/boxxy-splash.png",
-      "gamePlatform": "Web browser",
-      "genre": ["Puzzle", "Sokoban"],
-      "playMode": "SinglePlayer",
-      "isAccessibleForFree": true,
-      "author": {
-        "@type": "Person",
-        "name": "Sam Cornwell"
-      },
-      "copyrightHolder": {
-        "@type": "Person",
-        "name": "Sam Cornwell"
-      },
-      "copyrightYear": 2026,
-      "inLanguage": "en-GB",
-      "isPartOf": {
-        "@id": "https://boxxy.io/#website"
-      }
-    }
-  ]
-}
-</script>
+
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -105,26 +70,35 @@
 <link rel="icon" type="image/svg+xml" href="assets/ui/icons/boxxy-yellow-crate-v150.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="assets/ui/icons/boxxy-yellow-crate-v150-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="assets/ui/icons/boxxy-yellow-crate-v150-16.png">
-<link rel="apple-touch-icon" sizes="180x180" href="assets/ui/icons/boxxy-yellow-crate-touch-v150.png">
-<link rel="manifest" href="boxxy.webmanifest">
+
+
 <link rel="preload" as="image" href="assets/ui/boxxy-splash.png" fetchpriority="high">
 
 
-<link rel="stylesheet" href="styles.css?v=335">
+<link rel="stylesheet" href="styles.css?v=336">
 <link rel="stylesheet" href="how-to-play.css?v=225">
 <link rel="preload" as="image" href="assets/board/boxes/box-default-yellow.png?v=226">
 <link rel="preload" as="image" href="assets/board/goals/goal-red.png?v=226">
 <link rel="preload" as="image" href="assets/board/boxes/box-red.png?v=226">
+
 <style>
-  .private-practice #settingsBtn,.private-practice #collectionBtn,
-  .private-practice #dailyStreak,.private-practice #completedPackStars,
-  .private-practice #makerReturnBtn,.private-practice #dailyQuotePrompt,
-  .private-practice #dailyInviteModal,.private-practice #dailyArchiveModal,
-  .private-practice #dailyLeaderboardModal,.private-practice #packModal,
-  .private-practice #makerApplySolveBtn{display:none!important}
+#privatePracticeStatus{position:fixed;inset:0;z-index:999999;display:grid;place-items:center;padding:16px;background:#efe5d4;color:#171719;font:16px/1.5 Arial,sans-serif}
+.private-practice-status-card{width:min(440px,100%);padding:24px;border:2px solid #171719;background:#fffaf1;box-shadow:4px 4px 0 #171719}
+.private-practice-status-card strong{display:block;font-size:18px;letter-spacing:.04em}
+.private-practice-status-card p{margin:12px 0;overflow-wrap:anywhere}
+.private-practice-status-card button{padding:12px 18px;min-height:44px;background:#e5b32a;border:2px solid #171719;color:#171719;font:700 16px Arial,sans-serif}
+#privatePracticeStatus[hidden]{display:none!important}
+.private-practice #settingsBtn,.private-practice #collectionBtn,.private-practice #dailyStreak,.private-practice #completedPackStars,.private-practice #makerReturnBtn,.private-practice #dailyQuotePrompt,.private-practice #dailyInviteModal,.private-practice #dailyArchiveModal,.private-practice #dailyLeaderboardModal,.private-practice #packModal,.private-practice #makerApplySolveBtn{display:none!important}
 </style>
 </head>
 <body>
+<div id="privatePracticeStatus" role="status" aria-live="polite" hidden>
+  <div class="private-practice-status-card">
+    <strong id="privatePracticeStatusTitle">PREPARING PRACTICE</strong>
+    <p id="privatePracticeStatusText">Loading the private puzzle…</p>
+    <button id="privatePracticeRetry" type="button" hidden>RETRY PRACTICE</button>
+  </div>
+</div>
 <div id="splashScreen" class="splash-screen" aria-hidden="false">
   <div class="splash-inner">
     <div class="splash-logo-wrap">
@@ -1290,9 +1264,9 @@
 <audio id="bgMusic" src="assets/audio/cracked-ivory-drift.mp3" preload="auto" loop playsinline></audio>
 
 
-<script src="levels.js?v=268"></script>
-<script src="starry-night.js?v=302"></script>
-<script src="boxxy.js?v=335"></script>
+<script src="/levels.js?v=268"></script>
+<script src="/starry-night.js?v=302"></script>
+<script src="/boxxy.js?v=336"></script>
 
 
 
