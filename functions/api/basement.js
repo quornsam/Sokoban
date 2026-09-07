@@ -12,6 +12,7 @@ import {
   progressSummary
 } from "../_lib/auth.js";
 import { ensureGoogleAuthSchema } from "../_lib/google-auth.js";
+import { readPackCompletions, completionRecordsForUsers } from "../_lib/pack-completions.js";
 
 async function readBody(request) {
   try { return await request.json(); }
@@ -73,7 +74,9 @@ async function listUsers(context) {
     ORDER BY u.last_seen_at DESC, u.created_at DESC
   `).all();
   const users = (result.results || []).map(user => mappedUser(user));
-  return json({ ok: true, authenticated: true, users });
+  const records = await readPackCompletions(db);
+  return json({ ok: true, authenticated: true, users,
+    completions: completionRecordsForUsers(users, records) });
 }
 
 async function userDetail(context, id) {
@@ -92,7 +95,10 @@ async function userDetail(context, id) {
     WHERE u.id = ? LIMIT 1
   `).bind(id).first();
   if (!user) return json({ ok: false, error: "User not found." }, 404);
-  return json({ ok: true, authenticated: true, user: mappedUser(user, true) });
+  const mapped = mappedUser(user, true);
+  const records = await readPackCompletions(db, id);
+  return json({ ok: true, authenticated: true, user: mapped,
+    completions: completionRecordsForUsers([mapped], records) });
 }
 
 export async function onRequest(context) {

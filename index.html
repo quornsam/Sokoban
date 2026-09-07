@@ -159,7 +159,7 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=333">
+<link rel="stylesheet" href="styles.css?v=334">
 <link rel="stylesheet" href="how-to-play.css?v=225">
 <link rel="preload" as="image" href="assets/board/boxes/box-default-yellow.png?v=226">
 <link rel="preload" as="image" href="assets/board/goals/goal-red.png?v=226">
@@ -844,6 +844,14 @@
           </div>
         </section>
 
+        <section class="maker-panel maker-daily-practice-panel" aria-labelledby="makerDailyPracticeTitle">
+          <h3 id="makerDailyPracticeTitle">DAILY PRACTICE</h3>
+          <p>Choose a published Daily Boxxy. Practice does not count towards completions, streaks, leaderboards or game statistics.</p>
+          <label for="makerDailyPracticeSelect">PUBLISHED DAILY PUZZLES</label>
+          <select id="makerDailyPracticeSelect" size="6" aria-label="Published Daily Boxxy puzzles"></select>
+          <button id="makerDailyPracticeBtn" type="button">PRACTISE SELECTED <b aria-hidden="true">→</b></button>
+          <p id="makerDailyPracticeStatus" role="status" aria-live="polite"></p>
+        </section>
         <section class="maker-panel maker-save-panel">
           <h3>SAVED LEVELS</h3>
           <div class="maker-save-row">
@@ -1334,8 +1342,8 @@
 <script src="daily-puzzles/boxxy-daily-loader.js?v=218"></script>
 <script src="levels.js?v=268"></script>
 <script src="starry-night.js?v=302"></script>
-<script src="boxxy.js?v=333"></script>
-<script src="account.js?v=332"></script>
+<script src="boxxy.js?v=334"></script>
+<script src="account.js?v=334"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="pack-builder.js?v=216"></script>
 <script src="how-to-play.js?v=153"></script>

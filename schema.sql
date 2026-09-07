@@ -1,4 +1,4 @@
--- BOXXY v329 account database (Cloudflare D1)
+-- BOXXY v334 account database (Cloudflare D1)
 PRAGMA foreign_keys = ON;
 
 CREATE TABLE IF NOT EXISTS users (
@@ -67,3 +67,17 @@ CREATE TABLE IF NOT EXISTS user_auth_state (
   password_enabled INTEGER NOT NULL DEFAULT 1 CHECK (password_enabled IN (0, 1)),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+-- v334: first recorded pack completions, independent of mutable best scores.
+-- Existing rows and authentication/session tables are not changed.
+CREATE TABLE IF NOT EXISTS pack_completions (
+  user_id TEXT NOT NULL,
+  pack_id TEXT NOT NULL,
+  pack_name TEXT NOT NULL,
+  level_count INTEGER NOT NULL,
+  completed_at INTEGER NOT NULL,
+  recorded_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, pack_id),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS pack_completions_order_idx ON pack_completions(pack_id, completed_at, recorded_at);

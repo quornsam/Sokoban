@@ -103,6 +103,9 @@
   if (!entryBtn || !accountView) return;
 
   let account = null;
+  // Read-only identity for first-completion records. Authentication remains
+  // server-side; this is never used to authorise a request.
+  window.BOXXYAccountIdentity = { get id() { return account?.id || ""; } };
   let mode = "create";
   let busy = false;
   let lastSyncedFingerprint = "";
@@ -699,6 +702,19 @@
     keys.forEach(key => {
       const left = local[key];
       const right = remote[key];
+      if (/-first-completion-v1$/.test(key)) {
+        const valid = value => {
+          const marker = parseJson(value, null);
+          const stamp = Number(marker?.completedAt);
+          return marker && marker.userId === account?.id && Number.isSafeInteger(stamp)
+            && stamp >= Date.UTC(2026, 0, 1) && stamp <= Date.now() + 300000 ? marker : null;
+        };
+        const markers = [valid(left), valid(right)].filter(Boolean);
+        if (markers.length) {
+          merged[key] = JSON.stringify(markers.reduce((a,b) => a.completedAt <= b.completedAt ? a : b));
+        } else delete merged[key];
+        return;
+      }
       if (left == null) { merged[key] = right; return; }
       if (right == null) { merged[key] = left; return; }
 
@@ -748,6 +764,17 @@
         }
       } catch (_) {}
     });
+    // Remove only foreign first-completion metadata, never gameplay progress.
+    // An old browser's marker must not block this account's first record.
+    try {
+      const stale = [];
+      for (let index = 0; index < localStorage.length; index++) {
+        const key = localStorage.key(index);
+        if (!key || !/-first-completion-v1$/.test(key) || Object.prototype.hasOwnProperty.call(state || {}, key)) continue;
+        stale.push(key);
+      }
+      stale.forEach(key => { localStorage.removeItem(key); changed = true; });
+    } catch (_) {}
     if (changed) window.BoxxyBoardStyle?.reloadFromStorage?.();
     return changed;
   }
@@ -1349,8 +1376,12 @@
     const now = Date.now();
     const seconds = Math.max(0, Math.min(15, Math.round((now - lastActivityTick) / 1000)));
     lastActivityTick = now;
-    if (account && document.visibilityState === "visible" && document.hasFocus()) activeSecondsDelta += seconds;
+    if (account && !window.BOXXY_PRACTICE_MODE && document.visibilityState === "visible" && document.hasFocus()) activeSecondsDelta += seconds;
   }, 5000);
+
+  window.addEventListener("boxxypackcompletionrecorded", () => {
+    if (account) syncNow(true);
+  });
 
   window.addEventListener("boxxydailycompletionrecorded", async event => {
     if (!account) return;

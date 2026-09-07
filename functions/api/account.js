@@ -19,6 +19,7 @@ import {
   publicAccount,
   expireCookie
 } from "../_lib/auth.js";
+import { mergeFirstCompletionMarkers, recordPackCompletions } from "../_lib/pack-completions.js";
 import {
   verifyGoogleCredential,
   ensureGoogleAuthSchema,
@@ -79,6 +80,8 @@ async function readBody(request) {
 }
 
 async function accountPayload(db, user) {
+  try { await recordPackCompletions(db, user.id, user.progress_json); }
+  catch (error) { console.error("BOXXY pack completion ledger", error); }
   const authInfo = await userAuthInfo(db, user.id);
   return {
     ok: true,
@@ -438,7 +441,9 @@ async function handleSync(context, body) {
 
   const activeSeconds = Math.max(0, Math.min(1800, Math.trunc(Number(body.activeSecondsDelta) || 0)));
   const now = Date.now();
-  const progressJson = safeProgressJson(withServerActivity(user.progress_json, body.progress || {}, activeSeconds, now));
+  const progress = mergeFirstCompletionMarkers(user.progress_json,
+    withServerActivity(user.progress_json, body.progress || {}, activeSeconds, now), user.id);
+  const progressJson = safeProgressJson(progress);
   await db.prepare(`
     UPDATE users SET
       progress_json = ?, progress_updated_at = ?, last_seen_at = ?, last_ip = ?, user_agent = ?,
@@ -446,6 +451,8 @@ async function handleSync(context, body) {
     WHERE id = ?
   `).bind(progressJson, now, now, clientIp(request), userAgent(request), activeSeconds, user.id).run();
 
+  try { await recordPackCompletions(db, user.id, progressJson); }
+  catch (error) { console.error("BOXXY pack completion ledger", error); }
   const refreshed = await db.prepare("SELECT * FROM users WHERE id = ?").bind(user.id).first();
   const authInfo = await userAuthInfo(db, user.id);
   return json({ ok: true, account: publicAccount(refreshed, authInfo), progressUpdatedAt: now });

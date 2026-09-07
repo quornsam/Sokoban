@@ -1,3 +1,4 @@
+/* BOXXY v334 — sortable player totals, chronological pack completion records and readable text controls. */
 /* BOXXY v323 — Basement shows each signed-in player’s standard board colour choices. */
 /* BOXXY v308 — ordered progress, all-time activity labels, medals and current outfit previews. */
 (() => {
@@ -21,7 +22,40 @@
   const detailClose = document.getElementById("detailClose");
   const detailTitle = document.getElementById("detailTitle");
   const detailBody = document.getElementById("detailBody");
+  const playersPanel = document.getElementById("playersPanel");
+  const completionsPanel = document.getElementById("completionsPanel");
+  const playersTab = document.getElementById("playersTab");
+  const completionsTab = document.getElementById("completionsTab");
+  const playerSortSelect = document.getElementById("playerSortSelect");
+  const sortDirectionBtn = document.getElementById("sortDirectionBtn");
+  const textSizeSelect = document.getElementById("textSizeSelect");
+  const completionPackSelect = document.getElementById("completionPackSelect");
+  const completionSearch = document.getElementById("completionSearch");
+  const completionRows = document.getElementById("completionRows");
+  const completionStatus = document.getElementById("completionStatus");
   let users = [];
+  let completions = [];
+  let sortColumn = "lastSeenAt";
+  let sortDirection = -1;
+  let selectedView = "players";
+  const SORT_COLUMNS = Object.freeze([
+    ["username", "User", "text"], ["email", "Email", "text"],
+    ["createdAt", "Joined", "number"], ["lastSeenAt", "Last active", "number"],
+    ["totalActiveSeconds", "Total time", "number"],
+    ["levelsCompleted", "Levels completed", "number"],
+    ["packsCompleted", "Packs completed", "number"],
+    ["totalSteps", "Steps", "number"], ["totalPushes", "Pushes", "number"],
+    ["totalAttempts", "Attempts", "number"], ["dailyStreak", "Daily streak", "number"],
+    ["activity7d", "Activity 7D", "number"],
+    ["lastIp", "IP", "text"]
+  ]);
+  const SORT_BY_KEY = new Map(SORT_COLUMNS.map(item => [item[0], item]));
+  const COMPLETION_PACKS = Object.freeze([
+    ["boxxy-original-puzzle-pack-of-50-levels", "BOXXY Originals"],
+    ["microban", "Microban"], ["jigsaw", "The Jigsaw"],
+    ["exponentially", "Exponentially"], ["alphabet-soup", "Alphabet Soup"],
+    ["starry-night", "Starry Night"]
+  ]);
 
   function escapeHtml(value) {
     return String(value ?? "").replace(/[&<>"']/g, char => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[char]));
@@ -296,10 +330,117 @@
     if (totalTime) totalTime.textContent = duration(users.reduce((sum, user) => sum + Number(user.totalActiveSeconds || 0), 0));
     if (totalAttempts) totalAttempts.textContent = users.reduce((sum, user) => sum + Number(user.summary?.totalAttempts || 0), 0).toLocaleString("en-GB");
   }
+  function sortValue(user, key) {
+    if (key === "levelsCompleted" || key === "packsCompleted" || key === "totalSteps"
+        || key === "totalPushes" || key === "totalAttempts" || key === "dailyStreak") {
+      return Number(user.summary?.[key]) || 0;
+    }
+    if (key === "activity7d") return weekActivity(user.summary).reduce((sum,day) => sum + day.seconds, 0);
+    if (key === "email") return String(user.email || "");
+    if (key === "username" || key === "lastIp") return String(user[key] || "");
+    return Number(user[key]) || 0;
+  }
+  function compareUsers(left, right) {
+    const definition = SORT_BY_KEY.get(sortColumn) || SORT_BY_KEY.get("lastSeenAt");
+    const a = sortValue(left, sortColumn), b = sortValue(right, sortColumn);
+    const comparison = definition[2] === "text"
+      ? String(a).localeCompare(String(b), "en", { numeric:true, sensitivity:"base" })
+      : a - b;
+    return comparison * sortDirection
+      || String(left.username || "").localeCompare(String(right.username || ""), "en", { sensitivity:"base" });
+  }
+  function setSort(column, direction = null) {
+    if (!SORT_BY_KEY.has(column)) return;
+    sortDirection = direction == null && column === sortColumn ? -sortDirection
+      : direction == null ? (SORT_BY_KEY.get(column)[2] === "text" ? 1 : -1) : direction;
+    sortColumn = column;
+    if (playerSortSelect) playerSortSelect.value = sortColumn;
+    if (sortDirectionBtn) sortDirectionBtn.textContent = sortDirection === 1 ? "↑ ASCENDING" : "↓ DESCENDING";
+    document.querySelectorAll("th[data-sort-column]").forEach(th => {
+      const active = th.dataset.sortColumn === sortColumn;
+      if (active) th.setAttribute("aria-sort", sortDirection === 1 ? "ascending" : "descending");
+      else th.removeAttribute("aria-sort");
+      const indicator = th.querySelector(".sort-indicator");
+      if (indicator) indicator.textContent = active ? (sortDirection === 1 ? "↑" : "↓") : "";
+    });
+    renderUsers();
+  }
+  function setView(view) {
+    selectedView = view === "completions" ? "completions" : "players";
+    if (playersPanel) playersPanel.hidden = selectedView !== "players";
+    if (completionsPanel) completionsPanel.hidden = selectedView !== "completions";
+    playersTab?.setAttribute("aria-pressed", String(selectedView === "players"));
+    completionsTab?.setAttribute("aria-pressed", String(selectedView === "completions"));
+    if (selectedView === "completions") renderCompletions();
+  }
+  function ukCompletionDate(timestamp) {
+    if (!Number(timestamp)) return "Original date unavailable";
+    try {
+      return new Intl.DateTimeFormat("en-GB", {
+        dateStyle:"medium", timeStyle:"medium", timeZone:"Europe/London"
+      }).format(new Date(Number(timestamp))) + " UK";
+    } catch (_) { return "Original date unavailable"; }
+  }
+  function completionSortOrder(item) {
+    const index = COMPLETION_PACKS.findIndex(pack => pack[0] === item.packId);
+    return index < 0 ? COMPLETION_PACKS.length : index;
+  }
+  function compareCompletions(a, b) {
+    const group = completionSortOrder(a) - completionSortOrder(b)
+      || (a.packId === b.packId ? 0 : String(a.packName).localeCompare(String(b.packName), "en", { sensitivity:"base" }));
+    if (group) return group;
+    if (a.historical !== b.historical) return a.historical ? 1 : -1;
+    if (!a.historical && a.completedAt !== b.completedAt) return a.completedAt - b.completedAt;
+    return Number(a.recordedAt || 0) - Number(b.recordedAt || 0)
+      || String(a.username).localeCompare(String(b.username), "en", { sensitivity:"base" });
+  }
+  function orderedCompletions() {
+    const packId = completionPackSelect?.value || "";
+    const query = String(completionSearch?.value || "").trim().toLowerCase();
+    return completions.filter(item => (!packId || item.packId === packId)
+      && (!query || String(item.username || "").toLowerCase().includes(query)))
+      .sort(compareCompletions);
+  }
+  function populateCompletionPacks() {
+    if (!completionPackSelect) return;
+    const selected = completionPackSelect.value;
+    const packs = new Map(COMPLETION_PACKS);
+    completions.forEach(item => { if (!packs.has(item.packId)) packs.set(item.packId, item.packName); });
+    completionPackSelect.innerHTML = '<option value="">ALL LEVEL PACKS</option>'
+      + [...packs].map(([id,name]) => `<option value="${escapeHtml(id)}">${escapeHtml(name)}</option>`).join("");
+    if (packs.has(selected)) completionPackSelect.value = selected;
+  }
+  function renderCompletions() {
+    const list = orderedCompletions();
+    // Ranks are calculated against every dated record for the selected pack,
+    // not just the current search results. Filtering must not renumber history.
+    const ranks = new Map(), rankByRecord = new Map();
+    completions.slice().sort(compareCompletions).forEach(item => {
+      if (item.historical) return;
+      const rank = (ranks.get(item.packId) || 0) + 1;
+      ranks.set(item.packId, rank);
+      rankByRecord.set(`${item.userId}\u0000${item.packId}`, rank);
+    });
+    if (completionRows) completionRows.innerHTML = list.map(item => {
+      const rank = item.historical ? "—" : rankByRecord.get(`${item.userId}\u0000${item.packId}`);
+      return `<tr class="${item.historical ? "historical-row" : ""}" data-user-id="${escapeHtml(item.userId)}" tabindex="0">
+        <td class="completion-rank">${rank}</td>
+        <td><strong>${escapeHtml(item.username)}</strong></td>
+        <td>${escapeHtml(item.packName)}</td>
+        <td class="completion-date">${escapeHtml(ukCompletionDate(item.completedAt))}</td>
+        <td>${item.historical ? "Historical completion · original date unrecorded" : "First completion recorded"}</td>
+      </tr>`;
+    }).join("");
+    setStatus(completionStatus, `${list.length} COMPLETION${list.length === 1 ? "" : "S"} · ${list.filter(item => !item.historical).length} DATED RECORDS`);
+  }
+  function completionDetail(records) {
+    if (!records?.length) return '<p class="muted">No completed packs recorded.</p>';
+    return `<div class="completion-records-detail">${records.map(item => `<div><strong>${escapeHtml(item.packName)}</strong><span>${escapeHtml(ukCompletionDate(item.completedAt))}${item.historical ? " · Historical completion" : " · First completion"}</span></div>`).join("")}</div>`;
+  }
   function filteredUsers() {
     const query = String(searchInput?.value || "").trim().toLowerCase();
-    if (!query) return users;
-    return users.filter(user => [user.username, user.email, user.googleEmail, user.signupIp, user.lastIp].some(value => String(value || "").toLowerCase().includes(query)));
+    const list = query ? users.filter(user => [user.username, user.email, user.googleEmail, user.signupIp, user.lastIp].some(value => String(value || "").toLowerCase().includes(query))) : users;
+    return list.slice().sort(compareUsers);
   }
   function googleBadge(user) {
     return user?.googleLinked ? `<span class="google-badge">GOOGLE</span>` : "";
@@ -319,18 +460,21 @@
             <canvas class="basement-avatar" data-avatar-user="${escapeHtml(user.id)}" width="90" height="78" aria-label="Current BOXXY character and outfit"></canvas>
             <div class="basement-user-copy">
               <div class="user-main user-with-status">${onlineDot(user)}${escapeHtml(user.username)}${googleBadge(user)}</div>
-              ${medalRail(user.summary)}
-              ${outfitMini(user.summary)}
-              ${boardStyleMini(user.summary)}
+              ${medalRail(user.summary)}${outfitMini(user.summary)}${boardStyleMini(user.summary)}
             </div>
           </div>
         </td>
         <td>${emailCell(user)}</td>
         <td>${escapeHtml(dateTime(user.createdAt))}</td>
         <td>${escapeHtml(dateTime(user.lastSeenAt))}</td>
-        <td><strong>${escapeHtml(duration(user.totalActiveSeconds))}</strong><div class="muted">all time</div></td>
+        <td><strong>${escapeHtml(duration(user.totalActiveSeconds))}</strong></td>
+        <td class="numeric-cell">${Number(user.summary?.levelsCompleted || 0).toLocaleString("en-GB")}</td>
+        <td class="numeric-cell">${Number(user.summary?.packsCompleted || 0).toLocaleString("en-GB")}</td>
+        <td class="numeric-cell">${Number(user.summary?.totalSteps || 0).toLocaleString("en-GB")}</td>
+        <td class="numeric-cell">${Number(user.summary?.totalPushes || 0).toLocaleString("en-GB")}</td>
+        <td class="numeric-cell">${Number(user.summary?.totalAttempts || 0).toLocaleString("en-GB")}</td>
+        <td class="numeric-cell">${Number(user.summary?.dailyStreak || 0).toLocaleString("en-GB")}</td>
         <td>${activityStrip(user.summary, true)}</td>
-        <td><div class="progress-list">${escapeHtml(gameStatsText(user.summary))}</div></td>
         <td>${progressHtml(user.summary)}</td>
         <td><div>${escapeHtml(user.lastIp || "—")}</div><div class="muted">signup ${escapeHtml(user.signupIp || "—")}</div></td>
       </tr>`).join("");
@@ -362,6 +506,9 @@
       if (response.status === 401 || data.authenticated === false) { showLogin(); return; }
       if (!response.ok) { setStatus(dashboardStatus, data.error || "Could not load users.", "error"); return; }
       users = Array.isArray(data.users) ? data.users : [];
+      completions = Array.isArray(data.completions) ? data.completions : [];
+      populateCompletionPacks();
+      renderCompletions();
       renderSummary(); renderUsers(); showDashboard(); setStatus(dashboardStatus, `${users.length} ACCOUNT${users.length === 1 ? "" : "S"} LOADED`, "success");
     } catch (_) { setStatus(dashboardStatus, "Could not reach the Basement API.", "error"); }
   }
@@ -423,6 +570,7 @@
         <section><h3>MEDALS / BADGES</h3>${medalRail(user.summary) || `<p class="muted">No medals or badges earned yet.</p>`}</section>
         <section><h3>CURRENT STYLE</h3>${detailOutfit(user)}</section>
         <section><h3>ACTIVITY · LAST 7 DAYS</h3>${activityStrip(user.summary)}</section>
+        <section><h3>PACK COMPLETION HISTORY</h3>${completionDetail(data.completions)}</section>
         <section><h3>PROGRESS SUMMARY</h3>${detailProgress(user.summary)}</section>
         <section><h3>LEVEL ATTEMPTS</h3>${detailAttempts(user.summary)}</section>
         <section><h3>RAW CLOUD SAVE</h3><pre class="raw-progress">${escapeHtml(JSON.stringify(user.progress || {}, null, 2))}</pre></section>`;
@@ -439,8 +587,35 @@
       loginForm.reset(); setStatus(loginStatus, ""); await loadUsers();
     } catch (_) { setStatus(loginStatus, "Could not reach the Basement API.", "error"); }
   });
-  logoutBtn?.addEventListener("click", async () => { try { await api("", { action:"logout" }); } catch (_) {} users=[]; showLogin(); });
+  logoutBtn?.addEventListener("click", async () => { try { await api("", { action:"logout" }); } catch (_) {} users=[]; completions=[]; showLogin(); });
   refreshBtn?.addEventListener("click", loadUsers);
+  if (playerSortSelect) {
+    playerSortSelect.innerHTML = SORT_COLUMNS.map(([key,label]) => `<option value="${key}">${label}</option>`).join("");
+    playerSortSelect.addEventListener("change", () => setSort(playerSortSelect.value, SORT_BY_KEY.get(playerSortSelect.value)?.[2] === "text" ? 1 : -1));
+  }
+  document.querySelectorAll("[data-sort]").forEach(button => button.addEventListener("click", () => setSort(button.dataset.sort)));
+  sortDirectionBtn?.addEventListener("click", () => setSort(sortColumn));
+  setSort("lastSeenAt", -1);
+  playersTab?.addEventListener("click", () => setView("players"));
+  completionsTab?.addEventListener("click", () => setView("completions"));
+  if (completionPackSelect) {
+    completionPackSelect.innerHTML = '<option value="">ALL LEVEL PACKS</option>' + COMPLETION_PACKS.map(([id,name]) => `<option value="${id}">${name}</option>`).join("");
+    completionPackSelect.addEventListener("change", renderCompletions);
+  }
+  completionSearch?.addEventListener("input", renderCompletions);
+  completionRows?.addEventListener("click", event => { const row = event.target.closest("[data-user-id]"); if (row) openDetail(row.dataset.userId); });
+  completionRows?.addEventListener("keydown", event => { if (event.key === "Enter") { const row = event.target.closest("[data-user-id]"); if (row) openDetail(row.dataset.userId); } });
+  const TEXT_SCALE_KEY = "boxxy-basement-text-scale-v1";
+  function applyTextScale(value) {
+    const scale = [1,1.25,1.5,1.75,2].includes(Number(value)) ? Number(value) : 1;
+    document.documentElement.style.setProperty("--basement-text-scale", String(scale));
+    if (textSizeSelect) textSizeSelect.value = String(scale);
+    try { localStorage.setItem(TEXT_SCALE_KEY, String(scale)); } catch (_) {}
+  }
+  let savedTextScale = 1;
+  try { savedTextScale = localStorage.getItem(TEXT_SCALE_KEY) || 1; } catch (_) {}
+  applyTextScale(savedTextScale);
+  textSizeSelect?.addEventListener("change", () => applyTextScale(textSizeSelect.value));
   searchInput?.addEventListener("input", renderUsers);
   userRows?.addEventListener("click", event => { const row = event.target.closest("[data-user-id]"); if (row) openDetail(row.dataset.userId); });
   userRows?.addEventListener("keydown", event => { if (event.key === "Enter") { const row = event.target.closest("[data-user-id]"); if (row) openDetail(row.dataset.userId); } });

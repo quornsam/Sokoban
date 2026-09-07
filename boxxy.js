@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "333",
+  version: "334",
   lastUpdated: "2026-09-07"
 });
+/* BOXXY v334 — Basement sorting and immutable pack-completion records; private, stat-free Daily practice in Secret Workshop. */
 /* BOXXY v333 — custom-colour boxes on targets keep the guarded board-art loader/fallback path; Matthias Meger added as the fourth BOXXY Originals completer. */
 /* BOXXY v332 — custom and Rainbow board artwork now uses the existing persistent piece renderer so coloured boxes are not destroyed and repainted on every move. */
 /* BOXXY v331 — adds Google disconnect for password accounts, fixes Google account UI alignment/flicker, and brings the built-in Legal copy in line with Google authentication. */
@@ -1688,6 +1689,22 @@ window.BOXXY_RELEASE = Object.freeze({
     return (Array.isArray(completed) && completed.map(Number).includes(finalIndex)) || Boolean(currentBest || legacyBest);
   }
 
+  function recordFirstPackCompletion(pack) {
+    if (!pack?.id || !pack.levels?.length) return;
+    const key = packStorageKeyFor(pack.id, "first-completion");
+    const userId = String(window.BOXXYAccountIdentity?.id || "");
+    let previous = null;
+    try { previous = JSON.parse(localStorage.getItem(key) || "null"); } catch (_) {}
+    if (previous && previous.userId === userId && Number.isSafeInteger(Number(previous.completedAt))) return;
+    const completedAt = Date.now();
+    try {
+      localStorage.setItem(key, JSON.stringify({ completedAt, userId }));
+      window.dispatchEvent(new CustomEvent("boxxypackcompletionrecorded", {
+        detail: { packId: pack.id, completedAt }
+      }));
+    } catch (_) { /* A blocked local save must not interrupt completion. */ }
+  }
+
   function additionalPacksUnlocked() {
     if (localStorage.getItem(ADDITIONAL_PACKS_UNLOCK_KEY) === "true") return true;
     const complete = [...UNLOCK_SOURCE_PACK_IDS].some(packIsComplete);
@@ -2312,6 +2329,9 @@ window.BOXXY_RELEASE = Object.freeze({
   let facing = "front";
   let completed = false;
   let makerTesting = false;
+  let makerDailyPractice = false;
+  let makerDailyPracticePuzzle = null;
+  window.BOXXY_PRACTICE_MODE = false;
   let sharedPuzzleMode = false;
   let sharedPuzzleName = "";
   let dailyMode = false;
@@ -2458,6 +2478,7 @@ window.BOXXY_RELEASE = Object.freeze({
   window.addEventListener("boxxy-posthog-ready", flushBoxxyAnalyticsQueue);
 
   function captureBoxxyAnalytics(eventName, properties = {}) {
+    if (makerDailyPractice) return;
     try {
       const payload = {
         game: "BOXXY",
@@ -6500,6 +6521,9 @@ window.BOXXY_RELEASE = Object.freeze({
     closeDailyInvite();
     closeDailyArchive();
     makerTesting = false;
+    makerDailyPractice = false;
+    makerDailyPracticePuzzle = null;
+    window.BOXXY_PRACTICE_MODE = false;
     sharedPuzzleMode = false;
     sharedPuzzleName = "";
     dailyMode = true;
@@ -6587,7 +6611,7 @@ window.BOXXY_RELEASE = Object.freeze({
     return true;
   }
 
-  function loadLevel(index, preserveAutoplay = false, preserveBackground = false) {
+  function loadLevel(index, preserveAutoplay = false, preserveBackground = false, quietReturn = false) {
     if (konamiShowcaseActive && !preserveAutoplay) { konamiShowcaseActive = false; stopKonamiMusic(); }
     resetMouseSupportInteraction();
     dailyMode = false;
@@ -6595,6 +6619,9 @@ window.BOXXY_RELEASE = Object.freeze({
     document.body.classList.remove("daily-mode");
     if (completedPackHeading) completedPackHeading.textContent = "";
     makerTesting = false;
+    makerDailyPractice = false;
+    makerDailyPracticePuzzle = null;
+    window.BOXXY_PRACTICE_MODE = false;
     sharedPuzzleMode = false;
     sharedPuzzleName = "";
     window.BOXXY_SHARED_MODE = false;
@@ -6673,14 +6700,14 @@ window.BOXXY_RELEASE = Object.freeze({
     scheduleIdle();
     showCharacterThought(null, !thoughtReady);
     refreshLevelButtons();
-    if (!preserveAutoplay) {
+    if (!preserveAutoplay && !quietReturn) {
       recordLevelAttempt(activePack.id, String(levelIndex + 1), {
         packName: String(activePack.displayName || activePack.title || activePack.id || ""),
         levelNumber: levelIndex + 1,
         levelName: String(levelData?.name || `Level ${levelIndex + 1}`)
       });
     }
-    captureBoxxyAnalytics("level_started", currentLevelAnalytics({
+    if (!quietReturn) captureBoxxyAnalytics("level_started", currentLevelAnalytics({
       guided_solve_start: Boolean(preserveAutoplay)
     }));
   }
@@ -6701,6 +6728,9 @@ window.BOXXY_RELEASE = Object.freeze({
       blockedPushHeld = false;
       clearTimeout(animTimer);
       makerTesting = !shared;
+      makerDailyPractice = !shared && Boolean(options.practiceDaily);
+      makerDailyPracticePuzzle = makerDailyPractice ? { ...options.practiceDaily } : null;
+      window.BOXXY_PRACTICE_MODE = makerDailyPractice;
       sharedPuzzleMode = shared;
       sharedPuzzleName = shared ? customName : "";
       window.BOXXY_SHARED_MODE = shared;
@@ -6717,7 +6747,7 @@ window.BOXXY_RELEASE = Object.freeze({
       if (makerReturnBtn) makerReturnBtn.hidden = shared;
       if (collectionBtn) collectionBtn.disabled = shared;
       if (shared && collectionName) collectionName.innerHTML = "PRIVATE<br>PUZZLE";
-      if (shared) document.title = `${customName} — BOXXY`;
+      if (shared || makerDailyPractice) document.title = `${customName} — BOXXY`;
       levelData = {
         sourceNumber: shared ? "shared" : "maker",
         name: customName,
@@ -6755,7 +6785,7 @@ window.BOXXY_RELEASE = Object.freeze({
       board.style.aspectRatio = `${width} / ${height}`;
       refreshBackgroundDecor(backgroundDecorBuilt);
       scheduleBoardResize();
-      creditTitle.textContent = shared ? customName.toUpperCase() : `LEVEL MAKER · ${customName.toUpperCase()}`;
+      creditTitle.textContent = shared ? customName.toUpperCase() : `${makerDailyPractice ? "DAILY PRACTICE" : "LEVEL MAKER"} · ${customName.toUpperCase()}`;
       creditSub.textContent = `${shared ? "SHARED PUZZLE · " : ""}${width}×${height} · ${boxes.length} ${boxes.length === 1 ? "BOX" : "BOXES"}`;
       startedAt = 0;
       clearInterval(timer);
@@ -6769,7 +6799,9 @@ window.BOXXY_RELEASE = Object.freeze({
       scheduleIdle();
       if (thoughtText) thoughtText.textContent = shared
         ? "A private custom puzzle shared with you. Good luck."
-        : "Test the level. The workshop is one click away.";
+        : makerDailyPractice
+          ? "Private Daily practice. No scores, completions or streaks are recorded."
+          : "Test the level. The workshop is one click away.";
       return { ok: true };
     } catch (error) {
       return { ok: false, error: error?.message || "The level could not be loaded." };
@@ -6778,12 +6810,21 @@ window.BOXXY_RELEASE = Object.freeze({
 
   function restartMakerTest() {
     if ((!makerTesting && !sharedPuzzleMode) || !makerLayout) return;
-    loadMakerTest(makerLayout, makerSolution, { shared: sharedPuzzleMode, name: sharedPuzzleName, goalColours: makerGoalColours });
+    loadMakerTest(makerLayout, makerSolution, {
+      shared: sharedPuzzleMode,
+      name: makerDailyPractice ? makerDailyPracticePuzzle?.name : sharedPuzzleName,
+      goalColours: makerGoalColours,
+      practiceDaily: makerDailyPracticePuzzle
+    });
   }
 
   function exitMakerTest() {
     if (!makerTesting) return;
+    const wasDailyPractice = makerDailyPractice;
     makerTesting = false;
+    makerDailyPractice = false;
+    makerDailyPracticePuzzle = null;
+    window.BOXXY_PRACTICE_MODE = false;
     sharedPuzzleMode = false;
     sharedPuzzleName = "";
     window.BOXXY_SHARED_MODE = false;
@@ -6792,7 +6833,7 @@ window.BOXXY_RELEASE = Object.freeze({
     makerSolution = "";
     document.body.classList.remove("maker-testing");
     if (makerReturnBtn) makerReturnBtn.hidden = true;
-    loadLevel(levelIndex);
+    loadLevel(levelIndex, false, false, wasDailyPractice);
   }
 
   function snapshot() {
@@ -6908,7 +6949,7 @@ window.BOXXY_RELEASE = Object.freeze({
       };
       moves++;
       pushes++;
-      if (!fromAutoplay) {
+      if (!fromAutoplay && !makerDailyPractice) {
         addLifetimeStat(ALL_TIME_STEPS_KEY);
         addLifetimeStat(ALL_TIME_PUSHES_KEY);
       }
@@ -6930,7 +6971,7 @@ window.BOXXY_RELEASE = Object.freeze({
         toX: nx, toY: ny
       };
       moves++;
-      if (!fromAutoplay) addLifetimeStat(ALL_TIME_STEPS_KEY);
+      if (!fromAutoplay && !makerDailyPractice) addLifetimeStat(ALL_TIME_STEPS_KEY);
       facing = facingOverride || attemptedFacing;
       sfx.walk();
       if (turboAnimationSuppressed) render("idle");
@@ -7051,18 +7092,20 @@ window.BOXXY_RELEASE = Object.freeze({
       const previousRoute = String(makerSolution || "").replace(/[^UDLR]/gi, "").toUpperCase();
       const moveText = `${moves} ${moves === 1 ? "move" : "moves"}`;
       const pushText = `${pushes} ${pushes === 1 ? "push" : "pushes"}`;
-      makerCompletedRoute = !solvedWithGuidedRoute ? capturedRoute : "";
+      makerCompletedRoute = !solvedWithGuidedRoute && !makerDailyPractice ? capturedRoute : "";
       completeMode = "maker";
       completionPackContext = null;
       hidePackCompletionStats();
       restoreStandardCompletionActions();
       if (finalPackPicker) finalPackPicker.hidden = true;
       if (finalPackStatus) finalPackStatus.textContent = "";
-      if (completeKicker) completeKicker.textContent = "LEVEL MAKER";
-      if (completeTitle) completeTitle.innerHTML = solvedWithGuidedRoute ? "GUIDED<br>SOLVE" : "TEST<br>COMPLETE";
+      if (completeKicker) completeKicker.textContent = makerDailyPractice ? "DAILY PRACTICE" : "LEVEL MAKER";
+      if (completeTitle) completeTitle.innerHTML = makerDailyPractice ? "PRACTICE<br>COMPLETE" : solvedWithGuidedRoute ? "GUIDED<br>SOLVE" : "TEST<br>COMPLETE";
       if (makerApplySolveBtn) makerApplySolveBtn.hidden = true;
 
-      if (solvedWithGuidedRoute) {
+      if (makerDailyPractice) {
+        completeText.textContent = `Practice completed in ${moveText} and ${pushText}. No Daily result, streak, leaderboard entry or game statistics have been recorded.`;
+      } else if (solvedWithGuidedRoute) {
         completeText.textContent = `The attached guided solve completed the custom level in ${moveText} and ${pushText}.`;
       } else if (capturedRoute && !previousRoute) {
         makerSolution = capturedRoute;
@@ -7092,6 +7135,7 @@ window.BOXXY_RELEASE = Object.freeze({
       const bestKey = currentBestStorageKey(levelData);
       const oldBest = Number(readBest(levelData) || 0);
       const firstCompletion = !completedLevels.has(levelIndex);
+      const packWasFullyCompleted = completedLevels.size === LEVELS.length;
       const completionDurationSeconds = completionSeconds;
       const isNewBest = !solvedWithWalkthrough && (!oldBest || moves < oldBest);
       if (isNewBest) localStorage.setItem(bestKey, moves);
@@ -7108,6 +7152,9 @@ window.BOXXY_RELEASE = Object.freeze({
       else assistedLevels.delete(levelIndex);
       highestUnlockedLevel = Math.max(highestUnlockedLevel, Math.min(levelIndex + 1, LEVELS.length - 1));
       saveLevelProgress();
+      if (!packWasFullyCompleted && completedLevels.size === LEVELS.length) {
+        recordFirstPackCompletion(activePack);
+      }
       refreshLevelButtons();
       captureBoxxyAnalytics("level_completed", currentLevelAnalytics({
         moves: Number(moves),
@@ -7831,8 +7878,9 @@ window.BOXXY_RELEASE = Object.freeze({
       const rows = makerLayout?.slice();
       const restarted = rows ? loadMakerTest(rows, solution, {
         shared: sharedPuzzleMode,
-        name: sharedPuzzleName,
-        goalColours: makerGoalColours
+        name: makerDailyPractice ? makerDailyPracticePuzzle?.name : sharedPuzzleName,
+        goalColours: makerGoalColours,
+        practiceDaily: makerDailyPracticePuzzle
       }) : { ok: false };
       if (!restarted?.ok) return;
     } else if (guidedDailyPuzzle) {
@@ -8841,6 +8889,71 @@ window.BOXXY_RELEASE = Object.freeze({
   const savedSelect = document.getElementById("makerSavedSelect");
   const loadBtn = document.getElementById("makerLoadBtn");
   const deleteBtn = document.getElementById("makerDeleteBtn");
+  const dailyPracticeSelect = document.getElementById("makerDailyPracticeSelect");
+  const dailyPracticeBtn = document.getElementById("makerDailyPracticeBtn");
+  const dailyPracticeStatus = document.getElementById("makerDailyPracticeStatus");
+  let dailyPracticePuzzles = [];
+  function publishedDailyPracticePuzzles() {
+    const now = Date.now();
+    const schedules = Array.isArray(window.BOXXY_DAILY_SCHEDULES) ? window.BOXXY_DAILY_SCHEDULES : [];
+    const byDate = new Map();
+    schedules.forEach(schedule => {
+      if (schedule?.frontEndEnabled === false) return;
+      (Array.isArray(schedule?.puzzles) ? schedule.puzzles : []).forEach(puzzle => {
+        const publishedAt = Date.parse(String(puzzle?.publishAtUtc || ""));
+        const date = String(puzzle?.date || "");
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(publishedAt) || publishedAt > now) return;
+        if (!Array.isArray(puzzle.layout) || !puzzle.layout.length) return;
+        byDate.set(date, puzzle);
+      });
+    });
+    return [...byDate.values()].sort((a,b) => String(b.date).localeCompare(String(a.date)));
+  }
+  function populateDailyPractice() {
+    if (!dailyPracticeSelect) return;
+    const previous = dailyPracticeSelect.value;
+    dailyPracticePuzzles = publishedDailyPracticePuzzles();
+    dailyPracticeSelect.replaceChildren();
+    dailyPracticePuzzles.forEach(puzzle => {
+      const option = document.createElement("option");
+      option.value = String(puzzle.date);
+      option.textContent = `#${Number(puzzle.sequence) || "?"} · ${puzzle.date} · ${String(puzzle.name || "Daily Boxxy")}`;
+      dailyPracticeSelect.appendChild(option);
+    });
+    if (dailyPracticePuzzles.some(puzzle => puzzle.date === previous)) dailyPracticeSelect.value = previous;
+    else if (dailyPracticeSelect.options.length) dailyPracticeSelect.selectedIndex = 0;
+    if (dailyPracticeBtn) dailyPracticeBtn.disabled = !dailyPracticePuzzles.length;
+    if (dailyPracticeStatus) {
+      dailyPracticeStatus.textContent = `${dailyPracticePuzzles.length} published Daily puzzles available. Select one to practise.`;
+      dailyPracticeStatus.dataset.kind = "";
+    }
+  }
+  function startDailyPractice() {
+    const puzzle = dailyPracticePuzzles.find(item => item.date === dailyPracticeSelect?.value);
+    if (!puzzle || !publishedDailyPracticePuzzles().some(item => item.date === puzzle.date)) {
+      if (dailyPracticeStatus) {
+        dailyPracticeStatus.textContent = "Choose a published Daily puzzle first.";
+        dailyPracticeStatus.dataset.kind = "error";
+      }
+      return;
+    }
+    const name = `Daily #${Number(puzzle.sequence) || "?"} · ${puzzle.date}`;
+    const result = window.BoxxyGameAPI?.startMakerTest?.(puzzle.layout, puzzle.solution || "", {
+      name, goalColours: puzzle.goalColours || {}, rainbowMode: Boolean(puzzle.rainbowMode),
+      practiceDaily: { date:puzzle.date, sequence:puzzle.sequence, name }
+    });
+    if (!result?.ok) {
+      if (dailyPracticeStatus) {
+        dailyPracticeStatus.textContent = result?.error || "The practice puzzle could not be loaded.";
+        dailyPracticeStatus.dataset.kind = "error";
+      }
+      return;
+    }
+    exitTestBtn.hidden = false;
+    closeMaker();
+  }
+  dailyPracticeBtn?.addEventListener("click", startDailyPractice);
+  dailyPracticeSelect?.addEventListener("dblclick", startDailyPractice);
   const existingPackSelect = document.getElementById("makerPackSelect");
   const existingLevelSelect = document.getElementById("makerLevelSelect");
   const openExistingLevelBtn = document.getElementById("makerOpenLevelBtn");
@@ -12545,6 +12658,7 @@ window.BOXXY_RELEASE = Object.freeze({
     exitTestBtn.hidden = !window.BoxxyGameAPI?.isMakerTesting?.();
     renderSavedLevels(activeSaveId);
     populateExistingPacks(existingPackSelect?.value);
+    populateDailyPractice();
     updateMakerFullscreenButton();
     scheduleGridFit();
     closeBtn.focus({ preventScroll: true });
