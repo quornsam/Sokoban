@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "332",
-  lastUpdated: "2026-09-06"
+  version: "333",
+  lastUpdated: "2026-09-07"
 });
+/* BOXXY v333 — custom-colour boxes on targets keep the guarded board-art loader/fallback path; Matthias Meger added as the fourth BOXXY Originals completer. */
 /* BOXXY v332 — custom and Rainbow board artwork now uses the existing persistent piece renderer so coloured boxes are not destroyed and repainted on every move. */
 /* BOXXY v331 — adds Google disconnect for password accounts, fixes Google account UI alignment/flicker, and brings the built-in Legal copy in line with Google authentication. */
 /* BOXXY v329 — adds optional Google authentication without changing BOXXY progress/session identity or the v298 large-level performance core. */
@@ -2910,7 +2911,8 @@ window.BOXXY_RELEASE = Object.freeze({
   const ORIGINALS_COMPLETERS = Object.freeze([
     { name: "Anian Wu", country: "USA" },
     { name: "Logan Stipe", country: "USA" },
-    { name: "Stephen Wilbourne", country: "Australia" }
+    { name: "Stephen Wilbourne", country: "Australia" },
+    { name: "Matthias Meger", country: "Germany" }
   ]);
 
   function renderOriginalsCompletionBoard() {
