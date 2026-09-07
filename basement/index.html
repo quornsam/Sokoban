@@ -7,7 +7,7 @@
 <meta name="theme-color" content="#efe5d4">
 <title>BOXXY Basement</title>
 <link rel="icon" href="../assets/ui/icons/boxxy-yellow-crate-v150.ico" sizes="any">
-<link rel="stylesheet" href="basement.css?v=334">
+<link rel="stylesheet" href="basement.css?v=335">
 </head>
 <body>
 <main class="basement-shell">
@@ -41,9 +41,10 @@
     <nav class="basement-tabs" aria-label="Basement views">
       <button id="playersTab" type="button" aria-pressed="true">PLAYERS</button>
       <button id="completionsTab" type="button" aria-pressed="false">PACK COMPLETIONS</button>
+      <button id="dailyPracticeTab" type="button" aria-pressed="false">DAILY PRACTICE</button>
     </nav>
     <div class="toolbar">
-      <input id="searchInput" type="search" placeholder="Search username, email or IP…" aria-label="Search account holders">
+      <input id="searchInput" type="search" placeholder="Search username, email or IP…" aria-label="Search account holders" hidden>
       <label class="basement-zoom">TEXT SIZE
         <select id="textSizeSelect" aria-label="Basement text size">
           <option value="1">100%</option><option value="1.25">125%</option>
@@ -59,6 +60,7 @@
         <button id="sortDirectionBtn" type="button" aria-label="Reverse sort direction">↓ DESCENDING</button>
       </div>
 
+    <p class="table-hint">Click a column heading to sort. Scroll sideways to see the other columns.</p>
     <div class="table-wrap">
       <table>
         <thead>
@@ -85,18 +87,30 @@
     <div id="userCards" class="user-cards"></div>
     </section>
     <section id="completionsPanel" class="basement-completions" aria-label="Pack completion history" hidden>
+      <div id="completionPackCards" class="completion-pack-cards" aria-label="Pack completion totals"></div>
       <div class="completion-toolbar">
         <label>LEVEL PACK <select id="completionPackSelect"></select></label>
         <label>PLAYER <input id="completionSearch" type="search" placeholder="Search players…"></label>
       </div>
-      <p class="completion-explanation">Dated records are ordered by first completion time, shown in UK time. Earlier completions without a reliable original timestamp are listed separately. Replays and improved scores do not change the first-completion record.</p>
+      <p class="completion-explanation">A pack is complete only when every level is recorded as completed. Dated results are ordered by their recorded first-completion time. Older completions without an original date are listed separately and are not assigned an invented rank. Times are shown in UK time.</p>
+      <label class="review-toggle"><input id="completionReviewToggle" type="checkbox"> Show records needing review</label>
+      <p class="table-hint">Scroll sideways to see every column. Dated results are ranked within each pack.</p>
       <div class="table-wrap">
         <table class="completion-table">
-          <thead><tr><th>ORDER</th><th>PLAYER</th><th>LEVEL PACK</th><th>COMPLETED · UK TIME</th><th>RECORD</th></tr></thead>
+          <thead><tr><th>DATED ORDER</th><th>PLAYER</th><th>LEVEL PACK</th><th>COMPLETED · UK TIME</th><th>STATUS</th></tr></thead>
           <tbody id="completionRows"></tbody>
         </table>
       </div>
       <p id="completionStatus" class="status" aria-live="polite"></p>
+    </section>
+    <section id="dailyPracticePanel" class="basement-daily" aria-label="Private Daily practice" hidden>
+      <div class="practice-intro"><div><h2>DAILY PRACTICE</h2><p>Every prepared Daily puzzle, including future entries. Private practice only: no account progress, attempts, streaks or leaderboard results.</p></div><strong id="practiceCount">—</strong></div>
+      <div class="practice-toolbar">
+        <label>FIND A PUZZLE<input id="practiceSearch" type="search" placeholder="Number, date or name…"></label>
+        <label>SHOW<select id="practiceFilter"><option value="all">ALL PREPARED</option><option value="published">PUBLISHED</option><option value="upcoming">UPCOMING</option></select></label>
+      </div>
+      <p id="practiceStatus" class="status" aria-live="polite"></p>
+      <div id="practiceCards" class="practice-cards" aria-label="Prepared Daily level cards"></div>
     </section>
     <p id="dashboardStatus" class="status" aria-live="polite"></p>
   </section>
@@ -112,6 +126,12 @@
   </section>
 </div>
 
-<script src="basement.js?v=334"></script>
+<div id="practiceModal" class="practice-modal" hidden>
+  <section class="practice-dialog" role="dialog" aria-modal="true" aria-labelledby="practiceModalTitle">
+    <header><div><span>PRIVATE DAILY PRACTICE</span><h2 id="practiceModalTitle">DAILY</h2><p>No saved statistics or public results.</p></div><button id="practiceClose" type="button">BACK TO LEVELS ×</button></header>
+    <iframe id="practiceFrame" title="BOXXY private Daily practice" sandbox="allow-scripts" referrerpolicy="no-referrer" allow="fullscreen" allowfullscreen></iframe>
+  </section>
+</div>
+<script src="basement.js?v=335"></script>
 </body>
 </html>

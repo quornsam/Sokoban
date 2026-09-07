@@ -1,3 +1,4 @@
+/* BOXXY v335 — verified completion views, responsive type and private prepared Daily catalogue. */
 /* BOXXY v334 — sortable player totals, chronological pack completion records and readable text controls. */
 /* BOXXY v323 — Basement shows each signed-in player’s standard board colour choices. */
 /* BOXXY v308 — ordered progress, all-time activity labels, medals and current outfit previews. */
@@ -33,6 +34,24 @@
   const completionSearch = document.getElementById("completionSearch");
   const completionRows = document.getElementById("completionRows");
   const completionStatus = document.getElementById("completionStatus");
+  const completionReviewToggle = document.getElementById("completionReviewToggle");
+  const completionPackCards = document.getElementById("completionPackCards");
+  const dailyPracticeTab = document.getElementById("dailyPracticeTab");
+  const dailyPracticePanel = document.getElementById("dailyPracticePanel");
+  const practiceSearch = document.getElementById("practiceSearch");
+  const practiceFilter = document.getElementById("practiceFilter");
+  const practiceCards = document.getElementById("practiceCards");
+  const practiceStatus = document.getElementById("practiceStatus");
+  const practiceCount = document.getElementById("practiceCount");
+  const practiceModal = document.getElementById("practiceModal");
+  const practiceModalTitle = document.getElementById("practiceModalTitle");
+  const practiceClose = document.getElementById("practiceClose");
+  const practiceFrame = document.getElementById("practiceFrame");
+  let preparedDailies = [];
+  let practiceLoaded = false;
+  let practiceBusy = false;
+  let practiceRequest = 0;
+  let lastPracticeFocus = null;
   let users = [];
   let completions = [];
   let sortColumn = "lastSeenAt";
@@ -47,7 +66,13 @@
     ["totalSteps", "Steps", "number"], ["totalPushes", "Pushes", "number"],
     ["totalAttempts", "Attempts", "number"], ["dailyStreak", "Daily streak", "number"],
     ["activity7d", "Activity 7D", "number"],
-    ["lastIp", "IP", "text"]
+    ["lastIp", "IP", "text"], ["lastLoginAt", "Last login", "number"],
+    ["dailyCompleted", "Daily completed", "number"],
+    ["pack:boxxy-original-puzzle-pack-of-50-levels", "BOXXY Originals levels", "number"],
+    ["pack:microban", "Microban levels", "number"],
+    ["pack:jigsaw", "Jigsaw levels", "number"],
+    ["pack:alphabet-soup", "Alphabet levels", "number"],
+    ["pack:starry-night", "Starry Night levels", "number"]
   ]);
   const SORT_BY_KEY = new Map(SORT_COLUMNS.map(item => [item[0], item]));
   const COMPLETION_PACKS = Object.freeze([
@@ -336,6 +361,8 @@
       return Number(user.summary?.[key]) || 0;
     }
     if (key === "activity7d") return weekActivity(user.summary).reduce((sum,day) => sum + day.seconds, 0);
+    if (key === "dailyCompleted") return Number(user.summary?.dailyCompleted) || 0;
+    if (key.startsWith("pack:")) return Number(user.summary?.packs?.[key.slice(5)]?.completed) || 0;
     if (key === "email") return String(user.email || "");
     if (key === "username" || key === "lastIp") return String(user[key] || "");
     return Number(user[key]) || 0;
@@ -366,12 +393,16 @@
     renderUsers();
   }
   function setView(view) {
-    selectedView = view === "completions" ? "completions" : "players";
+    selectedView = ["players","completions","daily"].includes(view) ? view : "players";
     if (playersPanel) playersPanel.hidden = selectedView !== "players";
     if (completionsPanel) completionsPanel.hidden = selectedView !== "completions";
+    if (dailyPracticePanel) dailyPracticePanel.hidden = selectedView !== "daily";
+    if (searchInput) searchInput.hidden = selectedView !== "players";
     playersTab?.setAttribute("aria-pressed", String(selectedView === "players"));
     completionsTab?.setAttribute("aria-pressed", String(selectedView === "completions"));
+    dailyPracticeTab?.setAttribute("aria-pressed", String(selectedView === "daily"));
     if (selectedView === "completions") renderCompletions();
+    if (selectedView === "daily") loadPreparedDailies();
   }
   function ukCompletionDate(timestamp) {
     if (!Number(timestamp)) return "Original date unavailable";
@@ -385,58 +416,193 @@
     const index = COMPLETION_PACKS.findIndex(pack => pack[0] === item.packId);
     return index < 0 ? COMPLETION_PACKS.length : index;
   }
-  function compareCompletions(a, b) {
-    const group = completionSortOrder(a) - completionSortOrder(b)
-      || (a.packId === b.packId ? 0 : String(a.packName).localeCompare(String(b.packName), "en", { sensitivity:"base" }));
-    if (group) return group;
-    if (a.historical !== b.historical) return a.historical ? 1 : -1;
-    if (!a.historical && a.completedAt !== b.completedAt) return a.completedAt - b.completedAt;
-    return Number(a.recordedAt || 0) - Number(b.recordedAt || 0)
-      || String(a.username).localeCompare(String(b.username), "en", { sensitivity:"base" });
+  function compareCompletions(a,b) {
+    const group=completionSortOrder(a)-completionSortOrder(b)
+      || (a.packId===b.packId ? 0 : String(a.packName).localeCompare(String(b.packName),"en",{sensitivity:"base"}));
+    if(group) return group;
+    if(Boolean(a.needsReview)!==Boolean(b.needsReview)) return a.needsReview ? 1 : -1;
+    if(Boolean(a.historical)!==Boolean(b.historical)) return a.historical ? 1 : -1;
+    if(!a.historical && Number(a.completedAt)!==Number(b.completedAt)) return Number(a.completedAt)-Number(b.completedAt);
+    return Number(a.recordedAt||0)-Number(b.recordedAt||0)
+      || String(a.username).localeCompare(String(b.username),"en",{sensitivity:"base"});
   }
   function orderedCompletions() {
-    const packId = completionPackSelect?.value || "";
-    const query = String(completionSearch?.value || "").trim().toLowerCase();
-    return completions.filter(item => (!packId || item.packId === packId)
-      && (!query || String(item.username || "").toLowerCase().includes(query)))
-      .sort(compareCompletions);
+    const packId=completionPackSelect?.value || "";
+    const query=String(completionSearch?.value||"").trim().toLowerCase();
+    const showReview=Boolean(completionReviewToggle?.checked);
+    return completions.filter(item => (!item.needsReview || showReview)
+      && (!packId || item.packId===packId)
+      && (!query || String(item.username||"").toLowerCase().includes(query))).sort(compareCompletions);
   }
   function populateCompletionPacks() {
-    if (!completionPackSelect) return;
-    const selected = completionPackSelect.value;
-    const packs = new Map(COMPLETION_PACKS);
-    completions.forEach(item => { if (!packs.has(item.packId)) packs.set(item.packId, item.packName); });
-    completionPackSelect.innerHTML = '<option value="">ALL LEVEL PACKS</option>'
-      + [...packs].map(([id,name]) => `<option value="${escapeHtml(id)}">${escapeHtml(name)}</option>`).join("");
-    if (packs.has(selected)) completionPackSelect.value = selected;
+    if(!completionPackSelect) return;
+    const selected=completionPackSelect.value;
+    const packs=new Map(COMPLETION_PACKS);
+    completions.forEach(item=>{if(!packs.has(item.packId)) packs.set(item.packId,item.packName);});
+    completionPackSelect.innerHTML='<option value="">ALL LEVEL PACKS</option>'
+      +[...packs].map(([id,name])=>`<option value="${escapeHtml(id)}">${escapeHtml(name)}</option>`).join("");
+    if(packs.has(selected)) completionPackSelect.value=selected;
+  }
+  function completionRankMap() {
+    const counts=new Map(),ranks=new Map();
+    completions.filter(item=>item.complete&&!item.needsReview&&!item.historical&&Number(item.completedAt)>0)
+      .sort(compareCompletions).forEach(item=>{
+        const rank=(counts.get(item.packId)||0)+1;counts.set(item.packId,rank);
+        ranks.set(`${item.userId}\u0000${item.packId}`,rank);
+      });
+    return ranks;
+  }
+  function completionStatusText(item) {
+    if(item.needsReview) return `NEEDS REVIEW · ${Number(item.completed||0)}/${Number(item.levelCount||0)} levels evidenced`;
+    if(item.historical) return "Complete · original date unavailable";
+    return "Dated completion";
+  }
+  function renderCompletionPackCards() {
+    if(!completionPackCards) return;
+    const selected=completionPackSelect?.value||"";
+    completionPackCards.innerHTML=COMPLETION_PACKS.map(([id,name])=>{
+      const records=completions.filter(item=>item.packId===id&&item.complete&&!item.needsReview);
+      const dated=records.filter(item=>!item.historical).length;
+      return `<button type="button" data-completion-pack="${escapeHtml(id)}" aria-pressed="${selected===id}">
+        <strong>${escapeHtml(name)}</strong><span>${records.length} complete</span><small>${dated} dated · ${records.length-dated} undated</small>
+      </button>`;
+    }).join("");
   }
   function renderCompletions() {
-    const list = orderedCompletions();
-    // Ranks are calculated against every dated record for the selected pack,
-    // not just the current search results. Filtering must not renumber history.
-    const ranks = new Map(), rankByRecord = new Map();
-    completions.slice().sort(compareCompletions).forEach(item => {
-      if (item.historical) return;
-      const rank = (ranks.get(item.packId) || 0) + 1;
-      ranks.set(item.packId, rank);
-      rankByRecord.set(`${item.userId}\u0000${item.packId}`, rank);
-    });
-    if (completionRows) completionRows.innerHTML = list.map(item => {
-      const rank = item.historical ? "—" : rankByRecord.get(`${item.userId}\u0000${item.packId}`);
-      return `<tr class="${item.historical ? "historical-row" : ""}" data-user-id="${escapeHtml(item.userId)}" tabindex="0">
-        <td class="completion-rank">${rank}</td>
-        <td><strong>${escapeHtml(item.username)}</strong></td>
-        <td>${escapeHtml(item.packName)}</td>
-        <td class="completion-date">${escapeHtml(ukCompletionDate(item.completedAt))}</td>
-        <td>${item.historical ? "Historical completion · original date unrecorded" : "First completion recorded"}</td>
-      </tr>`;
+    const list=orderedCompletions(),ranks=completionRankMap();
+    renderCompletionPackCards();
+    if(completionRows) completionRows.innerHTML=list.map(item=>{
+      const rank=item.historical||item.needsReview ? "—" : ranks.get(`${item.userId}\u0000${item.packId}`)||"—";
+      const date=item.needsReview ? "Not verified" : ukCompletionDate(item.completedAt);
+      const previous=item.needsReview&&item.previousRecord
+        ? `<div class="muted">Previous ledger entry retained for review. Recorded ${escapeHtml(dateTime(item.previousRecord.recordedAt))}.</div>` : "";
+      return `<tr class="${item.needsReview ? "review-row" : item.historical ? "historical-row" : ""}" data-user-id="${escapeHtml(item.userId)}" tabindex="0">
+        <td class="completion-rank">${rank}</td><td><strong>${escapeHtml(item.username)}</strong></td>
+        <td>${escapeHtml(item.packName)}</td><td class="completion-date">${escapeHtml(date)}</td>
+        <td><span class="completion-badge">${escapeHtml(completionStatusText(item))}</span>${item.needsReview&&item.reviewReason ? `<div class="muted">${escapeHtml(item.reviewReason)}</div>` : ""}${previous}</td></tr>`;
     }).join("");
-    setStatus(completionStatus, `${list.length} COMPLETION${list.length === 1 ? "" : "S"} · ${list.filter(item => !item.historical).length} DATED RECORDS`);
+    const dated=list.filter(item=>item.complete&&!item.historical&&!item.needsReview).length;
+    const complete=list.filter(item=>item.complete&&!item.needsReview).length;
+    const reviewTotal=completions.filter(item=>item.needsReview).length;
+    setStatus(completionStatus,`${complete} COMPLETE · ${dated} DATED · ${complete-dated} UNDATED${reviewTotal ? ` · ${reviewTotal} earlier record${reviewTotal===1?"":"s"} need review` : ""}`);
+    if(!list.length && completionRows) completionRows.innerHTML='<tr><td colspan="5">No matching completions recorded.</td></tr>';
   }
   function completionDetail(records) {
-    if (!records?.length) return '<p class="muted">No completed packs recorded.</p>';
-    return `<div class="completion-records-detail">${records.map(item => `<div><strong>${escapeHtml(item.packName)}</strong><span>${escapeHtml(ukCompletionDate(item.completedAt))}${item.historical ? " · Historical completion" : " · First completion"}</span></div>`).join("")}</div>`;
+    if(!records?.length) return '<p class="muted">No completed packs recorded.</p>';
+    return `<div class="completion-records-detail">${records.map(item=>`<div><strong>${escapeHtml(item.packName)}</strong><span>${escapeHtml(item.needsReview ? completionStatusText(item) : ukCompletionDate(item.completedAt))}${item.historical&&!item.needsReview ? " · Historical completion" : ""}</span></div>`).join("")}</div>`;
   }
+  // The catalogue comes only from the authenticated Basement endpoint.
+  // Future layouts are never read from the public Daily archive.
+  const previewImages = new Map();
+  function previewImage(src) {
+    if(previewImages.has(src)) return previewImages.get(src);
+    const image=new Image();
+    image.decoding="async";
+    const record={image,ready:false,failed:false};
+    image.onload=()=>{record.ready=true;document.querySelectorAll("canvas[data-practice-date]").forEach(canvas=>{
+      const puzzle=preparedDailies.find(item=>item.date===canvas.dataset.practiceDate);
+      if(puzzle) drawPracticePreview(canvas,puzzle);
+    });};
+    image.onerror=()=>{record.failed=true;};
+    image.src=src;previewImages.set(src,record);return record;
+  }
+  const previewAssets={
+    box:"/assets/board/boxes/box-default-yellow.png",targetBox:"/assets/board/boxes/box-red.png",
+    goal:"/assets/board/goals/goal-red.png",player:"/assets/characters-fallback/boy/player-front.png"
+  };
+  function drawPracticePreview(canvas,puzzle) {
+    const rows=Array.isArray(puzzle.layout)?puzzle.layout:[];
+    const height=rows.length,width=Math.max(0,...rows.map(row=>String(row).length));
+    if(!height||!width||width>200||height>200)return;
+    const size=32;
+    if(canvas.width!==width*size)canvas.width=width*size;
+    if(canvas.height!==height*size)canvas.height=height*size;
+    const context=canvas.getContext("2d");if(!context)return;
+    context.clearRect(0,0,canvas.width,canvas.height);
+    const assets=Object.fromEntries(Object.entries(previewAssets).map(([key,src])=>[key,previewImage(src)]));
+    context.fillStyle="#e4d6c2";context.fillRect(0,0,canvas.width,canvas.height);
+    const drawAsset=(key,x,y,fallback)=>{
+      const asset=assets[key];if(asset.ready){context.drawImage(asset.image,x*size,y*size,size,size);return;}
+      fallback();
+    };
+    rows.forEach((row,y)=>{for(let x=0;x<width;x++){
+      const tile=String(row)[x]||" ";
+      if(tile===" ")continue;
+      context.fillStyle="#f7f0e5";context.fillRect(x*size,y*size,size,size);
+      if(tile==="#"){
+        context.fillStyle="#171719";context.fillRect(x*size,y*size,size,size);
+        context.fillStyle="#3c3b3b";context.fillRect(x*size+3,y*size+3,size-6,3);continue;
+      }
+      const goal=tile==="."||tile==="*"||tile==="+";
+      if(goal)drawAsset("goal",x,y,()=>{context.fillStyle="#db3b27";context.beginPath();context.arc(x*size+size/2,y*size+size/2,size*.22,0,Math.PI*2);context.fill();});
+      if(tile==="$"||tile==="*"){
+        drawAsset(tile==="*"?"targetBox":"box",x,y,()=>{context.fillStyle=tile==="*"?"#db3b27":"#e5b32a";context.fillRect(x*size+3,y*size+3,size-6,size-6);context.strokeStyle="#171719";context.lineWidth=2;context.strokeRect(x*size+3,y*size+3,size-6,size-6);});
+      }
+      if(tile==="@"||tile==="+")drawAsset("player",x,y,()=>{context.fillStyle="#20539a";context.beginPath();context.arc(x*size+size/2,y*size+size/2,size*.32,0,Math.PI*2);context.fill();});
+    }});
+  }
+  function renderPracticeCards() {
+    const query=String(practiceSearch?.value||"").trim().toLowerCase();
+    const filter=practiceFilter?.value||"all";
+    const list=preparedDailies.filter(item=>{
+      if(filter==="published"&&!item.published)return false;
+      if(filter==="upcoming"&&item.published)return false;
+      return !query||[item.name,item.date,String(item.sequence)].some(value=>String(value||"").toLowerCase().includes(query));
+    });
+    if(practiceCount)practiceCount.textContent=String(preparedDailies.length);
+    if(practiceCards)practiceCards.innerHTML=list.map(item=>{
+      const rows=item.layout||[];const width=Math.max(0,...rows.map(row=>String(row).length));
+      const boxes=rows.join("").split("").filter(char=>char==="$"||char==="*").length;
+      return `<article class="practice-card"><div class="practice-card-top"><div><div class="practice-card-number">DAILY #${Number(item.sequence)||"?"}</div><div class="practice-card-date">${escapeHtml(item.date)}</div></div><span class="practice-card-badge${item.published?"":" upcoming"}">${item.published?"PUBLISHED":"UPCOMING"}</span></div>
+        <div class="practice-preview"><canvas data-practice-date="${escapeHtml(item.date)}" role="img" aria-label="Preview of Daily ${Number(item.sequence)||"?"}"></canvas></div>
+        <div class="practice-card-name">${escapeHtml(item.name||"Daily Boxxy")}</div>
+        <div class="practice-card-meta">${width} × ${rows.length} · ${boxes} ${boxes===1?"box":"boxes"}</div>
+        <button type="button" data-practice-open="${escapeHtml(item.date)}">PRACTISE →</button></article>`;
+    }).join("");
+    if(!list.length&&practiceCards)practiceCards.innerHTML='<p>No prepared puzzles match those filters.</p>';
+    practiceCards?.querySelectorAll("canvas[data-practice-date]").forEach(canvas=>{
+      const puzzle=preparedDailies.find(item=>item.date===canvas.dataset.practiceDate);
+      if(puzzle)drawPracticePreview(canvas,puzzle);
+    });
+    setStatus(practiceStatus,`${list.length} OF ${preparedDailies.length} PREPARED DAILY PUZZLES`);
+  }
+  async function loadPreparedDailies(force=false) {
+    if(practiceBusy)return;
+    if(practiceLoaded&&!force){renderPracticeCards();return;}
+    practiceBusy=true;setStatus(practiceStatus,"LOADING PREPARED DAILY PUZZLES…");
+    try{
+      const response=await fetch("/api/basement-daily",{credentials:"same-origin",cache:"no-store"});
+      const data=await response.json();
+      if(response.status===401){showLogin();return;}
+      if(!response.ok||!Array.isArray(data.puzzles))throw new Error(data.error||"Could not load Daily puzzles.");
+      preparedDailies=data.puzzles.slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+      practiceLoaded=true;renderPracticeCards();
+    }catch(error){setStatus(practiceStatus,error.message||"Could not load Daily puzzles.","error");}
+    finally{practiceBusy=false;}
+  }
+  function openPractice(date) {
+    const puzzle=preparedDailies.find(item=>item.date===date);
+    if(!puzzle||!practiceModal||!practiceFrame)return;
+    lastPracticeFocus=document.activeElement;
+    practiceModalTitle.textContent=`DAILY #${Number(puzzle.sequence)||"?"} · ${puzzle.date}`;
+    practiceModal.hidden=false;
+    practiceFrame.src=`/basement/practice?date=${encodeURIComponent(date)}&v=335`;
+    requestAnimationFrame(()=>practiceClose?.focus());
+  }
+  function closePractice() {
+    if(!practiceModal||practiceModal.hidden)return;
+    practiceFrame?.removeAttribute("src");
+    practiceModal.hidden=true;
+    if(lastPracticeFocus?.isConnected)lastPracticeFocus.focus();
+    lastPracticeFocus=null;
+  }
+  practiceSearch?.addEventListener("input",renderPracticeCards);
+  practiceFilter?.addEventListener("change",renderPracticeCards);
+  practiceCards?.addEventListener("click",event=>{
+    const button=event.target.closest("[data-practice-open]");if(button)openPractice(button.dataset.practiceOpen);
+  });
+  practiceClose?.addEventListener("click",closePractice);
+  document.addEventListener("keydown",event=>{if(event.key==="Escape"&&!practiceModal?.hidden){event.preventDefault();closePractice();}});
   function filteredUsers() {
     const query = String(searchInput?.value || "").trim().toLowerCase();
     const list = query ? users.filter(user => [user.username, user.email, user.googleEmail, user.signupIp, user.lastIp].some(value => String(value || "").toLowerCase().includes(query))) : users;
@@ -478,25 +644,7 @@
         <td>${progressHtml(user.summary)}</td>
         <td><div>${escapeHtml(user.lastIp || "—")}</div><div class="muted">signup ${escapeHtml(user.signupIp || "—")}</div></td>
       </tr>`).join("");
-    if (userCards) userCards.innerHTML = list.map(user => `
-      <article class="user-card"><button type="button" data-user-id="${escapeHtml(user.id)}">
-        <div class="user-card-top">
-          <div class="basement-user-identity">
-            <canvas class="basement-avatar" data-avatar-user="${escapeHtml(user.id)}" width="90" height="78" aria-hidden="true"></canvas>
-            <div class="basement-user-copy"><span class="user-main user-with-status">${onlineDot(user)}${escapeHtml(user.username)}${googleBadge(user)}</span>${medalRail(user.summary)}${outfitMini(user.summary)}${boardStyleMini(user.summary)}</div>
-          </div>
-          <span class="user-total-time"><small>TOTAL TIME</small>${escapeHtml(duration(user.totalActiveSeconds))}</span>
-        </div>
-        <div class="muted basement-card-email">${emailCell(user)}</div>
-        ${activityStrip(user.summary, true)}
-        <div class="user-card-grid">
-          <div><span>LAST ACTIVE</span><strong class="user-with-status">${onlineDot(user)}${escapeHtml(dateTime(user.lastSeenAt))}</strong></div>
-          <div><span>IP</span><strong>${escapeHtml(user.lastIp || "—")}</strong></div>
-          <div><span>GAME STATS</span><strong>${escapeHtml(gameStatsText(user.summary))}</strong></div>
-          <div class="user-card-progress"><span>PROGRESS</span>${progressHtml(user.summary)}</div>
-          <div><span>JOINED</span><strong>${escapeHtml(dateTime(user.createdAt))}</strong></div>
-        </div>
-      </button></article>`).join("");
+    if (userCards) userCards.replaceChildren();
     renderAvatarCanvases(list);
   }
   async function loadUsers() {
@@ -587,7 +735,7 @@
       loginForm.reset(); setStatus(loginStatus, ""); await loadUsers();
     } catch (_) { setStatus(loginStatus, "Could not reach the Basement API.", "error"); }
   });
-  logoutBtn?.addEventListener("click", async () => { try { await api("", { action:"logout" }); } catch (_) {} users=[]; completions=[]; showLogin(); });
+  logoutBtn?.addEventListener("click", async () => { closePractice(); try { await api("", { action:"logout" }); } catch (_) {} users=[]; completions=[]; preparedDailies=[];practiceLoaded=false;showLogin(); });
   refreshBtn?.addEventListener("click", loadUsers);
   if (playerSortSelect) {
     playerSortSelect.innerHTML = SORT_COLUMNS.map(([key,label]) => `<option value="${key}">${label}</option>`).join("");
@@ -598,17 +746,23 @@
   setSort("lastSeenAt", -1);
   playersTab?.addEventListener("click", () => setView("players"));
   completionsTab?.addEventListener("click", () => setView("completions"));
+  dailyPracticeTab?.addEventListener("click", () => setView("daily"));
   if (completionPackSelect) {
     completionPackSelect.innerHTML = '<option value="">ALL LEVEL PACKS</option>' + COMPLETION_PACKS.map(([id,name]) => `<option value="${id}">${name}</option>`).join("");
     completionPackSelect.addEventListener("change", renderCompletions);
   }
   completionSearch?.addEventListener("input", renderCompletions);
+  completionReviewToggle?.addEventListener("change",renderCompletions);
+  completionPackCards?.addEventListener("click",event=>{
+    const button=event.target.closest("[data-completion-pack]");if(!button||!completionPackSelect)return;
+    completionPackSelect.value=button.dataset.completionPack;renderCompletions();
+  });
   completionRows?.addEventListener("click", event => { const row = event.target.closest("[data-user-id]"); if (row) openDetail(row.dataset.userId); });
   completionRows?.addEventListener("keydown", event => { if (event.key === "Enter") { const row = event.target.closest("[data-user-id]"); if (row) openDetail(row.dataset.userId); } });
-  const TEXT_SCALE_KEY = "boxxy-basement-text-scale-v1";
+  const TEXT_SCALE_KEY = "boxxy-basement-text-scale-v2";
   function applyTextScale(value) {
     const scale = [1,1.25,1.5,1.75,2].includes(Number(value)) ? Number(value) : 1;
-    document.documentElement.style.setProperty("--basement-text-scale", String(scale));
+    document.documentElement.style.setProperty("--admin-font-size", `${16 * scale}px`);
     if (textSizeSelect) textSizeSelect.value = String(scale);
     try { localStorage.setItem(TEXT_SCALE_KEY, String(scale)); } catch (_) {}
   }

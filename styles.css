@@ -7138,16 +7138,3 @@ body.large-level-performance .instruction .thought-text{
 @media(max-width:560px){
   .standard-complete-result-item:nth-child(2){border-left:0}
 }
-
-/* BOXXY v334 — private Daily practice list in the existing workshop. */
-.maker-daily-practice-panel{display:grid;gap:10px}
-.maker-daily-practice-panel h3{margin-bottom:0}
-.maker-daily-practice-panel p{margin:0;font-size:12px;line-height:1.45;overflow-wrap:anywhere}
-.maker-daily-practice-panel label{font-size:10px;font-weight:1000;letter-spacing:.07em}
-.maker-daily-practice-panel select{width:100%;min-width:0;min-height:150px;max-height:240px;overflow:auto;background:#fffaf1;color:#171719;border:2px solid #171719;border-radius:0;padding:5px;font:800 12px/1.45 Arial,Helvetica,sans-serif}
-.maker-daily-practice-panel option{padding:7px 5px;white-space:normal}
-.maker-daily-practice-panel button{width:100%;min-height:44px;border:2px solid #171719;background:#e5b32a;color:#171719;font:1000 12px/1.2 Arial,Helvetica,sans-serif;letter-spacing:.04em;cursor:pointer}
-.maker-daily-practice-panel button:disabled{opacity:.5;cursor:not-allowed}
-.maker-daily-practice-panel #makerDailyPracticeStatus{font-size:11px;font-weight:800;min-height:1.4em}
-.maker-daily-practice-panel #makerDailyPracticeStatus[data-kind="error"]{color:#a92921}
-@media(max-width:760px){.maker-daily-practice-panel select{font-size:14px}.maker-daily-practice-panel button{font-size:13px}}

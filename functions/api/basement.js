@@ -12,7 +12,7 @@ import {
   progressSummary
 } from "../_lib/auth.js";
 import { ensureGoogleAuthSchema } from "../_lib/google-auth.js";
-import { readPackCompletions, completionRecordsForUsers } from "../_lib/pack-completions.js";
+import { readPackCompletions, completionRecordsForUsers, canonicalAdminSummary } from "../_lib/pack-completions.js";
 
 async function readBody(request) {
   try { return await request.json(); }
@@ -52,7 +52,7 @@ function mappedUser(user, includeProgress = false) {
     userAgent: user.user_agent || "",
     totalActiveSeconds: Math.max(0, Number(user.total_active_seconds) || 0),
     progressUpdatedAt: Number(user.progress_updated_at) || 0,
-    summary: progressSummary(user.progress_json)
+    summary: canonicalAdminSummary(progressSummary(user.progress_json), user.progress_json)
   };
   if (includeProgress) value.progress = parseProgress(user.progress_json);
   return value;
@@ -73,10 +73,12 @@ async function listUsers(context) {
       ON uas.user_id = u.id
     ORDER BY u.last_seen_at DESC, u.created_at DESC
   `).all();
-  const users = (result.results || []).map(user => mappedUser(user));
+  const rows = result.results || [];
+  const users = rows.map(user => mappedUser(user));
+  const evidenceUsers = rows.map((row,index) => ({...users[index],progress:parseProgress(row.progress_json)}));
   const records = await readPackCompletions(db);
   return json({ ok: true, authenticated: true, users,
-    completions: completionRecordsForUsers(users, records) });
+    completions: completionRecordsForUsers(evidenceUsers, records) });
 }
 
 async function userDetail(context, id) {
