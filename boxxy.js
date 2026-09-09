@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "336",
-  lastUpdated: "2026-09-07"
+  version: "337",
+  lastUpdated: "2026-09-09"
 });
+/* BOXXY v337 — custom box-on-target artwork swaps only after push motion finishes, preventing mobile compositing blanks. */
 /* BOXXY v336 — private practice startup diagnostics and isolated storage bindings; normal gameplay unchanged. */
 /* BOXXY v335 — private Basement practice uses the existing engine with isolated storage. */
 /* BOXXY v334 — Basement sorting and immutable pack-completion records; private, stat-free Daily practice in Secret Workshop. */
@@ -4159,22 +4160,34 @@ window.BOXXY_RELEASE = Object.freeze({
     return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
   }
 
-  function applyBoardArtwork(element, type, colour = "red") {
+  function applyBoardArtwork(element, type, colour = "red", options = {}) {
     if (!element) return;
     const canonical = boardAssetPath(type, colour);
     const token = `${type}:${colour}:${canonical}`;
+    const preserveExisting = Boolean(options.preserveExisting && element.style.backgroundImage);
+    const deferMs = Math.max(0, Number(options.deferMs) || 0);
+    let paintTimer = 0;
+
     const paint = result => {
-      if (element.dataset.boardAssetToken !== token) return;
-      element.style.backgroundImage = result.ok
-        ? `url("${result.url}")`
-        : boardAssetFallback(type, colour);
-      element.dataset.boardAssetReady = "true";
-      element.dataset.boardAssetFallback = result.ok ? "false" : "true";
+      const commit = () => {
+        if (element.dataset.boardAssetToken !== token) return;
+        element.style.backgroundImage = result.ok
+          ? `url("${result.url}")`
+          : boardAssetFallback(type, colour);
+        element.dataset.boardAssetReady = "true";
+        element.dataset.boardAssetFallback = result.ok ? "false" : "true";
+      };
+      if (deferMs > 0) {
+        window.clearTimeout(paintTimer);
+        paintTimer = window.setTimeout(commit, deferMs);
+      } else {
+        commit();
+      }
     };
 
     element.dataset.boardAssetToken = token;
-    element.dataset.boardAssetReady = "false";
-    element.style.backgroundImage = boardAssetFallback(type, colour);
+    element.dataset.boardAssetReady = preserveExisting ? "true" : "false";
+    if (!preserveExisting) element.style.backgroundImage = boardAssetFallback(type, colour);
 
     const known = boardAssetResults.get(canonical);
     if (known) paint(known);
@@ -6170,7 +6183,15 @@ window.BOXXY_RELEASE = Object.freeze({
         piece.style.removeProperty("--goal-sprite");
         piece.style.removeProperty("--box-sprite");
       }
-      applyBoardArtwork(piece.querySelector(".board-art-box"), "box", goal ? goalColour : floorBoxColour);
+      const deferArtworkSwap = Boolean(animate && motion?.type === "push");
+      applyBoardArtwork(
+        piece.querySelector(".board-art-box"),
+        "box",
+        goal ? goalColour : floorBoxColour,
+        deferArtworkSwap
+          ? { preserveExisting: true, deferMs: Math.max(160, scaledBoxxyDelay(180)) }
+          : undefined
+      );
     }
 
     piece.classList.remove("pushing", "board-step");

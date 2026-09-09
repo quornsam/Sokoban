@@ -1,4 +1,4 @@
-/* BOXXY v336 — fit-to-window admin, normal document scrolling and private practice load reporting. */
+/* BOXXY v337 — compact Basement type scale and non-wrapping numeric presentation; private practice protocol unchanged. */
 /* BOXXY v335 — verified completion views, responsive type and private prepared Daily catalogue. */
 /* BOXXY v334 — sortable player totals, chronological pack completion records and readable text controls. */
 /* BOXXY v323 — Basement shows each signed-in player’s standard board colour choices. */
@@ -835,10 +835,10 @@
   });
   completionRows?.addEventListener("click", event => { const row = event.target.closest("[data-user-id]"); if (row) openDetail(row.dataset.userId); });
   completionRows?.addEventListener("keydown", event => { if (event.key === "Enter") { const row = event.target.closest("[data-user-id]"); if (row) openDetail(row.dataset.userId); } });
-  const TEXT_SCALE_KEY = "boxxy-basement-text-scale-v3";
+  const TEXT_SCALE_KEY = "boxxy-basement-text-scale-v4";
   function applyTextScale(value) {
-    const scale=[0.85,1,1.15,1.3,1.5].includes(Number(value))?Number(value):1;
-    document.documentElement.style.setProperty("--admin-font-size",`${16*scale}px`);
+    const scale=[0.9,1,1.1,1.2].includes(Number(value))?Number(value):1;
+    document.documentElement.style.setProperty("--admin-font-size",`${10*scale}px`);
     if(textSizeSelect)textSizeSelect.value=String(scale);
     try{localStorage.setItem(TEXT_SCALE_KEY,String(scale));}catch(_){}
   }
