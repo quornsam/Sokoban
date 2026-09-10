@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "337",
-  lastUpdated: "2026-09-09"
+  version: "338",
+  lastUpdated: "2026-09-10"
 });
+/* BOXXY v338 — dense box-heavy boards reuse the v298 large-level performance renderer; Stu Weston added as the fifth BOXXY Originals completer. */
 /* BOXXY v337 — custom box-on-target artwork swaps only after push motion finishes, preventing mobile compositing blanks. */
 /* BOXXY v336 — private practice startup diagnostics and isolated storage bindings; normal gameplay unchanged. */
 /* BOXXY v335 — private Basement practice uses the existing engine with isolated storage. */
@@ -2936,7 +2937,8 @@ window.BOXXY_RELEASE = Object.freeze({
     { name: "Anian Wu", country: "USA" },
     { name: "Logan Stipe", country: "USA" },
     { name: "Stephen Wilbourne", country: "Australia" },
-    { name: "Matthias Meger", country: "Germany" }
+    { name: "Matthias Meger", country: "Germany" },
+    { name: "Stu Weston", country: "UK" }
   ]);
 
   function renderOriginalsCompletionBoard() {
@@ -6092,7 +6094,12 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   function configureLargeLevelPerformanceMode() {
-    largeLevelPerformanceMode = width > 50 || height > 50;
+    /* v298 originally keyed this mode to physical board dimensions. Dense boards
+       can be much smaller but still contain enough moving DOM pieces to cause the
+       same per-move cost, particularly on phones. Reuse the same proven renderer
+       rather than creating a second mobile-only optimisation path. */
+    const denseBoxLevel = boxes.length > 80;
+    largeLevelPerformanceMode = width > 50 || height > 50 || denseBoxLevel;
     document.body.classList.toggle("large-level-performance", largeLevelPerformanceMode);
     board?.classList.toggle("large-level-performance", largeLevelPerformanceMode);
     rebuildGoalLookup();
