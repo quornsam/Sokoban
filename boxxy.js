@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "338",
+  version: "339",
   lastUpdated: "2026-09-10"
 });
+/* BOXXY v339 — persistent box rendering is separated cleanly from large-level performance; custom-colour pushes no longer mix transitions, animation and mid-push artwork swaps. */
 /* BOXXY v338 — dense box-heavy boards reuse the v298 large-level performance renderer; Stu Weston added as the fifth BOXXY Originals completer. */
 /* BOXXY v337 — custom box-on-target artwork swaps only after push motion finishes, preventing mobile compositing blanks. */
 /* BOXXY v336 — private practice startup diagnostics and isolated storage bindings; normal gameplay unchanged. */
@@ -2357,10 +2358,10 @@ window.BOXXY_RELEASE = Object.freeze({
   let largeLevelPerformanceMode = false;
   let goalLookup = new Map();
   let boxLookup = new Map();
-  let largeBoxPieces = [];
-  let largePlayerPiece = null;
-  let largePlayerImage = null;
-  let largeLastAnimatedBoxIndex = -1;
+  let persistentBoxPieces = [];
+  let persistentPlayerPiece = null;
+  let persistentPlayerImage = null;
+  let persistentLastAnimatedBoxIndex = -1;
 
   function updatePackCollectionLabels(pack = activePack) {
     const label = dailyMode ? "Boxxy Dailys" : packCollectionLabel(pack);
@@ -4162,38 +4163,35 @@ window.BOXXY_RELEASE = Object.freeze({
     return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
   }
 
-  function applyBoardArtwork(element, type, colour = "red", options = {}) {
+  function applyBoardArtwork(element, type, colour = "red") {
     if (!element) return;
     const canonical = boardAssetPath(type, colour);
     const token = `${type}:${colour}:${canonical}`;
-    const preserveExisting = Boolean(options.preserveExisting && element.style.backgroundImage);
-    const deferMs = Math.max(0, Number(options.deferMs) || 0);
-    let paintTimer = 0;
 
     const paint = result => {
-      const commit = () => {
-        if (element.dataset.boardAssetToken !== token) return;
-        element.style.backgroundImage = result.ok
-          ? `url("${result.url}")`
-          : boardAssetFallback(type, colour);
-        element.dataset.boardAssetReady = "true";
-        element.dataset.boardAssetFallback = result.ok ? "false" : "true";
-      };
-      if (deferMs > 0) {
-        window.clearTimeout(paintTimer);
-        paintTimer = window.setTimeout(commit, deferMs);
-      } else {
-        commit();
-      }
+      if (element.dataset.boardAssetToken !== token) return;
+      element.style.backgroundImage = result.ok
+        ? `url("${result.url}")`
+        : boardAssetFallback(type, colour);
+      element.dataset.boardAssetReady = "true";
+      element.dataset.boardAssetFallback = result.ok ? "false" : "true";
     };
 
     element.dataset.boardAssetToken = token;
-    element.dataset.boardAssetReady = preserveExisting ? "true" : "false";
-    if (!preserveExisting) element.style.backgroundImage = boardAssetFallback(type, colour);
-
     const known = boardAssetResults.get(canonical);
-    if (known) paint(known);
-    else ensureBoardAsset(canonical).then(paint);
+    if (known) {
+      paint(known);
+      return;
+    }
+
+    /* Never clear artwork that is already visible while a replacement asset is
+       loading. New pieces get an immediate drawn fallback; existing pieces keep
+       their current image until the requested image has decoded. */
+    element.dataset.boardAssetReady = "false";
+    if (!element.style.backgroundImage) {
+      element.style.backgroundImage = boardAssetFallback(type, colour);
+    }
+    ensureBoardAsset(canonical).then(paint);
   }
 
   function refreshBoardArtwork() {
@@ -5245,7 +5243,7 @@ window.BOXXY_RELEASE = Object.freeze({
     updateBoardStyleControls();
     if (Array.isArray(goals) && goals.length && goalLayer && pieceLayer) {
       buildGoals();
-      resetLargePieceCache();
+      resetPersistentPieceCache();
       render("idle");
     }
     if (dailyArchiveModal && !dailyArchiveModal.hidden) renderDailyArchive();
@@ -6086,11 +6084,11 @@ window.BOXXY_RELEASE = Object.freeze({
     boxes.forEach((box, index) => boxLookup.set(key(box.x, box.y), index));
   }
 
-  function resetLargePieceCache() {
-    largeBoxPieces = [];
-    largePlayerPiece = null;
-    largePlayerImage = null;
-    largeLastAnimatedBoxIndex = -1;
+  function resetPersistentPieceCache() {
+    persistentBoxPieces = [];
+    persistentPlayerPiece = null;
+    persistentPlayerImage = null;
+    persistentLastAnimatedBoxIndex = -1;
   }
 
   function configureLargeLevelPerformanceMode() {
@@ -6104,7 +6102,7 @@ window.BOXXY_RELEASE = Object.freeze({
     board?.classList.toggle("large-level-performance", largeLevelPerformanceMode);
     rebuildGoalLookup();
     rebuildBoxLookup();
-    resetLargePieceCache();
+    resetPersistentPieceCache();
   }
 
   function goalAt(x, y) {
@@ -6120,7 +6118,7 @@ window.BOXXY_RELEASE = Object.freeze({
     return `${prefix}-${direction}`;
   }
 
-  function setLargePiecePosition(piece, x, y, z) {
+  function setPersistentPiecePosition(piece, x, y, z) {
     if (!piece) return;
     if (piece.dataset.x !== String(x)) {
       piece.style.setProperty("--x", x);
@@ -6136,7 +6134,7 @@ window.BOXXY_RELEASE = Object.freeze({
     }
   }
 
-  function createLargeBoxPiece(box, index) {
+  function createPersistentBoxPiece(box, index) {
     const piece = document.createElement("div");
     piece.className = "piece box";
     piece.dataset.boxIndex = String(index);
@@ -6145,60 +6143,69 @@ window.BOXXY_RELEASE = Object.freeze({
     art.setAttribute("aria-hidden", "true");
     piece.appendChild(art);
     pieceLayer.appendChild(piece);
-    largeBoxPieces[index] = piece;
+    persistentBoxPieces[index] = piece;
     return piece;
   }
 
-  function ensureLargePieceLayer() {
-    if (largePlayerPiece?.isConnected && largeBoxPieces.length === boxes.length) return;
+  function ensurePersistentPieceLayer() {
+    if (persistentPlayerPiece?.isConnected && persistentBoxPieces.length === boxes.length) return;
 
     pieceLayer.replaceChildren();
-    largeBoxPieces = [];
-    boxes.forEach((box, index) => createLargeBoxPiece(box, index));
+    persistentBoxPieces = [];
+    boxes.forEach((box, index) => createPersistentBoxPiece(box, index));
 
-    largePlayerPiece = document.createElement("div");
-    largePlayerPiece.className = "piece player facing-front";
-    largePlayerImage = document.createElement("img");
-    largePlayerImage.alt = "";
-    largePlayerImage.draggable = false;
-    largePlayerImage.decoding = "sync";
-    largePlayerImage.setAttribute("aria-hidden", "true");
-    largePlayerPiece.appendChild(largePlayerImage);
-    pieceLayer.appendChild(largePlayerPiece);
+    persistentPlayerPiece = document.createElement("div");
+    persistentPlayerPiece.className = "piece player facing-front";
+    persistentPlayerImage = document.createElement("img");
+    persistentPlayerImage.alt = "";
+    persistentPlayerImage.draggable = false;
+    persistentPlayerImage.decoding = "sync";
+    persistentPlayerImage.setAttribute("aria-hidden", "true");
+    persistentPlayerPiece.appendChild(persistentPlayerImage);
+    pieceLayer.appendChild(persistentPlayerPiece);
   }
 
-  function syncLargeBoxPiece(index, animate = false, motion = null) {
-    const box = boxes[index];
-    const piece = largeBoxPieces[index];
-    if (!box || !piece) return;
-
-    const goal = goalAt(box.x, box.y);
+  function syncPersistentBoxVisualState(piece, x, y) {
+    if (!piece) return;
+    const goal = goalAt(x, y);
     const goalColour = goal ? displayTargetColour(goal.colour) : "";
     const floorBoxColour = displayBoxArtworkColour();
     const stateToken = goal ? `goal:${goalColour}` : `floor:${floorBoxColour}`;
+    if (piece.dataset.stateToken === stateToken) return;
 
-    setLargePiecePosition(piece, box.x, box.y, depth(box.y, "box"));
+    piece.dataset.stateToken = stateToken;
+    piece.classList.toggle("on-goal", Boolean(goal));
+    if (goal) {
+      GOAL_COLOURS?.style?.(piece, goalColour);
+    } else {
+      delete piece.dataset.goalColour;
+      piece.style.removeProperty("--goal-colour");
+      piece.style.removeProperty("--goal-sprite");
+      piece.style.removeProperty("--box-sprite");
+    }
+    applyBoardArtwork(
+      piece.querySelector(".board-art-box"),
+      "box",
+      goal ? goalColour : floorBoxColour
+    );
+  }
 
-    if (piece.dataset.stateToken !== stateToken) {
-      piece.dataset.stateToken = stateToken;
-      piece.classList.toggle("on-goal", Boolean(goal));
-      if (goal) {
-        GOAL_COLOURS?.style?.(piece, goalColour);
-      } else {
-        delete piece.dataset.goalColour;
-        piece.style.removeProperty("--goal-colour");
-        piece.style.removeProperty("--goal-sprite");
-        piece.style.removeProperty("--box-sprite");
-      }
-      const deferArtworkSwap = Boolean(animate && motion?.type === "push");
-      applyBoardArtwork(
-        piece.querySelector(".board-art-box"),
-        "box",
-        goal ? goalColour : floorBoxColour,
-        deferArtworkSwap
-          ? { preserveExisting: true, deferMs: Math.max(160, scaledBoxxyDelay(180)) }
-          : undefined
-      );
+  function syncPersistentBoxPiece(index, animate = false, motion = null) {
+    const box = boxes[index];
+    const piece = persistentBoxPieces[index];
+    if (!box || !piece) return;
+
+    setPersistentPiecePosition(piece, box.x, box.y, depth(box.y, "box"));
+
+    /* A cached moving box keeps the artwork belonging to the square it is
+       leaving for the whole movement. The destination state is committed by
+       the next stable render. If moves arrive faster than idle, the next push
+       explicitly synchronises the source square first, so visual state never
+       depends on a timer. */
+    if (animate && motion?.type === "push") {
+      syncPersistentBoxVisualState(piece, motion.boxFromX, motion.boxFromY);
+    } else {
+      syncPersistentBoxVisualState(piece, box.x, box.y);
     }
 
     piece.classList.remove("pushing", "board-step");
@@ -6210,33 +6217,33 @@ window.BOXXY_RELEASE = Object.freeze({
     }
   }
 
-  function syncLargePlayer(anim, motion = null) {
-    if (!largePlayerPiece || !largePlayerImage) return;
+  function syncPersistentPlayer(anim, motion = null) {
+    if (!persistentPlayerPiece || !persistentPlayerImage) return;
     const frameName = characterFrameName(anim === "walking" ? "walk" : anim === "pushing" ? "push" : "idle", facing);
 
-    setLargePiecePosition(largePlayerPiece, player[0], player[1], depth(player[1], "player"));
-    largePlayerPiece.className = `piece player facing-${facing}${anim && anim !== "idle" ? " " + anim : ""}`;
-    if (largePlayerImage.dataset.characterFrame !== frameName) {
-      largePlayerImage.dataset.characterFrame = frameName;
-      window.CharacterStyler?.drawImage?.(largePlayerImage, frameName);
+    setPersistentPiecePosition(persistentPlayerPiece, player[0], player[1], depth(player[1], "player"));
+    persistentPlayerPiece.className = `piece player facing-${facing}${anim && anim !== "idle" ? " " + anim : ""}`;
+    if (persistentPlayerImage.dataset.characterFrame !== frameName) {
+      persistentPlayerImage.dataset.characterFrame = frameName;
+      window.CharacterStyler?.drawImage?.(persistentPlayerImage, frameName);
     }
 
     if (motion) {
-      largePlayerPiece.style.setProperty("--from-x", motion.fromX);
-      largePlayerPiece.style.setProperty("--from-y", motion.fromY);
-      void largePlayerPiece.offsetWidth;
-      largePlayerPiece.classList.add("board-step");
+      persistentPlayerPiece.style.setProperty("--from-x", motion.fromX);
+      persistentPlayerPiece.style.setProperty("--from-y", motion.fromY);
+      void persistentPlayerPiece.offsetWidth;
+      persistentPlayerPiece.classList.add("board-step");
     }
   }
 
-  function renderLargeLevel(anim = "idle") {
+  function renderPersistentPieces(anim = "idle") {
     currentAnimation = anim;
     const previousMotion = boardStepMotion;
     const activeMotion = (anim === "walking" || anim === "pushing") ? boardStepMotion : null;
-    ensureLargePieceLayer();
+    ensurePersistentPieceLayer();
 
-    if (!largeBoxPieces[0]?.dataset?.stateToken && boxes.length) {
-      boxes.forEach((box, index) => syncLargeBoxPiece(index, false, null));
+    if (!persistentBoxPieces[0]?.dataset?.stateToken && boxes.length) {
+      boxes.forEach((box, index) => syncPersistentBoxPiece(index, false, null));
     }
 
     let animatedBoxIndex = -1;
@@ -6245,30 +6252,30 @@ window.BOXXY_RELEASE = Object.freeze({
       animatedBoxIndex = Number.isInteger(found) ? found : -1;
     }
 
-    if (largeLastAnimatedBoxIndex >= 0 && largeLastAnimatedBoxIndex !== animatedBoxIndex) {
-      largeBoxPieces[largeLastAnimatedBoxIndex]?.classList.remove("pushing", "board-step");
+    if (persistentLastAnimatedBoxIndex >= 0 && persistentLastAnimatedBoxIndex !== animatedBoxIndex) {
+      /* Finalise the previous box before another cached piece starts moving.
+         This also handles held/rapid input where the normal idle render has not
+         happened yet. */
+      syncPersistentBoxPiece(persistentLastAnimatedBoxIndex, false, null);
     }
 
     if (animatedBoxIndex >= 0) {
-      syncLargeBoxPiece(animatedBoxIndex, true, activeMotion);
-    } else if (anim === "idle" && previousMotion?.type === "push") {
-      const found = boxLookup.get(key(previousMotion.boxToX, previousMotion.boxToY));
-      if (Number.isInteger(found)) syncLargeBoxPiece(found, false, null);
+      syncPersistentBoxPiece(animatedBoxIndex, true, activeMotion);
     } else if (anim === "idle" && !previousMotion) {
       boxes.forEach((box, index) => {
-        const piece = largeBoxPieces[index];
+        const piece = persistentBoxPieces[index];
         const goal = goalAt(box.x, box.y);
         const goalColour = goal ? displayTargetColour(goal.colour) : "";
         const stateToken = goal ? `goal:${goalColour}` : `floor:${displayBoxArtworkColour()}`;
         if (!piece || piece.dataset.x !== String(box.x) || piece.dataset.y !== String(box.y)
           || piece.dataset.stateToken !== stateToken) {
-          syncLargeBoxPiece(index, false, null);
+          syncPersistentBoxPiece(index, false, null);
         }
       });
     }
 
-    largeLastAnimatedBoxIndex = animatedBoxIndex;
-    syncLargePlayer(anim, activeMotion);
+    persistentLastAnimatedBoxIndex = animatedBoxIndex;
+    syncPersistentPlayer(anim, activeMotion);
 
     if (anim === "idle") boardStepMotion = null;
 
@@ -6296,11 +6303,13 @@ window.BOXXY_RELEASE = Object.freeze({
     const persistentBoardArtwork = levelUsesRainbowStyle(levelData)
       || standardStyle.box !== "yellow"
       || standardStyle.target !== "red";
-    const useCachedPieceRenderer = largeLevelPerformanceMode
+    const usePersistentPieceRenderer = largeLevelPerformanceMode
       || persistentBoardArtwork
       || (boxxyInstantSpeedActive() && anim === "idle");
-    if (useCachedPieceRenderer) {
-      renderLargeLevel(anim);
+    document.body.classList.toggle("persistent-piece-renderer", usePersistentPieceRenderer);
+    board?.classList.toggle("persistent-piece-renderer", usePersistentPieceRenderer);
+    if (usePersistentPieceRenderer) {
+      renderPersistentPieces(anim);
       return;
     }
     currentAnimation = anim;
