@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "340",
+  version: "341",
   lastUpdated: "2026-09-10"
 });
+/* BOXXY v341 — standard and custom board colours share one normal renderer and one synchronous CSS-sprite artwork path; v340 custom movement changes removed. */
 /* BOXXY v340 — normal persistent boxes use compositor-friendly transform motion and commit destination artwork on animation completion; large/dense performance rendering is unchanged. */
 /* BOXXY v339 — persistent box rendering is separated cleanly from large-level performance; custom-colour pushes no longer mix transitions, animation and mid-push artwork swaps. */
 /* BOXXY v338 — dense box-heavy boards reuse the v298 large-level performance renderer; Stu Weston added as the fifth BOXXY Originals completer. */
@@ -2363,8 +2364,6 @@ window.BOXXY_RELEASE = Object.freeze({
   let persistentPlayerPiece = null;
   let persistentPlayerImage = null;
   let persistentLastAnimatedBoxIndex = -1;
-  let persistentBoxMotionSerial = 0;
-  let persistentBoxMotionCleanup = new WeakMap();
 
   function updatePackCollectionLabels(pack = activePack) {
     const label = dailyMode ? "Boxxy Dailys" : packCollectionLabel(pack);
@@ -4166,50 +4165,39 @@ window.BOXXY_RELEASE = Object.freeze({
     return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
   }
 
-  function applyBoardArtwork(element, type, colour = "red") {
-    if (!element) return;
-    const canonical = boardAssetPath(type, colour);
-    const token = `${type}:${colour}:${canonical}`;
+  function cssBoardAsset(type, colour = "red") {
+    return `url("${boardAssetPath(type, colour)}")`;
+  }
 
-    const paint = result => {
-      if (element.dataset.boardAssetToken !== token) return;
-      element.style.backgroundImage = result.ok
-        ? `url("${result.url}")`
-        : boardAssetFallback(type, colour);
-      element.dataset.boardAssetReady = "true";
-      element.dataset.boardAssetFallback = result.ok ? "false" : "true";
-    };
+  function styleBoardArtworkHost(element, colour = "red") {
+    /* BOXXY's colour system already owns the visible board sprite variables.
+       Keep rendering synchronous: preload/verification may run separately, but
+       it must never replace or clear artwork on a moving board piece. */
+    if (!element) return GOAL_COLOURS?.normalise?.(colour) || "red";
+    return GOAL_COLOURS?.style?.(element, colour)
+      || GOAL_COLOURS?.normalise?.(colour)
+      || "red";
+  }
 
-    element.dataset.boardAssetToken = token;
-    const known = boardAssetResults.get(canonical);
-    if (known) {
-      paint(known);
-      return;
-    }
-
-    /* Never clear artwork that is already visible while a replacement asset is
-       loading. New pieces get an immediate drawn fallback; existing pieces keep
-       their current image until the requested image has decoded. */
-    element.dataset.boardAssetReady = "false";
-    if (!element.style.backgroundImage) {
-      element.style.backgroundImage = boardAssetFallback(type, colour);
-    }
-    ensureBoardAsset(canonical).then(paint);
+  function syncStandardBoardArtworkVariables() {
+    if (!board) return;
+    const boxColour = displayBoxArtworkColour();
+    const targetColour = displayTargetColour("red");
+    const token = `${boxColour}|${targetColour}`;
+    if (board.dataset.standardArtworkToken === token) return;
+    board.dataset.standardArtworkToken = token;
+    board.style.setProperty("--boxxy-standard-box-sprite", cssBoardAsset("box", boxColour));
+    board.style.setProperty("--boxxy-standard-target-box-sprite", cssBoardAsset("box", targetColour));
+    board.style.setProperty("--boxxy-standard-goal-sprite", cssBoardAsset("goal", targetColour));
   }
 
   function refreshBoardArtwork() {
+    syncStandardBoardArtworkVariables();
     goalLayer?.querySelectorAll?.(".goal").forEach(goal => {
-      applyBoardArtwork(
-        goal.querySelector(".board-art-goal"),
-        "goal",
-        goal.dataset.goalColour || displayTargetColour("red")
-      );
+      styleBoardArtworkHost(goal, goal.dataset.goalColour || displayTargetColour("red"));
     });
-    pieceLayer?.querySelectorAll?.(".piece.box").forEach(box => {
-      const colour = box.classList.contains("on-goal")
-        ? (box.dataset.goalColour || displayTargetColour("red"))
-        : displayBoxArtworkColour();
-      applyBoardArtwork(box.querySelector(".board-art-box"), "box", colour);
+    pieceLayer?.querySelectorAll?.(".piece.box.on-goal").forEach(box => {
+      styleBoardArtworkHost(box, box.dataset.goalColour || displayTargetColour("red"));
     });
   }
 
@@ -4241,14 +4229,7 @@ window.BOXXY_RELEASE = Object.freeze({
           pieceLayer?.querySelectorAll?.(".box").length === expectedBoxes &&
           playerImage
         );
-        const boardArtwork = [
-          ...(goalLayer?.querySelectorAll?.(".board-art-goal") || []),
-          ...(pieceLayer?.querySelectorAll?.(".board-art-box") || [])
-        ];
-        const boardArtworkReady = Boolean(
-          boardArtwork.length === expectedGoals + expectedBoxes
-          && boardArtwork.every(art => art.dataset.boardAssetReady === "true")
-        );
+        const boardArtworkReady = currentBoardAssetPaths().every(path => boardAssetResults.has(path));
         const playerVisible = Boolean(playerImage?.complete && playerImage.naturalWidth > 0);
         const fullyReady = Boolean(
           boardPopulated
@@ -6067,12 +6048,11 @@ window.BOXXY_RELEASE = Object.freeze({
       const cell = document.createElement("div");
       cell.className = "cell goal";
       cell.style.cssText = posStyle(goal.x, goal.y, depth(goal.y, "goal"));
-      GOAL_COLOURS?.style?.(cell, colour);
+      styleBoardArtworkHost(cell, colour);
       const art = document.createElement("span");
       art.className = "board-art board-art-goal";
       art.setAttribute("aria-hidden", "true");
       cell.appendChild(art);
-      applyBoardArtwork(art, "goal", colour);
       goalLayer.appendChild(cell);
     });
   }
@@ -6092,8 +6072,6 @@ window.BOXXY_RELEASE = Object.freeze({
     persistentPlayerPiece = null;
     persistentPlayerImage = null;
     persistentLastAnimatedBoxIndex = -1;
-    persistentBoxMotionSerial += 1;
-    persistentBoxMotionCleanup = new WeakMap();
   }
 
   function configureLargeLevelPerformanceMode() {
@@ -6170,139 +6148,38 @@ window.BOXXY_RELEASE = Object.freeze({
     pieceLayer.appendChild(persistentPlayerPiece);
   }
 
-  function syncPersistentBoxVisualState(piece, x, y) {
-    if (!piece) return;
-    const goal = goalAt(x, y);
-    const goalColour = goal ? displayTargetColour(goal.colour) : "";
-    const floorBoxColour = displayBoxArtworkColour();
-    const stateToken = goal ? `goal:${goalColour}` : `floor:${floorBoxColour}`;
-    if (piece.dataset.stateToken === stateToken) return;
-
-    piece.dataset.stateToken = stateToken;
-    piece.classList.toggle("on-goal", Boolean(goal));
-    if (goal) {
-      GOAL_COLOURS?.style?.(piece, goalColour);
-    } else {
-      delete piece.dataset.goalColour;
-      piece.style.removeProperty("--goal-colour");
-      piece.style.removeProperty("--goal-sprite");
-      piece.style.removeProperty("--box-sprite");
-    }
-    applyBoardArtwork(
-      piece.querySelector(".board-art-box"),
-      "box",
-      goal ? goalColour : floorBoxColour
-    );
-  }
-
-  function persistentBoxMotionPercent(fromX, fromY, toX, toY) {
-    /* The box element is 1.04 cells wide and 1.42 cells high. Expressing the
-       one-cell source offset in the box element's own coordinate system lets
-       the smooth persistent renderer animate only transform, while left/top
-       remain fixed at the destination. This avoids repainting the PNG on every
-       animation frame. */
-    return {
-      x: (Number(fromX) - Number(toX)) * (100 / 1.04),
-      y: (Number(fromY) - Number(toY)) * (100 / 1.42)
-    };
-  }
-
-  function cancelPersistentBoxMotionCommit(piece) {
-    const cleanup = piece ? persistentBoxMotionCleanup.get(piece) : null;
-    if (cleanup) cleanup();
-  }
-
-  function preparePersistentBoxDestinationAsset(x, y) {
-    const goal = goalAt(x, y);
-    const colour = goal ? displayTargetColour(goal.colour) : displayBoxArtworkColour();
-    return ensureBoardAsset(boardAssetPath("box", colour));
-  }
-
-  function armPersistentBoxMotionCommit(index, piece, motion) {
-    if (!piece || motion?.type !== "push") return;
-    cancelPersistentBoxMotionCommit(piece);
-
-    const serial = ++persistentBoxMotionSerial;
-    const destinationX = Number(motion.boxToX);
-    const destinationY = Number(motion.boxToY);
-    piece.dataset.motionSerial = String(serial);
-
-    /* Normally this asset is already decoded by the board-style loader. Warm it
-       again here without changing the visible box. If a cache miss ever occurs,
-       applyBoardArtwork will keep the source artwork visible until it is ready. */
-    preparePersistentBoxDestinationAsset(destinationX, destinationY).catch(() => {});
-
-    const cleanup = () => {
-      piece.removeEventListener("animationend", finish);
-      piece.removeEventListener("animationcancel", cancel);
-      if (persistentBoxMotionCleanup.get(piece) === cleanup) {
-        persistentBoxMotionCleanup.delete(piece);
-      }
-    };
-
-    const finish = event => {
-      if (event.target !== piece) return;
-      if (event.animationName !== "persistentBoxMove") return;
-      cleanup();
-      if (piece.dataset.motionSerial !== String(serial)) return;
-      const box = boxes[index];
-      if (!box || box.x !== destinationX || box.y !== destinationY) return;
-
-      syncPersistentBoxVisualState(piece, destinationX, destinationY);
-      piece.classList.remove("pushing", "board-step");
-      piece.style.removeProperty("--persistent-move-x");
-      piece.style.removeProperty("--persistent-move-y");
-      if (persistentLastAnimatedBoxIndex === index) persistentLastAnimatedBoxIndex = -1;
-    };
-
-    const cancel = event => {
-      if (event.target !== piece) return;
-      if (event.animationName !== "persistentBoxMove") return;
-      cleanup();
-    };
-
-    piece.addEventListener("animationend", finish);
-    piece.addEventListener("animationcancel", cancel);
-    persistentBoxMotionCleanup.set(piece, cleanup);
-  }
-
   function syncPersistentBoxPiece(index, animate = false, motion = null) {
     const box = boxes[index];
     const piece = persistentBoxPieces[index];
     if (!box || !piece) return;
 
-    cancelPersistentBoxMotionCommit(piece);
-    piece.classList.remove("pushing", "board-step");
+    const goal = goalAt(box.x, box.y);
+    const goalColour = goal ? displayTargetColour(goal.colour) : "";
+    const floorBoxColour = displayBoxArtworkColour();
+    const stateToken = goal ? `goal:${goalColour}` : `floor:${floorBoxColour}`;
+
     setPersistentPiecePosition(piece, box.x, box.y, depth(box.y, "box"));
 
-    if (animate && motion?.type === "push") {
-      /* The visible artwork belongs to the source square for the duration of the
-         push. Destination artwork is committed by animationend, exactly when the
-         box arrives, rather than waiting for the later idle timer. */
-      syncPersistentBoxVisualState(piece, motion.boxFromX, motion.boxFromY);
-      piece.style.setProperty("--from-x", motion.boxFromX);
-      piece.style.setProperty("--from-y", motion.boxFromY);
-
-      if (!largeLevelPerformanceMode) {
-        const offset = persistentBoxMotionPercent(
-          motion.boxFromX, motion.boxFromY, motion.boxToX, motion.boxToY
-        );
-        piece.style.setProperty("--persistent-move-x", `${offset.x}%`);
-        piece.style.setProperty("--persistent-move-y", `${offset.y}%`);
-        armPersistentBoxMotionCommit(index, piece, motion);
+    if (piece.dataset.stateToken !== stateToken) {
+      piece.dataset.stateToken = stateToken;
+      piece.classList.toggle("on-goal", Boolean(goal));
+      if (goal) {
+        styleBoardArtworkHost(piece, goalColour);
+      } else {
+        delete piece.dataset.goalColour;
+        piece.style.removeProperty("--goal-colour");
+        piece.style.removeProperty("--goal-sprite");
+        piece.style.removeProperty("--box-sprite");
       }
-
-      /* Large/dense levels deliberately keep the proven v298/v338 stepped
-         boardPieceMove path. Only ordinary persistent boxes use the smooth
-         transform-only path introduced in v340. */
-      void piece.offsetWidth;
-      piece.classList.add("pushing", "board-step");
-      return;
     }
 
-    piece.style.removeProperty("--persistent-move-x");
-    piece.style.removeProperty("--persistent-move-y");
-    syncPersistentBoxVisualState(piece, box.x, box.y);
+    piece.classList.remove("pushing", "board-step");
+    if (animate && motion?.type === "push") {
+      piece.style.setProperty("--from-x", motion.boxFromX);
+      piece.style.setProperty("--from-y", motion.boxFromY);
+      void piece.offsetWidth;
+      piece.classList.add("pushing", "board-step");
+    }
   }
 
   function syncPersistentPlayer(anim, motion = null) {
@@ -6341,14 +6218,14 @@ window.BOXXY_RELEASE = Object.freeze({
     }
 
     if (persistentLastAnimatedBoxIndex >= 0 && persistentLastAnimatedBoxIndex !== animatedBoxIndex) {
-      /* Finalise the previous box before another cached piece starts moving.
-         This also handles held/rapid input where the normal idle render has not
-         happened yet. */
-      syncPersistentBoxPiece(persistentLastAnimatedBoxIndex, false, null);
+      persistentBoxPieces[persistentLastAnimatedBoxIndex]?.classList.remove("pushing", "board-step");
     }
 
     if (animatedBoxIndex >= 0) {
       syncPersistentBoxPiece(animatedBoxIndex, true, activeMotion);
+    } else if (anim === "idle" && previousMotion?.type === "push") {
+      const found = boxLookup.get(key(previousMotion.boxToX, previousMotion.boxToY));
+      if (Number.isInteger(found)) syncPersistentBoxPiece(found, false, null);
     } else if (anim === "idle" && !previousMotion) {
       boxes.forEach((box, index) => {
         const piece = persistentBoxPieces[index];
@@ -6380,23 +6257,14 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   function render(anim = "idle") {
-    /* Turbo can issue movement updates faster than a display paints frames.
-       Reuse the existing v298 persistent piece renderer for Turbo's idle-frame
-       movement instead of rebuilding every box/player DOM node on every step. */
-    /* Coloured board artwork is noticeably expensive to destroy and recreate on
-       mobile Safari/WebKit. Reuse the proven v298 persistent piece renderer
-       whenever a standard custom palette or Rainbow artwork is active. Default
-       yellow/red boards keep their existing renderer and behaviour. */
-    const standardStyle = standardBoardStyle();
-    const persistentBoardArtwork = levelUsesRainbowStyle(levelData)
-      || standardStyle.box !== "yellow"
-      || standardStyle.target !== "red";
-    const usePersistentPieceRenderer = largeLevelPerformanceMode
-      || persistentBoardArtwork
+    /* Rendering strategy is independent of artwork colour. Normal boards use
+       the normal renderer whether their sprites are yellow/red, a custom
+       standard palette, or Rainbow. The cached renderer is reserved for the
+       v298/v338 performance cases and Turbo idle updates. */
+    syncStandardBoardArtworkVariables();
+    const useCachedPieceRenderer = largeLevelPerformanceMode
       || (boxxyInstantSpeedActive() && anim === "idle");
-    document.body.classList.toggle("persistent-piece-renderer", usePersistentPieceRenderer);
-    board?.classList.toggle("persistent-piece-renderer", usePersistentPieceRenderer);
-    if (usePersistentPieceRenderer) {
+    if (useCachedPieceRenderer) {
       renderPersistentPieces(anim);
       return;
     }
@@ -6423,12 +6291,11 @@ window.BOXXY_RELEASE = Object.freeze({
         piece.style.setProperty("--from-y", activeBoardMotion.boxFromY);
       }
       const targetColour = goal ? displayTargetColour(goal.colour) : "";
-      if (goal) GOAL_COLOURS?.style?.(piece, targetColour);
+      if (goal) styleBoardArtworkHost(piece, targetColour);
       const art = document.createElement("span");
       art.className = "board-art board-art-box";
       art.setAttribute("aria-hidden", "true");
       piece.appendChild(art);
-      applyBoardArtwork(art, "box", goal ? targetColour : displayBoxArtworkColour());
       pieceLayer.appendChild(piece);
     });
 
