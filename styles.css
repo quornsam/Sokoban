@@ -6793,6 +6793,19 @@ body[data-boxxy-speed="fast"]{--boxxy-step-transition:.11s;--boxxy-motion-durati
 }
 
 
+
+/* BOXXY v339 — the persistent DOM renderer is now an explicit rendering mode.
+   Persistent pieces use one movement mechanism: the board-step animation.
+   Normal left/top transitions and the extra box transform animation belong to
+   the rebuild renderer and must not run on the same cached DOM node. */
+body.persistent-piece-renderer .piece.box,
+body.persistent-piece-renderer .piece.player{
+  transition:none!important;
+}
+body.persistent-piece-renderer .piece.box.pushing.board-step{
+  animation:boardPieceMove var(--boxxy-motion-duration,.105s) cubic-bezier(.2,.82,.32,1) both;
+}
+
 /* BOXXY v298 — automatic performance mode for boards over 50 cells wide or tall.
    Large boards keep the same gameplay but avoid costly per-move effects. */
 body.large-level-performance .board{
