@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "339",
+  version: "340",
   lastUpdated: "2026-09-10"
 });
+/* BOXXY v340 — normal persistent boxes use compositor-friendly transform motion and commit destination artwork on animation completion; large/dense performance rendering is unchanged. */
 /* BOXXY v339 — persistent box rendering is separated cleanly from large-level performance; custom-colour pushes no longer mix transitions, animation and mid-push artwork swaps. */
 /* BOXXY v338 — dense box-heavy boards reuse the v298 large-level performance renderer; Stu Weston added as the fifth BOXXY Originals completer. */
 /* BOXXY v337 — custom box-on-target artwork swaps only after push motion finishes, preventing mobile compositing blanks. */
@@ -2362,6 +2363,8 @@ window.BOXXY_RELEASE = Object.freeze({
   let persistentPlayerPiece = null;
   let persistentPlayerImage = null;
   let persistentLastAnimatedBoxIndex = -1;
+  let persistentBoxMotionSerial = 0;
+  let persistentBoxMotionCleanup = new WeakMap();
 
   function updatePackCollectionLabels(pack = activePack) {
     const label = dailyMode ? "Boxxy Dailys" : packCollectionLabel(pack);
@@ -6089,6 +6092,8 @@ window.BOXXY_RELEASE = Object.freeze({
     persistentPlayerPiece = null;
     persistentPlayerImage = null;
     persistentLastAnimatedBoxIndex = -1;
+    persistentBoxMotionSerial += 1;
+    persistentBoxMotionCleanup = new WeakMap();
   }
 
   function configureLargeLevelPerformanceMode() {
@@ -6190,31 +6195,114 @@ window.BOXXY_RELEASE = Object.freeze({
     );
   }
 
+  function persistentBoxMotionPercent(fromX, fromY, toX, toY) {
+    /* The box element is 1.04 cells wide and 1.42 cells high. Expressing the
+       one-cell source offset in the box element's own coordinate system lets
+       the smooth persistent renderer animate only transform, while left/top
+       remain fixed at the destination. This avoids repainting the PNG on every
+       animation frame. */
+    return {
+      x: (Number(fromX) - Number(toX)) * (100 / 1.04),
+      y: (Number(fromY) - Number(toY)) * (100 / 1.42)
+    };
+  }
+
+  function cancelPersistentBoxMotionCommit(piece) {
+    const cleanup = piece ? persistentBoxMotionCleanup.get(piece) : null;
+    if (cleanup) cleanup();
+  }
+
+  function preparePersistentBoxDestinationAsset(x, y) {
+    const goal = goalAt(x, y);
+    const colour = goal ? displayTargetColour(goal.colour) : displayBoxArtworkColour();
+    return ensureBoardAsset(boardAssetPath("box", colour));
+  }
+
+  function armPersistentBoxMotionCommit(index, piece, motion) {
+    if (!piece || motion?.type !== "push") return;
+    cancelPersistentBoxMotionCommit(piece);
+
+    const serial = ++persistentBoxMotionSerial;
+    const destinationX = Number(motion.boxToX);
+    const destinationY = Number(motion.boxToY);
+    piece.dataset.motionSerial = String(serial);
+
+    /* Normally this asset is already decoded by the board-style loader. Warm it
+       again here without changing the visible box. If a cache miss ever occurs,
+       applyBoardArtwork will keep the source artwork visible until it is ready. */
+    preparePersistentBoxDestinationAsset(destinationX, destinationY).catch(() => {});
+
+    const cleanup = () => {
+      piece.removeEventListener("animationend", finish);
+      piece.removeEventListener("animationcancel", cancel);
+      if (persistentBoxMotionCleanup.get(piece) === cleanup) {
+        persistentBoxMotionCleanup.delete(piece);
+      }
+    };
+
+    const finish = event => {
+      if (event.target !== piece) return;
+      if (event.animationName !== "persistentBoxMove") return;
+      cleanup();
+      if (piece.dataset.motionSerial !== String(serial)) return;
+      const box = boxes[index];
+      if (!box || box.x !== destinationX || box.y !== destinationY) return;
+
+      syncPersistentBoxVisualState(piece, destinationX, destinationY);
+      piece.classList.remove("pushing", "board-step");
+      piece.style.removeProperty("--persistent-move-x");
+      piece.style.removeProperty("--persistent-move-y");
+      if (persistentLastAnimatedBoxIndex === index) persistentLastAnimatedBoxIndex = -1;
+    };
+
+    const cancel = event => {
+      if (event.target !== piece) return;
+      if (event.animationName !== "persistentBoxMove") return;
+      cleanup();
+    };
+
+    piece.addEventListener("animationend", finish);
+    piece.addEventListener("animationcancel", cancel);
+    persistentBoxMotionCleanup.set(piece, cleanup);
+  }
+
   function syncPersistentBoxPiece(index, animate = false, motion = null) {
     const box = boxes[index];
     const piece = persistentBoxPieces[index];
     if (!box || !piece) return;
 
+    cancelPersistentBoxMotionCommit(piece);
+    piece.classList.remove("pushing", "board-step");
     setPersistentPiecePosition(piece, box.x, box.y, depth(box.y, "box"));
 
-    /* A cached moving box keeps the artwork belonging to the square it is
-       leaving for the whole movement. The destination state is committed by
-       the next stable render. If moves arrive faster than idle, the next push
-       explicitly synchronises the source square first, so visual state never
-       depends on a timer. */
     if (animate && motion?.type === "push") {
+      /* The visible artwork belongs to the source square for the duration of the
+         push. Destination artwork is committed by animationend, exactly when the
+         box arrives, rather than waiting for the later idle timer. */
       syncPersistentBoxVisualState(piece, motion.boxFromX, motion.boxFromY);
-    } else {
-      syncPersistentBoxVisualState(piece, box.x, box.y);
-    }
-
-    piece.classList.remove("pushing", "board-step");
-    if (animate && motion?.type === "push") {
       piece.style.setProperty("--from-x", motion.boxFromX);
       piece.style.setProperty("--from-y", motion.boxFromY);
+
+      if (!largeLevelPerformanceMode) {
+        const offset = persistentBoxMotionPercent(
+          motion.boxFromX, motion.boxFromY, motion.boxToX, motion.boxToY
+        );
+        piece.style.setProperty("--persistent-move-x", `${offset.x}%`);
+        piece.style.setProperty("--persistent-move-y", `${offset.y}%`);
+        armPersistentBoxMotionCommit(index, piece, motion);
+      }
+
+      /* Large/dense levels deliberately keep the proven v298/v338 stepped
+         boardPieceMove path. Only ordinary persistent boxes use the smooth
+         transform-only path introduced in v340. */
       void piece.offsetWidth;
       piece.classList.add("pushing", "board-step");
+      return;
     }
+
+    piece.style.removeProperty("--persistent-move-x");
+    piece.style.removeProperty("--persistent-move-y");
+    syncPersistentBoxVisualState(piece, box.x, box.y);
   }
 
   function syncPersistentPlayer(anim, motion = null) {
