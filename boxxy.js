@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "342",
-  lastUpdated: "2026-09-10"
+  version: "343",
+  lastUpdated: "2026-09-11"
 });
+/* BOXXY v343 — Sean Heapy added as the seventh BOXXY Originals completer. */
 /* BOXXY v342 — Carlos Montiers added as the sixth BOXXY Originals completer. */
 /* BOXXY v341 — standard and custom board colours share one normal renderer and one synchronous CSS-sprite artwork path; v340 custom movement changes removed. */
 /* BOXXY v340 — normal persistent boxes use compositor-friendly transform motion and commit destination artwork on animation completion; large/dense performance rendering is unchanged. */
@@ -2943,7 +2944,8 @@ window.BOXXY_RELEASE = Object.freeze({
     { name: "Stephen Wilbourne", country: "Australia" },
     { name: "Matthias Meger", country: "Germany" },
     { name: "Stu Weston", country: "UK" },
-    { name: "Carlos Montiers", country: "Chile" }
+    { name: "Carlos Montiers", country: "Chile" },
+    { name: "Sean Heapy", country: "US" }
   ]);
 
   function renderOriginalsCompletionBoard() {
