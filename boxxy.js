@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "343",
-  lastUpdated: "2026-09-11"
+  version: "344",
+  lastUpdated: "2026-09-12"
 });
+/* BOXXY v344 — optional touch Click-Push shares the existing point-routing engine; Zen Mode adds 1×/2×/4×/8× player-follow camera zoom. */
 /* BOXXY v343 — Sean Heapy added as the seventh BOXXY Originals completer. */
 /* BOXXY v342 — Carlos Montiers added as the sixth BOXXY Originals completer. */
 /* BOXXY v341 — standard and custom board colours share one normal renderer and one synchronous CSS-sprite artwork path; v340 custom movement changes removed. */
@@ -2182,6 +2183,9 @@ window.BOXXY_RELEASE = Object.freeze({
   const settingsMouseRow = document.getElementById("settingsMouseRow");
   const settingsMouseToggle = document.getElementById("settingsMouseToggle");
   const settingsMouseLeaderboardWarning = document.getElementById("settingsMouseLeaderboardWarning");
+  const settingsTouchPushRow = document.getElementById("settingsTouchPushRow");
+  const settingsTouchPushToggle = document.getElementById("settingsTouchPushToggle");
+  const settingsTouchPushLeaderboardWarning = document.getElementById("settingsTouchPushLeaderboardWarning");
   const settingsBoxColourChoices = document.getElementById("settingsBoxColourChoices");
   const settingsTargetColourChoices = document.getElementById("settingsTargetColourChoices");
   const settingsBoxColourName = document.getElementById("settingsBoxColourName");
@@ -2301,6 +2305,8 @@ window.BOXXY_RELEASE = Object.freeze({
   const app = document.querySelector(".app");
   const fullscreenBtn = document.getElementById("fullscreenBtn");
   const mobileFullscreenBtn = document.getElementById("mobileFullscreenBtn");
+  const zenZoomBtn = document.getElementById("zenZoomBtn");
+  const zenZoomLabel = document.getElementById("zenZoomLabel");
   const zenNextBtn = document.getElementById("zenNextBtn");
   const legalBtn = document.getElementById("legalBtn");
   const legalModal = document.getElementById("legalModal");
@@ -2405,13 +2411,14 @@ window.BOXXY_RELEASE = Object.freeze({
   let mouseSupportArmed = false;
   let mouseSupportResetTimer = null;
   let mouseSupportEnabled = localStorage.getItem("boxxy-mouse-support-v1") === "on";
+  let touchClickPushEnabled = localStorage.getItem("boxxy-touch-click-push-v1") === "on";
   let mouseSupportBusy = false;
   let mouseSupportExecutingStep = false;
   let mouseSupportRouteTimer = null;
   let mouseSupportSelectedBoxIndex = -1;
   let mouseSupportPlans = new Map();
   let mouseSupportIgnoreClickUntil = 0;
-  let dailyMouseSupportUsed = false;
+  let dailyPointControlUsed = false;
   let firstPersonMode = false;
   let firstPersonHeading = 2;
   let firstPersonClickCount = 0;
@@ -2421,6 +2428,9 @@ window.BOXXY_RELEASE = Object.freeze({
   let firstPersonBoomTimer = 0;
   let firstPersonMotion = null;
   let firstPersonCameraZoom = 0;
+  const ZEN_ZOOM_LEVELS = Object.freeze([1, 2, 4, 8]);
+  let zenZoomIndex = 0;
+  let zenZoomFrame = 0;
   const firstPersonAvatarImages = new Map();
   let currentAnimation = "idle";
   let thoughtTimer = null;
@@ -4742,10 +4752,120 @@ window.BOXXY_RELEASE = Object.freeze({
     return document.body.classList.contains("desktop-zen-mode");
   }
 
+  function zenModeActive() {
+    return phoneZenModeActive() || desktopZenModeActive();
+  }
+
+  function currentZenZoom() {
+    return ZEN_ZOOM_LEVELS[zenZoomIndex] || 1;
+  }
+
+  function updateZenZoomButton() {
+    if (!zenZoomBtn) return;
+    const active = zenModeActive() && !firstPersonMode;
+    const zoom = currentZenZoom();
+    const nextZoom = ZEN_ZOOM_LEVELS[(zenZoomIndex + 1) % ZEN_ZOOM_LEVELS.length];
+    zenZoomBtn.hidden = !active;
+    zenZoomBtn.setAttribute("aria-pressed", String(active && zoom > 1));
+    zenZoomBtn.setAttribute("aria-label", `Board zoom ${zoom}×. Change to ${nextZoom}×.`);
+    zenZoomBtn.title = `Board zoom ${zoom}× · next ${nextZoom}×`;
+    if (zenZoomLabel) zenZoomLabel.textContent = `${zoom}×`;
+    document.body.dataset.zenZoom = String(zoom);
+  }
+
+  function clearZenZoomTransform() {
+    cancelAnimationFrame(zenZoomFrame);
+    zenZoomFrame = 0;
+    if (!board) return;
+    board.classList.remove("zen-board-zoomed");
+    board.style.removeProperty("transform");
+    board.style.removeProperty("transform-origin");
+  }
+
+  function resetZenZoom() {
+    zenZoomIndex = 0;
+    clearZenZoomTransform();
+    updateZenZoomButton();
+  }
+
+  function applyZenZoomFocus() {
+    zenZoomFrame = 0;
+    if (!board || !boardWrap || !zenModeActive() || firstPersonMode || currentZenZoom() === 1 || !width || !height) {
+      clearZenZoomTransform();
+      return;
+    }
+
+    const zoom = currentZenZoom();
+    const boardWidth = board.offsetWidth;
+    const boardHeight = board.offsetHeight;
+    if (!boardWidth || !boardHeight) return;
+
+    const wrapStyle = getComputedStyle(boardWrap);
+    const paddingLeft = parseFloat(wrapStyle.paddingLeft) || 0;
+    const paddingRight = parseFloat(wrapStyle.paddingRight) || 0;
+    const paddingTop = parseFloat(wrapStyle.paddingTop) || 0;
+    const paddingBottom = parseFloat(wrapStyle.paddingBottom) || 0;
+    const contentLeft = paddingLeft;
+    const contentTop = paddingTop;
+    const contentWidth = Math.max(1, boardWrap.clientWidth - paddingLeft - paddingRight);
+    const contentHeight = Math.max(1, boardWrap.clientHeight - paddingTop - paddingBottom);
+    const contentRight = contentLeft + contentWidth;
+    const contentBottom = contentTop + contentHeight;
+
+    const baseLeft = board.offsetLeft;
+    const baseTop = board.offsetTop;
+    const playerX = (player[0] + 0.5) / width * boardWidth;
+    const playerY = (player[1] + 0.5) / height * boardHeight;
+    const scaledWidth = boardWidth * zoom;
+    const scaledHeight = boardHeight * zoom;
+
+    let translateX;
+    if (scaledWidth <= contentWidth) {
+      translateX = contentLeft + (contentWidth - scaledWidth) / 2 - baseLeft;
+    } else {
+      const desired = contentLeft + contentWidth / 2 - baseLeft - playerX * zoom;
+      const minimum = contentRight - baseLeft - scaledWidth;
+      const maximum = contentLeft - baseLeft;
+      translateX = Math.min(maximum, Math.max(minimum, desired));
+    }
+
+    let translateY;
+    if (scaledHeight <= contentHeight) {
+      translateY = contentTop + (contentHeight - scaledHeight) / 2 - baseTop;
+    } else {
+      const desired = contentTop + contentHeight / 2 - baseTop - playerY * zoom;
+      const minimum = contentBottom - baseTop - scaledHeight;
+      const maximum = contentTop - baseTop;
+      translateY = Math.min(maximum, Math.max(minimum, desired));
+    }
+
+    board.classList.add("zen-board-zoomed");
+    board.style.transformOrigin = "0 0";
+    board.style.transform = `translate3d(${translateX.toFixed(2)}px, ${translateY.toFixed(2)}px, 0) scale(${zoom})`;
+  }
+
+  function scheduleZenZoomFocus() {
+    cancelAnimationFrame(zenZoomFrame);
+    zenZoomFrame = requestAnimationFrame(applyZenZoomFocus);
+  }
+
+  function cycleZenZoom() {
+    if (!zenModeActive() || firstPersonMode) return;
+    zenZoomIndex = (zenZoomIndex + 1) % ZEN_ZOOM_LEVELS.length;
+    updateZenZoomButton();
+    scheduleZenZoomFocus();
+  }
+
   function setDesktopZenMode(active) {
+    const wasEnabled = desktopZenModeActive();
     const enabled = Boolean(active);
     document.documentElement.classList.toggle("desktop-zen-mode", enabled);
     document.body.classList.toggle("desktop-zen-mode", enabled);
+    if (wasEnabled && !enabled) resetZenZoom();
+    else {
+      updateZenZoomButton();
+      if (enabled) scheduleZenZoomFocus();
+    }
   }
 
   function phoneZenTouchPointer(event) {
@@ -4780,10 +4900,15 @@ window.BOXXY_RELEASE = Object.freeze({
     }
 
     if (mobileFullscreenBtn) setFullscreenControlState(mobileFullscreenBtn, enabled);
+    if (!enabled) resetZenZoom();
+    else updateZenZoomButton();
     setZenNextButtonVisible(enabled && completed && modal?.hidden && completeMode === "normal" && levelIndex < LEVELS.length - 1);
     requestAnimationFrame(() => {
       scheduleBoardResize();
-      requestAnimationFrame(scheduleBoardResize);
+      requestAnimationFrame(() => {
+        scheduleBoardResize();
+        if (enabled) scheduleZenZoomFocus();
+      });
     });
   }
 
@@ -4842,6 +4967,7 @@ window.BOXXY_RELEASE = Object.freeze({
       mobileFullscreenBtn.hidden = !phone;
       setFullscreenControlState(mobileFullscreenBtn, phoneZenActive);
     }
+    updateZenZoomButton();
   }
 
   async function toggleFullscreen() {
@@ -4885,6 +5011,7 @@ window.BOXXY_RELEASE = Object.freeze({
     const fittedHeight = Math.floor(fittedWidth / ratio);
     board.style.width = `${Math.max(1, fittedWidth)}px`;
     board.style.height = `${Math.max(1, fittedHeight)}px`;
+    if (zenModeActive() && currentZenZoom() > 1) scheduleZenZoomFocus();
   }
 
   function scheduleBoardResize() {
@@ -5008,6 +5135,7 @@ window.BOXXY_RELEASE = Object.freeze({
     const touchDevice = settingsTouchDevice();
     document.body.classList.toggle("settings-touch-device", touchDevice);
     if (settingsMouseRow) settingsMouseRow.hidden = touchDevice;
+    if (settingsTouchPushRow) settingsTouchPushRow.hidden = !touchDevice;
     if (settingsControlsPanel) settingsControlsPanel.hidden = touchDevice;
     if (touchDevice && mouseSupportEnabled) {
       mouseSupportEnabled = false;
@@ -5015,7 +5143,9 @@ window.BOXXY_RELEASE = Object.freeze({
       resetMouseSupportInteraction();
       document.body.classList.remove("mouse-support-enabled");
     }
+    document.body.classList.toggle("touch-click-push-enabled", touchDevice && touchClickPushEnabled);
     updateSettingsMouseButton();
+    updateSettingsTouchPushButton();
   }
 
   function updateSoundButton() {
@@ -5260,6 +5390,32 @@ window.BOXXY_RELEASE = Object.freeze({
     document.body.classList.toggle("mouse-support-enabled", mouseSupportEnabled);
     if (!mouseSupportEnabled) resetMouseSupportInteraction();
     updateSettingsMouseButton();
+  }
+
+  function updateSettingsTouchPushButton() {
+    if (!settingsTouchPushToggle) return;
+    const available = settingsTouchDevice();
+    settingsTouchPushToggle.disabled = !available;
+    settingsTouchPushToggle.setAttribute("aria-pressed", String(available && touchClickPushEnabled));
+    settingsTouchPushToggle.textContent = available && touchClickPushEnabled ? "ON" : "OFF";
+    if (settingsTouchPushLeaderboardWarning) {
+      settingsTouchPushLeaderboardWarning.hidden = !(available && touchClickPushEnabled);
+    }
+  }
+
+  function setSettingsTouchClickPush(enabled) {
+    if (!settingsTouchDevice()) return;
+    touchClickPushEnabled = Boolean(enabled);
+    localStorage.setItem("boxxy-touch-click-push-v1", touchClickPushEnabled ? "on" : "off");
+    document.body.classList.toggle("touch-click-push-enabled", touchClickPushEnabled);
+    if (!touchClickPushEnabled && !mouseSupportEnabled) resetMouseSupportInteraction();
+    updateSettingsTouchPushButton();
+  }
+
+  function pointControlMode() {
+    if (settingsTouchDevice()) return touchClickPushEnabled ? "touch" : "";
+    if (desktopEasterEggAvailable() && mouseSupportEnabled) return "mouse";
+    return "";
   }
 
   function showSettingsMainView() {
@@ -5548,6 +5704,7 @@ window.BOXXY_RELEASE = Object.freeze({
     resetMouseSupportInteraction();
     if (firstPersonMode || !desktopEasterEggAvailable() || autoplayRunning) return false;
     firstPersonMode = true;
+    updateZenZoomButton();
     firstPersonHeading = firstPersonHeadingForFacing(facing);
     facing = firstPersonFacingForHeading();
     resetFirstPersonEasterEgg();
@@ -5566,6 +5723,7 @@ window.BOXXY_RELEASE = Object.freeze({
   function exitFirstPersonMode() {
     if (!firstPersonMode) return false;
     firstPersonMode = false;
+    updateZenZoomButton();
     firstPersonMotion = null;
     document.body.classList.remove("first-person-mode");
     firstPersonCameraControl.hidden = true;
@@ -6258,6 +6416,7 @@ window.BOXXY_RELEASE = Object.freeze({
 
     if (levelPicker && !levelPicker.hidden) refreshLevelButtons();
     scheduleFirstPersonRender();
+    if (zenModeActive() && currentZenZoom() > 1) scheduleZenZoomFocus();
   }
 
   function render(anim = "idle") {
@@ -6344,6 +6503,7 @@ window.BOXXY_RELEASE = Object.freeze({
     updateSavePositionButton();
     refreshLevelButtons();
     scheduleFirstPersonRender();
+    if (zenModeActive() && currentZenZoom() > 1) scheduleZenZoomFocus();
   }
 
   function updateTime() {
@@ -6527,7 +6687,7 @@ window.BOXXY_RELEASE = Object.freeze({
     sharedPuzzleName = "";
     dailyMode = true;
     dailyPuzzle = puzzle;
-    dailyMouseSupportUsed = false;
+    dailyPointControlUsed = false;
     window.BOXXY_SHARED_MODE = false;
     document.body.classList.remove("maker-testing", "shared-puzzle");
     document.body.classList.add("daily-mode");
@@ -7013,7 +7173,7 @@ window.BOXXY_RELEASE = Object.freeze({
           pushes,
           seconds: completionSeconds,
           completedAt: Date.now(),
-          leaderboardEligible: !dailyMouseSupportUsed
+          leaderboardEligible: !dailyPointControlUsed
         });
         dailyLeaderboardCache.delete(String(dailyPuzzle.date));
         window.dispatchEvent(new CustomEvent("boxxydailycompletionrecorded", {
@@ -7532,7 +7692,7 @@ window.BOXXY_RELEASE = Object.freeze({
     mouseSupportBusy = false;
     mouseSupportExecutingStep = false;
     document.body.classList.remove("mouse-support-busy");
-    if (wasBusy && !quiet) showCharacterThought("Mouse route stopped. Continue normally or click another square.", true);
+    if (wasBusy && !quiet) showCharacterThought("Route stopped. Continue normally or choose another square.", true);
   }
 
   function resetMouseSupportInteraction() {
@@ -7657,7 +7817,7 @@ window.BOXXY_RELEASE = Object.freeze({
   function renderMouseSupportOverlay() {
     if (!mouseSupportLayer) return;
     mouseSupportLayer.replaceChildren();
-    if (!mouseSupportEnabled || mouseSupportSelectedBoxIndex < 0) {
+    if (!pointControlMode() || mouseSupportSelectedBoxIndex < 0) {
       mouseSupportLayer.hidden = true;
       return;
     }
@@ -7689,7 +7849,7 @@ window.BOXXY_RELEASE = Object.freeze({
     mouseSupportPlans = mouseSupportBoxDestinationPlans(index);
     renderMouseSupportOverlay();
     if (mouseSupportPlans.size) {
-      showCharacterThought("Click a highlighted square to move this box there.", true);
+      showCharacterThought(pointControlMode() === "touch" ? "Tap a highlighted square to move this box there." : "Click a highlighted square to move this box there.", true);
     } else {
       showCharacterThought("I cannot reach a legal pushing position for that box.", true);
     }
@@ -7714,7 +7874,7 @@ window.BOXXY_RELEASE = Object.freeze({
     stopMouseSupportRoute();
     clearMouseSupportOverlay();
     mouseSupportBusy = true;
-    if (dailyMode) dailyMouseSupportUsed = true;
+    if (dailyMode) dailyPointControlUsed = true;
     document.body.classList.add("mouse-support-busy");
     showCharacterThought(description, true);
     let stepIndex = 0;
@@ -7753,8 +7913,9 @@ window.BOXXY_RELEASE = Object.freeze({
     return true;
   }
 
-  function handleMouseSupportBoardClick(event) {
-    if (!mouseSupportEnabled || !desktopEasterEggAvailable() || firstPersonMode || autoplayRunning || completed) return;
+  function handlePointControlBoardClick(event) {
+    const controlMode = pointControlMode();
+    if (!controlMode || firstPersonMode || autoplayRunning || completed) return;
     if (event.button !== 0 || Date.now() < mouseSupportIgnoreClickUntil) return;
     const cell = boardCellFromPointer(event);
     if (!cell) return;
@@ -8251,6 +8412,7 @@ window.BOXXY_RELEASE = Object.freeze({
   cancelGuidedBtn?.addEventListener("click", cancelGuidedSolve);
   fullscreenBtn?.addEventListener("click", toggleFullscreen);
   mobileFullscreenBtn?.addEventListener("click", toggleFullscreen);
+  zenZoomBtn?.addEventListener("click", cycleZenZoom);
   document.addEventListener("fullscreenchange", () => { updateFullscreenButton(); scheduleBoardResize(); });
   document.addEventListener("webkitfullscreenchange", () => { updateFullscreenButton(); scheduleBoardResize(); });
   window.addEventListener("resize", () => {
@@ -8260,6 +8422,7 @@ window.BOXXY_RELEASE = Object.freeze({
       document.body.classList.remove("mouse-support-enabled");
       resetMouseSupportInteraction();
     }
+    document.body.classList.toggle("touch-click-push-enabled", settingsTouchDevice() && touchClickPushEnabled);
     updateFullscreenButton();
     scheduleBoardResize();
   });
@@ -8376,6 +8539,7 @@ window.BOXXY_RELEASE = Object.freeze({
   });
   settingsSpeedSelect?.addEventListener("change", event => applyBoxxySpeed(String(event.currentTarget.value || "normal"), true));
   settingsMouseToggle?.addEventListener("click", () => setSettingsMouseSupport(!mouseSupportEnabled));
+  settingsTouchPushToggle?.addEventListener("click", () => setSettingsTouchClickPush(!touchClickPushEnabled));
   collectionBtn?.addEventListener("click", openPackModal);
   finalPackMoreBtn?.addEventListener("click", () => {
     closeCompleteModal();
@@ -8732,7 +8896,7 @@ window.BOXXY_RELEASE = Object.freeze({
     }
     releaseBlockedPush();
   });
-  board.addEventListener("click", handleMouseSupportBoardClick);
+  board.addEventListener("click", handlePointControlBoardClick);
   board.addEventListener("pointercancel", () => { swipe = null; releaseBlockedPush(); });
   board.addEventListener("lostpointercapture", () => { swipe = null; releaseBlockedPush(); });
 

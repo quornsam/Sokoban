@@ -7140,3 +7140,117 @@ body.large-level-performance .instruction .thought-text{
 @media(max-width:560px){
   .standard-complete-result-item:nth-child(2){border-left:0}
 }
+
+/* BOXXY v344 — touch Click-Push and Zen player-follow zoom. */
+
+.touch-settings-only{display:none}
+body.settings-touch-device .touch-settings-only:not([hidden]){display:flex}
+
+/* Touch Click-Push reuses the route layer but stays deliberately quiet: no pulsing
+   animation and no permanent board decoration. Markers exist only while a box is selected. */
+body.touch-click-push-enabled .mouse-support-selected::before{
+  inset:11%;
+  border-width:2px;
+  border-radius:10px;
+  box-shadow:0 0 0 2px rgba(247,240,229,.82),0 4px 12px rgba(23,23,25,.18);
+  animation:none;
+}
+body.touch-click-push-enabled .mouse-support-destination::before{
+  width:34%;
+  height:34%;
+  min-width:8px;
+  min-height:8px;
+  max-width:20px;
+  max-height:20px;
+  border:2px solid var(--blue);
+  background:rgba(247,240,229,.9);
+  box-shadow:0 0 0 2px rgba(23,23,25,.76);
+  animation:none;
+}
+body.touch-click-push-enabled .mouse-support-destination.is-goal::before{
+  border-color:var(--red);
+  background:rgba(247,240,229,.94);
+}
+
+.zen-zoom-btn{
+  display:none;
+  position:fixed;
+  z-index:8501;
+  width:46px;
+  height:46px;
+  padding:10px;
+  border:1px solid rgba(255,255,255,.52);
+  border-radius:12px;
+  background:rgba(23,23,25,.54);
+  color:#fff;
+  box-shadow:0 5px 16px rgba(23,23,25,.24),inset 0 1px 0 rgba(255,255,255,.13);
+  -webkit-backdrop-filter:blur(6px);
+  backdrop-filter:blur(6px);
+  place-items:center;
+  line-height:0;
+  touch-action:manipulation;
+}
+.zen-zoom-btn[hidden]{display:none!important}
+.zen-zoom-btn:hover{background:rgba(23,23,25,.66)}
+.zen-zoom-btn:active{transform:scale(.96);filter:none}
+.zen-zoom-btn svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2.15;stroke-linecap:round;stroke-linejoin:round}
+.zen-zoom-btn b{
+  position:absolute;
+  right:4px;
+  bottom:4px;
+  min-width:18px;
+  height:14px;
+  padding:0 3px;
+  display:grid;
+  place-items:center;
+  border-radius:7px;
+  background:var(--yellow);
+  color:var(--ink);
+  font-size:7px;
+  font-weight:1000;
+  line-height:1;
+  letter-spacing:-.02em;
+}
+body.phone-zen-mode .zen-zoom-btn,
+body.desktop-zen-mode .zen-zoom-btn{display:grid}
+.board.zen-board-zoomed{
+  will-change:transform;
+  transition:transform .14s cubic-bezier(.2,.75,.3,1);
+}
+
+/* Phone Zen: keep the zoom control immediately above the Zen exit control. */
+@media (max-width:760px) and (pointer:coarse){
+  body.phone-zen-mode .zen-zoom-btn{
+    right:max(10px,env(safe-area-inset-right));
+    top:max(10px,env(safe-area-inset-top));
+  }
+  body.phone-zen-mode .mobile-fullscreen-btn{
+    top:calc(max(10px,env(safe-area-inset-top)) + 56px)!important;
+    bottom:auto!important;
+  }
+}
+@media (max-height:520px) and (orientation:landscape) and (pointer:coarse){
+  body.phone-zen-mode .zen-zoom-btn{
+    left:max(10px,env(safe-area-inset-left));
+    right:auto;
+    top:max(10px,env(safe-area-inset-top));
+    width:42px;
+    height:42px;
+    padding:9px;
+    border-radius:10px;
+  }
+  body.phone-zen-mode .mobile-fullscreen-btn{
+    left:max(10px,env(safe-area-inset-left))!important;
+    right:auto!important;
+    top:calc(max(10px,env(safe-area-inset-top)) + 52px)!important;
+    bottom:auto!important;
+  }
+}
+
+/* Desktop Zen: the magnifier sits directly above the existing Full Screen/Exit icon. */
+@media (min-width:761px) and (hover:hover) and (pointer:fine){
+  body.desktop-zen-mode .zen-zoom-btn{
+    right:max(18px,env(safe-area-inset-right));
+    bottom:72px;
+  }
+}

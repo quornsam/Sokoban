@@ -159,7 +159,7 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=341">
+<link rel="stylesheet" href="styles.css?v=344">
 <link rel="stylesheet" href="how-to-play.css?v=225">
 <link rel="preload" as="image" href="assets/board/boxes/box-default-yellow.png?v=226">
 <link rel="preload" as="image" href="assets/board/goals/goal-red.png?v=226">
@@ -213,6 +213,10 @@
         <div id="pieceLayer" class="layer"></div>
         <div id="celebration" class="celebration" aria-hidden="true"></div>
       </div>
+      <button id="zenZoomBtn" class="zen-zoom-btn" type="button" hidden aria-label="Board zoom 1×. Change to 2×." aria-pressed="false" title="Board zoom 1× · next 2×">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="10.5" cy="10.5" r="5.8"/><path d="m15 15 5 5"/></svg>
+        <b id="zenZoomLabel" aria-hidden="true">1×</b>
+      </button>
       <button id="mobileFullscreenBtn" class="mobile-fullscreen-btn" type="button" hidden aria-label="Enter full screen" aria-pressed="false" title="Enter full screen">
         <svg class="mobile-fullscreen-enter" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
           <path d="M9 4H4v5M15 4h5v5M20 15v5h-5M9 20H4v-5"/>
@@ -428,6 +432,14 @@
               <small id="settingsMouseLeaderboardWarning" class="settings-mouse-leaderboard-warning" hidden>Daily leaderboard: Using Mouse Control during a Daily puzzle makes that run ineligible for the fastest-time leaderboard.</small>
             </div>
             <button id="settingsMouseToggle" class="settings-mini-toggle" type="button" aria-pressed="false">OFF</button>
+          </div>
+          <div id="settingsTouchPushRow" class="settings-option-row touch-settings-only" hidden>
+            <div>
+              <strong>CLICK-PUSH</strong>
+              <small>Tap a box to show its reachable push destinations, then tap where you want it to go.</small>
+              <small id="settingsTouchPushLeaderboardWarning" class="settings-mouse-leaderboard-warning" hidden>Daily leaderboard: Click-Push uses assisted routes, so that run is ineligible for the fastest-time leaderboard.</small>
+            </div>
+            <button id="settingsTouchPushToggle" class="settings-mini-toggle" type="button" aria-pressed="false">OFF</button>
           </div>
         </section>
 
@@ -1333,7 +1345,7 @@
 <script src="daily-puzzles/boxxy-daily-loader.js?v=218"></script>
 <script src="levels.js?v=268"></script>
 <script src="starry-night.js?v=302"></script>
-<script src="boxxy.js?v=343"></script>
+<script src="boxxy.js?v=344"></script>
 <script src="account.js?v=335"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="pack-builder.js?v=216"></script>
