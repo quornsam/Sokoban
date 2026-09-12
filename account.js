@@ -1,3 +1,4 @@
+/* BOXXY v345 — Click-Push beta access and on/off state join account cloud sync for Basement reporting. */
 /* BOXXY v331 — adds safe Google disconnect for password accounts and stabilises Google button rendering in the account sheet. */
 /* BOXXY v329 — optional Google sign-in links to the existing BOXXY user/session/save architecture. */
 /* BOXXY v327 — signed-in Daily completions request an immediate cloud sync so leaderboard results can refresh without waiting for the periodic sync. */
@@ -31,6 +32,8 @@
     "boxxy-music-track-v1",
     "boxxy-speed-v1",
     "boxxy-mouse-support-v1",
+    "boxxy-touch-click-push-v1",
+    "boxxy-touch-click-push-access-v1",
     "boxxy-theme",
     "boxxy-board-style-v1",
     "push-bauhaus-music",
@@ -755,12 +758,14 @@
 
   function applyCloudState(state) {
     let changed = false;
+    let clickPushChanged = false;
     Object.entries(state || {}).forEach(([key, value]) => {
       if (!shouldSyncKey(key) || typeof value !== "string") return;
       try {
         if (localStorage.getItem(key) !== value) {
           localStorage.setItem(key, value);
           changed = true;
+          if (key === "boxxy-touch-click-push-v1" || key === "boxxy-touch-click-push-access-v1") clickPushChanged = true;
         }
       } catch (_) {}
     });
@@ -776,6 +781,7 @@
       stale.forEach(key => { localStorage.removeItem(key); changed = true; });
     } catch (_) {}
     if (changed) window.BoxxyBoardStyle?.reloadFromStorage?.();
+    if (clickPushChanged) window.dispatchEvent(new CustomEvent("boxxyclickpushcloudstate"));
     return changed;
   }
 
@@ -1380,6 +1386,10 @@
   }, 5000);
 
   window.addEventListener("boxxypackcompletionrecorded", () => {
+    if (account) syncNow(true);
+  });
+
+  window.addEventListener("boxxyclickpushchange", () => {
     if (account) syncNow(true);
   });
 

@@ -6,10 +6,11 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "344",
+  version: "345",
   lastUpdated: "2026-09-12"
 });
-/* BOXXY v344 — optional touch Click-Push shares the existing point-routing engine; Zen Mode adds 1×/2×/4×/8× player-follow camera zoom. */
+/* BOXXY v345 — Click-Push beta access gate, account/Basement reporting and board-size-aware Zen zoom limit. */
+/* BOXXY v344 — optional touch Click-Push shares the existing point-routing engine; Zen Mode adds player-follow camera zoom. */
 /* BOXXY v343 — Sean Heapy added as the seventh BOXXY Originals completer. */
 /* BOXXY v342 — Carlos Montiers added as the sixth BOXXY Originals completer. */
 /* BOXXY v341 — standard and custom board colours share one normal renderer and one synchronous CSS-sprite artwork path; v340 custom movement changes removed. */
@@ -2186,6 +2187,12 @@ window.BOXXY_RELEASE = Object.freeze({
   const settingsTouchPushRow = document.getElementById("settingsTouchPushRow");
   const settingsTouchPushToggle = document.getElementById("settingsTouchPushToggle");
   const settingsTouchPushLeaderboardWarning = document.getElementById("settingsTouchPushLeaderboardWarning");
+  const clickPushAccessModal = document.getElementById("clickPushAccessModal");
+  const clickPushAccessForm = document.getElementById("clickPushAccessForm");
+  const clickPushAccessPassword = document.getElementById("clickPushAccessPassword");
+  const clickPushAccessStatus = document.getElementById("clickPushAccessStatus");
+  const clickPushAccessCancelBtn = document.getElementById("clickPushAccessCancelBtn");
+  const clickPushContactBtn = document.getElementById("clickPushContactBtn");
   const settingsBoxColourChoices = document.getElementById("settingsBoxColourChoices");
   const settingsTargetColourChoices = document.getElementById("settingsTargetColourChoices");
   const settingsBoxColourName = document.getElementById("settingsBoxColourName");
@@ -2306,7 +2313,6 @@ window.BOXXY_RELEASE = Object.freeze({
   const fullscreenBtn = document.getElementById("fullscreenBtn");
   const mobileFullscreenBtn = document.getElementById("mobileFullscreenBtn");
   const zenZoomBtn = document.getElementById("zenZoomBtn");
-  const zenZoomLabel = document.getElementById("zenZoomLabel");
   const zenNextBtn = document.getElementById("zenNextBtn");
   const legalBtn = document.getElementById("legalBtn");
   const legalModal = document.getElementById("legalModal");
@@ -2411,7 +2417,18 @@ window.BOXXY_RELEASE = Object.freeze({
   let mouseSupportArmed = false;
   let mouseSupportResetTimer = null;
   let mouseSupportEnabled = localStorage.getItem("boxxy-mouse-support-v1") === "on";
-  let touchClickPushEnabled = localStorage.getItem("boxxy-touch-click-push-v1") === "on";
+  const TOUCH_CLICK_PUSH_ENABLED_KEY = "boxxy-touch-click-push-v1";
+  const TOUCH_CLICK_PUSH_ACCESS_KEY = "boxxy-touch-click-push-access-v1";
+  const TOUCH_CLICK_PUSH_PASSWORDS = new Set(["RABBIT", "JIGSAW25", "TAPTAPTAP", "GRANDMASTER", "HARDCORE"]);
+  function readTouchClickPushAccessCode() {
+    const code = String(localStorage.getItem(TOUCH_CLICK_PUSH_ACCESS_KEY) || "").trim().toUpperCase();
+    return TOUCH_CLICK_PUSH_PASSWORDS.has(code) ? code : "";
+  }
+  let touchClickPushAccessCode = readTouchClickPushAccessCode();
+  let touchClickPushEnabled = Boolean(touchClickPushAccessCode) && localStorage.getItem(TOUCH_CLICK_PUSH_ENABLED_KEY) === "on";
+  if (!touchClickPushAccessCode && localStorage.getItem(TOUCH_CLICK_PUSH_ENABLED_KEY) === "on") {
+    localStorage.setItem(TOUCH_CLICK_PUSH_ENABLED_KEY, "off");
+  }
   let mouseSupportBusy = false;
   let mouseSupportExecutingStep = false;
   let mouseSupportRouteTimer = null;
@@ -2429,6 +2446,7 @@ window.BOXXY_RELEASE = Object.freeze({
   let firstPersonMotion = null;
   let firstPersonCameraZoom = 0;
   const ZEN_ZOOM_LEVELS = Object.freeze([1, 2, 4, 8]);
+  const ZEN_ZOOM_TARGET_VISIBLE_CELLS = 10;
   let zenZoomIndex = 0;
   let zenZoomFrame = 0;
   const firstPersonAvatarImages = new Map();
@@ -4756,20 +4774,45 @@ window.BOXXY_RELEASE = Object.freeze({
     return phoneZenModeActive() || desktopZenModeActive();
   }
 
+  function availableZenZoomLevels() {
+    if (!width || !height) return [1];
+    const shortSideCells = Math.max(1, Math.min(width, height));
+    let closestIndex = 0;
+    let closestDistance = Math.abs(shortSideCells - ZEN_ZOOM_TARGET_VISIBLE_CELLS);
+    for (let index = 1; index < ZEN_ZOOM_LEVELS.length; index++) {
+      const visibleCells = shortSideCells / ZEN_ZOOM_LEVELS[index];
+      const distance = Math.abs(visibleCells - ZEN_ZOOM_TARGET_VISIBLE_CELLS);
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestIndex = index;
+      }
+    }
+    return ZEN_ZOOM_LEVELS.slice(0, closestIndex + 1);
+  }
+
+  function normaliseZenZoomIndex() {
+    const levels = availableZenZoomLevels();
+    if (zenZoomIndex >= levels.length) zenZoomIndex = Math.max(0, levels.length - 1);
+    return levels;
+  }
+
   function currentZenZoom() {
-    return ZEN_ZOOM_LEVELS[zenZoomIndex] || 1;
+    const levels = normaliseZenZoomIndex();
+    return levels[zenZoomIndex] || 1;
   }
 
   function updateZenZoomButton() {
     if (!zenZoomBtn) return;
     const active = zenModeActive() && !firstPersonMode;
-    const zoom = currentZenZoom();
-    const nextZoom = ZEN_ZOOM_LEVELS[(zenZoomIndex + 1) % ZEN_ZOOM_LEVELS.length];
+    const levels = normaliseZenZoomIndex();
+    const zoom = levels[zenZoomIndex] || 1;
+    const canZoom = levels.length > 1;
+    const nextZoom = levels[(zenZoomIndex + 1) % levels.length] || 1;
     zenZoomBtn.hidden = !active;
+    zenZoomBtn.disabled = !active || !canZoom;
     zenZoomBtn.setAttribute("aria-pressed", String(active && zoom > 1));
-    zenZoomBtn.setAttribute("aria-label", `Board zoom ${zoom}×. Change to ${nextZoom}×.`);
-    zenZoomBtn.title = `Board zoom ${zoom}× · next ${nextZoom}×`;
-    if (zenZoomLabel) zenZoomLabel.textContent = `${zoom}×`;
+    zenZoomBtn.setAttribute("aria-label", !canZoom ? "Board zoom unavailable for this puzzle" : (nextZoom === 1 ? "Reset board zoom" : "Increase board zoom"));
+    zenZoomBtn.removeAttribute("title");
     document.body.dataset.zenZoom = String(zoom);
   }
 
@@ -4851,7 +4894,9 @@ window.BOXXY_RELEASE = Object.freeze({
 
   function cycleZenZoom() {
     if (!zenModeActive() || firstPersonMode) return;
-    zenZoomIndex = (zenZoomIndex + 1) % ZEN_ZOOM_LEVELS.length;
+    const levels = normaliseZenZoomIndex();
+    if (levels.length <= 1) return;
+    zenZoomIndex = (zenZoomIndex + 1) % levels.length;
     updateZenZoomButton();
     scheduleZenZoomFocus();
   }
@@ -5011,7 +5056,11 @@ window.BOXXY_RELEASE = Object.freeze({
     const fittedHeight = Math.floor(fittedWidth / ratio);
     board.style.width = `${Math.max(1, fittedWidth)}px`;
     board.style.height = `${Math.max(1, fittedHeight)}px`;
-    if (zenModeActive() && currentZenZoom() > 1) scheduleZenZoomFocus();
+    if (zenModeActive()) {
+      updateZenZoomButton();
+      if (currentZenZoom() > 1) scheduleZenZoomFocus();
+      else clearZenZoomTransform();
+    }
   }
 
   function scheduleBoardResize() {
@@ -5392,28 +5441,91 @@ window.BOXXY_RELEASE = Object.freeze({
     updateSettingsMouseButton();
   }
 
+  function hasTouchClickPushAccess() {
+    return Boolean(touchClickPushAccessCode && TOUCH_CLICK_PUSH_PASSWORDS.has(touchClickPushAccessCode));
+  }
+
   function updateSettingsTouchPushButton() {
     if (!settingsTouchPushToggle) return;
     const available = settingsTouchDevice();
+    const unlocked = hasTouchClickPushAccess();
     settingsTouchPushToggle.disabled = !available;
-    settingsTouchPushToggle.setAttribute("aria-pressed", String(available && touchClickPushEnabled));
-    settingsTouchPushToggle.textContent = available && touchClickPushEnabled ? "ON" : "OFF";
+    settingsTouchPushToggle.setAttribute("aria-pressed", String(available && unlocked && touchClickPushEnabled));
+    settingsTouchPushToggle.textContent = available && unlocked && touchClickPushEnabled ? "ON" : "OFF";
+    settingsTouchPushToggle.dataset.locked = String(available && !unlocked);
     if (settingsTouchPushLeaderboardWarning) {
-      settingsTouchPushLeaderboardWarning.hidden = !(available && touchClickPushEnabled);
+      settingsTouchPushLeaderboardWarning.hidden = !(available && unlocked && touchClickPushEnabled);
     }
   }
 
-  function setSettingsTouchClickPush(enabled) {
-    if (!settingsTouchDevice()) return;
-    touchClickPushEnabled = Boolean(enabled);
-    localStorage.setItem("boxxy-touch-click-push-v1", touchClickPushEnabled ? "on" : "off");
+  function setClickPushAccessStatus(message = "", kind = "") {
+    if (!clickPushAccessStatus) return;
+    clickPushAccessStatus.textContent = message;
+    clickPushAccessStatus.dataset.kind = kind;
+  }
+
+  function openClickPushAccessModal() {
+    if (!settingsTouchDevice() || !clickPushAccessModal) return;
+    clickPushAccessModal.hidden = false;
+    setClickPushAccessStatus("");
+    if (clickPushAccessPassword) clickPushAccessPassword.value = "";
+    window.setTimeout(() => clickPushAccessPassword?.focus?.({ preventScroll: true }), 0);
+  }
+
+  function closeClickPushAccessModal() {
+    if (!clickPushAccessModal) return;
+    clickPushAccessModal.hidden = true;
+    setClickPushAccessStatus("");
+    settingsTouchPushToggle?.focus?.({ preventScroll: true });
+  }
+
+  function notifyClickPushStateChanged() {
+    window.dispatchEvent(new CustomEvent("boxxyclickpushchange", {
+      detail: { enabled: touchClickPushEnabled, code: touchClickPushAccessCode }
+    }));
+  }
+
+  function setSettingsTouchClickPush(enabled, { accessChecked = false } = {}) {
+    if (!settingsTouchDevice()) return false;
+    const next = Boolean(enabled);
+    if (next && !hasTouchClickPushAccess() && !accessChecked) {
+      openClickPushAccessModal();
+      return false;
+    }
+    if (next && !hasTouchClickPushAccess()) return false;
+    touchClickPushEnabled = next;
+    localStorage.setItem(TOUCH_CLICK_PUSH_ENABLED_KEY, touchClickPushEnabled ? "on" : "off");
     document.body.classList.toggle("touch-click-push-enabled", touchClickPushEnabled);
+    if (!touchClickPushEnabled && !mouseSupportEnabled) resetMouseSupportInteraction();
+    updateSettingsTouchPushButton();
+    notifyClickPushStateChanged();
+    return true;
+  }
+
+  function unlockTouchClickPush(password) {
+    const code = String(password || "").trim().toUpperCase();
+    if (!TOUCH_CLICK_PUSH_PASSWORDS.has(code)) {
+      setClickPushAccessStatus("That access password is not recognised.", "error");
+      return false;
+    }
+    touchClickPushAccessCode = code;
+    localStorage.setItem(TOUCH_CLICK_PUSH_ACCESS_KEY, code);
+    setClickPushAccessStatus("CLICK-PUSH UNLOCKED", "success");
+    setSettingsTouchClickPush(true, { accessChecked: true });
+    window.setTimeout(closeClickPushAccessModal, 180);
+    return true;
+  }
+
+  function reloadTouchClickPushState() {
+    touchClickPushAccessCode = readTouchClickPushAccessCode();
+    touchClickPushEnabled = hasTouchClickPushAccess() && localStorage.getItem(TOUCH_CLICK_PUSH_ENABLED_KEY) === "on";
+    document.body.classList.toggle("touch-click-push-enabled", settingsTouchDevice() && touchClickPushEnabled);
     if (!touchClickPushEnabled && !mouseSupportEnabled) resetMouseSupportInteraction();
     updateSettingsTouchPushButton();
   }
 
   function pointControlMode() {
-    if (settingsTouchDevice()) return touchClickPushEnabled ? "touch" : "";
+    if (settingsTouchDevice()) return touchClickPushEnabled && hasTouchClickPushAccess() ? "touch" : "";
     if (desktopEasterEggAvailable() && mouseSupportEnabled) return "mouse";
     return "";
   }
@@ -8520,6 +8632,12 @@ window.BOXXY_RELEASE = Object.freeze({
   settingsBtn?.addEventListener("click", openSettings);
   settingsCloseBtn?.addEventListener("click", closeSettings);
   settingsModal?.addEventListener("click", event => { if (event.target === settingsModal) closeSettings(); });
+  document.addEventListener("keydown", event => {
+    if (clickPushAccessModal?.hidden !== false || event.key !== "Escape") return;
+    event.preventDefault();
+    event.stopPropagation();
+    closeClickPushAccessModal();
+  }, true);
   settingsKeyboardBtn?.addEventListener("click", () => {
     if (settingsTouchDevice()) return;
     if (settingsMainView) settingsMainView.hidden = true;
@@ -8540,6 +8658,17 @@ window.BOXXY_RELEASE = Object.freeze({
   settingsSpeedSelect?.addEventListener("change", event => applyBoxxySpeed(String(event.currentTarget.value || "normal"), true));
   settingsMouseToggle?.addEventListener("click", () => setSettingsMouseSupport(!mouseSupportEnabled));
   settingsTouchPushToggle?.addEventListener("click", () => setSettingsTouchClickPush(!touchClickPushEnabled));
+  clickPushAccessForm?.addEventListener("submit", event => {
+    event.preventDefault();
+    unlockTouchClickPush(clickPushAccessPassword?.value);
+  });
+  clickPushAccessCancelBtn?.addEventListener("click", closeClickPushAccessModal);
+  clickPushAccessModal?.addEventListener("click", event => { if (event.target === clickPushAccessModal) closeClickPushAccessModal(); });
+  clickPushContactBtn?.addEventListener("click", () => {
+    closeClickPushAccessModal();
+    settingsContactBtn?.click();
+  });
+  window.addEventListener("boxxyclickpushcloudstate", reloadTouchClickPushState);
   collectionBtn?.addEventListener("click", openPackModal);
   finalPackMoreBtn?.addEventListener("click", () => {
     closeCompleteModal();

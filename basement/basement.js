@@ -1,3 +1,4 @@
+/* BOXXY v345 — show Click-Push beta access/use in Basement. */
 /* BOXXY v337 — compact Basement type scale and non-wrapping numeric presentation; private practice protocol unchanged. */
 /* BOXXY v335 — verified completion views, responsive type and private prepared Daily catalogue. */
 /* BOXXY v334 — sortable player totals, chronological pack completion records and readable text controls. */
@@ -692,11 +693,21 @@
   document.addEventListener("keydown",event=>{if(event.key==="Escape"&&!practiceModal?.hidden){event.preventDefault();closePractice();}});
   function filteredUsers() {
     const query = String(searchInput?.value || "").trim().toLowerCase();
-    const list = query ? users.filter(user => [user.username, user.email, user.googleEmail, user.signupIp, user.lastIp].some(value => String(value || "").toLowerCase().includes(query))) : users;
+    const list = query ? users.filter(user => [user.username, user.email, user.googleEmail, user.signupIp, user.lastIp, user.summary?.clickPushCode].some(value => String(value || "").toLowerCase().includes(query))) : users;
     return list.slice().sort(compareUsers);
   }
   function googleBadge(user) {
     return user?.googleLinked ? `<span class="google-badge">GOOGLE</span>` : "";
+  }
+  function clickPushBadge(summary) {
+    if (!summary?.clickPushEnabled) return "";
+    const code = String(summary?.clickPushCode || "").trim();
+    return `<span class="click-push-badge">CLICK-PUSH${code ? ` · ${escapeHtml(code)}` : ""}</span>`;
+  }
+  function clickPushDetail(summary) {
+    const code = String(summary?.clickPushCode || "").trim();
+    if (!summary?.clickPushUnlocked || !code) return "—";
+    return `${summary?.clickPushEnabled ? "ON" : "UNLOCKED · OFF"} · ${escapeHtml(code)}`;
   }
   function emailCell(user) {
     const google = user?.googleLinked
@@ -708,7 +719,7 @@
     const list=filteredUsers();
     const number=value=>Number(value||0).toLocaleString("en-GB");
     if(userRows)userRows.innerHTML=list.map(user=>`<tr data-user-id="${escapeHtml(user.id)}" tabindex="0">
-      <td><div class="basement-user-identity"><canvas class="basement-avatar" data-avatar-user="${escapeHtml(user.id)}" width="90" height="78" aria-label="Current character"></canvas><div class="basement-user-copy"><div class="user-main user-with-status">${onlineDot(user)}${escapeHtml(user.username)}${googleBadge(user)}</div>${medalRail(user.summary)}${outfitMini(user.summary)}${boardStyleMini(user.summary)}</div></div></td>
+      <td><div class="basement-user-identity"><canvas class="basement-avatar" data-avatar-user="${escapeHtml(user.id)}" width="90" height="78" aria-label="Current character"></canvas><div class="basement-user-copy"><div class="user-main user-with-status">${onlineDot(user)}${escapeHtml(user.username)}${googleBadge(user)}${clickPushBadge(user.summary)}</div>${medalRail(user.summary)}${outfitMini(user.summary)}${boardStyleMini(user.summary)}</div></div></td>
       <td>${escapeHtml(dateTime(user.lastSeenAt))}</td>
       <td><strong>${escapeHtml(duration(user.totalActiveSeconds))}</strong></td>
       <td class="numeric-cell">${number(user.summary?.levelsCompleted)}</td>
@@ -717,7 +728,7 @@
       <td class="numeric-cell">${number(user.summary?.totalPushes)}</td>
     </tr>`).join("");
     if(userCards)userCards.innerHTML=list.map(user=>`<button type="button" class="user-card" data-user-id="${escapeHtml(user.id)}" aria-label="Open ${escapeHtml(user.username)} account">
-      <div class="user-card-heading"><canvas class="basement-avatar" data-avatar-user="${escapeHtml(user.id)}" width="90" height="78" aria-hidden="true"></canvas><div><div class="user-main user-with-status">${onlineDot(user)}${escapeHtml(user.username)}${googleBadge(user)}</div><span class="muted">${escapeHtml(user.email)}</span></div></div>
+      <div class="user-card-heading"><canvas class="basement-avatar" data-avatar-user="${escapeHtml(user.id)}" width="90" height="78" aria-hidden="true"></canvas><div><div class="user-main user-with-status">${onlineDot(user)}${escapeHtml(user.username)}${googleBadge(user)}${clickPushBadge(user.summary)}</div><span class="muted">${escapeHtml(user.email)}</span></div></div>
       <div class="user-card-grid"><div><span>LEVELS</span><strong>${number(user.summary?.levelsCompleted)}</strong></div><div><span>PACKS</span><strong>${number(user.summary?.packsCompleted)}</strong></div><div><span>STEPS</span><strong>${number(user.summary?.totalSteps)}</strong></div><div><span>PUSHES</span><strong>${number(user.summary?.totalPushes)}</strong></div></div>
       <div class="user-card-footer"><span>LAST ACTIVE</span><strong>${escapeHtml(dateTime(user.lastSeenAt))}</strong></div>
     </button>`).join("");
@@ -783,6 +794,7 @@
           <div><span>ACTIVE PACK</span><strong>${escapeHtml(user.summary?.activePack || "—")}</strong></div>
           <div><span>LAST CLOUD SAVE</span><strong>${escapeHtml(dateTime(user.progressUpdatedAt))}</strong></div>
           <div><span>BROWSER / DEVICE</span><strong>${escapeHtml(browserDevice(user.userAgent))}</strong></div>
+          <div><span>CLICK-PUSH BETA</span><strong>${clickPushDetail(user.summary)}</strong></div>
         </div>
         <div class="detail-game-stats" aria-label="Game statistics">
           <div><span>LEVELS COMPLETED</span><strong>${Number(user.summary?.levelsCompleted || 0).toLocaleString("en-GB")}</strong></div>

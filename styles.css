@@ -5619,6 +5619,39 @@ body.first-person-mode .board::after{
   .mouse-support-actions button{width:100%}
 }
 
+/* Click-Push beta access uses the same restrained modal language as Mouse Support,
+   but remains a separate access workflow rather than another movement mode. */
+.click-push-access-modal{z-index:9800;background:rgba(21,21,21,.52);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.click-push-access-card{
+  width:min(540px,92vw);
+  padding:clamp(22px,4vw,34px);
+  text-align:left;
+  border:3px solid var(--ink);
+  box-shadow:12px 12px 0 rgba(23,23,25,.24),0 28px 64px rgba(23,23,25,.32);
+}
+.click-push-access-kicker{display:block;color:var(--red);font-size:10px;font-weight:1000;letter-spacing:.16em}
+.click-push-access-card h2{margin:8px 0 14px;font-size:clamp(38px,8vw,62px);line-height:.9;letter-spacing:-.035em}
+.click-push-access-copy{margin:0 0 18px;color:#51483e;font-size:13px;line-height:1.45}
+.click-push-access-form{display:grid;gap:10px}
+.click-push-access-form label{display:grid;gap:6px;font-size:9px;font-weight:1000;letter-spacing:.08em}
+.click-push-access-form input{width:100%;min-height:44px;padding:10px 12px;border:2px solid var(--ink);background:#fffaf2;color:var(--ink);font-family:inherit;font-size:15px;font-weight:900;line-height:1.1;letter-spacing:.06em;text-transform:uppercase}
+.click-push-access-status{min-height:18px;margin:0;font-size:10px;font-weight:900;letter-spacing:.04em}
+.click-push-access-status[data-kind="error"]{color:#a92921}
+.click-push-access-status[data-kind="success"]{color:#23734b}
+.click-push-access-actions{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:stretch}
+.click-push-access-actions button{min-height:42px;padding:10px 12px;border:2px solid var(--ink);font-size:9px;font-weight:1000;letter-spacing:.05em}
+.click-push-access-actions .click-push-access-contact{background:var(--paper);color:var(--ink)}
+.click-push-access-actions .click-push-access-cancel{background:#ece4d7;color:var(--ink)}
+.click-push-access-actions .click-push-access-enable{background:var(--blue);color:#fff}
+.settings-mini-toggle[data-locked="true"]::before{content:"BETA ";font-size:.78em;letter-spacing:.04em}
+@media(max-width:560px){
+  .click-push-access-card{padding:20px}
+  .click-push-access-card h2{font-size:40px}
+  .click-push-access-copy{font-size:12px}
+  .click-push-access-actions{grid-template-columns:1fr 1fr}
+  .click-push-access-contact{grid-column:1/-1}
+}
+
 /* BOXXY v246 — mobile pack medals anchored inside the text panel. */
 .pack-selector-medal{
   position:absolute;
@@ -7141,7 +7174,7 @@ body.large-level-performance .instruction .thought-text{
   .standard-complete-result-item:nth-child(2){border-left:0}
 }
 
-/* BOXXY v344 — touch Click-Push and Zen player-follow zoom. */
+/* BOXXY v345 — gated touch Click-Push and board-size-aware Zen player-follow zoom. */
 
 .touch-settings-only{display:none}
 body.settings-touch-device .touch-settings-only:not([hidden]){display:flex}
@@ -7193,24 +7226,10 @@ body.touch-click-push-enabled .mouse-support-destination.is-goal::before{
 .zen-zoom-btn[hidden]{display:none!important}
 .zen-zoom-btn:hover{background:rgba(23,23,25,.66)}
 .zen-zoom-btn:active{transform:scale(.96);filter:none}
+.zen-zoom-btn[aria-pressed="true"]{background:rgba(229,179,42,.88);color:var(--ink);border-color:rgba(23,23,25,.8)}
+.zen-zoom-btn:disabled{opacity:.38;cursor:default;filter:none}
+.zen-zoom-btn:disabled:active{transform:none}
 .zen-zoom-btn svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2.15;stroke-linecap:round;stroke-linejoin:round}
-.zen-zoom-btn b{
-  position:absolute;
-  right:4px;
-  bottom:4px;
-  min-width:18px;
-  height:14px;
-  padding:0 3px;
-  display:grid;
-  place-items:center;
-  border-radius:7px;
-  background:var(--yellow);
-  color:var(--ink);
-  font-size:7px;
-  font-weight:1000;
-  line-height:1;
-  letter-spacing:-.02em;
-}
 body.phone-zen-mode .zen-zoom-btn,
 body.desktop-zen-mode .zen-zoom-btn{display:grid}
 .board.zen-board-zoomed{

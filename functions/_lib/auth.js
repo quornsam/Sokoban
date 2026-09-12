@@ -258,6 +258,7 @@ const BOARD_STYLE_COLOURS = new Set([
   "red", "blue", "green", "purple", "light-blue", "teal", "grey",
   "burgundy", "brown", "orange", "yellow", "lime", "pink", "cream"
 ]);
+const CLICK_PUSH_ACCESS_CODES = new Set(["RABBIT", "JIGSAW25", "TAPTAPTAP", "GRANDMASTER", "HARDCORE"]);
 
 function progressBoardStyle(progress) {
   let raw = {};
@@ -378,6 +379,9 @@ export function progressSummary(progressValue) {
     if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) avatar = parsed;
   } catch (_) {}
   const boardStyle = progressBoardStyle(progress);
+  const rawClickPushCode = String(progress["boxxy-touch-click-push-access-v1"] || "").trim().toUpperCase();
+  const clickPushCode = CLICK_PUSH_ACCESS_CODES.has(rawClickPushCode) ? rawClickPushCode : "";
+  const clickPushEnabled = Boolean(clickPushCode && progress["boxxy-touch-click-push-v1"] === "on");
 
   const activityDays = [];
   try {
@@ -407,6 +411,9 @@ export function progressSummary(progressValue) {
     activityDays,
     avatar,
     boardStyle,
+    clickPushEnabled,
+    clickPushUnlocked: Boolean(clickPushCode),
+    clickPushCode,
     packs
   };
 }
