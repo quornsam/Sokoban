@@ -27,6 +27,41 @@ import {
 } from "../_lib/google-auth.js";
 
 const SERVER_ACTIVITY_KEY = "__boxxy-server-activity-v1";
+const CLICK_PUSH_ENABLED_KEY = "boxxy-touch-click-push-v1";
+const CLICK_PUSH_ACCESS_KEY = "boxxy-touch-click-push-access-v1";
+const CLICK_PUSH_DEVICES_KEY = "boxxy-touch-click-push-devices-v1";
+
+function normaliseClickPushDevices(value) {
+  let parsed = null;
+  try { parsed = typeof value === "string" ? JSON.parse(value) : value; } catch (_) {}
+  const source = parsed && parsed.version === 1 && parsed.devices && typeof parsed.devices === "object" && !Array.isArray(parsed.devices)
+    ? parsed.devices
+    : {};
+  const devices = {};
+  for (const [deviceId, entry] of Object.entries(source)) {
+    if (!deviceId || !entry || typeof entry !== "object") continue;
+    const updatedAt = Math.max(0, Number(entry.updatedAt) || 0);
+    if (!updatedAt) continue;
+    devices[deviceId] = {
+      enabled: Boolean(entry.enabled),
+      code: String(entry.code || "").trim().toUpperCase(),
+      updatedAt
+    };
+  }
+  return devices;
+}
+
+function mergeClickPushDevices(existingValue, incomingValue) {
+  const merged = { ...normaliseClickPushDevices(existingValue) };
+  for (const [deviceId, entry] of Object.entries(normaliseClickPushDevices(incomingValue))) {
+    const previous = merged[deviceId];
+    if (!previous || Number(entry.updatedAt) >= Number(previous.updatedAt || 0)) merged[deviceId] = entry;
+  }
+  const devices = Object.fromEntries(Object.entries(merged)
+    .sort((a, b) => Number(b[1].updatedAt) - Number(a[1].updatedAt))
+    .slice(0, 24));
+  return Object.keys(devices).length ? { version: 1, devices } : null;
+}
 
 function utcDayKey(timestamp) {
   return new Date(Number(timestamp) || Date.now()).toISOString().slice(0, 10);
@@ -58,6 +93,19 @@ function withServerActivity(existingValue, incomingValue, activeSeconds, now) {
     if (!Number.isFinite(stamp) || stamp < cutoff) delete activity.days[day];
   }
   incoming[SERVER_ACTIVITY_KEY] = activity;
+
+  // Click-Push ON/OFF is a device-local setting. Merge each device record by
+  // timestamp so a laptop cannot overwrite the state last reported by a phone.
+  const clickPushDevices = mergeClickPushDevices(existing[CLICK_PUSH_DEVICES_KEY], incoming[CLICK_PUSH_DEVICES_KEY]);
+  if (clickPushDevices) {
+    incoming[CLICK_PUSH_DEVICES_KEY] = JSON.stringify(clickPushDevices);
+  } else if (existing[CLICK_PUSH_ENABLED_KEY] != null && incoming[CLICK_PUSH_ENABLED_KEY] == null) {
+    // Preserve the v345 scalar until a v346 touch device reports its own state.
+    incoming[CLICK_PUSH_ENABLED_KEY] = existing[CLICK_PUSH_ENABLED_KEY];
+  }
+  if (!String(incoming[CLICK_PUSH_ACCESS_KEY] || "").trim() && String(existing[CLICK_PUSH_ACCESS_KEY] || "").trim()) {
+    incoming[CLICK_PUSH_ACCESS_KEY] = existing[CLICK_PUSH_ACCESS_KEY];
+  }
   return incoming;
 }
 

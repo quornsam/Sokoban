@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "345",
+  version: "346",
   lastUpdated: "2026-09-12"
 });
+/* BOXXY v346 — reliable per-device Click-Push reporting and optional completed-solve data copy. */
 /* BOXXY v345 — Click-Push beta access gate, account/Basement reporting and board-size-aware Zen zoom limit. */
 /* BOXXY v344 — optional touch Click-Push shares the existing point-routing engine; Zen Mode adds player-follow camera zoom. */
 /* BOXXY v343 — Sean Heapy added as the seventh BOXXY Originals completer. */
@@ -2187,6 +2188,7 @@ window.BOXXY_RELEASE = Object.freeze({
   const settingsTouchPushRow = document.getElementById("settingsTouchPushRow");
   const settingsTouchPushToggle = document.getElementById("settingsTouchPushToggle");
   const settingsTouchPushLeaderboardWarning = document.getElementById("settingsTouchPushLeaderboardWarning");
+  const settingsSolutionDataToggle = document.getElementById("settingsSolutionDataToggle");
   const clickPushAccessModal = document.getElementById("clickPushAccessModal");
   const clickPushAccessForm = document.getElementById("clickPushAccessForm");
   const clickPushAccessPassword = document.getElementById("clickPushAccessPassword");
@@ -2266,6 +2268,7 @@ window.BOXXY_RELEASE = Object.freeze({
   const nextBtn = document.getElementById("nextBtn");
   const dailyCompletionActions = document.getElementById("dailyCompletionActions");
   const standardCompletionActions = document.getElementById("standardCompletionActions");
+  const copySolveDataBtn = document.getElementById("copySolveDataBtn");
   const dailyCompletePackBtn = document.getElementById("dailyCompletePackBtn");
   const dailyCompleteArchiveBtn = document.getElementById("dailyCompleteArchiveBtn");
   const completeCloseBtn = document.getElementById("completeCloseBtn");
@@ -2366,6 +2369,7 @@ window.BOXXY_RELEASE = Object.freeze({
   let makerCompletedRoute = "";
   let completeMode = "normal";
   let completionPackContext = null;
+  let completionSolveData = "";
   let startedAt = 0;
   let timer = null;
   let idleTimer = null;
@@ -2417,18 +2421,49 @@ window.BOXXY_RELEASE = Object.freeze({
   let mouseSupportArmed = false;
   let mouseSupportResetTimer = null;
   let mouseSupportEnabled = localStorage.getItem("boxxy-mouse-support-v1") === "on";
+  const LEVEL_SOLUTION_AVAILABLE_KEY = "boxxy-level-solution-available-v1";
+  let levelSolutionAvailable = localStorage.getItem(LEVEL_SOLUTION_AVAILABLE_KEY) === "on";
   const TOUCH_CLICK_PUSH_ENABLED_KEY = "boxxy-touch-click-push-v1";
   const TOUCH_CLICK_PUSH_ACCESS_KEY = "boxxy-touch-click-push-access-v1";
+  const TOUCH_CLICK_PUSH_DEVICES_KEY = "boxxy-touch-click-push-devices-v1";
   const TOUCH_CLICK_PUSH_PASSWORDS = new Set(["RABBIT", "JIGSAW25", "TAPTAPTAP", "GRANDMASTER", "HARDCORE"]);
   function readTouchClickPushAccessCode() {
     const code = String(localStorage.getItem(TOUCH_CLICK_PUSH_ACCESS_KEY) || "").trim().toUpperCase();
     return TOUCH_CLICK_PUSH_PASSWORDS.has(code) ? code : "";
+  }
+  function readTouchClickPushDevices() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(TOUCH_CLICK_PUSH_DEVICES_KEY) || "null");
+      if (parsed && parsed.version === 1 && parsed.devices && typeof parsed.devices === "object" && !Array.isArray(parsed.devices)) return parsed;
+    } catch (_) {}
+    return { version: 1, devices: {} };
+  }
+  function recordTouchClickPushDeviceState() {
+    if (!settingsTouchDevice() || !touchClickPushAccessCode || !TOUCH_CLICK_PUSH_PASSWORDS.has(touchClickPushAccessCode)) return false;
+    try {
+      const state = readTouchClickPushDevices();
+      const deviceId = boxxyDeviceId();
+      const previous = state.devices[deviceId] && typeof state.devices[deviceId] === "object" ? state.devices[deviceId] : null;
+      const enabled = Boolean(touchClickPushEnabled);
+      if (previous && Boolean(previous.enabled) === enabled && String(previous.code || "") === touchClickPushAccessCode) return false;
+      state.devices[deviceId] = { enabled, code: touchClickPushAccessCode, updatedAt: Date.now() };
+      const entries = Object.entries(state.devices)
+        .filter(([, entry]) => entry && typeof entry === "object" && Number.isFinite(Number(entry.updatedAt)))
+        .sort((a, b) => Number(b[1].updatedAt) - Number(a[1].updatedAt))
+        .slice(0, 24);
+      state.devices = Object.fromEntries(entries);
+      localStorage.setItem(TOUCH_CLICK_PUSH_DEVICES_KEY, JSON.stringify(state));
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
   let touchClickPushAccessCode = readTouchClickPushAccessCode();
   let touchClickPushEnabled = Boolean(touchClickPushAccessCode) && localStorage.getItem(TOUCH_CLICK_PUSH_ENABLED_KEY) === "on";
   if (!touchClickPushAccessCode && localStorage.getItem(TOUCH_CLICK_PUSH_ENABLED_KEY) === "on") {
     localStorage.setItem(TOUCH_CLICK_PUSH_ENABLED_KEY, "off");
   }
+  recordTouchClickPushDeviceState();
   let mouseSupportBusy = false;
   let mouseSupportExecutingStep = false;
   let mouseSupportRouteTimer = null;
@@ -3021,6 +3056,8 @@ window.BOXXY_RELEASE = Object.freeze({
     restoreStandardCompletionActions();
     completeCard?.classList.remove("final-complete");
     completionPackContext = null;
+    completionSolveData = "";
+    updateCompletionSolveDataButton();
     hidePackCompletionStats();
     hidePackStarAward();
   }
@@ -5195,6 +5232,7 @@ window.BOXXY_RELEASE = Object.freeze({
     document.body.classList.toggle("touch-click-push-enabled", touchDevice && touchClickPushEnabled);
     updateSettingsMouseButton();
     updateSettingsTouchPushButton();
+    updateSettingsSolutionDataButton();
   }
 
   function updateSoundButton() {
@@ -5441,6 +5479,19 @@ window.BOXXY_RELEASE = Object.freeze({
     updateSettingsMouseButton();
   }
 
+  function updateSettingsSolutionDataButton() {
+    if (!settingsSolutionDataToggle) return;
+    settingsSolutionDataToggle.setAttribute("aria-pressed", String(levelSolutionAvailable));
+    settingsSolutionDataToggle.textContent = levelSolutionAvailable ? "ON" : "OFF";
+  }
+
+  function setLevelSolutionAvailable(enabled) {
+    levelSolutionAvailable = Boolean(enabled);
+    localStorage.setItem(LEVEL_SOLUTION_AVAILABLE_KEY, levelSolutionAvailable ? "on" : "off");
+    updateSettingsSolutionDataButton();
+    updateCompletionSolveDataButton();
+  }
+
   function hasTouchClickPushAccess() {
     return Boolean(touchClickPushAccessCode && TOUCH_CLICK_PUSH_PASSWORDS.has(touchClickPushAccessCode));
   }
@@ -5480,6 +5531,7 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   function notifyClickPushStateChanged() {
+    recordTouchClickPushDeviceState();
     window.dispatchEvent(new CustomEvent("boxxyclickpushchange", {
       detail: { enabled: touchClickPushEnabled, code: touchClickPushAccessCode }
     }));
@@ -7264,6 +7316,49 @@ window.BOXXY_RELEASE = Object.freeze({
     return boxes.every(box => isGoal(box.x, box.y));
   }
 
+  function canonicalCompletedSolveData() {
+    const rows = Array.isArray(levelData?.layout) ? levelData.layout : [];
+    const route = String(playedRoute || "").replace(/[^UDLR]/gi, "");
+    if (!rows.length || !route) return "";
+    const result = window.BoxxyRouteVerifier?.verify?.(rows.join("\n"), route);
+    return result?.valid && result?.solved ? String(result.route || "") : "";
+  }
+
+  function updateCompletionSolveDataButton() {
+    if (!copySolveDataBtn) return;
+    const eligibleMode = completeMode === "normal" || completeMode === "daily" || completeMode === "final";
+    copySolveDataBtn.hidden = !(levelSolutionAvailable && eligibleMode && completionSolveData);
+    if (!copySolveDataBtn.hidden && copySolveDataBtn.dataset.copyState !== "copied") copySolveDataBtn.textContent = "COPY SOLVE DATA";
+  }
+
+  async function copyCompletionSolveData() {
+    const text = String(completionSolveData || "");
+    if (!text || !copySolveDataBtn) return false;
+    let copied = false;
+    try {
+      await navigator.clipboard.writeText(text);
+      copied = true;
+    } catch (_) {
+      const field = document.createElement("textarea");
+      field.value = text;
+      field.setAttribute("readonly", "");
+      field.style.position = "fixed";
+      field.style.opacity = "0";
+      document.body.appendChild(field);
+      field.select();
+      try { copied = document.execCommand("copy"); } catch (_) {}
+      field.remove();
+    }
+    copySolveDataBtn.dataset.copyState = copied ? "copied" : "failed";
+    copySolveDataBtn.textContent = copied ? "SOLVE DATA COPIED" : "COPY FAILED";
+    window.setTimeout(() => {
+      if (!copySolveDataBtn) return;
+      delete copySolveDataBtn.dataset.copyState;
+      copySolveDataBtn.textContent = "COPY SOLVE DATA";
+    }, 1600);
+    return copied;
+  }
+
   function finish() {
     blockedPushHeld = false;
     completed = true;
@@ -7271,6 +7366,7 @@ window.BOXXY_RELEASE = Object.freeze({
     clearInterval(timer);
     timer = null;
     const completionSeconds = elapsedLevelSeconds();
+    completionSolveData = (levelSolutionAvailable && !makerTesting && !sharedPuzzleMode) ? canonicalCompletedSolveData() : "";
     setPreciseClockContent(timeEl, completionSeconds);
     if (!makerTesting && !sharedPuzzleMode && !dailyMode) clearCurrentCheckpoint();
 
@@ -7520,6 +7616,7 @@ window.BOXXY_RELEASE = Object.freeze({
       }
     }
 
+    updateCompletionSolveDataButton();
     const grandCelebrationPack = completeMode === "final" ? (completionPackContext || activePack) : null;
     showRandomCompletionSprite();
     burst();
@@ -8658,6 +8755,8 @@ window.BOXXY_RELEASE = Object.freeze({
   settingsSpeedSelect?.addEventListener("change", event => applyBoxxySpeed(String(event.currentTarget.value || "normal"), true));
   settingsMouseToggle?.addEventListener("click", () => setSettingsMouseSupport(!mouseSupportEnabled));
   settingsTouchPushToggle?.addEventListener("click", () => setSettingsTouchClickPush(!touchClickPushEnabled));
+  settingsSolutionDataToggle?.addEventListener("click", () => setLevelSolutionAvailable(!levelSolutionAvailable));
+  copySolveDataBtn?.addEventListener("click", copyCompletionSolveData);
   clickPushAccessForm?.addEventListener("submit", event => {
     event.preventDefault();
     unlockTouchClickPush(clickPushAccessPassword?.value);

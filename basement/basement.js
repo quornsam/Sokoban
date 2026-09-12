@@ -1,3 +1,4 @@
+/* BOXXY v346 — Click-Push status is explicit and merge-safe across multiple devices. */
 /* BOXXY v345 — show Click-Push beta access/use in Basement. */
 /* BOXXY v337 — compact Basement type scale and non-wrapping numeric presentation; private practice protocol unchanged. */
 /* BOXXY v335 — verified completion views, responsive type and private prepared Daily catalogue. */
@@ -693,21 +694,28 @@
   document.addEventListener("keydown",event=>{if(event.key==="Escape"&&!practiceModal?.hidden){event.preventDefault();closePractice();}});
   function filteredUsers() {
     const query = String(searchInput?.value || "").trim().toLowerCase();
-    const list = query ? users.filter(user => [user.username, user.email, user.googleEmail, user.signupIp, user.lastIp, user.summary?.clickPushCode].some(value => String(value || "").toLowerCase().includes(query))) : users;
+    const list = query ? users.filter(user => [user.username, user.email, user.googleEmail, user.signupIp, user.lastIp, user.summary?.clickPushCode, ...(user.summary?.clickPushCodes || [])].some(value => String(value || "").toLowerCase().includes(query))) : users;
     return list.slice().sort(compareUsers);
   }
   function googleBadge(user) {
     return user?.googleLinked ? `<span class="google-badge">GOOGLE</span>` : "";
   }
   function clickPushBadge(summary) {
-    if (!summary?.clickPushEnabled) return "";
-    const code = String(summary?.clickPushCode || "").trim();
-    return `<span class="click-push-badge">CLICK-PUSH${code ? ` · ${escapeHtml(code)}` : ""}</span>`;
+    if (!summary?.clickPushUnlocked) return "";
+    const codes = Array.isArray(summary?.clickPushCodes) ? summary.clickPushCodes.filter(Boolean) : [];
+    const code = String(codes[0] || summary?.clickPushCode || "").trim();
+    const on = Boolean(summary?.clickPushEnabled);
+    const deviceCount = Math.max(0, Number(summary?.clickPushDeviceCount) || 0);
+    const devices = on && deviceCount > 1 ? ` · ${deviceCount} DEVICES` : "";
+    return `<span class="click-push-badge">CLICK-PUSH · ${on ? "ON" : "OFF"}${devices}${code ? ` · ${escapeHtml(code)}` : ""}</span>`;
   }
   function clickPushDetail(summary) {
-    const code = String(summary?.clickPushCode || "").trim();
-    if (!summary?.clickPushUnlocked || !code) return "—";
-    return `${summary?.clickPushEnabled ? "ON" : "UNLOCKED · OFF"} · ${escapeHtml(code)}`;
+    if (!summary?.clickPushUnlocked) return "—";
+    const codes = Array.isArray(summary?.clickPushCodes) ? summary.clickPushCodes.filter(Boolean) : [];
+    const codeText = codes.length ? codes.map(escapeHtml).join(" / ") : escapeHtml(String(summary?.clickPushCode || ""));
+    const deviceCount = Math.max(0, Number(summary?.clickPushDeviceCount) || 0);
+    if (summary?.clickPushEnabled) return `ON · ${deviceCount || 1} ${deviceCount === 1 ? "DEVICE" : "DEVICES"}${codeText ? ` · ${codeText}` : ""}`;
+    return `UNLOCKED · OFF${codeText ? ` · ${codeText}` : ""}`;
   }
   function emailCell(user) {
     const google = user?.googleLinked
