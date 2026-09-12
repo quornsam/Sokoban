@@ -159,7 +159,7 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=346">
+<link rel="stylesheet" href="styles.css?v=347">
 <link rel="stylesheet" href="how-to-play.css?v=225">
 <link rel="preload" as="image" href="assets/board/boxes/box-default-yellow.png?v=226">
 <link rel="preload" as="image" href="assets/board/goals/goal-red.png?v=226">
@@ -215,6 +215,10 @@
       </div>
       <button id="zenZoomBtn" class="zen-zoom-btn" type="button" hidden aria-label="Increase board zoom" aria-pressed="false">
         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="10.5" cy="10.5" r="5.8"/><path d="m15 15 5 5"/></svg>
+      </button>
+      <button id="zenCameraModeBtn" class="zen-camera-mode-btn" type="button" hidden aria-label="Zoom camera follows player. Switch to static." aria-pressed="false" data-mode="follow">
+        <svg class="zen-camera-follow-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3"/></svg>
+        <svg class="zen-camera-static-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" hidden><rect x="6.5" y="10" width="11" height="9" rx="2"/><path d="M9 10V7.5a3 3 0 0 1 6 0V10"/></svg>
       </button>
       <button id="mobileFullscreenBtn" class="mobile-fullscreen-btn" type="button" hidden aria-label="Enter full screen" aria-pressed="false" title="Enter full screen">
         <svg class="mobile-fullscreen-enter" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -1370,7 +1374,7 @@
 <script src="daily-puzzles/boxxy-daily-loader.js?v=218"></script>
 <script src="levels.js?v=268"></script>
 <script src="starry-night.js?v=302"></script>
-<script src="boxxy.js?v=346"></script>
+<script src="boxxy.js?v=347"></script>
 <script src="account.js?v=346"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="pack-builder.js?v=216"></script>

@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "346",
+  version: "347",
   lastUpdated: "2026-09-12"
 });
+/* BOXXY v347 — Zen zoom adds follow/static camera modes with dead-zone smoothing. */
 /* BOXXY v346 — reliable per-device Click-Push reporting and optional completed-solve data copy. */
 /* BOXXY v345 — Click-Push beta access gate, account/Basement reporting and board-size-aware Zen zoom limit. */
 /* BOXXY v344 — optional touch Click-Push shares the existing point-routing engine; Zen Mode adds player-follow camera zoom. */
@@ -2316,6 +2317,7 @@ window.BOXXY_RELEASE = Object.freeze({
   const fullscreenBtn = document.getElementById("fullscreenBtn");
   const mobileFullscreenBtn = document.getElementById("mobileFullscreenBtn");
   const zenZoomBtn = document.getElementById("zenZoomBtn");
+  const zenCameraModeBtn = document.getElementById("zenCameraModeBtn");
   const zenNextBtn = document.getElementById("zenNextBtn");
   const legalBtn = document.getElementById("legalBtn");
   const legalModal = document.getElementById("legalModal");
@@ -2482,8 +2484,14 @@ window.BOXXY_RELEASE = Object.freeze({
   let firstPersonCameraZoom = 0;
   const ZEN_ZOOM_LEVELS = Object.freeze([1, 2, 4, 8]);
   const ZEN_ZOOM_TARGET_VISIBLE_CELLS = 10;
+  const ZEN_CAMERA_FOLLOW_DEAD_ZONE_X = 0.52;
+  const ZEN_CAMERA_FOLLOW_DEAD_ZONE_Y = 0.58;
   let zenZoomIndex = 0;
   let zenZoomFrame = 0;
+  let zenZoomRecenterPending = false;
+  let zenCameraMode = "follow";
+  let zenCameraTranslateX = null;
+  let zenCameraTranslateY = null;
   const firstPersonAvatarImages = new Map();
   let currentAnimation = "idle";
   let thoughtTimer = null;
@@ -4838,6 +4846,18 @@ window.BOXXY_RELEASE = Object.freeze({
     return levels[zenZoomIndex] || 1;
   }
 
+  function updateZenCameraModeButton() {
+    if (!zenCameraModeBtn) return;
+    const zoomed = zenModeActive() && !firstPersonMode && currentZenZoom() > 1;
+    const isStatic = zenCameraMode === "static";
+    zenCameraModeBtn.hidden = !zoomed;
+    zenCameraModeBtn.setAttribute("aria-pressed", String(isStatic));
+    zenCameraModeBtn.setAttribute("aria-label", isStatic ? "Zoom camera is static. Switch to follow." : "Zoom camera follows player. Switch to static.");
+    zenCameraModeBtn.dataset.mode = zenCameraMode;
+    zenCameraModeBtn.querySelector(".zen-camera-follow-icon")?.toggleAttribute("hidden", isStatic);
+    zenCameraModeBtn.querySelector(".zen-camera-static-icon")?.toggleAttribute("hidden", !isStatic);
+  }
+
   function updateZenZoomButton() {
     if (!zenZoomBtn) return;
     const active = zenModeActive() && !firstPersonMode;
@@ -4851,27 +4871,71 @@ window.BOXXY_RELEASE = Object.freeze({
     zenZoomBtn.setAttribute("aria-label", !canZoom ? "Board zoom unavailable for this puzzle" : (nextZoom === 1 ? "Reset board zoom" : "Increase board zoom"));
     zenZoomBtn.removeAttribute("title");
     document.body.dataset.zenZoom = String(zoom);
+    updateZenCameraModeButton();
   }
 
   function clearZenZoomTransform() {
     cancelAnimationFrame(zenZoomFrame);
     zenZoomFrame = 0;
+    zenZoomRecenterPending = false;
+    zenCameraTranslateX = null;
+    zenCameraTranslateY = null;
     if (!board) return;
-    board.classList.remove("zen-board-zoomed");
+    board.classList.remove("zen-board-zoomed", "zen-camera-follow", "zen-camera-static");
     board.style.removeProperty("transform");
     board.style.removeProperty("transform-origin");
   }
 
   function resetZenZoom() {
     zenZoomIndex = 0;
+    zenCameraMode = "follow";
     clearZenZoomTransform();
     updateZenZoomButton();
   }
 
+  function centredZenCameraTranslation(geometry) {
+    const {
+      contentStart, contentSize, contentEnd, baseStart,
+      playerPosition, scaledSize
+    } = geometry;
+    if (scaledSize <= contentSize) {
+      return contentStart + (contentSize - scaledSize) / 2 - baseStart;
+    }
+    const desired = contentStart + contentSize / 2 - baseStart - playerPosition;
+    const minimum = contentEnd - baseStart - scaledSize;
+    const maximum = contentStart - baseStart;
+    return Math.min(maximum, Math.max(minimum, desired));
+  }
+
+  function clampZenCameraTranslation(value, geometry) {
+    const { contentStart, contentSize, contentEnd, baseStart, scaledSize } = geometry;
+    if (scaledSize <= contentSize) return contentStart + (contentSize - scaledSize) / 2 - baseStart;
+    const minimum = contentEnd - baseStart - scaledSize;
+    const maximum = contentStart - baseStart;
+    return Math.min(maximum, Math.max(minimum, value));
+  }
+
+  function followZenCameraTranslation(value, geometry, deadZoneRatio) {
+    const {
+      contentStart, contentSize, baseStart, playerPosition
+    } = geometry;
+    const projectedPlayer = baseStart + value + playerPosition;
+    const inset = contentSize * (1 - deadZoneRatio) / 2;
+    const safeStart = contentStart + inset;
+    const safeEnd = contentStart + contentSize - inset;
+    let next = value;
+    if (projectedPlayer < safeStart) next += safeStart - projectedPlayer;
+    else if (projectedPlayer > safeEnd) next -= projectedPlayer - safeEnd;
+    return clampZenCameraTranslation(next, geometry);
+  }
+
   function applyZenZoomFocus() {
     zenZoomFrame = 0;
+    const recenter = zenZoomRecenterPending;
+    zenZoomRecenterPending = false;
     if (!board || !boardWrap || !zenModeActive() || firstPersonMode || currentZenZoom() === 1 || !width || !height) {
       clearZenZoomTransform();
+      updateZenCameraModeButton();
       return;
     }
 
@@ -4894,37 +4958,51 @@ window.BOXXY_RELEASE = Object.freeze({
 
     const baseLeft = board.offsetLeft;
     const baseTop = board.offsetTop;
-    const playerX = (player[0] + 0.5) / width * boardWidth;
-    const playerY = (player[1] + 0.5) / height * boardHeight;
+    const playerScaledX = (player[0] + 0.5) / width * boardWidth * zoom;
+    const playerScaledY = (player[1] + 0.5) / height * boardHeight * zoom;
     const scaledWidth = boardWidth * zoom;
     const scaledHeight = boardHeight * zoom;
+    const xGeometry = {
+      contentStart: contentLeft,
+      contentSize: contentWidth,
+      contentEnd: contentRight,
+      baseStart: baseLeft,
+      playerPosition: playerScaledX,
+      scaledSize: scaledWidth
+    };
+    const yGeometry = {
+      contentStart: contentTop,
+      contentSize: contentHeight,
+      contentEnd: contentBottom,
+      baseStart: baseTop,
+      playerPosition: playerScaledY,
+      scaledSize: scaledHeight
+    };
 
-    let translateX;
-    if (scaledWidth <= contentWidth) {
-      translateX = contentLeft + (contentWidth - scaledWidth) / 2 - baseLeft;
+    const cameraUninitialised = !Number.isFinite(zenCameraTranslateX) || !Number.isFinite(zenCameraTranslateY);
+    if (recenter || cameraUninitialised) {
+      zenCameraTranslateX = centredZenCameraTranslation(xGeometry);
+      zenCameraTranslateY = centredZenCameraTranslation(yGeometry);
+    } else if (zenCameraMode === "follow") {
+      zenCameraTranslateX = followZenCameraTranslation(zenCameraTranslateX, xGeometry, ZEN_CAMERA_FOLLOW_DEAD_ZONE_X);
+      zenCameraTranslateY = followZenCameraTranslation(zenCameraTranslateY, yGeometry, ZEN_CAMERA_FOLLOW_DEAD_ZONE_Y);
     } else {
-      const desired = contentLeft + contentWidth / 2 - baseLeft - playerX * zoom;
-      const minimum = contentRight - baseLeft - scaledWidth;
-      const maximum = contentLeft - baseLeft;
-      translateX = Math.min(maximum, Math.max(minimum, desired));
-    }
-
-    let translateY;
-    if (scaledHeight <= contentHeight) {
-      translateY = contentTop + (contentHeight - scaledHeight) / 2 - baseTop;
-    } else {
-      const desired = contentTop + contentHeight / 2 - baseTop - playerY * zoom;
-      const minimum = contentBottom - baseTop - scaledHeight;
-      const maximum = contentTop - baseTop;
-      translateY = Math.min(maximum, Math.max(minimum, desired));
+      // Static mode deliberately keeps the viewport fixed while the player moves.
+      // Only layout constraints may clamp it; clicking Zoom explicitly recentres it.
+      zenCameraTranslateX = clampZenCameraTranslation(zenCameraTranslateX, xGeometry);
+      zenCameraTranslateY = clampZenCameraTranslation(zenCameraTranslateY, yGeometry);
     }
 
     board.classList.add("zen-board-zoomed");
+    board.classList.toggle("zen-camera-follow", zenCameraMode === "follow");
+    board.classList.toggle("zen-camera-static", zenCameraMode === "static");
     board.style.transformOrigin = "0 0";
-    board.style.transform = `translate3d(${translateX.toFixed(2)}px, ${translateY.toFixed(2)}px, 0) scale(${zoom})`;
+    board.style.transform = `translate3d(${zenCameraTranslateX.toFixed(2)}px, ${zenCameraTranslateY.toFixed(2)}px, 0) scale(${zoom})`;
+    updateZenCameraModeButton();
   }
 
-  function scheduleZenZoomFocus() {
+  function scheduleZenZoomFocus(options = {}) {
+    if (options.recenter) zenZoomRecenterPending = true;
     cancelAnimationFrame(zenZoomFrame);
     zenZoomFrame = requestAnimationFrame(applyZenZoomFocus);
   }
@@ -4934,7 +5012,20 @@ window.BOXXY_RELEASE = Object.freeze({
     const levels = normaliseZenZoomIndex();
     if (levels.length <= 1) return;
     zenZoomIndex = (zenZoomIndex + 1) % levels.length;
+    if ((levels[zenZoomIndex] || 1) === 1) {
+      zenCameraMode = "follow";
+      clearZenZoomTransform();
+      updateZenZoomButton();
+      return;
+    }
     updateZenZoomButton();
+    scheduleZenZoomFocus({ recenter: true });
+  }
+
+  function toggleZenCameraMode() {
+    if (!zenModeActive() || firstPersonMode || currentZenZoom() === 1) return;
+    zenCameraMode = zenCameraMode === "follow" ? "static" : "follow";
+    updateZenCameraModeButton();
     scheduleZenZoomFocus();
   }
 
@@ -8622,6 +8713,7 @@ window.BOXXY_RELEASE = Object.freeze({
   fullscreenBtn?.addEventListener("click", toggleFullscreen);
   mobileFullscreenBtn?.addEventListener("click", toggleFullscreen);
   zenZoomBtn?.addEventListener("click", cycleZenZoom);
+  zenCameraModeBtn?.addEventListener("click", toggleZenCameraMode);
   document.addEventListener("fullscreenchange", () => { updateFullscreenButton(); scheduleBoardResize(); });
   document.addEventListener("webkitfullscreenchange", () => { updateFullscreenButton(); scheduleBoardResize(); });
   window.addEventListener("resize", () => {

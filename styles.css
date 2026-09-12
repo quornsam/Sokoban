@@ -7205,7 +7205,9 @@ body.touch-click-push-enabled .mouse-support-destination.is-goal::before{
   background:rgba(247,240,229,.94);
 }
 
-.zen-zoom-btn{
+/* BOXXY v347 — Zen zoom camera can smoothly follow through a dead zone or stay static. */
+.zen-zoom-btn,
+.zen-camera-mode-btn{
   display:none;
   position:fixed;
   z-index:8501;
@@ -7223,24 +7225,29 @@ body.touch-click-push-enabled .mouse-support-destination.is-goal::before{
   line-height:0;
   touch-action:manipulation;
 }
-.zen-zoom-btn[hidden]{display:none!important}
-.zen-zoom-btn:hover{background:rgba(23,23,25,.66)}
-.zen-zoom-btn:active{transform:scale(.96);filter:none}
-.zen-zoom-btn[aria-pressed="true"]{background:rgba(229,179,42,.88);color:var(--ink);border-color:rgba(23,23,25,.8)}
+.zen-zoom-btn[hidden],.zen-camera-mode-btn[hidden]{display:none!important}
+.zen-zoom-btn:hover,.zen-camera-mode-btn:hover{background:rgba(23,23,25,.66)}
+.zen-zoom-btn:active,.zen-camera-mode-btn:active{transform:scale(.96);filter:none}
+.zen-zoom-btn[aria-pressed="true"],.zen-camera-mode-btn[aria-pressed="true"]{background:rgba(229,179,42,.88);color:var(--ink);border-color:rgba(23,23,25,.8)}
 .zen-zoom-btn:disabled{opacity:.38;cursor:default;filter:none}
 .zen-zoom-btn:disabled:active{transform:none}
-.zen-zoom-btn svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2.15;stroke-linecap:round;stroke-linejoin:round}
+.zen-zoom-btn svg,.zen-camera-mode-btn svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2.15;stroke-linecap:round;stroke-linejoin:round}
 body.phone-zen-mode .zen-zoom-btn,
-body.desktop-zen-mode .zen-zoom-btn{display:grid}
-.board.zen-board-zoomed{
-  will-change:transform;
-  transition:transform .14s cubic-bezier(.2,.75,.3,1);
-}
+body.desktop-zen-mode .zen-zoom-btn,
+body.phone-zen-mode .zen-camera-mode-btn:not([hidden]),
+body.desktop-zen-mode .zen-camera-mode-btn:not([hidden]){display:grid}
+.board.zen-board-zoomed{will-change:transform}
+.board.zen-board-zoomed.zen-camera-follow{transition:transform .30s cubic-bezier(.18,.72,.24,1)}
+.board.zen-board-zoomed.zen-camera-static{transition:transform .16s cubic-bezier(.2,.75,.3,1)}
 
 /* Phone Zen: keep the zoom control immediately above the Zen exit control. */
 @media (max-width:760px) and (pointer:coarse){
   body.phone-zen-mode .zen-zoom-btn{
     right:max(10px,env(safe-area-inset-right));
+    top:max(10px,env(safe-area-inset-top));
+  }
+  body.phone-zen-mode .zen-camera-mode-btn{
+    right:calc(max(10px,env(safe-area-inset-right)) + 56px);
     top:max(10px,env(safe-area-inset-top));
   }
   body.phone-zen-mode .mobile-fullscreen-btn{
@@ -7251,6 +7258,15 @@ body.desktop-zen-mode .zen-zoom-btn{display:grid}
 @media (max-height:520px) and (orientation:landscape) and (pointer:coarse){
   body.phone-zen-mode .zen-zoom-btn{
     left:max(10px,env(safe-area-inset-left));
+    right:auto;
+    top:max(10px,env(safe-area-inset-top));
+    width:42px;
+    height:42px;
+    padding:9px;
+    border-radius:10px;
+  }
+  body.phone-zen-mode .zen-camera-mode-btn{
+    left:calc(max(10px,env(safe-area-inset-left)) + 52px);
     right:auto;
     top:max(10px,env(safe-area-inset-top));
     width:42px;
@@ -7270,6 +7286,10 @@ body.desktop-zen-mode .zen-zoom-btn{display:grid}
 @media (min-width:761px) and (hover:hover) and (pointer:fine){
   body.desktop-zen-mode .zen-zoom-btn{
     right:max(18px,env(safe-area-inset-right));
+    bottom:72px;
+  }
+  body.desktop-zen-mode .zen-camera-mode-btn{
+    right:calc(max(18px,env(safe-area-inset-right)) + 56px);
     bottom:72px;
   }
 }
