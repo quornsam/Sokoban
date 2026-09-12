@@ -7236,9 +7236,20 @@ body.phone-zen-mode .zen-zoom-btn,
 body.desktop-zen-mode .zen-zoom-btn,
 body.phone-zen-mode .zen-camera-mode-btn:not([hidden]),
 body.desktop-zen-mode .zen-camera-mode-btn:not([hidden]){display:grid}
-.board.zen-board-zoomed{will-change:transform}
-.board.zen-board-zoomed.zen-camera-follow{transition:transform .30s cubic-bezier(.18,.72,.24,1)}
-.board.zen-board-zoomed.zen-camera-static{transition:transform .16s cubic-bezier(.2,.75,.3,1)}
+/* BOXXY v348 — zoomed boards are laid out at their real pixel size. The camera
+   only translates that already-sized board; it never scales the board texture.
+   This keeps floor grid lines and cell layers on one geometry and avoids costly
+   resampling of large boards while the camera follows the player. */
+.board.zen-board-zoomed{
+  position:absolute!important;
+  left:0!important;
+  top:0!important;
+  max-width:none!important;
+  max-height:none!important;
+  will-change:transform;
+}
+.board.zen-board-zoomed.zen-camera-follow{transition:transform .22s cubic-bezier(.18,.72,.24,1)}
+.board.zen-board-zoomed.zen-camera-static{transition:transform .14s cubic-bezier(.2,.75,.3,1)}
 
 /* Phone Zen: keep the zoom control immediately above the Zen exit control. */
 @media (max-width:760px) and (pointer:coarse){

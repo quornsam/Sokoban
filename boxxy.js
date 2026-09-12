@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "347",
+  version: "348",
   lastUpdated: "2026-09-12"
 });
+/* BOXXY v348 — Zen zoom renders the board at its real zoomed size and pans by translation only, fixing mobile grid alignment and reducing large-level camera work. */
 /* BOXXY v347 — Zen zoom adds follow/static camera modes with dead-zone smoothing. */
 /* BOXXY v346 — reliable per-device Click-Push reporting and optional completed-solve data copy. */
 /* BOXXY v345 — Click-Push beta access gate, account/Basement reporting and board-size-aware Zen zoom limit. */
@@ -2490,8 +2491,11 @@ window.BOXXY_RELEASE = Object.freeze({
   let zenZoomFrame = 0;
   let zenZoomRecenterPending = false;
   let zenCameraMode = "follow";
-  let zenCameraTranslateX = null;
-  let zenCameraTranslateY = null;
+  let zenCameraLeft = null;
+  let zenCameraTop = null;
+  let zenBaseBoardWidth = 0;
+  let zenBaseBoardHeight = 0;
+  let zenCameraGeometry = null;
   const firstPersonAvatarImages = new Map();
   let currentAnimation = "idle";
   let thoughtTimer = null;
@@ -4874,16 +4878,33 @@ window.BOXXY_RELEASE = Object.freeze({
     updateZenCameraModeButton();
   }
 
+  function invalidateZenCameraGeometry() {
+    zenCameraGeometry = null;
+  }
+
+  function setZenBoardPixelSize(zoom) {
+    if (!board || !zenBaseBoardWidth || !zenBaseBoardHeight) return;
+    const effectiveZoom = Math.max(1, Number(zoom) || 1);
+    const widthValue = `${Math.round(zenBaseBoardWidth * effectiveZoom)}px`;
+    const heightValue = `${Math.round(zenBaseBoardHeight * effectiveZoom)}px`;
+    if (board.style.width !== widthValue) board.style.width = widthValue;
+    if (board.style.height !== heightValue) board.style.height = heightValue;
+  }
+
   function clearZenZoomTransform() {
     cancelAnimationFrame(zenZoomFrame);
     zenZoomFrame = 0;
     zenZoomRecenterPending = false;
-    zenCameraTranslateX = null;
-    zenCameraTranslateY = null;
+    zenCameraLeft = null;
+    zenCameraTop = null;
+    invalidateZenCameraGeometry();
     if (!board) return;
     board.classList.remove("zen-board-zoomed", "zen-camera-follow", "zen-camera-static");
     board.style.removeProperty("transform");
     board.style.removeProperty("transform-origin");
+    board.style.removeProperty("left");
+    board.style.removeProperty("top");
+    if (zenBaseBoardWidth && zenBaseBoardHeight) setZenBoardPixelSize(1);
   }
 
   function resetZenZoom() {
@@ -4893,40 +4914,57 @@ window.BOXXY_RELEASE = Object.freeze({
     updateZenZoomButton();
   }
 
-  function centredZenCameraTranslation(geometry) {
-    const {
-      contentStart, contentSize, contentEnd, baseStart,
-      playerPosition, scaledSize
-    } = geometry;
-    if (scaledSize <= contentSize) {
-      return contentStart + (contentSize - scaledSize) / 2 - baseStart;
+  function centredZenCameraPosition(geometry) {
+    const { contentStart, contentSize, contentEnd, playerPosition, boardSize } = geometry;
+    if (boardSize <= contentSize) {
+      return contentStart + (contentSize - boardSize) / 2;
     }
-    const desired = contentStart + contentSize / 2 - baseStart - playerPosition;
-    const minimum = contentEnd - baseStart - scaledSize;
-    const maximum = contentStart - baseStart;
+    const desired = contentStart + contentSize / 2 - playerPosition;
+    const minimum = contentEnd - boardSize;
+    const maximum = contentStart;
     return Math.min(maximum, Math.max(minimum, desired));
   }
 
-  function clampZenCameraTranslation(value, geometry) {
-    const { contentStart, contentSize, contentEnd, baseStart, scaledSize } = geometry;
-    if (scaledSize <= contentSize) return contentStart + (contentSize - scaledSize) / 2 - baseStart;
-    const minimum = contentEnd - baseStart - scaledSize;
-    const maximum = contentStart - baseStart;
+  function clampZenCameraPosition(value, geometry) {
+    const { contentStart, contentSize, contentEnd, boardSize } = geometry;
+    if (boardSize <= contentSize) return contentStart + (contentSize - boardSize) / 2;
+    const minimum = contentEnd - boardSize;
+    const maximum = contentStart;
     return Math.min(maximum, Math.max(minimum, value));
   }
 
-  function followZenCameraTranslation(value, geometry, deadZoneRatio) {
-    const {
-      contentStart, contentSize, baseStart, playerPosition
-    } = geometry;
-    const projectedPlayer = baseStart + value + playerPosition;
+  function followZenCameraPosition(value, geometry, deadZoneRatio) {
+    const { contentStart, contentSize, playerPosition } = geometry;
+    const projectedPlayer = value + playerPosition;
     const inset = contentSize * (1 - deadZoneRatio) / 2;
     const safeStart = contentStart + inset;
     const safeEnd = contentStart + contentSize - inset;
     let next = value;
     if (projectedPlayer < safeStart) next += safeStart - projectedPlayer;
     else if (projectedPlayer > safeEnd) next -= projectedPlayer - safeEnd;
-    return clampZenCameraTranslation(next, geometry);
+    return clampZenCameraPosition(next, geometry);
+  }
+
+  function buildZenCameraGeometry() {
+    if (!board || !boardWrap || !zenBaseBoardWidth || !zenBaseBoardHeight) return null;
+    const zoom = currentZenZoom();
+    const wrapStyle = getComputedStyle(boardWrap);
+    const paddingLeft = parseFloat(wrapStyle.paddingLeft) || 0;
+    const paddingRight = parseFloat(wrapStyle.paddingRight) || 0;
+    const paddingTop = parseFloat(wrapStyle.paddingTop) || 0;
+    const paddingBottom = parseFloat(wrapStyle.paddingBottom) || 0;
+    const contentWidth = Math.max(1, boardWrap.clientWidth - paddingLeft - paddingRight);
+    const contentHeight = Math.max(1, boardWrap.clientHeight - paddingTop - paddingBottom);
+    return {
+      contentLeft: paddingLeft,
+      contentTop: paddingTop,
+      contentWidth,
+      contentHeight,
+      contentRight: paddingLeft + contentWidth,
+      contentBottom: paddingTop + contentHeight,
+      boardWidth: Math.round(zenBaseBoardWidth * zoom),
+      boardHeight: Math.round(zenBaseBoardHeight * zoom)
+    };
   }
 
   function applyZenZoomFocus() {
@@ -4940,64 +4978,60 @@ window.BOXXY_RELEASE = Object.freeze({
     }
 
     const zoom = currentZenZoom();
-    const boardWidth = board.offsetWidth;
-    const boardHeight = board.offsetHeight;
-    if (!boardWidth || !boardHeight) return;
-
-    const wrapStyle = getComputedStyle(boardWrap);
-    const paddingLeft = parseFloat(wrapStyle.paddingLeft) || 0;
-    const paddingRight = parseFloat(wrapStyle.paddingRight) || 0;
-    const paddingTop = parseFloat(wrapStyle.paddingTop) || 0;
-    const paddingBottom = parseFloat(wrapStyle.paddingBottom) || 0;
-    const contentLeft = paddingLeft;
-    const contentTop = paddingTop;
-    const contentWidth = Math.max(1, boardWrap.clientWidth - paddingLeft - paddingRight);
-    const contentHeight = Math.max(1, boardWrap.clientHeight - paddingTop - paddingBottom);
-    const contentRight = contentLeft + contentWidth;
-    const contentBottom = contentTop + contentHeight;
-
-    const baseLeft = board.offsetLeft;
-    const baseTop = board.offsetTop;
-    const playerScaledX = (player[0] + 0.5) / width * boardWidth * zoom;
-    const playerScaledY = (player[1] + 0.5) / height * boardHeight * zoom;
-    const scaledWidth = boardWidth * zoom;
-    const scaledHeight = boardHeight * zoom;
-    const xGeometry = {
-      contentStart: contentLeft,
-      contentSize: contentWidth,
-      contentEnd: contentRight,
-      baseStart: baseLeft,
-      playerPosition: playerScaledX,
-      scaledSize: scaledWidth
-    };
-    const yGeometry = {
-      contentStart: contentTop,
-      contentSize: contentHeight,
-      contentEnd: contentBottom,
-      baseStart: baseTop,
-      playerPosition: playerScaledY,
-      scaledSize: scaledHeight
-    };
-
-    const cameraUninitialised = !Number.isFinite(zenCameraTranslateX) || !Number.isFinite(zenCameraTranslateY);
-    if (recenter || cameraUninitialised) {
-      zenCameraTranslateX = centredZenCameraTranslation(xGeometry);
-      zenCameraTranslateY = centredZenCameraTranslation(yGeometry);
-    } else if (zenCameraMode === "follow") {
-      zenCameraTranslateX = followZenCameraTranslation(zenCameraTranslateX, xGeometry, ZEN_CAMERA_FOLLOW_DEAD_ZONE_X);
-      zenCameraTranslateY = followZenCameraTranslation(zenCameraTranslateY, yGeometry, ZEN_CAMERA_FOLLOW_DEAD_ZONE_Y);
-    } else {
-      // Static mode deliberately keeps the viewport fixed while the player moves.
-      // Only layout constraints may clamp it; clicking Zoom explicitly recentres it.
-      zenCameraTranslateX = clampZenCameraTranslation(zenCameraTranslateX, xGeometry);
-      zenCameraTranslateY = clampZenCameraTranslation(zenCameraTranslateY, yGeometry);
-    }
-
     board.classList.add("zen-board-zoomed");
     board.classList.toggle("zen-camera-follow", zenCameraMode === "follow");
     board.classList.toggle("zen-camera-static", zenCameraMode === "static");
-    board.style.transformOrigin = "0 0";
-    board.style.transform = `translate3d(${zenCameraTranslateX.toFixed(2)}px, ${zenCameraTranslateY.toFixed(2)}px, 0) scale(${zoom})`;
+    setZenBoardPixelSize(zoom);
+
+    const camera = zenCameraGeometry || (zenCameraGeometry = buildZenCameraGeometry());
+    if (!camera) return;
+
+    const playerPositionX = (player[0] + 0.5) / width * camera.boardWidth;
+    const playerPositionY = (player[1] + 0.5) / height * camera.boardHeight;
+    const xGeometry = {
+      contentStart: camera.contentLeft,
+      contentSize: camera.contentWidth,
+      contentEnd: camera.contentRight,
+      playerPosition: playerPositionX,
+      boardSize: camera.boardWidth
+    };
+    const yGeometry = {
+      contentStart: camera.contentTop,
+      contentSize: camera.contentHeight,
+      contentEnd: camera.contentBottom,
+      playerPosition: playerPositionY,
+      boardSize: camera.boardHeight
+    };
+
+    const cameraUninitialised = !Number.isFinite(zenCameraLeft) || !Number.isFinite(zenCameraTop);
+    let nextLeft = zenCameraLeft;
+    let nextTop = zenCameraTop;
+    if (recenter || cameraUninitialised) {
+      nextLeft = centredZenCameraPosition(xGeometry);
+      nextTop = centredZenCameraPosition(yGeometry);
+    } else if (zenCameraMode === "follow") {
+      nextLeft = followZenCameraPosition(zenCameraLeft, xGeometry, ZEN_CAMERA_FOLLOW_DEAD_ZONE_X);
+      nextTop = followZenCameraPosition(zenCameraTop, yGeometry, ZEN_CAMERA_FOLLOW_DEAD_ZONE_Y);
+    } else {
+      // Static mode deliberately keeps the viewport fixed while the player moves.
+      // Only a real layout/zoom change may clamp it; clicking Zoom explicitly recentres it.
+      nextLeft = clampZenCameraPosition(zenCameraLeft, xGeometry);
+      nextTop = clampZenCameraPosition(zenCameraTop, yGeometry);
+    }
+
+    const roundedLeft = Math.round(nextLeft * 100) / 100;
+    const roundedTop = Math.round(nextTop * 100) / 100;
+    const cameraMoved = roundedLeft !== zenCameraLeft || roundedTop !== zenCameraTop;
+    zenCameraLeft = roundedLeft;
+    zenCameraTop = roundedTop;
+
+    // The board is rendered at its actual zoomed pixel dimensions. Camera movement
+    // is translation only: no scale transform, so the board grid and cell layers
+    // share the same pixel geometry and mobile browsers do not resample a huge board
+    // texture every time the camera follows the player.
+    if (cameraMoved || recenter || cameraUninitialised || !board.style.transform) {
+      board.style.transform = `translate3d(${zenCameraLeft}px, ${zenCameraTop}px, 0)`;
+    }
     updateZenCameraModeButton();
   }
 
@@ -5012,6 +5046,7 @@ window.BOXXY_RELEASE = Object.freeze({
     const levels = normaliseZenZoomIndex();
     if (levels.length <= 1) return;
     zenZoomIndex = (zenZoomIndex + 1) % levels.length;
+    invalidateZenCameraGeometry();
     if ((levels[zenZoomIndex] || 1) === 1) {
       zenCameraMode = "follow";
       clearZenZoomTransform();
@@ -5182,11 +5217,14 @@ window.BOXXY_RELEASE = Object.freeze({
     const cappedWidth = width * maxCell;
     const fittedWidth = Math.floor(Math.min(availableWidth, availableHeight * ratio, cappedWidth));
     const fittedHeight = Math.floor(fittedWidth / ratio);
-    board.style.width = `${Math.max(1, fittedWidth)}px`;
-    board.style.height = `${Math.max(1, fittedHeight)}px`;
+    zenBaseBoardWidth = Math.max(1, fittedWidth);
+    zenBaseBoardHeight = Math.max(1, fittedHeight);
+    invalidateZenCameraGeometry();
+    const zoom = zenModeActive() ? currentZenZoom() : 1;
+    setZenBoardPixelSize(zoom);
     if (zenModeActive()) {
       updateZenZoomButton();
-      if (currentZenZoom() > 1) scheduleZenZoomFocus();
+      if (zoom > 1) scheduleZenZoomFocus();
       else clearZenZoomTransform();
     }
   }
