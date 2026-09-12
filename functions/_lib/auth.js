@@ -258,6 +258,7 @@ const BOARD_STYLE_COLOURS = new Set([
   "red", "blue", "green", "purple", "light-blue", "teal", "grey",
   "burgundy", "brown", "orange", "yellow", "lime", "pink", "cream"
 ]);
+const CLICK_PUSH_ACCESS_CODES = new Set(["RABBIT", "JIGSAW25", "TAPTAPTAP", "GRANDMASTER", "HARDCORE"]);
 
 function progressBoardStyle(progress) {
   let raw = {};
@@ -378,6 +379,35 @@ export function progressSummary(progressValue) {
     if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) avatar = parsed;
   } catch (_) {}
   const boardStyle = progressBoardStyle(progress);
+  const rawClickPushCode = String(progress["boxxy-touch-click-push-access-v1"] || "").trim().toUpperCase();
+  const accountClickPushCode = CLICK_PUSH_ACCESS_CODES.has(rawClickPushCode) ? rawClickPushCode : "";
+  let clickPushDevices = [];
+  try {
+    const parsed = JSON.parse(String(progress["boxxy-touch-click-push-devices-v1"] || "null"));
+    const devices = parsed && parsed.version === 1 && parsed.devices && typeof parsed.devices === "object" && !Array.isArray(parsed.devices)
+      ? parsed.devices
+      : {};
+    clickPushDevices = Object.entries(devices).map(([deviceId, entry]) => {
+      const code = String(entry?.code || "").trim().toUpperCase();
+      return {
+        deviceId: String(deviceId),
+        enabled: Boolean(entry?.enabled),
+        code: CLICK_PUSH_ACCESS_CODES.has(code) ? code : "",
+        updatedAt: Math.max(0, Number(entry?.updatedAt) || 0)
+      };
+    }).filter(entry => entry.updatedAt > 0);
+  } catch (_) {}
+  clickPushDevices.sort((a, b) => b.updatedAt - a.updatedAt);
+  const activeClickPushDevices = clickPushDevices.filter(entry => entry.enabled);
+  const clickPushEnabled = clickPushDevices.length
+    ? activeClickPushDevices.length > 0
+    : Boolean(accountClickPushCode && progress["boxxy-touch-click-push-v1"] === "on");
+  const clickPushCodes = [...new Set([
+    ...activeClickPushDevices.map(entry => entry.code),
+    ...clickPushDevices.map(entry => entry.code),
+    accountClickPushCode
+  ].filter(Boolean))];
+  const clickPushCode = clickPushCodes[0] || "";
 
   const activityDays = [];
   try {
@@ -407,6 +437,13 @@ export function progressSummary(progressValue) {
     activityDays,
     avatar,
     boardStyle,
+    clickPushEnabled,
+    clickPushUnlocked: Boolean(accountClickPushCode || clickPushCodes.length),
+    clickPushCode,
+    clickPushCodes,
+    clickPushDeviceCount: activeClickPushDevices.length,
+    clickPushKnownDeviceCount: clickPushDevices.length,
+    clickPushLastChangedAt: clickPushDevices[0]?.updatedAt || 0,
     packs
   };
 }

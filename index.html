@@ -159,7 +159,7 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=341">
+<link rel="stylesheet" href="styles.css?v=348">
 <link rel="stylesheet" href="how-to-play.css?v=225">
 <link rel="preload" as="image" href="assets/board/boxes/box-default-yellow.png?v=226">
 <link rel="preload" as="image" href="assets/board/goals/goal-red.png?v=226">
@@ -213,6 +213,13 @@
         <div id="pieceLayer" class="layer"></div>
         <div id="celebration" class="celebration" aria-hidden="true"></div>
       </div>
+      <button id="zenZoomBtn" class="zen-zoom-btn" type="button" hidden aria-label="Increase board zoom" aria-pressed="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="10.5" cy="10.5" r="5.8"/><path d="m15 15 5 5"/></svg>
+      </button>
+      <button id="zenCameraModeBtn" class="zen-camera-mode-btn" type="button" hidden aria-label="Zoom camera follows player. Switch to static." aria-pressed="false" data-mode="follow">
+        <svg class="zen-camera-follow-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3"/></svg>
+        <svg class="zen-camera-static-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" hidden><rect x="6.5" y="10" width="11" height="9" rx="2"/><path d="M9 10V7.5a3 3 0 0 1 6 0V10"/></svg>
+      </button>
       <button id="mobileFullscreenBtn" class="mobile-fullscreen-btn" type="button" hidden aria-label="Enter full screen" aria-pressed="false" title="Enter full screen">
         <svg class="mobile-fullscreen-enter" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
           <path d="M9 4H4v5M15 4h5v5M20 15v5h-5M9 20H4v-5"/>
@@ -376,6 +383,23 @@
   </section>
 </div>
 
+<div id="clickPushAccessModal" class="modal click-push-access-modal" hidden>
+  <section class="modal-card click-push-access-card" role="dialog" aria-modal="true" aria-labelledby="clickPushAccessTitle" aria-describedby="clickPushAccessDescription">
+    <span class="click-push-access-kicker">BETA FEATURE</span>
+    <h2 id="clickPushAccessTitle">CLICK-PUSH</h2>
+    <p id="clickPushAccessDescription" class="click-push-access-copy">This is a beta feature for special users only. If you wish to trial Click-Push please contact the developers using the contact form.</p>
+    <form id="clickPushAccessForm" class="click-push-access-form" novalidate>
+      <label for="clickPushAccessPassword"><span>ACCESS PASSWORD</span><input id="clickPushAccessPassword" name="password" type="password" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="32"></label>
+      <p id="clickPushAccessStatus" class="click-push-access-status" aria-live="polite"></p>
+      <div class="click-push-access-actions">
+        <button id="clickPushContactBtn" class="click-push-access-contact" type="button">CONTACT DEVELOPERS</button>
+        <button id="clickPushAccessCancelBtn" class="click-push-access-cancel" type="button">NOT NOW</button>
+        <button class="click-push-access-enable" type="submit">UNLOCK</button>
+      </div>
+    </form>
+  </section>
+</div>
+
 <div id="settingsModal" class="modal settings-modal" hidden>
   <section class="settings-card" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
     <header class="settings-head">
@@ -428,6 +452,22 @@
               <small id="settingsMouseLeaderboardWarning" class="settings-mouse-leaderboard-warning" hidden>Daily leaderboard: Using Mouse Control during a Daily puzzle makes that run ineligible for the fastest-time leaderboard.</small>
             </div>
             <button id="settingsMouseToggle" class="settings-mini-toggle" type="button" aria-pressed="false">OFF</button>
+          </div>
+          <div id="settingsTouchPushRow" class="settings-option-row touch-settings-only" hidden>
+            <div>
+              <strong>CLICK-PUSH</strong>
+              <small>Tap a box to show its reachable push destinations, then tap where you want it to go.</small>
+              <small id="settingsTouchPushLeaderboardWarning" class="settings-mouse-leaderboard-warning" hidden>Daily leaderboard: Click-Push uses assisted routes, so that run is ineligible for the fastest-time leaderboard.</small>
+            </div>
+            <button id="settingsTouchPushToggle" class="settings-mini-toggle" type="button" aria-pressed="false">OFF</button>
+          </div>
+          <div id="settingsSolutionDataRow" class="settings-option-row">
+            <div>
+              <strong>MAKE LEVEL SOLUTION AVAILABLE</strong>
+              <small>Add a Copy Solve Data option after completing a level or Daily.</small>
+              <small>For experienced Sokoban Grandmasters who have requested this feature.</small>
+            </div>
+            <button id="settingsSolutionDataToggle" class="settings-mini-toggle" type="button" aria-pressed="false">OFF</button>
           </div>
         </section>
 
@@ -711,6 +751,7 @@
       </section>
       <div class="complete-actions">
         <button id="makerApplySolveBtn" class="complete-secondary" type="button" hidden>APPLY SOLVE</button>
+        <button id="copySolveDataBtn" class="complete-secondary completion-solve-copy" type="button" hidden>COPY SOLVE DATA</button>
         <button id="claimPrizeBtn" class="claim-prize-btn" type="button" hidden><span>CLAIM YOUR PRIZE!</span><b aria-hidden="true">★</b></button>
         <div id="dailyCompletionActions" class="completion-action-set daily-completion-actions" hidden>
           <button id="dailyCompletePackBtn" class="complete-primary daily-complete-choice daily-complete-pack-choice" type="button"><span>LEVEL PACK SELECTOR</span><b aria-hidden="true">→</b></button>
@@ -1333,8 +1374,8 @@
 <script src="daily-puzzles/boxxy-daily-loader.js?v=218"></script>
 <script src="levels.js?v=268"></script>
 <script src="starry-night.js?v=302"></script>
-<script src="boxxy.js?v=343"></script>
-<script src="account.js?v=335"></script>
+<script src="boxxy.js?v=348"></script>
+<script src="account.js?v=346"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="pack-builder.js?v=216"></script>
 <script src="how-to-play.js?v=153"></script>

@@ -5619,6 +5619,39 @@ body.first-person-mode .board::after{
   .mouse-support-actions button{width:100%}
 }
 
+/* Click-Push beta access uses the same restrained modal language as Mouse Support,
+   but remains a separate access workflow rather than another movement mode. */
+.click-push-access-modal{z-index:9800;background:rgba(21,21,21,.52);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.click-push-access-card{
+  width:min(540px,92vw);
+  padding:clamp(22px,4vw,34px);
+  text-align:left;
+  border:3px solid var(--ink);
+  box-shadow:12px 12px 0 rgba(23,23,25,.24),0 28px 64px rgba(23,23,25,.32);
+}
+.click-push-access-kicker{display:block;color:var(--red);font-size:10px;font-weight:1000;letter-spacing:.16em}
+.click-push-access-card h2{margin:8px 0 14px;font-size:clamp(38px,8vw,62px);line-height:.9;letter-spacing:-.035em}
+.click-push-access-copy{margin:0 0 18px;color:#51483e;font-size:13px;line-height:1.45}
+.click-push-access-form{display:grid;gap:10px}
+.click-push-access-form label{display:grid;gap:6px;font-size:9px;font-weight:1000;letter-spacing:.08em}
+.click-push-access-form input{width:100%;min-height:44px;padding:10px 12px;border:2px solid var(--ink);background:#fffaf2;color:var(--ink);font-family:inherit;font-size:15px;font-weight:900;line-height:1.1;letter-spacing:.06em;text-transform:uppercase}
+.click-push-access-status{min-height:18px;margin:0;font-size:10px;font-weight:900;letter-spacing:.04em}
+.click-push-access-status[data-kind="error"]{color:#a92921}
+.click-push-access-status[data-kind="success"]{color:#23734b}
+.click-push-access-actions{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:stretch}
+.click-push-access-actions button{min-height:42px;padding:10px 12px;border:2px solid var(--ink);font-size:9px;font-weight:1000;letter-spacing:.05em}
+.click-push-access-actions .click-push-access-contact{background:var(--paper);color:var(--ink)}
+.click-push-access-actions .click-push-access-cancel{background:#ece4d7;color:var(--ink)}
+.click-push-access-actions .click-push-access-enable{background:var(--blue);color:#fff}
+.settings-mini-toggle[data-locked="true"]::before{content:"BETA ";font-size:.78em;letter-spacing:.04em}
+@media(max-width:560px){
+  .click-push-access-card{padding:20px}
+  .click-push-access-card h2{font-size:40px}
+  .click-push-access-copy{font-size:12px}
+  .click-push-access-actions{grid-template-columns:1fr 1fr}
+  .click-push-access-contact{grid-column:1/-1}
+}
+
 /* BOXXY v246 — mobile pack medals anchored inside the text panel. */
 .pack-selector-medal{
   position:absolute;
@@ -7139,4 +7172,135 @@ body.large-level-performance .instruction .thought-text{
 }
 @media(max-width:560px){
   .standard-complete-result-item:nth-child(2){border-left:0}
+}
+
+/* BOXXY v345 — gated touch Click-Push and board-size-aware Zen player-follow zoom. */
+
+.touch-settings-only{display:none}
+body.settings-touch-device .touch-settings-only:not([hidden]){display:flex}
+
+/* Touch Click-Push reuses the route layer but stays deliberately quiet: no pulsing
+   animation and no permanent board decoration. Markers exist only while a box is selected. */
+body.touch-click-push-enabled .mouse-support-selected::before{
+  inset:11%;
+  border-width:2px;
+  border-radius:10px;
+  box-shadow:0 0 0 2px rgba(247,240,229,.82),0 4px 12px rgba(23,23,25,.18);
+  animation:none;
+}
+body.touch-click-push-enabled .mouse-support-destination::before{
+  width:34%;
+  height:34%;
+  min-width:8px;
+  min-height:8px;
+  max-width:20px;
+  max-height:20px;
+  border:2px solid var(--blue);
+  background:rgba(247,240,229,.9);
+  box-shadow:0 0 0 2px rgba(23,23,25,.76);
+  animation:none;
+}
+body.touch-click-push-enabled .mouse-support-destination.is-goal::before{
+  border-color:var(--red);
+  background:rgba(247,240,229,.94);
+}
+
+/* BOXXY v347 — Zen zoom camera can smoothly follow through a dead zone or stay static. */
+.zen-zoom-btn,
+.zen-camera-mode-btn{
+  display:none;
+  position:fixed;
+  z-index:8501;
+  width:46px;
+  height:46px;
+  padding:10px;
+  border:1px solid rgba(255,255,255,.52);
+  border-radius:12px;
+  background:rgba(23,23,25,.54);
+  color:#fff;
+  box-shadow:0 5px 16px rgba(23,23,25,.24),inset 0 1px 0 rgba(255,255,255,.13);
+  -webkit-backdrop-filter:blur(6px);
+  backdrop-filter:blur(6px);
+  place-items:center;
+  line-height:0;
+  touch-action:manipulation;
+}
+.zen-zoom-btn[hidden],.zen-camera-mode-btn[hidden]{display:none!important}
+.zen-zoom-btn:hover,.zen-camera-mode-btn:hover{background:rgba(23,23,25,.66)}
+.zen-zoom-btn:active,.zen-camera-mode-btn:active{transform:scale(.96);filter:none}
+.zen-zoom-btn[aria-pressed="true"],.zen-camera-mode-btn[aria-pressed="true"]{background:rgba(229,179,42,.88);color:var(--ink);border-color:rgba(23,23,25,.8)}
+.zen-zoom-btn:disabled{opacity:.38;cursor:default;filter:none}
+.zen-zoom-btn:disabled:active{transform:none}
+.zen-zoom-btn svg,.zen-camera-mode-btn svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2.15;stroke-linecap:round;stroke-linejoin:round}
+body.phone-zen-mode .zen-zoom-btn,
+body.desktop-zen-mode .zen-zoom-btn,
+body.phone-zen-mode .zen-camera-mode-btn:not([hidden]),
+body.desktop-zen-mode .zen-camera-mode-btn:not([hidden]){display:grid}
+/* BOXXY v348 — zoomed boards are laid out at their real pixel size. The camera
+   only translates that already-sized board; it never scales the board texture.
+   This keeps floor grid lines and cell layers on one geometry and avoids costly
+   resampling of large boards while the camera follows the player. */
+.board.zen-board-zoomed{
+  position:absolute!important;
+  left:0!important;
+  top:0!important;
+  max-width:none!important;
+  max-height:none!important;
+  will-change:transform;
+}
+.board.zen-board-zoomed.zen-camera-follow{transition:transform .22s cubic-bezier(.18,.72,.24,1)}
+.board.zen-board-zoomed.zen-camera-static{transition:transform .14s cubic-bezier(.2,.75,.3,1)}
+
+/* Phone Zen: keep the zoom control immediately above the Zen exit control. */
+@media (max-width:760px) and (pointer:coarse){
+  body.phone-zen-mode .zen-zoom-btn{
+    right:max(10px,env(safe-area-inset-right));
+    top:max(10px,env(safe-area-inset-top));
+  }
+  body.phone-zen-mode .zen-camera-mode-btn{
+    right:calc(max(10px,env(safe-area-inset-right)) + 56px);
+    top:max(10px,env(safe-area-inset-top));
+  }
+  body.phone-zen-mode .mobile-fullscreen-btn{
+    top:calc(max(10px,env(safe-area-inset-top)) + 56px)!important;
+    bottom:auto!important;
+  }
+}
+@media (max-height:520px) and (orientation:landscape) and (pointer:coarse){
+  body.phone-zen-mode .zen-zoom-btn{
+    left:max(10px,env(safe-area-inset-left));
+    right:auto;
+    top:max(10px,env(safe-area-inset-top));
+    width:42px;
+    height:42px;
+    padding:9px;
+    border-radius:10px;
+  }
+  body.phone-zen-mode .zen-camera-mode-btn{
+    left:calc(max(10px,env(safe-area-inset-left)) + 52px);
+    right:auto;
+    top:max(10px,env(safe-area-inset-top));
+    width:42px;
+    height:42px;
+    padding:9px;
+    border-radius:10px;
+  }
+  body.phone-zen-mode .mobile-fullscreen-btn{
+    left:max(10px,env(safe-area-inset-left))!important;
+    right:auto!important;
+    top:calc(max(10px,env(safe-area-inset-top)) + 52px)!important;
+    bottom:auto!important;
+  }
+}
+
+/* Desktop Zen: the magnifier sits directly above the existing Full Screen/Exit icon. */
+@media (min-width:761px) and (hover:hover) and (pointer:fine){
+  body.desktop-zen-mode .zen-zoom-btn{
+    right:max(18px,env(safe-area-inset-right));
+    bottom:72px;
+  }
+  body.desktop-zen-mode .zen-camera-mode-btn{
+    right:calc(max(18px,env(safe-area-inset-right)) + 56px);
+    bottom:72px;
+  }
 }

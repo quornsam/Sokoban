@@ -1,3 +1,5 @@
+/* BOXXY v346 — Click-Push reporting uses merge-safe per-device state so one device cannot overwrite another. */
+/* BOXXY v345 — Click-Push beta access and on/off state join account cloud sync for Basement reporting. */
 /* BOXXY v331 — adds safe Google disconnect for password accounts and stabilises Google button rendering in the account sheet. */
 /* BOXXY v329 — optional Google sign-in links to the existing BOXXY user/session/save architecture. */
 /* BOXXY v327 — signed-in Daily completions request an immediate cloud sync so leaderboard results can refresh without waiting for the periodic sync. */
@@ -31,6 +33,8 @@
     "boxxy-music-track-v1",
     "boxxy-speed-v1",
     "boxxy-mouse-support-v1",
+    "boxxy-touch-click-push-access-v1",
+    "boxxy-touch-click-push-devices-v1",
     "boxxy-theme",
     "boxxy-board-style-v1",
     "push-bauhaus-music",
@@ -692,6 +696,36 @@
     });
   }
 
+  function mergeClickPushDevices(leftValue, rightValue) {
+    const normalise = value => {
+      const parsed = parseJson(value, null);
+      const devices = parsed && parsed.version === 1 && parsed.devices && typeof parsed.devices === "object" && !Array.isArray(parsed.devices)
+        ? parsed.devices
+        : {};
+      const clean = {};
+      Object.entries(devices).forEach(([deviceId, entry]) => {
+        if (!deviceId || !entry || typeof entry !== "object") return;
+        const updatedAt = Math.max(0, Number(entry.updatedAt) || 0);
+        if (!updatedAt) return;
+        clean[deviceId] = {
+          enabled: Boolean(entry.enabled),
+          code: String(entry.code || "").trim().toUpperCase(),
+          updatedAt
+        };
+      });
+      return clean;
+    };
+    const merged = { ...normalise(rightValue) };
+    Object.entries(normalise(leftValue)).forEach(([deviceId, entry]) => {
+      const previous = merged[deviceId];
+      if (!previous || Number(entry.updatedAt) >= Number(previous.updatedAt || 0)) merged[deviceId] = entry;
+    });
+    const devices = Object.fromEntries(Object.entries(merged)
+      .sort((a, b) => Number(b[1].updatedAt) - Number(a[1].updatedAt))
+      .slice(0, 24));
+    return JSON.stringify({ version: 1, devices });
+  }
+
   function mergeCloudState(localState, remoteState) {
     const local = localState || {};
     const remote = remoteState && typeof remoteState === "object" ? remoteState : {};
@@ -741,6 +775,8 @@
         merged[key] = String(Math.max(Number(left) || 0, Number(right) || 0));
       } else if (key === LEVEL_ATTEMPTS_KEY) {
         merged[key] = mergeLevelAttempts(left, right);
+      } else if (key === "boxxy-touch-click-push-devices-v1") {
+        merged[key] = mergeClickPushDevices(left, right);
       } else if (key === PACK_CATALOG_KEY) {
         merged[key] = mergePackCatalog(left, right);
       } else if (!localHasProgress) {
@@ -755,12 +791,14 @@
 
   function applyCloudState(state) {
     let changed = false;
+    let clickPushChanged = false;
     Object.entries(state || {}).forEach(([key, value]) => {
       if (!shouldSyncKey(key) || typeof value !== "string") return;
       try {
         if (localStorage.getItem(key) !== value) {
           localStorage.setItem(key, value);
           changed = true;
+          if (key === "boxxy-touch-click-push-access-v1" || key === "boxxy-touch-click-push-devices-v1") clickPushChanged = true;
         }
       } catch (_) {}
     });
@@ -776,6 +814,7 @@
       stale.forEach(key => { localStorage.removeItem(key); changed = true; });
     } catch (_) {}
     if (changed) window.BoxxyBoardStyle?.reloadFromStorage?.();
+    if (clickPushChanged) window.dispatchEvent(new CustomEvent("boxxyclickpushcloudstate"));
     return changed;
   }
 
@@ -1380,6 +1419,10 @@
   }, 5000);
 
   window.addEventListener("boxxypackcompletionrecorded", () => {
+    if (account) syncNow(true);
+  });
+
+  window.addEventListener("boxxyclickpushchange", () => {
     if (account) syncNow(true);
   });
 
