@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "348",
-  lastUpdated: "2026-09-12"
+  version: "349",
+  lastUpdated: "2026-09-14"
 });
+/* BOXXY v349 — completion resume state advances cleanly, Daily leaderboards are visible/clickable at completion, streak state distinguishes today, and held Undo is verified across normal and Zen controls. */
 /* BOXXY v348 — Zen zoom renders the board at its real zoomed size and pans by translation only, fixing mobile grid alignment and reducing large-level camera work. */
 /* BOXXY v347 — Zen zoom adds follow/static camera modes with dead-zone smoothing. */
 /* BOXXY v346 — reliable per-device Click-Push reporting and optional completed-solve data copy. */
@@ -2244,6 +2245,8 @@ window.BOXXY_RELEASE = Object.freeze({
   const dailyLeaderboardPlayerMoves = document.getElementById("dailyLeaderboardPlayerMoves");
   const dailyLeaderboardPlayerPushes = document.getElementById("dailyLeaderboardPlayerPushes");
   const dailyLeaderboardNote = document.getElementById("dailyLeaderboardNote");
+  const dailyCompletionLeaderboard = document.getElementById("dailyCompletionLeaderboard");
+  const dailyCompletionLeaderboardList = document.getElementById("dailyCompletionLeaderboardList");
   const grandCelebration = document.getElementById("grandCelebration");
   const resetConfirmModal = document.getElementById("resetConfirmModal");
   const resetConfirmBtn = document.getElementById("resetConfirmBtn");
@@ -2729,6 +2732,17 @@ window.BOXXY_RELEASE = Object.freeze({
       levelIndex
     );
     highestUnlockedLevel = Math.min(highestUnlockedLevel, Math.max(0, LEVELS.length - 1));
+
+    // The stored level is a resume pointer, not an instruction to replay a
+    // puzzle that is already complete. Reconcile older/stale saves once the
+    // completion set is known, while still allowing an explicit level-picker
+    // selection to load a completed puzzle afterwards.
+    const progressionIndex = progressionCurrentLevelIndex({
+      completed: completedLevels,
+      highestUnlocked: highestUnlockedLevel
+    }, LEVELS.length);
+    if (completedLevels.has(levelIndex) && progressionIndex >= 0) levelIndex = progressionIndex;
+
     saveLevelProgress();
   }
 
@@ -2786,6 +2800,12 @@ window.BOXXY_RELEASE = Object.freeze({
     if (claimPrizeBtn) claimPrizeBtn.hidden = true;
     if (dailySharePanel) dailySharePanel.hidden = true;
     if (dailyShareStatus) dailyShareStatus.textContent = "";
+    if (dailyCompletionLeaderboard) dailyCompletionLeaderboard.hidden = true;
+    if (dailyCompletionLeaderboardList) {
+      dailyCompletionLeaderboardList.innerHTML = "";
+      delete dailyCompletionLeaderboardList.dataset.dailyLeaderboardDate;
+      delete dailyCompletionLeaderboardList.dataset.dailyLeaderboardRequest;
+    }
     completeCard?.classList.remove("daily-complete");
   }
 
@@ -3083,10 +3103,17 @@ window.BOXXY_RELEASE = Object.freeze({
     if (!dailyStreak) return;
     const streak = currentDailyStreak();
     const tier = dailyStreakTier(streak);
+    const todayPuzzle = dailyPuzzleForToday();
+    const qualifiedToday = Boolean(todayPuzzle && dailyCompletion(todayPuzzle.date));
     dailyStreak.dataset.tier = tier;
     dailyStreak.dataset.digits = String(Math.min(5, String(streak).length));
+    dailyStreak.dataset.qualifiedToday = qualifiedToday ? "true" : "false";
     if (dailyStreakNumber) dailyStreakNumber.textContent = String(streak);
-    const label = `Daily Boxxy streak: ${streak} ${streak === 1 ? "day" : "days"}`;
+    const streakLabel = `Daily Boxxy streak: ${streak} ${streak === 1 ? "day" : "days"}`;
+    const todayLabel = todayPuzzle
+      ? (qualifiedToday ? "Today’s Daily is complete." : "Today’s Daily is not yet complete.")
+      : "No Daily Boxxy is available today.";
+    const label = `${streakLabel}. ${todayLabel}`;
     dailyStreak.setAttribute("aria-label", label);
     dailyStreak.title = label;
   }
@@ -3371,15 +3398,19 @@ window.BOXXY_RELEASE = Object.freeze({
     if (dailyLeaderboardList?.dataset.dailyLeaderboardDate === key) updateDailyLeaderboardAccountNote();
   }
 
-  let dailyLeaderboardReturnToArchive = false;
+  let dailyLeaderboardReturnSurface = "";
 
   function openDailyLeaderboard(puzzle) {
     if (!dailyLeaderboardModal || !puzzle?.date) return;
-    dailyLeaderboardReturnToArchive = Boolean(dailyArchiveModal && !dailyArchiveModal.hidden);
-    if (dailyLeaderboardReturnToArchive) {
+    dailyLeaderboardReturnSurface = "";
+    if (dailyArchiveModal && !dailyArchiveModal.hidden) {
+      dailyLeaderboardReturnSurface = "archive";
       window.clearInterval(dailyArchiveCountdownTimer);
       dailyArchiveCountdownTimer = 0;
       dailyArchiveModal.hidden = true;
+    } else if (modal && !modal.hidden && completeMode === "daily") {
+      dailyLeaderboardReturnSurface = "completion";
+      modal.hidden = true;
     }
     dailyLeaderboardActivePuzzle = puzzle;
     const result = dailyCompletion(puzzle.date);
@@ -3400,22 +3431,29 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   function closeDailyLeaderboard(options = {}) {
-    const restoreArchive = options?.restoreArchive !== false;
+    const restoreOrigin = options?.restoreOrigin !== false && options?.restoreArchive !== false;
+    const returnSurface = dailyLeaderboardReturnSurface;
     if (dailyLeaderboardModal) dailyLeaderboardModal.hidden = true;
     dailyLeaderboardActivePuzzle = null;
-    if (restoreArchive && dailyLeaderboardReturnToArchive && dailyArchiveModal) {
-      dailyLeaderboardReturnToArchive = false;
+    dailyLeaderboardReturnSurface = "";
+    if (!restoreOrigin) return;
+
+    if (returnSurface === "archive" && dailyArchiveModal) {
       updateDailyArchiveCountdown();
       window.clearInterval(dailyArchiveCountdownTimer);
       dailyArchiveCountdownTimer = window.setInterval(updateDailyArchiveCountdown, 1000);
       dailyArchiveModal.hidden = false;
-    } else if (!restoreArchive) {
-      dailyLeaderboardReturnToArchive = false;
+      return;
+    }
+
+    if (returnSurface === "completion" && modal && completeMode === "daily") {
+      modal.hidden = false;
+      requestAnimationFrame(() => dailyCompletionLeaderboard?.focus?.({ preventScroll: true }));
     }
   }
 
   function dailyArchivePlayPuzzle(puzzle) {
-    closeDailyLeaderboard({ restoreArchive: false });
+    closeDailyLeaderboard({ restoreOrigin: false });
     closeDailyArchive();
     loadDailyPuzzle(puzzle);
   }
@@ -3518,7 +3556,16 @@ window.BOXXY_RELEASE = Object.freeze({
 
     const card = buildDailyArchiveCard(puzzle, result, { featured: true });
     const leaders = document.createElement("aside");
-    leaders.className = "daily-archive-today-leaders";
+    leaders.className = "daily-archive-today-leaders daily-leaderboard-preview-link";
+    leaders.tabIndex = 0;
+    leaders.setAttribute("role", "button");
+    leaders.setAttribute("aria-label", `View full fastest-times leaderboard for Daily Boxxy #${Number(puzzle.sequence) || ""}`);
+    leaders.addEventListener("click", () => openDailyLeaderboard(puzzle));
+    leaders.addEventListener("keydown", event => {
+      if (event.key !== "Enter" && event.key !== " " && event.key !== "Spacebar") return;
+      event.preventDefault();
+      openDailyLeaderboard(puzzle);
+    });
     const head = document.createElement("div");
     head.className = "daily-archive-today-leaders-head";
     const kicker = document.createElement("span");
@@ -3948,7 +3995,7 @@ window.BOXXY_RELEASE = Object.freeze({
         to_pack_name: String(nextPack.displayName || nextPack.title || ""),
         to_level_count: Number(nextPack.levels.length || 0)
       });
-      localStorage.setItem(currentLevelStorageKey(), String(levelIndex));
+      persistActivePackResumeLevel();
       activePack = nextPack;
       LEVELS = nextPack.levels;
       localStorage.setItem(ACTIVE_PACK_STORAGE_KEY, activePack.id);
@@ -3991,7 +4038,7 @@ window.BOXXY_RELEASE = Object.freeze({
       to_level_count: Number(nextPack.levels.length || 0)
     });
 
-    localStorage.setItem(currentLevelStorageKey(), String(levelIndex));
+    persistActivePackResumeLevel();
     activePack = nextPack;
     LEVELS = nextPack.levels;
     localStorage.setItem(ACTIVE_PACK_STORAGE_KEY, activePack.id);
@@ -4044,6 +4091,28 @@ window.BOXXY_RELEASE = Object.freeze({
       if (!snapshot.completed.has(index)) return index;
     }
     return -1;
+  }
+
+  function activePackResumeLevelIndex() {
+    if (!LEVELS.length) return 0;
+    const displayedIndex = Math.max(0, Math.min(LEVELS.length - 1, Number(levelIndex) || 0));
+    if (!completed || dailyMode || makerTesting || sharedPuzzleMode) return displayedIndex;
+
+    const progressionIndex = progressionCurrentLevelIndex({
+      completed: completedLevels,
+      highestUnlocked: highestUnlockedLevel
+    }, LEVELS.length);
+    return progressionIndex >= 0
+      ? progressionIndex
+      : Math.max(0, Math.min(LEVELS.length - 1, highestUnlockedLevel));
+  }
+
+  function persistActivePackResumeLevel() {
+    const storedIndex = activePackResumeLevelIndex();
+    try {
+      localStorage.setItem(currentLevelStorageKey(), String(storedIndex));
+      if (activePack.id === "microban") localStorage.setItem("push-bauhaus-v33-level", String(storedIndex));
+    } catch (_) {}
   }
 
   function thumbnailCompletionStats(pack, level, storedRecord) {
@@ -7553,6 +7622,8 @@ window.BOXXY_RELEASE = Object.freeze({
       if (dailyShareText) dailyShareText.value = solvedWithGuidedRoute ? "" : buildDailyShareText(dailyPuzzle, { seconds: completionSeconds, moves });
       if (dailySharePanel) dailySharePanel.hidden = solvedWithGuidedRoute;
       if (dailyShareStatus) dailyShareStatus.textContent = "";
+      if (dailyCompletionLeaderboard) dailyCompletionLeaderboard.hidden = false;
+      if (dailyCompletionLeaderboardList) loadDailyLeaderboardInto(dailyCompletionLeaderboardList, dailyPuzzle, 3, { force: true });
       setCompletionActionMode("daily");
       updateDailyStreak();
       updateDailyQuotePrompt();
@@ -7648,6 +7719,7 @@ window.BOXXY_RELEASE = Object.freeze({
       else assistedLevels.delete(levelIndex);
       highestUnlockedLevel = Math.max(highestUnlockedLevel, Math.min(levelIndex + 1, LEVELS.length - 1));
       saveLevelProgress();
+      persistActivePackResumeLevel();
       if (!packWasFullyCompleted && completedLevels.size === LEVELS.length) {
         recordFirstPackCompletion(activePack);
       }
@@ -8917,6 +8989,14 @@ window.BOXXY_RELEASE = Object.freeze({
     if (dailyLeaderboardActivePuzzle) dailyArchivePlayPuzzle(dailyLeaderboardActivePuzzle);
   });
   dailyLeaderboardModal?.addEventListener("click", event => { if (event.target === dailyLeaderboardModal) closeDailyLeaderboard(); });
+  dailyCompletionLeaderboard?.addEventListener("click", () => {
+    if (dailyPuzzle) openDailyLeaderboard(dailyPuzzle);
+  });
+  dailyCompletionLeaderboard?.addEventListener("keydown", event => {
+    if (event.key !== "Enter" && event.key !== " " && event.key !== "Spacebar") return;
+    event.preventDefault();
+    if (dailyPuzzle) openDailyLeaderboard(dailyPuzzle);
+  });
   dailyStreak?.addEventListener("click", () => {
     const puzzle = dailyPuzzleForToday();
     if (puzzle && !dailyCompletion(puzzle.date)) loadDailyPuzzle(puzzle);
