@@ -3250,6 +3250,7 @@ html.touch-ui .level-attire{
 @media(max-width:390px){
   .title{max-width:72%}
   .title-badges{--header-badge-size:15px;--header-badge-gap:0}
+  .title-badges > .daily-streak-badge{--daily-streak-badge-size:24px}
 }
 @media(prefers-reduced-motion:reduce){
   .grand-firework::before,.grand-firework i,.grand-confetti{animation-duration:.01ms!important;animation-delay:0ms!important}
@@ -4608,8 +4609,9 @@ body.maker-editor-fullscreen{overflow:hidden}
 .daily-streak-badge{
   appearance:none;
   position:relative;
-  width:calc(var(--header-badge-size) * 163 / 208);
-  height:var(--header-badge-size);
+  --daily-streak-badge-size:var(--header-badge-size);
+  width:calc(var(--daily-streak-badge-size) * 163 / 208);
+  height:var(--daily-streak-badge-size);
   flex:none;
   padding:0;
   border:0;
@@ -4648,11 +4650,11 @@ body.maker-editor-fullscreen{overflow:hidden}
   pointer-events:none;
   text-shadow:-1px 0 0 rgba(10,17,20,.82),1px 0 0 rgba(10,17,20,.82),0 -1px 0 rgba(10,17,20,.82),0 1px 0 rgba(10,17,20,.82);
 }
-.daily-streak-badge[data-digits="1"] .daily-streak-number{font-size:calc(var(--header-badge-size) * .36)}
-.daily-streak-badge[data-digits="2"] .daily-streak-number{font-size:calc(var(--header-badge-size) * .31)}
-.daily-streak-badge[data-digits="3"] .daily-streak-number{font-size:calc(var(--header-badge-size) * .265)}
-.daily-streak-badge[data-digits="4"] .daily-streak-number{font-size:calc(var(--header-badge-size) * .23)}
-.daily-streak-badge[data-digits="5"] .daily-streak-number{font-size:calc(var(--header-badge-size) * .20)}
+.daily-streak-badge[data-digits="1"] .daily-streak-number{font-size:calc(var(--daily-streak-badge-size) * .36)}
+.daily-streak-badge[data-digits="2"] .daily-streak-number{font-size:calc(var(--daily-streak-badge-size) * .31)}
+.daily-streak-badge[data-digits="3"] .daily-streak-number{font-size:calc(var(--daily-streak-badge-size) * .265)}
+.daily-streak-badge[data-digits="4"] .daily-streak-number{font-size:calc(var(--daily-streak-badge-size) * .23)}
+.daily-streak-badge[data-digits="5"] .daily-streak-number{font-size:calc(var(--daily-streak-badge-size) * .20)}
 .daily-streak-badge[data-tier="zero"] .daily-streak-flame{background-image:url("assets/ui/streak-flames/streak-zero.png")}
 .daily-streak-badge[data-tier="green"] .daily-streak-flame{background-image:url("assets/ui/streak-flames/streak-green.png")}
 .daily-streak-badge[data-tier="blue"] .daily-streak-flame{background-image:url("assets/ui/streak-flames/streak-blue.png")}
@@ -4660,6 +4662,8 @@ body.maker-editor-fullscreen{overflow:hidden}
 .daily-streak-badge[data-tier="fire"] .daily-streak-flame{background-image:url("assets/ui/streak-flames/streak-fire.png")}
 .daily-streak-badge[data-tier="purple"] .daily-streak-flame{background-image:url("assets/ui/streak-flames/streak-purple.png")}
 .daily-streak-badge[data-tier="silver"] .daily-streak-flame{background-image:url("assets/ui/streak-flames/streak-silver.png")}
+.daily-streak-badge[data-qualified-today="false"] .daily-streak-flame{filter:grayscale(1);opacity:.38}
+.daily-streak-badge[data-qualified-today="false"] .daily-streak-number{opacity:.72}
 .daily-streak-badge[data-tier="zero"] .daily-streak-number{
   color:#176e24;
   text-shadow:-1px 0 0 rgba(255,255,255,.92),1px 0 0 rgba(255,255,255,.92),0 -1px 0 rgba(255,255,255,.92),0 1px 0 rgba(255,255,255,.92);
@@ -4702,7 +4706,7 @@ body.maker-editor-fullscreen{overflow:hidden}
 .daily-invite-play b{width:30px;height:30px;display:grid;place-items:center;background:#fff;color:#2f8f5b;font-size:20px}
 .daily-invite-play:disabled{background:#8e887f;box-shadow:none;cursor:not-allowed}
 
-.complete-card.daily-complete{width:min(900px,92vw)}
+.complete-card.daily-complete{width:min(900px,92vw);max-height:calc(100dvh - 24px)}
 
 .complete-card.daily-complete .complete-actions{width:min(620px,100%)}
 .daily-complete-choice{width:100%;min-width:0}
@@ -4729,7 +4733,7 @@ body.maker-editor-fullscreen{overflow:hidden}
 /* Daily mode retains the normal masthead treatment; the archive identifies the Daily collection. */
 
 @media(max-width:760px){
-  .daily-streak-badge{filter:drop-shadow(1px 1px 0 rgba(23,23,25,.28))}
+  .title-badges > .daily-streak-badge{--daily-streak-badge-size:clamp(24px,6.8vw,29px);filter:drop-shadow(1px 1px 0 rgba(23,23,25,.28))}
   .daily-quote-play{min-height:31px;padding-inline:8px;font-size:8px}
   .daily-quote-play small{padding:4px 5px;font-size:6.5px}
   .daily-quote-dismiss{width:27px;font-size:19px}
@@ -4740,7 +4744,7 @@ body.maker-editor-fullscreen{overflow:hidden}
   .daily-invite-play,.daily-invite-later{width:100%;min-width:0;min-height:43px}
   .daily-invite-play{grid-row:1}
   .daily-invite-later{grid-row:2}
-  .complete-card.daily-complete{width:min(550px,calc(100vw - 16px))}
+  .complete-card.daily-complete{width:min(550px,calc(100vw - 16px));max-height:calc(100dvh - 16px)}
   .daily-completion-actions{grid-template-columns:1fr}
   .complete-card.daily-complete .complete-art{
     height:clamp(82px,15dvh,120px);
@@ -6880,6 +6884,9 @@ body.large-level-performance .instruction .thought-text{
 .daily-archive-date-card.has-map-thumbnail{grid-template-rows:minmax(0,1fr) auto}
 .daily-archive-leaderboard{background:var(--yellow);color:var(--ink);box-shadow:1px 1px 0 rgba(23,23,25,.2);font-size:15px!important;line-height:1}
 .daily-archive-today-leaders{grid-column:span 6;min-width:0;display:grid;grid-template-rows:auto 1fr auto;border:2px solid var(--ink);background:#fffaf2}
+.daily-leaderboard-preview-link{cursor:pointer;outline:0;transition:transform .12s ease,box-shadow .12s ease}
+.daily-leaderboard-preview-link:hover,.daily-leaderboard-preview-link:focus-visible{transform:translate(-1px,-1px);box-shadow:4px 4px 0 rgba(32,83,154,.2)}
+.daily-leaderboard-preview-link:active{transform:translate(0,0);box-shadow:1px 1px 0 rgba(32,83,154,.18)}
 .daily-archive-today-leaders-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:7px 10px 6px;border-bottom:2px solid var(--ink)}
 .daily-archive-today-leaders-head span{font-size:6px;font-weight:1000;letter-spacing:.1em;color:#6b6155}
 .daily-archive-today-leaders-head strong{font-size:11px;letter-spacing:.035em}
@@ -6987,6 +6994,18 @@ body.large-level-performance .instruction .thought-text{
 
 
 /* BOXXY v318 — precise completion times stay visually grouped and readable. */
+.daily-completion-leaderboard{flex:0 0 auto;width:min(620px,100%);margin:0 0 14px;border:2px solid var(--ink);background:#fffaf2;text-align:left;overflow:hidden}
+.daily-completion-leaderboard[hidden]{display:none!important}
+.daily-completion-leaderboard-head{display:grid;grid-template-columns:auto 1fr auto;align-items:baseline;gap:8px;padding:7px 9px 6px;border-bottom:2px solid var(--ink);background:#f0e5d5}
+.daily-completion-leaderboard-head span{font-size:7px;font-weight:1000;letter-spacing:.1em;color:#6b6155}
+.daily-completion-leaderboard-head strong{font-size:11px;letter-spacing:.035em;text-align:center}
+.daily-completion-leaderboard-head b{font-size:7px;letter-spacing:.075em;color:var(--blue);white-space:nowrap}
+.daily-completion-leaderboard-list .daily-leaderboard-row{min-height:32px;padding:4px 7px;grid-template-columns:22px minmax(0,1fr) auto auto;gap:6px}
+.daily-completion-leaderboard-list .daily-leaderboard-rank{width:19px;height:19px;font-size:7px}
+.daily-completion-leaderboard-list .daily-leaderboard-rank.medal{font-size:14px}
+.daily-completion-leaderboard-list .daily-leaderboard-name{font-size:11px}
+.daily-completion-leaderboard-list .daily-leaderboard-time{font-size:14px}
+.daily-completion-leaderboard-list .daily-leaderboard-moves{font-size:7.5px}
 .stats .time strong{
   white-space:nowrap;
 }
@@ -7049,6 +7068,13 @@ body.large-level-performance .instruction .thought-text{
 }
 
 @media(max-width:760px){
+  .daily-completion-leaderboard{margin-bottom:10px}
+  .daily-completion-leaderboard-head{padding:5px 6px 4px;gap:5px}
+  .daily-completion-leaderboard-head span,.daily-completion-leaderboard-head b{font-size:6.5px}
+  .daily-completion-leaderboard-head strong{font-size:10px}
+  .daily-completion-leaderboard-list .daily-leaderboard-row{min-height:27px;padding:3px 5px}
+  .daily-completion-leaderboard-list .daily-leaderboard-name{font-size:10px}
+  .daily-completion-leaderboard-list .daily-leaderboard-time{font-size:13px}
   .complete-card.daily-complete #completeText{margin-bottom:12px}
   .daily-complete-result-item{padding:7px 9px 8px;gap:7px}
   .daily-complete-result-value{font-size:18px}

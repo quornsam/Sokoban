@@ -159,7 +159,7 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=348">
+<link rel="stylesheet" href="styles.css?v=349">
 <link rel="stylesheet" href="how-to-play.css?v=225">
 <link rel="preload" as="image" href="assets/board/boxes/box-default-yellow.png?v=226">
 <link rel="preload" as="image" href="assets/board/goals/goal-red.png?v=226">
@@ -716,6 +716,14 @@
       <h2 id="completeTitle">PUZZLE<br>CLEARED</h2>
       <p id="completedPackHeading" class="completed-pack-heading"></p>
       <p id="completeText"></p>
+      <section id="dailyCompletionLeaderboard" class="daily-completion-leaderboard daily-leaderboard-preview-link" role="button" tabindex="0" hidden aria-label="View full Daily fastest-times leaderboard">
+        <div class="daily-completion-leaderboard-head">
+          <span>SIGNED-IN PLAYERS</span>
+          <strong>FASTEST TIMES</strong>
+          <b aria-hidden="true">VIEW ALL →</b>
+        </div>
+        <div id="dailyCompletionLeaderboardList" class="daily-leaderboard-list daily-completion-leaderboard-list" aria-live="polite"></div>
+      </section>
       <section id="dailySharePanel" class="daily-share-panel" hidden aria-labelledby="dailyShareTitle">
         <div class="daily-share-heading">
           <strong id="dailyShareTitle">SHARE YOUR RESULT</strong>
@@ -1374,7 +1382,7 @@
 <script src="daily-puzzles/boxxy-daily-loader.js?v=218"></script>
 <script src="levels.js?v=268"></script>
 <script src="starry-night.js?v=302"></script>
-<script src="boxxy.js?v=348"></script>
+<script src="boxxy.js?v=349"></script>
 <script src="account.js?v=346"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="pack-builder.js?v=216"></script>
