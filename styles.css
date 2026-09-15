@@ -3118,6 +3118,133 @@ html.touch-ui .level-attire{
 }
 .completed-pack-star:active{transform:translateY(1px) scale(.96)}
 
+
+/* BOXXY v350 — responsive awards rail and trophy cabinet. */
+.trophy-cabinet-btn{
+  position:relative;
+  appearance:none;
+  width:calc(var(--header-badge-size) * 1.06);
+  height:calc(var(--header-badge-size) * 1.06);
+  flex:none;
+  padding:2px;
+  border:2px solid var(--ink);
+  border-radius:3px;
+  background:#f7f0e5;
+  color:var(--ink);
+  box-shadow:2px 2px 0 rgba(23,23,25,.28);
+  cursor:pointer;
+  transition:transform .14s ease,box-shadow .14s ease,background .14s ease;
+}
+.trophy-cabinet-btn[hidden]{display:none!important}
+.trophy-cabinet-btn svg{display:block;width:100%;height:100%}
+.trophy-cabinet-btn svg rect{fill:#f5c21b;stroke:currentColor;stroke-width:7}
+.trophy-cabinet-btn svg path{fill:none;stroke:currentColor;stroke-width:7;stroke-linejoin:round;stroke-linecap:round}
+.trophy-cabinet-btn svg circle{fill:var(--red);stroke:currentColor;stroke-width:6}
+.trophy-cabinet-btn:hover,.trophy-cabinet-btn:focus-visible{transform:translateY(-2px);box-shadow:3px 4px 0 rgba(23,23,25,.3);background:#fff8e8;outline:0}
+.trophy-cabinet-btn:active{transform:translateY(1px);box-shadow:1px 1px 0 rgba(23,23,25,.3)}
+.trophy-cabinet-more-count{
+  position:absolute;
+  right:-7px;
+  top:-8px;
+  min-width:17px;
+  height:17px;
+  padding:0 4px;
+  border:2px solid #f7f0e5;
+  border-radius:9px;
+  background:var(--red);
+  color:#fff;
+  display:grid;
+  place-items:center;
+  font-size:8px;
+  line-height:1;
+  font-weight:1000;
+  letter-spacing:-.03em;
+}
+.trophy-cabinet-more-count:empty{display:none}
+
+.trophy-cabinet-modal{
+  z-index:11200;
+  padding:18px;
+  overflow:auto;
+  background:rgba(23,23,25,.62);
+  backdrop-filter:blur(7px);
+}
+.trophy-cabinet-card{
+  width:min(820px,94vw);
+  max-height:92dvh;
+  overflow:auto;
+  padding:24px;
+  background:var(--paper2);
+  border:2px solid var(--ink);
+  box-shadow:12px 12px 0 rgba(245,194,27,.55),0 28px 80px rgba(0,0,0,.34);
+}
+.trophy-cabinet-head{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;padding-bottom:16px;border-bottom:2px solid var(--ink)}
+.trophy-cabinet-head h2{margin:5px 0 4px;font-size:clamp(30px,5vw,54px);line-height:.88;letter-spacing:-.055em}
+.trophy-cabinet-head p{margin:9px 0 0;color:#61574b;font-size:11px;line-height:1.2;font-weight:900;letter-spacing:.055em}
+.trophy-cabinet-close{flex:none;width:44px;height:44px;padding:0;border:2px solid var(--ink);background:var(--red);color:#fff;font-size:30px;line-height:1;font-weight:950;cursor:pointer}
+.trophy-cabinet-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:18px}
+.trophy-cabinet-slot{
+  min-width:0;
+  min-height:180px;
+  padding:15px 10px 12px;
+  border:2px solid var(--ink);
+  background:#efe5d4;
+  box-shadow:5px 5px 0 rgba(23,23,25,.22);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:flex-start;
+  text-align:center;
+}
+.trophy-cabinet-slot.is-earned{background:#fff8e8;box-shadow:5px 5px 0 rgba(245,194,27,.72)}
+.trophy-cabinet-award{
+  appearance:none;
+  width:100%;
+  margin:0;
+  padding:0;
+  border:0;
+  background:transparent;
+  color:var(--ink);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  cursor:pointer;
+}
+.trophy-cabinet-award:focus-visible{outline:3px solid var(--red);outline-offset:4px}
+.trophy-cabinet-award-icon{
+  --cabinet-award-size:82px;
+  width:var(--cabinet-award-size);
+  height:var(--cabinet-award-size);
+  display:grid;
+  place-items:center;
+  filter:drop-shadow(4px 5px 0 rgba(23,23,25,.22));
+  transition:transform .14s ease;
+}
+.trophy-cabinet-award:hover .trophy-cabinet-award-icon{transform:translateY(-3px) rotate(-3deg) scale(1.04)}
+.trophy-cabinet-award-icon svg,.trophy-cabinet-award-icon img{display:block;width:100%;height:100%;object-fit:contain}
+.trophy-cabinet-award-icon path{fill:var(--pack-star-colour,var(--red));stroke:#f2c121;stroke-width:9;stroke-linejoin:round;paint-order:stroke fill}
+.trophy-cabinet-slot.is-unearned .trophy-cabinet-award-icon{filter:grayscale(1);opacity:.18}
+.trophy-cabinet-slot.is-unearned .trophy-cabinet-award-icon path{fill:#8f887e;stroke:#d8cec0}
+.trophy-cabinet-slot-name{margin-top:12px;font-size:12px;line-height:1.05;font-weight:1000;letter-spacing:.015em;text-transform:uppercase}
+.trophy-cabinet-slot-status{margin-top:6px;color:#746a5e;font-size:8px;line-height:1;font-weight:950;letter-spacing:.08em}
+.trophy-cabinet-slot.is-earned .trophy-cabinet-slot-status{color:#2f8f5b}
+
+@media(max-width:620px){
+  .trophy-cabinet-modal{padding:8px}
+  .trophy-cabinet-card{width:100%;max-height:calc(100dvh - 16px);padding:15px;box-shadow:6px 6px 0 rgba(245,194,27,.55)}
+  .trophy-cabinet-head{gap:12px;padding-bottom:12px}
+  .trophy-cabinet-head h2{font-size:clamp(29px,10vw,42px)}
+  .trophy-cabinet-close{width:40px;height:40px;font-size:27px}
+  .trophy-cabinet-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:12px}
+  .trophy-cabinet-slot{min-height:136px;padding:11px 7px 9px;box-shadow:3px 3px 0 rgba(23,23,25,.2)}
+  .trophy-cabinet-slot.is-earned{box-shadow:3px 3px 0 rgba(245,194,27,.7)}
+  .trophy-cabinet-award-icon{--cabinet-award-size:58px}
+  .trophy-cabinet-slot-name{margin-top:9px;font-size:9px}
+  .trophy-cabinet-slot-status{margin-top:5px;font-size:7px}
+  .trophy-cabinet-btn{width:24px;height:24px}
+  .trophy-cabinet-more-count{right:-6px;top:-7px;min-width:15px;height:15px;padding:0 3px;border-width:1px;font-size:7px}
+}
+
 .pack-completion-stats{
   display:grid;
   grid-template-columns:repeat(3,minmax(0,1fr));
@@ -3233,7 +3360,6 @@ html.touch-ui .level-attire{
 }
 
 @media(max-width:760px){
-  .title{max-width:68%}
   .title-word-row{gap:4px}
   .title-badges{
     --header-badge-size:clamp(16px,5vw,21px);
@@ -3248,7 +3374,6 @@ html.touch-ui .level-attire{
   .complete-card .pack-stats-note{font-size:8px}
 }
 @media(max-width:390px){
-  .title{max-width:72%}
   .title-badges{--header-badge-size:15px;--header-badge-gap:0}
   .title-badges > .daily-streak-badge{--daily-streak-badge-size:24px}
 }

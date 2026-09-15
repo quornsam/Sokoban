@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "349",
-  lastUpdated: "2026-09-14"
+  version: "350",
+  lastUpdated: "2026-09-15"
 });
+/* BOXXY v350 — completed-pack awards now collapse responsively into a full trophy cabinet instead of being clipped on narrow headers. */
 /* BOXXY v349 — completion resume state advances cleanly, Daily leaderboards are visible/clickable at completion, streak state distinguishes today, and held Undo is verified across normal and Zen controls. */
 /* BOXXY v348 — Zen zoom renders the board at its real zoomed size and pans by translation only, fixing mobile grid alignment and reducing large-level camera work. */
 /* BOXXY v347 — Zen zoom adds follow/static camera modes with dead-zone smoothing. */
@@ -2212,6 +2213,12 @@ window.BOXXY_RELEASE = Object.freeze({
   const levelResetBtn = document.getElementById("levelResetBtn");
   const collectionCompleteStar = document.getElementById("collectionCompleteStar");
   const completedPackStars = document.getElementById("completedPackStars");
+  const trophyCabinetBtn = document.getElementById("trophyCabinetBtn");
+  const trophyCabinetMoreCount = document.getElementById("trophyCabinetMoreCount");
+  const trophyCabinetModal = document.getElementById("trophyCabinetModal");
+  const trophyCabinetCloseBtn = document.getElementById("trophyCabinetCloseBtn");
+  const trophyCabinetSummary = document.getElementById("trophyCabinetSummary");
+  const trophyCabinetGrid = document.getElementById("trophyCabinetGrid");
   const dailyStreak = document.getElementById("dailyStreak");
   const dailyStreakNumber = document.getElementById("dailyStreakNumber");
   const dailyQuotePrompt = document.getElementById("dailyQuotePrompt");
@@ -2854,16 +2861,16 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   const PACK_STAR_AWARD_MESSAGES = Object.freeze([
-    packName => `A star has been added to your badge collection for completing “${packName}”. Find it beside BOXXY at the top of your screen, you box-pusher extraordinaire.`,
-    packName => `You earned a star for completing “${packName}”. It is waiting beside BOXXY at the top of your screen, you crate-shifting champion.`,
-    packName => `“${packName}” is complete, and its star now sits beside BOXXY at the top of your screen, you warehouse wizard.`,
-    packName => `Your new star for conquering “${packName}” is beside BOXXY at the top of your screen, you puzzle-pushing prodigy.`,
-    packName => `Pack complete. Look beside BOXXY at the top of your screen for your latest star, you Sokoban superstar.`
+    packName => `A star has been added to your BOXXY awards collection for completing “${packName}”, you box-pusher extraordinaire.`,
+    packName => `You earned a star for completing “${packName}”. It is now in your BOXXY awards collection, you crate-shifting champion.`,
+    packName => `“${packName}” is complete, and its star is now in your BOXXY awards collection, you warehouse wizard.`,
+    packName => `Your new star for conquering “${packName}” is in your BOXXY awards collection, you puzzle-pushing prodigy.`,
+    packName => `Pack complete. Your latest star is now in your BOXXY awards collection, you Sokoban superstar.`
   ]);
   const PACK_JIGSAW_AWARD_MESSAGES = Object.freeze([
-    packName => `A jigsaw puzzle piece has been added to your badge collection for completing “${packName}”. Find it beside BOXXY at the top of your screen, you box-pusher extraordinaire.`,
-    packName => `You completed “${packName}” and earned its jigsaw puzzle piece. It is waiting beside BOXXY at the top of your screen, you puzzle-pushing prodigy.`,
-    packName => `“${packName}” is complete. Its jigsaw puzzle piece now sits beside BOXXY at the top of your screen, you crate-shifting champion.`
+    packName => `A jigsaw puzzle piece has been added to your BOXXY awards collection for completing “${packName}”, you box-pusher extraordinaire.`,
+    packName => `You completed “${packName}” and earned its jigsaw puzzle piece. It is now in your BOXXY awards collection, you puzzle-pushing prodigy.`,
+    packName => `“${packName}” is complete. Its jigsaw puzzle piece is now in your BOXXY awards collection, you crate-shifting champion.`
   ]);
   const PACK_STAR_SVG = '<svg viewBox="0 0 100 100" aria-hidden="true" focusable="false"><path d="M50 6 62.7 34.2 93.5 37.5 70.5 58.3 77 88.5 50 73 23 88.5 29.5 58.3 6.5 37.5 37.3 34.2Z"/></svg>';
   const PACK_JIGSAW_SVG = '<svg viewBox="0 0 100 100" aria-hidden="true" focusable="false"><path d="M8 26H34C34 14 40 6 50 6S66 14 66 26H82V38C82 42 84 44 88 44C94 44 98 48 98 54S94 66 88 66C84 66 82 68 82 72V90H64C64 78 58 72 50 72S36 78 36 90H8V64C20 64 28 58 28 50S20 36 8 36Z"/></svg>';
@@ -2871,9 +2878,9 @@ window.BOXXY_RELEASE = Object.freeze({
   const PACK_ALPHABET_SOUP_BADGE_HTML = '<img src="assets/ui/alphabet-soup-badge.png" alt="" aria-hidden="true" style="display:block;width:100%;height:100%;object-fit:contain;">';
   const PACK_STARRY_NIGHT_BADGE_HTML = '<img src="assets/ui/starry-night-badge.png" alt="" aria-hidden="true" style="display:block;width:100%;height:100%;object-fit:contain;">';
   const PACK_STARRY_NIGHT_AWARD_MESSAGES = Object.freeze([
-    packName => `A crescent moon has been added to your badge collection for completing “${packName}”. Find it beside BOXXY at the top of your screen.`,
-    packName => `You completed “${packName}” and earned its crescent moon badge. It is waiting beside BOXXY at the top of your screen.`,
-    packName => `“${packName}” is complete. Its crescent moon badge now sits beside BOXXY at the top of your screen.`
+    packName => `A crescent moon has been added to your BOXXY awards collection for completing “${packName}”.`,
+    packName => `You completed “${packName}” and earned its crescent moon badge. It is now in your BOXXY awards collection.`,
+    packName => `“${packName}” is complete. Its crescent moon badge is now in your BOXXY awards collection.`
   ]);
   const lastPackAwardMessage = { star: -1, jigsaw: -1, alphabet: -1, moon: -1 };
 
@@ -2898,9 +2905,9 @@ window.BOXXY_RELEASE = Object.freeze({
       ? PACK_JIGSAW_AWARD_MESSAGES
       : kind === "alphabet"
         ? [
-            packName => `A letter A has been added to your badge collection for completing “${packName}”. Find it beside BOXXY at the top of your screen, you box-pusher extraordinaire.`,
-            packName => `You completed “${packName}” and earned its A badge. It is waiting beside BOXXY at the top of your screen, you word-loving warehouse wizard.`,
-            packName => `“${packName}” is complete. Its A badge now sits beside BOXXY at the top of your screen, you alphabet-shifting champion.`
+            packName => `A letter A has been added to your BOXXY awards collection for completing “${packName}”, you box-pusher extraordinaire.`,
+            packName => `You completed “${packName}” and earned its A badge. It is now in your BOXXY awards collection, you word-loving warehouse wizard.`,
+            packName => `“${packName}” is complete. Its A badge is now in your BOXXY awards collection, you alphabet-shifting champion.`
           ]
         : kind === "moon"
           ? PACK_STARRY_NIGHT_AWARD_MESSAGES
@@ -3735,6 +3742,123 @@ window.BOXXY_RELEASE = Object.freeze({
     }, millisecondsUntilNextLocalMidnight());
   }
 
+  let headerAwardsLayoutFrame = 0;
+
+  function buildTrophyCabinet() {
+    if (!trophyCabinetGrid) return;
+    trophyCabinetGrid.innerHTML = "";
+    const earnedCount = PACKS.reduce((total, pack) => total + (packIsComplete(pack.id) ? 1 : 0), 0);
+    if (trophyCabinetSummary) trophyCabinetSummary.textContent = `${earnedCount} OF ${PACKS.length} AWARDS EARNED`;
+
+    const fragment = document.createDocumentFragment();
+    PACKS.forEach(pack => {
+      const earned = packIsComplete(pack.id);
+      const slot = document.createElement("div");
+      slot.className = `trophy-cabinet-slot ${earned ? "is-earned" : "is-unearned"}`;
+
+      const award = document.createElement(earned ? "button" : "div");
+      if (earned) {
+        award.type = "button";
+        award.className = "trophy-cabinet-award";
+        award.setAttribute("aria-label", `View congratulations for ${pack.displayName || pack.title}`);
+        award.addEventListener("click", () => {
+          closeTrophyCabinet();
+          showCollectionCongratulations(pack.id);
+        });
+      } else {
+        award.className = "trophy-cabinet-award trophy-cabinet-award-locked";
+      }
+
+      const icon = document.createElement("span");
+      icon.className = `trophy-cabinet-award-icon completed-pack-reward-${packRewardKind(pack)}`;
+      icon.style.setProperty("--pack-star-colour", packAccentColour(pack));
+      icon.innerHTML = packRewardSvg(pack);
+
+      const name = document.createElement("strong");
+      name.className = "trophy-cabinet-slot-name";
+      name.textContent = pack.displayName || pack.title;
+
+      const status = document.createElement("span");
+      status.className = "trophy-cabinet-slot-status";
+      status.textContent = earned ? "EARNED" : "NOT YET EARNED";
+
+      award.append(icon, name);
+      slot.append(award, status);
+      fragment.appendChild(slot);
+    });
+    trophyCabinetGrid.appendChild(fragment);
+  }
+
+  function openTrophyCabinet() {
+    if (!trophyCabinetModal) return;
+    buildTrophyCabinet();
+    trophyCabinetModal.hidden = false;
+    requestAnimationFrame(() => trophyCabinetCloseBtn?.focus({ preventScroll: true }));
+  }
+
+  function closeTrophyCabinet() {
+    if (!trophyCabinetModal) return;
+    trophyCabinetModal.hidden = true;
+    trophyCabinetBtn?.focus({ preventScroll: true });
+  }
+
+  function layoutHeaderAwards() {
+    headerAwardsLayoutFrame = 0;
+    if (!completedPackStars || !trophyCabinetBtn || !dailyStreak) return;
+    const packButtons = Array.from(completedPackStars.querySelectorAll(".completed-pack-star"));
+    packButtons.forEach(button => { button.hidden = false; });
+    trophyCabinetBtn.hidden = true;
+    if (trophyCabinetMoreCount) trophyCabinetMoreCount.textContent = "";
+    if (!packButtons.length) return;
+
+    const row = completedPackStars.closest(".title-word-row");
+    const brand = row?.querySelector(":scope > strong");
+    if (!row || !brand) return;
+
+    const rowStyle = getComputedStyle(row);
+    const rowGap = parseFloat(rowStyle.columnGap || rowStyle.gap) || 0;
+    const badges = completedPackStars.closest(".title-badges");
+    const badgesStyle = badges ? getComputedStyle(badges) : null;
+    const railGap = parseFloat(badgesStyle?.columnGap || badgesStyle?.gap) || 0;
+    const packStyle = getComputedStyle(completedPackStars);
+    const packGap = parseFloat(packStyle.columnGap || packStyle.gap) || 0;
+    const available = Math.max(0, row.clientWidth - brand.getBoundingClientRect().width - rowGap);
+    const streakWidth = dailyStreak.getBoundingClientRect().width;
+    const packWidths = packButtons.map(button => button.getBoundingClientRect().width);
+    const allPackWidth = packWidths.reduce((sum, width) => sum + width, 0) + packGap * Math.max(0, packButtons.length - 1);
+    const fullWidth = streakWidth + railGap + allPackWidth;
+
+    if (fullWidth <= available + 0.5) return;
+
+    trophyCabinetBtn.hidden = false;
+    const cabinetWidth = trophyCabinetBtn.getBoundingClientRect().width;
+    let used = streakWidth + railGap + cabinetWidth + railGap;
+    let visibleCount = 0;
+
+    for (let index = 0; index < packButtons.length; index++) {
+      const nextWidth = packWidths[index] + (visibleCount ? packGap : 0);
+      if (used + nextWidth <= available + 0.5) {
+        used += nextWidth;
+        visibleCount++;
+      } else {
+        packButtons[index].hidden = true;
+      }
+    }
+
+    const hiddenCount = packButtons.length - visibleCount;
+    if (trophyCabinetMoreCount) trophyCabinetMoreCount.textContent = hiddenCount > 0 ? `+${hiddenCount}` : "";
+    const label = hiddenCount > 0
+      ? `View trophy cabinet, ${hiddenCount} more ${hiddenCount === 1 ? "award" : "awards"}`
+      : "View trophy cabinet";
+    trophyCabinetBtn.setAttribute("aria-label", label);
+    trophyCabinetBtn.title = label;
+  }
+
+  function scheduleHeaderAwardsLayout() {
+    if (headerAwardsLayoutFrame) cancelAnimationFrame(headerAwardsLayoutFrame);
+    headerAwardsLayoutFrame = requestAnimationFrame(layoutHeaderAwards);
+  }
+
   function updateCompletedPackStars() {
     updateDailyStreak();
     if (!completedPackStars) return;
@@ -3758,6 +3882,9 @@ window.BOXXY_RELEASE = Object.freeze({
       });
       completedPackStars.appendChild(button);
     });
+
+    buildTrophyCabinet();
+    scheduleHeaderAwardsLayout();
   }
 
   function updateCollectionCompleteStar() {
@@ -8977,6 +9104,9 @@ window.BOXXY_RELEASE = Object.freeze({
   });
   packCloseBtn?.addEventListener("click", closePackModal);
   packModal?.addEventListener("click", event => { if (event.target === packModal) closePackModal(); });
+  trophyCabinetBtn?.addEventListener("click", openTrophyCabinet);
+  trophyCabinetCloseBtn?.addEventListener("click", closeTrophyCabinet);
+  trophyCabinetModal?.addEventListener("click", event => { if (event.target === trophyCabinetModal) closeTrophyCabinet(); });
   dailyArchiveCloseBtn?.addEventListener("click", closeDailyArchive);
   dailyArchiveModal?.addEventListener("click", event => { if (event.target === dailyArchiveModal) closeDailyArchive(); });
   window.addEventListener("boxxyaccountdailysynced", event => {
@@ -9341,6 +9471,11 @@ window.BOXXY_RELEASE = Object.freeze({
   if ("ResizeObserver" in window) {
     const boardResizeObserver = new ResizeObserver(scheduleBoardResize);
     boardResizeObserver.observe(boardWrap);
+    const headerAwardsResizeObserver = new ResizeObserver(scheduleHeaderAwardsLayout);
+    const titleWordRow = completedPackStars?.closest(".title-word-row");
+    if (titleWordRow) headerAwardsResizeObserver.observe(titleWordRow);
+  } else {
+    window.addEventListener("resize", scheduleHeaderAwardsLayout, { passive: true });
   }
   updateFullscreenButton();
   buildBoardStyleControls();
@@ -9367,6 +9502,7 @@ window.BOXXY_RELEASE = Object.freeze({
     if (event.key === "Escape" && dailyInviteModal && !dailyInviteModal.hidden) { closeDailyInvite(); return; }
     if (event.key === "Escape" && dailyLeaderboardModal && !dailyLeaderboardModal.hidden) { closeDailyLeaderboard(); return; }
     if (event.key === "Escape" && dailyArchiveModal && !dailyArchiveModal.hidden) { closeDailyArchive(); return; }
+    if (event.key === "Escape" && trophyCabinetModal && !trophyCabinetModal.hidden) { closeTrophyCabinet(); return; }
     if (event.key === "Escape" && packModal && !packModal.hidden) { closePackModal(); return; }
     if (event.key === "Escape" && themeModal && !themeModal.hidden) { closeThemeModal(); return; }
     if (event.key === "Escape" && resetConfirmModal && !resetConfirmModal.hidden) {
