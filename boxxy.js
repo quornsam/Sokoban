@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "350",
-  lastUpdated: "2026-09-15"
+  version: "351",
+  lastUpdated: "2026-09-16"
 });
+/* BOXXY v351 — Daily leaderboard eligibility now rejects assisted runs and inhuman movement rates, with aligned start/end timing metadata for new qualifying scores. */
 /* BOXXY v350 — completed-pack awards now collapse responsively into a full trophy cabinet instead of being clipped on narrow headers. */
 /* BOXXY v349 — completion resume state advances cleanly, Daily leaderboards are visible/clickable at completion, streak state distinguishes today, and held Undo is verified across normal and Zen controls. */
 /* BOXXY v348 — Zen zoom renders the board at its real zoomed size and pans by translation only, fixing mobile grid alignment and reducing large-level camera work. */
@@ -1189,6 +1190,7 @@ window.BOXXY_RELEASE = Object.freeze({
   const DAILY_TEST_STREAK_KEY = "boxxy-daily-streak-test-v1";
   const DAILY_INVITE_SEEN_PREFIX = "boxxy-daily-invite-seen-";
   const DAILY_QUOTE_DISMISSED_PREFIX = "boxxy-daily-quote-dismissed-";
+  const DAILY_MAX_PUBLIC_MOVES_PER_SECOND = 15;
   const DAILY_DATE_OVERRIDE = (() => {
     try {
       const value = new URLSearchParams(window.location.search).get("dailyDate");
@@ -1256,12 +1258,14 @@ window.BOXXY_RELEASE = Object.freeze({
     if (!puzzle?.date) return null;
     const completions = readDailyCompletions();
     const key = String(puzzle.date);
+    const attemptStartedAt = Math.max(0, Number(result.startedAt) || 0);
+    const attemptCompletedAt = Math.max(0, Number(result.completedAt) || Date.now());
     const attempt = {
       sequence: Number(puzzle.sequence) || 0,
       moves: Math.max(0, Number(result.moves) || 0),
       pushes: Math.max(0, Number(result.pushes) || 0),
       seconds: Math.max(0, Number(result.seconds) || 0),
-      completedAt: Number(result.completedAt) || Date.now()
+      completedAt: attemptCompletedAt
     };
     const previous = completions[key];
     const previousMoves = Number(previous?.moves);
@@ -1275,6 +1279,12 @@ window.BOXXY_RELEASE = Object.freeze({
     const previousLeaderboardMoves = Number.isFinite(Number(previous?.leaderboardMoves))
       ? Math.max(0, Math.trunc(Number(previous.leaderboardMoves)))
       : (previous?.leaderboardTracked === true ? null : (Number.isFinite(previousMoves) ? Math.max(0, Math.trunc(previousMoves)) : null));
+    const previousLeaderboardStartedAt = Number.isFinite(Number(previous?.leaderboardStartedAt))
+      ? Math.max(0, Number(previous.leaderboardStartedAt))
+      : null;
+    const previousLeaderboardCompletedAt = Number.isFinite(Number(previous?.leaderboardCompletedAt))
+      ? Math.max(0, Number(previous.leaderboardCompletedAt))
+      : null;
     const attemptLeaderboardSeconds = result.leaderboardEligible === false ? null : attempt.seconds;
 
     if (!previous || !Number.isFinite(previousMoves) || attempt.moves < Math.max(0, previousMoves)) {
@@ -1294,6 +1304,8 @@ window.BOXXY_RELEASE = Object.freeze({
     let leaderboardMoves = Number.isFinite(previousLeaderboardMoves)
       ? previousLeaderboardMoves
       : null;
+    let leaderboardStartedAt = previousLeaderboardStartedAt;
+    let leaderboardCompletedAt = previousLeaderboardCompletedAt;
     if (Number.isFinite(attemptLeaderboardSeconds) && attemptLeaderboardSeconds > 0) {
       const isFaster = leaderboardSeconds === null || attemptLeaderboardSeconds < leaderboardSeconds;
       const isEqualButFewerMoves = attemptLeaderboardSeconds === leaderboardSeconds
@@ -1301,12 +1313,21 @@ window.BOXXY_RELEASE = Object.freeze({
       if (isFaster || isEqualButFewerMoves) {
         leaderboardSeconds = attemptLeaderboardSeconds;
         leaderboardMoves = attempt.moves;
+        leaderboardStartedAt = attemptStartedAt > 0 ? attemptStartedAt : null;
+        leaderboardCompletedAt = attemptCompletedAt > 0 ? attemptCompletedAt : null;
       }
     }
     completions[key].leaderboardTracked = true;
     completions[key].leaderboardSeconds = leaderboardSeconds;
     if (leaderboardMoves === null) delete completions[key].leaderboardMoves;
     else completions[key].leaderboardMoves = leaderboardMoves;
+    if (leaderboardStartedAt && leaderboardCompletedAt && leaderboardCompletedAt >= leaderboardStartedAt) {
+      completions[key].leaderboardStartedAt = leaderboardStartedAt;
+      completions[key].leaderboardCompletedAt = leaderboardCompletedAt;
+    } else {
+      delete completions[key].leaderboardStartedAt;
+      delete completions[key].leaderboardCompletedAt;
+    }
     writeDailyCompletions(completions);
     return completions[key];
   }
@@ -2614,9 +2635,11 @@ window.BOXXY_RELEASE = Object.freeze({
     };
   }
 
-  function elapsedLevelSeconds() {
+  function elapsedLevelSeconds(endedAt = Date.now()) {
     if (!startedAt) return 0;
-    return Math.max(0, Math.round((Date.now() - startedAt) / 10) / 100);
+    const endTime = Number(endedAt);
+    const safeEnd = Number.isFinite(endTime) && endTime > 0 ? endTime : Date.now();
+    return Math.max(0, Math.round((safeEnd - startedAt) / 10) / 100);
   }
 
   /* BOXXY v173 — one exact 6 × 5 completion sprite sheet.
@@ -7690,7 +7713,8 @@ window.BOXXY_RELEASE = Object.freeze({
     clearTimeout(animTimer);
     clearInterval(timer);
     timer = null;
-    const completionSeconds = elapsedLevelSeconds();
+    const completedAt = Date.now();
+    const completionSeconds = elapsedLevelSeconds(completedAt);
     completionSolveData = (levelSolutionAvailable && !makerTesting && !sharedPuzzleMode) ? canonicalCompletedSolveData() : "";
     setPreciseClockContent(timeEl, completionSeconds);
     if (!makerTesting && !sharedPuzzleMode && !dailyMode) clearCurrentCheckpoint();
@@ -7700,13 +7724,20 @@ window.BOXXY_RELEASE = Object.freeze({
       let streakMessage = "Guided solves do not count as a Daily completion, streak or fastest time.";
       let streakResult = null;
 
+      const publicMoveRate = completionSeconds > 0 && moves > 1
+        ? (moves - 1) / completionSeconds
+        : 0;
+      const inhumanPublicSpeed = publicMoveRate > DAILY_MAX_PUBLIC_MOVES_PER_SECOND;
+      const leaderboardEligible = !dailyPointControlUsed && !inhumanPublicSpeed;
+
       if (!solvedWithGuidedRoute) {
         recordDailyCompletion(dailyPuzzle, {
           moves,
           pushes,
           seconds: completionSeconds,
-          completedAt: Date.now(),
-          leaderboardEligible: !dailyPointControlUsed
+          startedAt,
+          completedAt,
+          leaderboardEligible
         });
         dailyLeaderboardCache.delete(String(dailyPuzzle.date));
         window.dispatchEvent(new CustomEvent("boxxydailycompletionrecorded", {
@@ -7734,6 +7765,9 @@ window.BOXXY_RELEASE = Object.freeze({
       if (completeTitle) completeTitle.textContent = solvedWithGuidedRoute ? "GUIDED SOLVE" : "DAILY COMPLETE";
       if (completedPackHeading) completedPackHeading.textContent = formatDailyDate(dailyPuzzle.date, { weekday: true, long: true, year: true });
       if (makerApplySolveBtn) makerApplySolveBtn.hidden = true;
+      const leaderboardEligibilityMessage = !solvedWithGuidedRoute && !leaderboardEligible
+        ? '<span class="daily-complete-leaderboard-warning">This result doesn’t qualify for the public fastest-times table. If you think we have made a mistake please write to us via the Contact Us page.</span>'
+        : '';
       completeText.innerHTML = `
         <span class="daily-complete-result" aria-label="Completed in ${formatClockDuration(completionSeconds)}, ${moves} ${moves === 1 ? "move" : "moves"}">
           <span class="daily-complete-result-item">
@@ -7745,7 +7779,8 @@ window.BOXXY_RELEASE = Object.freeze({
             <strong class="daily-complete-result-value">${moves}</strong>
           </span>
         </span>
-        <span class="daily-complete-streak-message">${streakMessage}</span>`;
+        <span class="daily-complete-streak-message">${streakMessage}</span>
+        ${leaderboardEligibilityMessage}`;
       if (dailyShareText) dailyShareText.value = solvedWithGuidedRoute ? "" : buildDailyShareText(dailyPuzzle, { seconds: completionSeconds, moves });
       if (dailySharePanel) dailySharePanel.hidden = solvedWithGuidedRoute;
       if (dailyShareStatus) dailyShareStatus.textContent = "";
@@ -7762,7 +7797,10 @@ window.BOXXY_RELEASE = Object.freeze({
           pushes: Number(pushes),
           duration_seconds: completionSeconds,
           streak_days: streakResult.count,
-          streak_incremented: streakResult.changed
+          streak_incremented: streakResult.changed,
+          leaderboard_eligible: leaderboardEligible,
+          leaderboard_moves_per_second: Math.round(publicMoveRate * 100) / 100,
+          leaderboard_ineligible_reason: dailyPointControlUsed ? "assisted_control" : (inhumanPublicSpeed ? "inhuman_speed" : "")
         }));
       }
     } else if (sharedPuzzleMode) {

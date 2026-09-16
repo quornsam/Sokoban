@@ -1,6 +1,8 @@
 import { json, requireDatabase } from "../_lib/auth.js";
 
 const DAILY_LAUNCH_DATE = "2026-08-30";
+const MAX_PUBLIC_MOVES_PER_SECOND = 15;
+const MAX_TIMING_DRIFT_SECONDS = 0.15;
 
 function validDateKey(value) {
   const dateKey = String(value || "").trim();
@@ -23,6 +25,8 @@ export async function onRequestGet(context) {
     const leaderboardSecondsPath = `$."${dateKey}".leaderboardSeconds`;
     const leaderboardMovesPath = `$."${dateKey}".leaderboardMoves`;
     const leaderboardTrackedPath = `$."${dateKey}".leaderboardTracked`;
+    const leaderboardStartedAtPath = `$."${dateKey}".leaderboardStartedAt`;
+    const leaderboardCompletedAtPath = `$."${dateKey}".leaderboardCompletedAt`;
     const result = await db.prepare(`
       WITH daily_records AS (
         SELECT
@@ -47,16 +51,46 @@ export async function onRequestGet(context) {
               )
             ELSE
               CAST(json_extract(daily_json, ?) AS INTEGER)
-          END AS moves
+          END AS moves,
+          CASE
+            WHEN json_extract(daily_json, ?) = 1 THEN
+              CAST(json_extract(daily_json, ?) AS INTEGER)
+            ELSE NULL
+          END AS leaderboard_started_at,
+          CASE
+            WHEN json_extract(daily_json, ?) = 1 THEN
+              CAST(json_extract(daily_json, ?) AS INTEGER)
+            ELSE NULL
+          END AS leaderboard_completed_at
         FROM daily_records
       )
       SELECT username, seconds, moves
       FROM daily_times
-      WHERE seconds IS NOT NULL AND seconds > 0
+      WHERE
+        seconds IS NOT NULL
+        AND seconds > 0
+        AND (
+          moves IS NULL
+          OR moves <= 1
+          OR ((moves - 1.0) / seconds) <= ?
+        )
+        AND (
+          leaderboard_started_at IS NULL
+          OR leaderboard_completed_at IS NULL
+          OR leaderboard_started_at <= 0
+          OR leaderboard_completed_at <= 0
+          OR (
+            leaderboard_completed_at >= leaderboard_started_at
+            AND ABS(((leaderboard_completed_at - leaderboard_started_at) / 1000.0) - seconds) <= ?
+          )
+        )
       ORDER BY seconds ASC, username COLLATE NOCASE ASC
     `).bind(
       leaderboardTrackedPath, leaderboardSecondsPath, secondsPath,
-      leaderboardTrackedPath, leaderboardMovesPath, movesPath, movesPath
+      leaderboardTrackedPath, leaderboardMovesPath, movesPath, movesPath,
+      leaderboardTrackedPath, leaderboardStartedAtPath,
+      leaderboardTrackedPath, leaderboardCompletedAtPath,
+      MAX_PUBLIC_MOVES_PER_SECOND, MAX_TIMING_DRIFT_SECONDS
     ).all();
 
     const entries = (result.results || []).map(row => ({
