@@ -159,7 +159,7 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=351">
+<link rel="stylesheet" href="styles.css?v=352">
 <link rel="stylesheet" href="how-to-play.css?v=225">
 <link rel="preload" as="image" href="assets/board/boxes/box-default-yellow.png?v=226">
 <link rel="preload" as="image" href="assets/board/goals/goal-red.png?v=226">
@@ -305,15 +305,6 @@
           </svg>
         </button>
         <div class="level-picker-tools">
-          <button id="styleBtnMobile" class="level-attire" data-style-trigger type="button" aria-label="Change character attire">
-            <svg class="style-outfit-icon" viewBox="0 0 100 100" aria-hidden="true" focusable="false" shape-rendering="geometricPrecision">
-              <path class="style-hanger-hook" d="M50 27c0-7 10-8 12-2 2 5-3 8-7 10"/>
-              <path class="style-hanger-bar" d="M50 35 19 58h62L50 35Z"/>
-              <path class="style-shirt-body" d="M31 48 42 43c2 5 5 7 8 7s6-2 8-7l11 5 9 11-9 8-6-5v21H37V62l-6 5-9-8 9-11Z"/>
-              <path class="style-shirt-seam" d="M37 62h26M50 50v33"/>
-            </svg>
-            <span>ATTIRE</span>
-          </button>
           <button id="levelCloseBtn" class="level-close" type="button" aria-label="Close level chooser"><span aria-hidden="true">×</span></button>
         </div>
       </div>
@@ -492,6 +483,17 @@
               <div id="settingsTargetColourChoices" class="settings-board-style-swatches" role="group" aria-label="Target and box-on-target colour"></div>
             </div>
           </div>
+          <button id="settingsAttireBtn" class="settings-link-button settings-attire-link" data-style-trigger type="button" aria-label="Change character attire">
+            <span class="settings-attire-icon" aria-hidden="true">
+              <svg class="style-outfit-icon" viewBox="0 0 100 100" focusable="false" shape-rendering="geometricPrecision">
+                <path class="style-hanger-hook" d="M50 27c0-7 10-8 12-2 2 5-3 8-7 10"/>
+                <path class="style-hanger-bar" d="M50 35 19 58h62L50 35Z"/>
+                <path class="style-shirt-body" d="M31 48 42 43c2 5 5 7 8 7s6-2 8-7l11 5 9 11-9 8-6-5v21H37V62l-6 5-9-8 9-11Z"/>
+                <path class="style-shirt-seam" d="M37 62h26M50 50v33"/>
+              </svg>
+            </span>
+            <b>ATTIRE</b><i aria-hidden="true">→</i>
+          </button>
         </section>
 
         <section id="settingsControlsPanel" class="settings-panel desktop-settings-only">
@@ -1405,7 +1407,7 @@
 <script src="daily-puzzles/boxxy-daily-loader.js?v=218"></script>
 <script src="levels.js?v=268"></script>
 <script src="starry-night.js?v=302"></script>
-<script src="boxxy.js?v=351"></script>
+<script src="boxxy.js?v=352"></script>
 <script src="account.js?v=346"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="pack-builder.js?v=216"></script>

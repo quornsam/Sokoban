@@ -7469,3 +7469,92 @@ body.desktop-zen-mode .zen-camera-mode-btn:not([hidden]){display:grid}
     bottom:72px;
   }
 }
+
+/* BOXXY v352 — level-pack discovery and wardrobe access without adding gameplay clutter. */
+.settings-attire-link{
+  margin-top:12px;
+}
+.settings-attire-icon{
+  width:30px;
+  height:30px;
+  display:grid!important;
+  place-items:center;
+  font-size:0!important;
+  line-height:0!important;
+}
+.settings-attire-icon .style-outfit-icon{
+  width:27px;
+  height:27px;
+}
+
+.level-picker #levelButtons .explore-packs-option{
+  grid-column:1/-1;
+  min-width:0;
+  min-height:34px;
+  height:34px;
+  padding:0 9px 0 11px;
+  border:2px solid var(--blue);
+  background:#eef3f5;
+  color:var(--ink);
+  box-shadow:2px 2px 0 rgba(54,107,126,.24);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  text-align:left;
+}
+.level-picker #levelButtons .explore-packs-option strong{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:9px;
+  font-weight:1000;
+  letter-spacing:.07em;
+  line-height:1;
+}
+.level-picker #levelButtons .explore-packs-option span{
+  flex:none;
+  width:24px;
+  height:22px;
+  display:grid;
+  place-items:center;
+  background:var(--blue);
+  color:#fff;
+  font-size:15px;
+  font-weight:1000;
+  line-height:1;
+}
+.level-picker #levelButtons .explore-packs-option:hover,
+.level-picker #levelButtons .explore-packs-option:focus-visible{
+  background:#e3edf0;
+}
+
+/* The Levels header no longer carries an Attire control on phones. */
+@media(max-width:760px){
+  .level-picker-head{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto auto;
+  }
+  .level-picker-head > #levelPickerTitle{grid-column:1}
+  .collection-complete-star{grid-column:2}
+  .level-picker-tools{
+    grid-column:3;
+    display:flex;
+    align-items:center;
+    margin-left:0;
+  }
+  .level-close{
+    grid-column:auto;
+    position:static;
+    right:auto;
+    top:auto;
+    transform:none;
+  }
+  .settings-attire-link{margin-top:10px}
+}
+@media(max-width:380px){
+  .level-picker-head{
+    grid-template-columns:minmax(0,1fr) 31px 36px;
+  }
+}
