@@ -6,9 +6,11 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "351",
-  lastUpdated: "2026-09-16"
+  version: "353",
+  lastUpdated: "2026-09-18"
 });
+/* BOXXY v353 — Menu → Style attire control now sits above box colours and previews the currently selected character outfit. */
+/* BOXXY v352 — easier level-pack discovery, attire moved into Menu → Style on mobile, and Beverley C added as the eighth BOXXY Originals completer. */
 /* BOXXY v351 — Daily leaderboard eligibility now rejects assisted runs and inhuman movement rates, with aligned start/end timing metadata for new qualifying scores. */
 /* BOXXY v350 — completed-pack awards now collapse responsively into a full trophy cabinet instead of being clipped on narrow headers. */
 /* BOXXY v349 — completion resume state advances cleanly, Daily leaderboards are visible/clickable at completion, streak state distinguishes today, and held Undo is verified across normal and Zen controls. */
@@ -3070,7 +3072,8 @@ window.BOXXY_RELEASE = Object.freeze({
     { name: "Matthias Meger", country: "Germany" },
     { name: "Stu Weston", country: "UK" },
     { name: "Carlos Montiers", country: "Chile" },
-    { name: "Sean Heapy", country: "US" }
+    { name: "Sean Heapy", country: "US" },
+    { name: "Beverley C", country: "Scotland" }
   ]);
 
   function renderOriginalsCompletionBoard() {
@@ -8202,6 +8205,14 @@ window.BOXXY_RELEASE = Object.freeze({
       loadDailyPuzzle(puzzle);
     });
     levelButtons.appendChild(dailyButton);
+
+    const explorePacksButton = document.createElement("button");
+    explorePacksButton.type = "button";
+    explorePacksButton.className = "explore-packs-option";
+    explorePacksButton.innerHTML = '<strong>EXPLORE OTHER LEVEL PACKS</strong><span aria-hidden="true">→</span>';
+    explorePacksButton.setAttribute("aria-label", "Explore other level packs");
+    explorePacksButton.addEventListener("click", openPackModal);
+    levelButtons.appendChild(explorePacksButton);
 
     pickerPack.levels.forEach((level, index) => {
       const button = document.createElement("button");
