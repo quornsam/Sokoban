@@ -7558,3 +7558,70 @@ body.desktop-zen-mode .zen-camera-mode-btn:not([hidden]){display:grid}
     grid-template-columns:minmax(0,1fr) 31px 36px;
   }
 }
+
+
+/* BOXXY v353 — current outfit preview leads the Menu → Style section. */
+.settings-attire-link{
+  position:relative;
+  min-height:108px;
+  margin:0 0 12px;
+  padding:0;
+  overflow:hidden;
+  display:block;
+  text-align:left;
+}
+.settings-attire-link > b{
+  position:absolute;
+  left:11px;
+  top:10px;
+  z-index:2;
+  font-size:9px;
+  letter-spacing:.08em;
+}
+.settings-attire-link > i{
+  position:absolute;
+  right:11px;
+  top:8px;
+  z-index:2;
+  font-style:normal;
+  font-size:18px;
+  line-height:1;
+}
+.settings-attire-preview{
+  position:absolute;
+  left:50%;
+  top:50%;
+  width:82px;
+  height:88px;
+  transform:translate(-50%,-46%);
+  display:flex!important;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+  pointer-events:none;
+  font-size:0!important;
+  line-height:0!important;
+}
+.settings-attire-preview canvas{
+  display:block;
+  width:auto;
+  height:104px;
+  max-width:none;
+  flex:none;
+  transform:translateY(-12%);
+  transform-origin:center center;
+}
+.settings-attire-link:hover,
+.settings-attire-link:focus-visible{
+  background:#fffaf1;
+}
+@media(max-width:760px){
+  .settings-attire-link{min-height:102px;margin:0 0 10px}
+  .settings-attire-preview{width:78px;height:82px}
+  .settings-attire-preview canvas{height:98px}
+}
+@media(max-height:520px) and (orientation:landscape){
+  .settings-attire-link{min-height:88px;margin-bottom:8px}
+  .settings-attire-preview{width:68px;height:72px}
+  .settings-attire-preview canvas{height:86px}
+}

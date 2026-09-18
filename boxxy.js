@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "352",
+  version: "353",
   lastUpdated: "2026-09-18"
 });
+/* BOXXY v353 — Menu → Style attire control now sits above box colours and previews the currently selected character outfit. */
 /* BOXXY v352 — easier level-pack discovery, attire moved into Menu → Style on mobile, and Beverley C added as the eighth BOXXY Originals completer. */
 /* BOXXY v351 — Daily leaderboard eligibility now rejects assisted runs and inhuman movement rates, with aligned start/end timing metadata for new qualifying scores. */
 /* BOXXY v350 — completed-pack awards now collapse responsively into a full trophy cabinet instead of being clipped on narrow headers. */
