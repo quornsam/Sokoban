@@ -3,7 +3,7 @@
  * Copyright © 2026 Sam Cornwell. All rights reserved.
  * Personal non-commercial use only. See LICENSE.md.
  */
-/* BOXXY v216 — fixed library grid rows and exact column selection. */
+/* BOXXY v354 — library triage, global used-level filtering and live-pack reference browser. */
 (() => {
   "use strict";
 
@@ -27,7 +27,15 @@
   const libraryCount = document.getElementById("packLibraryCount");
   const libraryColumnsSelect = document.getElementById("packLibraryColumnsSelect");
   const libraryHideUsed = document.getElementById("packLibraryHideUsed");
+  const libraryShowHidden = document.getElementById("packLibraryShowHidden");
   const libraryExpandBtn = document.getElementById("packLibraryExpandBtn");
+  const liveReference = document.getElementById("packBuilderLiveReference");
+  const liveReferenceCount = document.getElementById("packLiveReferenceCount");
+  const livePackSelect = document.getElementById("packLivePackSelect");
+  const livePackToggle = document.getElementById("packLivePackToggle");
+  const livePackPanel = document.getElementById("packLivePackPanel");
+  const livePackSummary = document.getElementById("packLivePackSummary");
+  const livePackGrid = document.getElementById("packLivePackGrid");
   const packGrid = document.getElementById("packOrderGrid");
   const dailyGrid = document.getElementById("dailyOrderGrid");
   const packLevelCount = document.getElementById("packLevelCount");
@@ -57,6 +65,8 @@
   const DAILY_DRAFT_KEY = "boxxy-daily-puzzle-draft-v1";
   const DAILY_MONTHS_KEY = "boxxy-daily-puzzle-months-v2";
   const LIBRARY_VIEW_KEY = "boxxy-pack-builder-library-view-v1";
+  const LIBRARY_HIDDEN_KEY = "boxxy-pack-builder-hidden-levels-v1";
+  const LIVE_REFERENCE_KEY = "boxxy-pack-builder-live-reference-v1";
   const DAILY_SEQUENCE_ANCHOR_DATE = "2026-08-30";
   const DAILY_SEQUENCE_ANCHOR = 1;
   const DAILY_FIRST_MONTH = "2026-08";
@@ -82,7 +92,9 @@
   let pendingPackClear = false;
   let pendingDailyClear = false;
   let confirmationTimer = 0;
-  let libraryView = { columns: 6, hideUsed: false, expanded: false };
+  let libraryView = { columns: 6, hideUsed: false, showHidden: false, expanded: false };
+  let hiddenSavedLevelIds = new Set();
+  let liveReferenceState = { packId: "", expanded: false };
 
   function newId(prefix = "item") {
     if (globalThis.crypto?.randomUUID) return `${prefix}-${globalThis.crypto.randomUUID()}`;
@@ -201,6 +213,7 @@
     return {
       columns: clampLibraryColumns(value?.columns),
       hideUsed: value?.hideUsed === true,
+      showHidden: value?.showHidden === true,
       expanded: value?.expanded === true
     };
   }
@@ -217,9 +230,43 @@
     }
   }
 
+  function readHiddenSavedLevelIds() {
+    const value = safeParse(LIBRARY_HIDDEN_KEY, []);
+    return new Set(Array.isArray(value) ? value.filter(id => typeof id === "string" && id) : []);
+  }
+
+  function persistHiddenSavedLevelIds() {
+    try {
+      localStorage.setItem(LIBRARY_HIDDEN_KEY, JSON.stringify([...hiddenSavedLevelIds]));
+    } catch (_) {
+      setStatus("The browser could not save the hidden-level list.", "error");
+    }
+  }
+
+  function readLiveReferenceState() {
+    const value = safeParse(LIVE_REFERENCE_KEY, null);
+    return {
+      packId: typeof value?.packId === "string" ? value.packId : "",
+      expanded: value?.expanded === true
+    };
+  }
+
+  function persistLiveReferenceState() {
+    try {
+      localStorage.setItem(LIVE_REFERENCE_KEY, JSON.stringify(liveReferenceState));
+    } catch (_) {
+      // Reference choice is optional.
+    }
+  }
+
+  function layoutSignature(layout) {
+    return normaliseLayout(layout).join("\n");
+  }
+
   function applyLibraryView() {
     if (libraryColumnsSelect) libraryColumnsSelect.value = String(clampLibraryColumns(libraryView.columns));
     if (libraryHideUsed) libraryHideUsed.checked = libraryView.hideUsed;
+    if (libraryShowHidden) libraryShowHidden.checked = libraryView.showHidden;
     if (libraryGrid) {
       libraryGrid.style.gridTemplateColumns = `repeat(${clampLibraryColumns(libraryView.columns)}, minmax(0, 1fr))`;
     }
@@ -676,6 +723,8 @@
   function initialiseState() {
     savedLevels = readSavedLevels();
     libraryView = readLibraryView();
+    hiddenSavedLevelIds = readHiddenSavedLevelIds();
+    liveReferenceState = readLiveReferenceState();
     applyLibraryView();
     drafts = readDrafts();
     if (!drafts.length) {
@@ -945,20 +994,80 @@
     return entries.some(entry => recordMatchesEntry(record, entry));
   }
 
-  function createLibraryCard(record, isUsed = recordUsage(record)) {
+  function entryMatchesSavedRecord(record, entry) {
+    if (recordMatchesEntry(record, entry)) return true;
+    return layoutSignature(record?.layout) === layoutSignature(entry?.layout);
+  }
+
+  function recordUsageDetails(record) {
+    const labels = [];
+    const signature = layoutSignature(record?.layout);
+    const current = recordUsage(record);
+
+    const livePacks = Array.isArray(window.BOXXY_LEVEL_PACKS) ? window.BOXXY_LEVEL_PACKS : [];
+    livePacks.forEach(pack => {
+      const levels = Array.isArray(pack?.levels) ? pack.levels : [];
+      const index = levels.findIndex(level => layoutSignature(level?.layout) === signature);
+      if (index >= 0) labels.push(`LIVE · ${pack.displayName || pack.title || pack.id || "PACK"} #${index + 1}`);
+    });
+
+    const schedules = Array.isArray(window.BOXXY_DAILY_SCHEDULES) ? window.BOXXY_DAILY_SCHEDULES : [];
+    schedules.forEach(schedule => {
+      const puzzles = Array.isArray(schedule?.puzzles) ? schedule.puzzles : [];
+      puzzles.forEach(puzzle => {
+        if (layoutSignature(puzzle?.layout) !== signature) return;
+        const sequence = Number(puzzle?.sequence);
+        const label = Number.isFinite(sequence) ? `DAILY #${sequence}` : `DAILY ${puzzle?.date || ""}`.trim();
+        if (!labels.includes(label)) labels.push(label);
+      });
+    });
+
+    drafts.forEach(draft => {
+      if (draft?.entries?.some(entry => entryMatchesSavedRecord(record, entry))) {
+        const label = `DRAFT · ${draft.name || "UNTITLED PACK"}`;
+        if (!labels.includes(label)) labels.push(label);
+      }
+    });
+
+    Object.values(dailyMonthsState?.months || {}).forEach(monthDraft => {
+      if (monthDraft?.entries?.some(entry => entryMatchesSavedRecord(record, entry))) {
+        const label = `DAILY DRAFT · ${monthDraft.month || "MONTH"}`;
+        if (!labels.includes(label)) labels.push(label);
+      }
+    });
+
+    return { current, usedAnywhere: labels.length > 0, labels };
+  }
+
+  function createLibraryCard(record, usageDetails = recordUsageDetails(record)) {
+    const isUsed = Boolean(usageDetails?.current);
+    const usedAnywhere = Boolean(usageDetails?.usedAnywhere);
+    const isHidden = hiddenSavedLevelIds.has(record.id);
     const card = document.createElement("article");
     card.className = "pack-level-card pack-library-card";
     card.classList.toggle("is-used", isUsed);
-    card.draggable = !isUsed;
+    card.classList.toggle("has-usage-history", usedAnywhere && !isUsed);
+    card.classList.toggle("is-library-hidden", isHidden);
+    card.draggable = !isUsed && !isHidden;
     card.dataset.sourceId = record.id;
     card.title = isUsed
       ? `“${record.name}” is already in the current ${activeTab === "daily" ? "Daily Puzzle month" : "level pack"}.`
-      : `Drag “${record.name}” into the current ${activeTab === "daily" ? "Daily Puzzle calendar" : "level pack"}.`;
+      : (usageDetails?.labels?.length
+        ? `Used elsewhere: ${usageDetails.labels.join(" · ")}`
+        : `Drag “${record.name}” into the current ${activeTab === "daily" ? "Daily Puzzle calendar" : "level pack"}.`);
 
-    if (isUsed) {
+    if (isUsed || usedAnywhere || isHidden) {
       const usedBadge = document.createElement("b");
       usedBadge.className = "pack-library-used-badge";
-      usedBadge.textContent = activeTab === "daily" ? "IN CURRENT MONTH" : "IN CURRENT PACK";
+      if (isHidden) {
+        usedBadge.classList.add("is-hidden-badge");
+        usedBadge.textContent = "HIDDEN";
+      } else if (isUsed) {
+        usedBadge.textContent = activeTab === "daily" ? "IN CURRENT MONTH" : "IN CURRENT PACK";
+      } else {
+        usedBadge.classList.add("is-history-badge");
+        usedBadge.textContent = usageDetails.labels[0] || "USED ELSEWHERE";
+      }
       card.appendChild(usedBadge);
     }
 
@@ -995,23 +1104,40 @@
       event.stopPropagation();
       requestMakerAction("play", record);
     });
-    directActions.append(edit, play);
+    const hide = stopInteractiveDrag(document.createElement("button"));
+    hide.type = "button";
+    hide.textContent = isHidden ? "RESTORE" : "HIDE";
+    hide.title = isHidden
+      ? "Return this puzzle to the normal Saved Level Library"
+      : "Hide this saved puzzle from the Pack Builder without deleting it";
+    hide.addEventListener("click", event => {
+      event.stopPropagation();
+      if (isHidden) hiddenSavedLevelIds.delete(record.id);
+      else hiddenSavedLevelIds.add(record.id);
+      persistHiddenSavedLevelIds();
+      renderLibrary();
+      setStatus(isHidden ? `Restored “${record.name}” to the Saved Level Library.` : `Hidden “${record.name}” from the Pack Builder library.`, "success");
+    });
+    directActions.classList.add("with-hide");
+    directActions.append(edit, play, hide);
 
     const add = stopInteractiveDrag(document.createElement("button"));
     add.type = "button";
     add.className = "pack-card-add";
-    add.disabled = isUsed;
-    add.textContent = isUsed
-      ? (activeTab === "daily" ? "ALREADY IN THIS MONTH" : "ALREADY IN THIS PACK")
-      : (activeTab === "daily" ? "ADD TO FIRST EMPTY DAY" : "ADD TO PACK");
+    add.disabled = isUsed || isHidden;
+    add.textContent = isHidden
+      ? "RESTORE TO USE"
+      : (isUsed
+        ? (activeTab === "daily" ? "ALREADY IN THIS MONTH" : "ALREADY IN THIS PACK")
+        : (activeTab === "daily" ? "ADD TO FIRST EMPTY DAY" : "ADD TO PACK"));
     add.addEventListener("click", event => {
       event.stopPropagation();
-      if (!isUsed) addSavedLevel(record.id, activeTab);
+      if (!isUsed && !isHidden) addSavedLevel(record.id, activeTab);
     });
     body.append(title, meta, directActions, add);
     card.append(canvas, body);
 
-    if (!isUsed) {
+    if (!isUsed && !isHidden) {
       card.addEventListener("dragstart", event => beginDrag(event, { source: "library", sourceId: record.id }));
       card.addEventListener("dragend", finishDrag);
     }
@@ -1269,26 +1395,113 @@
     const searched = query
       ? savedLevels.filter(record => record.name.toLocaleLowerCase("en-GB").includes(query))
       : savedLevels.slice();
-    const usage = new Map(searched.map(record => [record.id, recordUsage(record)]));
-    const usedCount = savedLevels.reduce((count, record) => count + (recordUsage(record) ? 1 : 0), 0);
-    const matches = libraryView.hideUsed
-      ? searched.filter(record => !usage.get(record.id))
-      : searched;
+    const allUsage = new Map(savedLevels.map(record => [record.id, recordUsageDetails(record)]));
+    const usage = allUsage;
+    const usedAnywhereCount = savedLevels.reduce((count, record) => count + (allUsage.get(record.id)?.usedAnywhere ? 1 : 0), 0);
+    const hiddenCount = savedLevels.reduce((count, record) => count + (hiddenSavedLevelIds.has(record.id) ? 1 : 0), 0);
+    const matches = searched.filter(record => {
+      if (!libraryView.showHidden && hiddenSavedLevelIds.has(record.id)) return false;
+      if (libraryView.hideUsed && usage.get(record.id)?.usedAnywhere) return false;
+      return true;
+    });
     libraryGrid.innerHTML = "";
     if (!matches.length) {
       let message = "Save levels in the Level Maker before building a pack.";
-      if (savedLevels.length && query) message = libraryView.hideUsed
-        ? "No unused saved level matches that search."
-        : "No saved level matches that search.";
-      else if (savedLevels.length && libraryView.hideUsed) message = `Every saved level is already in the current ${activeTab === "daily" ? "Daily Puzzle month" : "level pack"}.`;
+      if (savedLevels.length && query) message = "No saved level matches the current search and filters.";
+      else if (savedLevels.length && libraryView.hideUsed && !libraryView.showHidden) message = "No available saved levels remain after hiding used and dismissed puzzles.";
+      else if (savedLevels.length && libraryView.hideUsed) message = "Every visible saved level has already been used somewhere.";
+      else if (savedLevels.length && !libraryView.showHidden && hiddenCount) message = "Only hidden saved levels remain. Turn on SHOW HIDDEN to review them.";
       libraryGrid.appendChild(emptyGridMessage(message));
     } else {
       const fragment = document.createDocumentFragment();
       matches.forEach(record => fragment.appendChild(createLibraryCard(record, usage.get(record.id))));
       libraryGrid.appendChild(fragment);
     }
-    const targetLabel = activeTab === "daily" ? "IN MONTH" : "IN PACK";
-    libraryCount.textContent = `${matches.length} SHOWN · ${usedCount} ${targetLabel} · ${savedLevels.length} SAVED`;
+    libraryCount.textContent = `${matches.length} SHOWN · ${usedAnywhereCount} USED ANYWHERE · ${hiddenCount} HIDDEN · ${savedLevels.length} SAVED`;
+  }
+
+  function availableLivePacks() {
+    return (Array.isArray(window.BOXXY_LEVEL_PACKS) ? window.BOXXY_LEVEL_PACKS : [])
+      .filter(pack => pack && Array.isArray(pack.levels) && pack.levels.length);
+  }
+
+  function createLiveReferenceCard(level, index, pack) {
+    const card = document.createElement("article");
+    card.className = "pack-level-card pack-live-reference-card";
+
+    const badge = document.createElement("b");
+    badge.className = "pack-order-badge";
+    badge.textContent = `#${index + 1}`;
+
+    const canvas = document.createElement("canvas");
+    canvas.className = "pack-level-preview";
+    canvas.setAttribute("aria-label", `Starting position for ${level?.name || `level ${index + 1}`}`);
+    drawThumbnail(canvas, normaliseLayout(level?.layout), normaliseGoalColourMap(level?.goalColours, level?.layout));
+
+    const body = document.createElement("div");
+    body.className = "pack-level-card-body";
+    const title = document.createElement("strong");
+    title.textContent = level?.name || `${pack?.displayName || pack?.title || "Live pack"} #${index + 1}`;
+    const meta = document.createElement("span");
+    const layout = normaliseLayout(level?.layout);
+    const boxes = countBoxes(layout);
+    const solutionMoves = solutionMoveCount(level?.solution);
+    meta.className = "pack-level-meta";
+    meta.textContent = `${Math.max(1, ...layout.map(row => row.length))}×${layout.length} · ${boxes} ${boxes === 1 ? "BOX" : "BOXES"}${solutionMoves ? ` · ${solutionMoves} MOVES` : ""}`;
+    body.append(title, meta);
+    card.append(badge, canvas, body);
+    return card;
+  }
+
+  function renderLiveReference() {
+    if (!liveReference || !livePackSelect || !livePackPanel || !livePackGrid) return;
+    liveReference.hidden = activeTab !== "pack";
+    if (activeTab !== "pack") return;
+
+    const packs = availableLivePacks();
+    if (!packs.length) {
+      liveReferenceCount.textContent = "NO LIVE LEVEL PACKS FOUND";
+      livePackSelect.innerHTML = "";
+      livePackPanel.hidden = true;
+      return;
+    }
+
+    const chosenId = packs.some(pack => pack.id === liveReferenceState.packId)
+      ? liveReferenceState.packId
+      : packs[0].id;
+    liveReferenceState.packId = chosenId;
+
+    livePackSelect.innerHTML = "";
+    packs.forEach(pack => {
+      const option = document.createElement("option");
+      option.value = pack.id;
+      option.textContent = `${pack.displayName || pack.title || pack.id} · ${pack.levels.length} LEVELS`;
+      livePackSelect.appendChild(option);
+    });
+    livePackSelect.value = chosenId;
+
+    const pack = packs.find(item => item.id === chosenId) || packs[0];
+    liveReferenceCount.textContent = `${packs.length} LIVE ${packs.length === 1 ? "PACK" : "PACKS"} · ${pack.levels.length} LEVELS IN SELECTED PACK`;
+    livePackPanel.hidden = !liveReferenceState.expanded;
+    livePackToggle.setAttribute("aria-expanded", liveReferenceState.expanded ? "true" : "false");
+    livePackToggle.textContent = liveReferenceState.expanded ? "HIDE LEVELS ↑" : "SHOW LEVELS ↓";
+
+    livePackSummary.innerHTML = "";
+    const heading = document.createElement("strong");
+    heading.textContent = pack.displayName || pack.title || pack.id;
+    const meta = document.createElement("span");
+    meta.textContent = `${pack.levels.length} ${pack.levels.length === 1 ? "LEVEL" : "LEVELS"}${pack.author ? ` · ${pack.author}` : ""}`;
+    const description = document.createElement("p");
+    description.textContent = String(pack.description || "").trim() || "Live BOXXY level pack.";
+    livePackSummary.append(heading, meta, description);
+
+    livePackGrid.innerHTML = "";
+    if (liveReferenceState.expanded) {
+      const fragment = document.createDocumentFragment();
+      pack.levels.forEach((level, index) => fragment.appendChild(createLiveReferenceCard(level, index, pack)));
+      livePackGrid.appendChild(fragment);
+    }
+    persistLiveReferenceState();
   }
 
   function renderPackGrid() {
@@ -1371,6 +1584,7 @@
   function renderAll() {
     renderDraftSelect();
     renderLibrary();
+    renderLiveReference();
     renderPackGrid();
     renderDailyGrid();
     updatePublishPath();
@@ -1388,6 +1602,7 @@
       button.classList.toggle("selected", active);
     });
     renderLibrary();
+    renderLiveReference();
     if (activeTab === "daily") renderDailyGrid();
     else renderPackGrid();
   }
@@ -2038,6 +2253,21 @@ window.BOXXY_DAILY_SCHEDULE = Object.freeze(${JSON.stringify(schedule, null, 2)}
     libraryView.hideUsed = libraryHideUsed.checked;
     persistLibraryView();
     renderLibrary();
+  });
+  libraryShowHidden?.addEventListener("change", () => {
+    libraryView.showHidden = libraryShowHidden.checked;
+    persistLibraryView();
+    renderLibrary();
+  });
+  livePackSelect?.addEventListener("change", () => {
+    liveReferenceState.packId = livePackSelect.value;
+    persistLiveReferenceState();
+    renderLiveReference();
+  });
+  livePackToggle?.addEventListener("click", () => {
+    liveReferenceState.expanded = !liveReferenceState.expanded;
+    persistLiveReferenceState();
+    renderLiveReference();
   });
   libraryExpandBtn?.addEventListener("click", () => {
     libraryView.expanded = !libraryView.expanded;

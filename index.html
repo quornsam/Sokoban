@@ -159,7 +159,7 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=353">
+<link rel="stylesheet" href="styles.css?v=354">
 <link rel="stylesheet" href="how-to-play.css?v=225">
 <link rel="preload" as="image" href="assets/board/boxes/box-default-yellow.png?v=226">
 <link rel="preload" as="image" href="assets/board/goals/goal-red.png?v=226">
@@ -1181,7 +1181,11 @@
           </label>
           <label class="pack-library-hide-used">
             <input id="packLibraryHideUsed" type="checkbox">
-            <span>HIDE USED</span>
+            <span>HIDE USED ANYWHERE</span>
+          </label>
+          <label class="pack-library-show-hidden">
+            <input id="packLibraryShowHidden" type="checkbox">
+            <span>SHOW HIDDEN</span>
           </label>
           <button id="packLibraryExpandBtn" class="pack-library-expand" type="button" aria-expanded="false">EXPAND ↓</button>
         </div>
@@ -1190,6 +1194,25 @@
         <div id="packLibraryGrid" class="pack-level-grid pack-library-grid" aria-label="Saved levels available to add"></div>
       </div>
       <small class="pack-library-resize-hint">Drag the lower-right edge to resize the library vertically.</small>
+    </section>
+
+    <section id="packBuilderLiveReference" class="pack-builder-live-reference" aria-labelledby="packLiveReferenceHeading">
+      <header>
+        <div>
+          <h3 id="packLiveReferenceHeading">LIVE PACK REFERENCE</h3>
+          <span id="packLiveReferenceCount">CURRENT PACKS ALREADY LIVE IN BOXXY</span>
+        </div>
+        <div class="pack-live-reference-controls">
+          <label>LIVE PACK
+            <select id="packLivePackSelect" aria-label="Live level pack to compare"></select>
+          </label>
+          <button id="packLivePackToggle" type="button" aria-expanded="false">SHOW LEVELS ↓</button>
+        </div>
+      </header>
+      <div id="packLivePackPanel" class="pack-live-pack-panel" hidden>
+        <div id="packLivePackSummary" class="pack-live-pack-summary"></div>
+        <div id="packLivePackGrid" class="pack-level-grid pack-live-pack-grid" aria-label="Levels in selected live pack"></div>
+      </div>
     </section>
 
     <section id="packBuilderPackWorkspace" class="pack-builder-workspace" aria-labelledby="packBuilderPackHeading">
@@ -1402,10 +1425,10 @@
 <script src="daily-puzzles/boxxy-daily-loader.js?v=218"></script>
 <script src="levels.js?v=268"></script>
 <script src="starry-night.js?v=302"></script>
-<script src="boxxy.js?v=353"></script>
+<script src="boxxy.js?v=354"></script>
 <script src="account.js?v=346"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="pack-builder.js?v=216"></script>
+<script src="pack-builder.js?v=354"></script>
 <script src="how-to-play.js?v=153"></script>
 </body>
 </html>
