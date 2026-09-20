@@ -1,3 +1,4 @@
+/* BOXXY v355 — iOS Sign in with Google uses Google's required redirect UX while preserving the existing BOXXY account flow. */
 /* BOXXY v346 — Click-Push reporting uses merge-safe per-device state so one device cannot overwrite another. */
 /* BOXXY v345 — Click-Push beta access and on/off state join account cloud sync for Basement reporting. */
 /* BOXXY v331 — adds safe Google disconnect for password accounts and stabilises Google button rendering in the account sheet. */
@@ -13,6 +14,7 @@
 
   const API = "/api/account";
   const GOOGLE_CLIENT_ID = "369102198200-ntq5mn9pb2s2ftf5h0uo6akm8ms6m25t.apps.googleusercontent.com";
+  const GOOGLE_REDIRECT_RESULT_KEY = "boxxy-google-redirect-result-v1";
   const SYNC_INTERVAL_MS = 30000;
   const ACTIVITY_SYNC_SECONDS = 300;
   const ACCOUNT_MARKER_KEY = "boxxy-account-known-v1";
@@ -879,15 +881,30 @@
     });
   }
 
+  function googleRedirectRequired() {
+    const agent = String(navigator.userAgent || "");
+    const classicIOS = /iPad|iPhone|iPod/i.test(agent);
+    const iPadDesktopMode = navigator.platform === "MacIntel" && Number(navigator.maxTouchPoints || 0) > 1;
+    return classicIOS || iPadDesktopMode;
+  }
+
   function initialiseGoogleIdentity() {
     if (googleReady || !window.google?.accounts?.id) return;
     try {
-      window.google.accounts.id.initialize({
+      const options = {
         client_id: GOOGLE_CLIENT_ID,
-        callback: handleGoogleCredential,
-        ux_mode: "popup",
         auto_select: false
-      });
+      };
+
+      if (googleRedirectRequired()) {
+        options.ux_mode = "redirect";
+        options.login_uri = `${location.origin}/api/google-redirect`;
+      } else {
+        options.callback = handleGoogleCredential;
+        options.ux_mode = "popup";
+      }
+
+      window.google.accounts.id.initialize(options);
       googleReady = true;
       renderGoogleButtons();
     } catch (_) {
@@ -1158,6 +1175,38 @@
       } catch (_) {}
     }
     return changed;
+  }
+
+  async function resumeGoogleRedirect() {
+    let payload = null;
+    try {
+      const raw = sessionStorage.getItem(GOOGLE_REDIRECT_RESULT_KEY);
+      if (!raw) return false;
+      sessionStorage.removeItem(GOOGLE_REDIRECT_RESULT_KEY);
+      payload = JSON.parse(raw);
+    } catch (_) {
+      try { sessionStorage.removeItem(GOOGLE_REDIRECT_RESULT_KEY); } catch (_) {}
+      return false;
+    }
+
+    openAccount();
+
+    if (payload?.error) {
+      setStatus(String(payload.error), "error");
+      return true;
+    }
+
+    const credential = String(payload?.credential || "");
+    const state = String(payload?.state || "guest");
+    const createdAt = Number(payload?.createdAt || 0);
+    const fresh = createdAt > 0 && Math.abs(Date.now() - createdAt) <= 5 * 60 * 1000;
+    if (!credential || !fresh) {
+      setStatus("Google sign in expired. Please try again.", "error");
+      return true;
+    }
+
+    await handleGoogleCredential({ credential, state });
+    return true;
   }
 
   async function initialAccountCheck() {
@@ -1454,5 +1503,8 @@
   prepareAndroidInstallPrompt();
   seedLifetimeStats();
   render();
-  initialAccountCheck();
+  (async () => {
+    await initialAccountCheck();
+    await resumeGoogleRedirect();
+  })();
 })();
