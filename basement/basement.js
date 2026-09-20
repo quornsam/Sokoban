@@ -1,3 +1,4 @@
+/* BOXXY v356 — Basement can securely reset a player's normal BOXXY password without touching progress or Google linking. */
 /* BOXXY v346 — Click-Push status is explicit and merge-safe across multiple devices. */
 /* BOXXY v345 — show Click-Push beta access/use in Basement. */
 /* BOXXY v337 — compact Basement type scale and non-wrapping numeric presentation; private practice protocol unchanged. */
@@ -804,6 +805,18 @@
           <div><span>BROWSER / DEVICE</span><strong>${escapeHtml(browserDevice(user.userAgent))}</strong></div>
           <div><span>CLICK-PUSH BETA</span><strong>${clickPushDetail(user.summary)}</strong></div>
         </div>
+        <section class="admin-account-access">
+          <div class="admin-account-access-copy">
+            <h3>ACCOUNT ACCESS</h3>
+            <p>Normal BOXXY password: <strong>${user.passwordEnabled ? "ENABLED" : "DISABLED"}</strong>. Resetting the password does not change progress or Google linking. It signs this player out of any existing BOXXY sessions.</p>
+          </div>
+          <form class="admin-password-reset" data-password-reset data-user-id="${escapeHtml(user.id)}" data-username="${escapeHtml(user.username)}">
+            <label><span>NEW TEMPORARY PASSWORD</span><input name="password" type="password" minlength="8" maxlength="128" autocomplete="new-password" required></label>
+            <label><span>CONFIRM PASSWORD</span><input name="confirmPassword" type="password" minlength="8" maxlength="128" autocomplete="new-password" required></label>
+            <button type="submit">RESET PASSWORD</button>
+            <p class="status admin-password-status" aria-live="polite"></p>
+          </form>
+        </section>
         <div class="detail-game-stats" aria-label="Game statistics">
           <div><span>LEVELS COMPLETED</span><strong>${Number(user.summary?.levelsCompleted || 0).toLocaleString("en-GB")}</strong></div>
           <div><span>PACKS COMPLETED</span><strong>${Number(user.summary?.packsCompleted || 0).toLocaleString("en-GB")}</strong></div>
@@ -823,6 +836,48 @@
       requestAnimationFrame(() => detailClose?.focus());
     } catch (_) { setStatus(dashboardStatus, "Could not load that account.", "error"); }
   }
+  detailBody?.addEventListener("submit", async event => {
+    const form = event.target.closest("[data-password-reset]");
+    if (!form) return;
+    event.preventDefault();
+    const status = form.querySelector(".admin-password-status");
+    const submit = form.querySelector('button[type="submit"]');
+    const data = new FormData(form);
+    const password = String(data.get("password") || "");
+    const confirmPassword = String(data.get("confirmPassword") || "");
+    const username = String(form.dataset.username || "this player");
+    const userId = String(form.dataset.userId || "");
+
+    if (password.length < 8 || password.length > 128) {
+      setStatus(status, "Password must be 8–128 characters.", "error");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setStatus(status, "The two passwords do not match.", "error");
+      return;
+    }
+    if (!window.confirm(`Reset the normal BOXXY password for ${username}? Existing BOXXY sessions for this account will be signed out.`)) return;
+
+    submit.disabled = true;
+    setStatus(status, "RESETTING…");
+    try {
+      const { response, data: result } = await api("", { action:"reset_password", userId, password });
+      if (response.status === 401 || result.authenticated === false) { showLogin(); return; }
+      if (!response.ok) {
+        setStatus(status, result.error || "Could not reset the password.", "error");
+        return;
+      }
+      form.reset();
+      const user = users.find(item => String(item.id) === userId);
+      if (user) user.passwordEnabled = true;
+      setStatus(status, `PASSWORD RESET FOR ${String(result.username || username).toUpperCase()}. EXISTING SESSIONS CLEARED.`, "success");
+    } catch (_) {
+      setStatus(status, "Could not reach the Basement API.", "error");
+    } finally {
+      submit.disabled = false;
+    }
+  });
+
   loginForm?.addEventListener("submit", async event => {
     event.preventDefault(); const form = new FormData(loginForm); setStatus(loginStatus, "CHECKING…");
     try {

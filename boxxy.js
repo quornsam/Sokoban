@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "355",
-  lastUpdated: "2026-09-19"
+  version: "356",
+  lastUpdated: "2026-09-20"
 });
+/* BOXXY v356 — Basement admins can reset a player's normal BOXXY password securely while preserving progress and Google linking. */
 /* BOXXY v355 — iOS Google sign-in compatibility uses the required redirect flow without changing BOXXY account behaviour. */
 /* BOXXY v354 — Pack Builder adds global used-level triage, persistent hidden puzzles and a live-pack comparison reference. */
 /* BOXXY v353 — Menu → Style attire control now sits above box colours and previews the currently selected character outfit. */

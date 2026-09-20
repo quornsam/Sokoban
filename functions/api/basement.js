@@ -7,6 +7,8 @@ import {
   destroyAdminSession,
   adminAuthenticated,
   secureCompare,
+  validPassword,
+  passwordRecord,
   expireCookie,
   parseProgress,
   progressSummary
@@ -34,6 +36,58 @@ async function login(context, body) {
   if (!usernameOk || !passwordOk) return json({ ok: false, error: "Incorrect login." }, 401);
   const session = await createAdminSession(env, request);
   return json({ ok: true, authenticated: true }, 200, { "set-cookie": session.header });
+}
+
+async function resetUserPassword(context, body) {
+  const { env } = context;
+  const db = requireDatabase(env);
+  const userId = String(body.userId || "").trim();
+  const password = String(body.password || "");
+
+  if (!userId) return json({ ok: false, error: "User is required." }, 400);
+  if (!validPassword(password)) {
+    return json({ ok: false, error: "Password must be 8–128 characters." }, 400);
+  }
+  if (!env.BOXXY_PASSWORD_PEPPER) {
+    return json({ ok: false, error: "Password service is not configured." }, 503);
+  }
+
+  const user = await db.prepare(`
+    SELECT id, username, signup_ip, last_ip
+    FROM users
+    WHERE id = ?
+    LIMIT 1
+  `).bind(userId).first();
+  if (!user) return json({ ok: false, error: "User not found." }, 404);
+
+  const { salt, hash } = await passwordRecord(password, "", env.BOXXY_PASSWORD_PEPPER);
+  const statements = [
+    db.prepare("UPDATE users SET password_hash = ?, password_salt = ? WHERE id = ?")
+      .bind(hash, salt, user.id),
+    db.prepare(`
+      INSERT INTO user_auth_state (user_id, password_enabled)
+      VALUES (?, 1)
+      ON CONFLICT(user_id) DO UPDATE SET password_enabled = 1
+    `).bind(user.id),
+    db.prepare("DELETE FROM sessions WHERE user_id = ?").bind(user.id)
+  ];
+
+  const ips = [...new Set([user.last_ip, user.signup_ip].map(value => String(value || "").trim()).filter(Boolean))];
+  for (const ip of ips) {
+    statements.push(db.prepare("DELETE FROM rate_limits WHERE key IN (?, ?)")
+      .bind(`login:${ip}`, `google-login:${ip}`));
+  }
+
+  await db.batch(statements);
+  return json({
+    ok: true,
+    reset: true,
+    userId: String(user.id),
+    username: String(user.username),
+    passwordEnabled: true,
+    sessionsCleared: true,
+    loginLimitsCleared: ips.length > 0
+  });
 }
 
 function mappedUser(user, includeProgress = false) {
@@ -116,6 +170,10 @@ export async function onRequest(context) {
         await destroyAdminSession(context.env, context.request);
         return json({ ok: true, authenticated: false }, 200, { "set-cookie": expireCookie("boxxy_basement") });
       }
+      if (!await adminAuthenticated(context.env, context.request)) {
+        return json({ ok: false, authenticated: false, error: "Basement session has expired. Please sign in again." }, 401);
+      }
+      if (action === "reset_password") return await resetUserPassword(context, body);
       return json({ ok: false, error: "Unknown action." }, 400);
     }
 
