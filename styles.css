@@ -7653,3 +7653,10 @@ body.desktop-zen-mode .zen-camera-mode-btn:not([hidden]){display:grid}
   .settings-attire-preview{width:68px;height:72px}
   .settings-attire-preview canvas{height:86px}
 }
+
+
+/* BOXXY v358 — the red quote tile is an accessible next-thought control. */
+.instruction .info{border:0;padding:0;font-family:Georgia,serif;cursor:pointer;-webkit-appearance:none;appearance:none;-webkit-tap-highlight-color:transparent;user-select:none}
+.instruction .info:hover{transform:translateY(-1px)}
+.instruction .info:active{transform:translateY(1px)}
+.instruction .info:focus-visible{outline:3px solid var(--ink);outline-offset:2px}

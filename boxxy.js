@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "357",
+  version: "358",
   lastUpdated: "2026-09-22"
 });
+/* BOXXY v358 — quote button advances thoughts; occasional live BOXXY/player facts and helpful tips join the existing character thoughts. */
 /* BOXXY v357 — October Dailies added; gameplay contexts are mutually exclusive so editor/practice/preview sessions can never write Daily scores or streaks. */
 /* BOXXY v356 — Basement admins can reset a player's normal BOXXY password securely while preserving progress and Google linking. */
 /* BOXXY v355 — iOS Google sign-in compatibility uses the required redirect flow without changing BOXXY account behaviour. */
@@ -2371,6 +2372,7 @@ window.BOXXY_RELEASE = Object.freeze({
   const cancelGuidedBtn = document.getElementById("cancelGuidedBtn");
   const instruction = document.querySelector(".instruction");
   const thoughtText = document.getElementById("thoughtText");
+  const thoughtNextBtn = document.getElementById("thoughtNextBtn");
   const splashScreen = document.getElementById("splashScreen");
   const collectionBtn = document.getElementById("collectionBtn");
   const collectionName = document.getElementById("collectionName");
@@ -2596,6 +2598,9 @@ window.BOXXY_RELEASE = Object.freeze({
   let currentCheckpoint = null;
   let recentThoughtParts = Object.create(null);
   let thoughtReady = false;
+  let globalThoughtStats = null;
+  let globalThoughtStatsRequested = false;
+  let lastThoughtFactKey = "";
   let audioUnlocked = false;
   let konamiIndex = 0;
   let konamiShowcaseActive = false;
@@ -4911,11 +4916,193 @@ window.BOXXY_RELEASE = Object.freeze({
     }
   }
 
-  function composeCharacterThought() {
-    let thought = "";
-    for (let attempt = 0; attempt < 30; attempt++) {
-      thought = generateThoughtCandidate();
-      if (!recentThoughts.includes(thought)) break;
+  const THOUGHT_FACT_CHANCE = 0.24;
+
+  function formatThoughtNumber(value) {
+    return Math.max(0, Math.trunc(Number(value) || 0)).toLocaleString("en-GB");
+  }
+
+  function readJsonObject(keyName) {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(keyName) || "null");
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function playerCompletedPuzzleCount() {
+    let total = 0;
+    PACKS.forEach(pack => {
+      const indexes = new Set();
+      try {
+        const saved = JSON.parse(localStorage.getItem(packStorageKeyFor(pack.id, "completed")) || "[]");
+        if (Array.isArray(saved)) saved.forEach(value => {
+          const index = Number(value);
+          if (Number.isInteger(index) && index >= 0 && index < (pack.levels?.length || 0)) indexes.add(index);
+        });
+      } catch (_) {}
+      if (pack.id === MICROBAN_PACK_ID) {
+        try {
+          const legacy = JSON.parse(localStorage.getItem("boxxy-completed-levels-v1") || "[]");
+          if (Array.isArray(legacy)) legacy.forEach(value => {
+            const index = Number(value);
+            if (Number.isInteger(index) && index >= 0 && index < (pack.levels?.length || 0)) indexes.add(index);
+          });
+        } catch (_) {}
+      }
+      total += indexes.size;
+    });
+    const daily = readJsonObject("boxxy-daily-completions-v1");
+    if (daily) total += Object.keys(daily).length;
+    return total;
+  }
+
+  function playerLifetimeMoves() {
+    try { return Math.max(0, Math.trunc(Number(localStorage.getItem(ALL_TIME_STEPS_KEY)) || 0)); }
+    catch (_) { return 0; }
+  }
+
+  function playerActiveMinutes() {
+    const seconds = Number(window.BOXXYPlayerStats?.activeSeconds);
+    return Number.isFinite(seconds) && seconds >= 60 ? Math.max(1, Math.floor(seconds / 60)) : 0;
+  }
+
+  function thoughtFactCandidates() {
+    const items = [];
+    const add = (keyName, variants) => {
+      if (!Array.isArray(variants) || !variants.length) return;
+      items.push({ key: keyName, text: variants[Math.floor(Math.random() * variants.length)] });
+    };
+
+    const played = Math.max(0, Math.trunc(Number(globalThoughtStats?.levelsPlayed) || 0));
+    const solved = Math.max(0, Math.trunc(Number(globalThoughtStats?.levelsSolved) || 0));
+    if (played > 0) {
+      const playedText = formatThoughtNumber(played);
+      add("global-played", [
+        `To date, ${playedText} levels have been played on BOXXY.`,
+        `BOXXY players have started ${playedText} puzzles so far.`,
+        `${playedText} level plays and counting. That is a lot of boxes.`,
+        `Across BOXXY, players have taken on ${playedText} levels so far.`
+      ]);
+      if (solved > 0 && solved <= played) {
+        const solvedText = formatThoughtNumber(solved);
+        add("global-played-solved", [
+          `To date, ${playedText} levels have been played on BOXXY and only ${solvedText} solved.`,
+          `${playedText} BOXXY levels have been played so far; ${solvedText} ended in a solve.`,
+          `Players have started ${playedText} levels and completed ${solvedText} of those runs.`,
+          `${playedText} attempts at BOXXY levels so far. ${solvedText} have reached the finish.`
+        ]);
+      }
+    }
+
+    const activeMinutes = playerActiveMinutes();
+    if (activeMinutes > 0) {
+      const minutesText = formatThoughtNumber(activeMinutes);
+      add("player-time", [
+        `You have been playing BOXXY for ${minutesText} minutes so far.`,
+        `${minutesText} minutes of BOXXY so far. Time well spent, probably.`,
+        `Your BOXXY clock has reached ${minutesText} minutes.`,
+        `You have put ${minutesText} minutes into BOXXY so far.`
+      ]);
+    }
+
+    const lifetimeMoves = playerLifetimeMoves();
+    if (lifetimeMoves > 0) {
+      const movesText = formatThoughtNumber(lifetimeMoves);
+      add("player-moves", [
+        `Did you know you have made ${movesText} moves so far?`,
+        `${movesText} moves so far. Your arrow keys deserve a rest.`,
+        `You have clocked up ${movesText} BOXXY moves.`,
+        `That is ${movesText} moves from you so far. Not bad.`
+      ]);
+    }
+
+    const completed = playerCompletedPuzzleCount();
+    if (completed > 0) {
+      const completedText = formatThoughtNumber(completed);
+      add("player-completed", [
+        `You've completed ${completedText} puzzles — why not make it one more?`,
+        `${completedText} puzzles cleared so far. There is always room for one more.`,
+        `Your completed-puzzle count is ${completedText}. Fancy adding another?`,
+        `You have beaten ${completedText} BOXXY puzzles so far.`
+      ]);
+    }
+
+    add("colours", [
+      "Don't like the block colours? Change 'em in Menu → Style.",
+      "The boxes do not have to stay yellow. Menu → Style has the paint tin.",
+      "Fancy different box colours? Open Menu → Style and make them yours.",
+      "You can change both box and target colours in Menu → Style."
+    ]);
+    add("hand-crafted", [
+      "All these levels are hand-crafted.",
+      "Every BOXXY puzzle has been put together by hand.",
+      "No generated level filler here — BOXXY's puzzles are hand-crafted.",
+      "These puzzles were made by people, one layout at a time."
+    ]);
+    add("outfit", [
+      "Have you tried changing your outfit yet? Menu → Style → Attire.",
+      "Your BOXXY character has a wardrobe. Have a look in Menu → Style → Attire.",
+      "Same puzzle, different trousers? Attire is waiting in Menu → Style.",
+      "You can change your character's outfit in Menu → Style → Attire."
+    ]);
+    add("music", [
+      "Did you know there are several soothing music options in Menu?",
+      "Need a calmer warehouse? Try one of the music options in Menu.",
+      "BOXXY has several background music choices tucked away in Menu.",
+      "Fancy a different soundtrack? There are several music options in Menu."
+    ]);
+    add("bug-contact", [
+      "Found a bug? Drop BOXXY a message via Menu → Contact Us.",
+      "Something gone wonky? Menu → Contact Us is the place to report it.",
+      "Spotted a BOXXY bug? Send the details through Menu → Contact Us."
+    ]);
+    add("idea-contact", [
+      "Thought of an improvement? Drop BOXXY a message via Menu → Contact Us.",
+      "Got an idea for BOXXY? Send it through Menu → Contact Us.",
+      "Think something could work better? Menu → Contact Us is listening."
+    ]);
+    add("stuck-contact", [
+      "Stuck on a level? Drop BOXXY a message via Menu → Contact Us.",
+      "Completely wedged? You can ask for help through Menu → Contact Us.",
+      "If a puzzle has you beaten, try Menu → Contact Us and send a message."
+    ]);
+
+    return items;
+  }
+
+  function generateThoughtFact() {
+    const candidates = thoughtFactCandidates();
+    if (!candidates.length) return "";
+    let available = candidates.filter(item => item.key !== lastThoughtFactKey);
+    if (!available.length) available = candidates;
+    const selected = available[Math.floor(Math.random() * available.length)];
+    lastThoughtFactKey = selected.key;
+    return selected.text;
+  }
+
+  async function refreshGlobalThoughtStats() {
+    if (globalThoughtStatsRequested) return;
+    globalThoughtStatsRequested = true;
+    try {
+      const response = await fetch("/api/public-stats", { headers: { accept: "application/json" } });
+      if (!response.ok) return;
+      const payload = await response.json();
+      const levelsPlayed = Math.max(0, Math.trunc(Number(payload?.levelsPlayed) || 0));
+      const levelsSolved = Math.max(0, Math.trunc(Number(payload?.levelsSolved) || 0));
+      if (payload?.ok && levelsPlayed > 0) globalThoughtStats = { levelsPlayed, levelsSolved };
+    } catch (_) {}
+  }
+
+  function composeCharacterThought(options = {}) {
+    const includeFact = options.preferFact === true || Math.random() < THOUGHT_FACT_CHANCE;
+    let thought = includeFact ? generateThoughtFact() : "";
+    if (!thought) {
+      for (let attempt = 0; attempt < 30; attempt++) {
+        thought = generateThoughtCandidate();
+        if (!recentThoughts.includes(thought)) break;
+      }
     }
     recentThoughts.push(thought);
     if (recentThoughts.length > 500) recentThoughts.shift();
@@ -4946,6 +5133,11 @@ window.BOXXY_RELEASE = Object.freeze({
       scheduleCharacterThought();
     }, 430);
   }
+
+  thoughtNextBtn?.addEventListener("click", () => {
+    showCharacterThought(null, true);
+  });
+  refreshGlobalThoughtStats();
 
   function normaliseKonamiKey(keyName) {
     return keyName.length === 1 ? keyName.toLowerCase() : keyName;

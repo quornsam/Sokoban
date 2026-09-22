@@ -1,3 +1,4 @@
+/* BOXXY v358 — exposes a read-only local player-time summary for the rotating BOXXY fact line. */
 /* BOXXY v355 — iOS Sign in with Google uses Google's required redirect UX while preserving the existing BOXXY account flow. */
 /* BOXXY v346 — Click-Push reporting uses merge-safe per-device state so one device cannot overwrite another. */
 /* BOXXY v345 — Click-Push beta access and on/off state join account cloud sync for Basement reporting. */
@@ -112,6 +113,12 @@
   // Read-only identity for first-completion records. Authentication remains
   // server-side; this is never used to authorise a request.
   window.BOXXYAccountIdentity = { get id() { return account?.id || ""; } };
+  // Read-only display statistics for BOXXY's rotating footer facts. This exposes
+  // no account credentials or identifiers and always reflects the live session.
+  window.BOXXYPlayerStats = Object.freeze({
+    get signedIn() { return Boolean(account); },
+    get activeSeconds() { return account ? Math.max(0, Number(account.totalActiveSeconds) || 0) + activeSecondsDelta : 0; }
+  });
   let mode = "create";
   let busy = false;
   let lastSyncedFingerprint = "";
