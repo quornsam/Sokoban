@@ -1,9 +1,9 @@
-/* BOXXY v218 — loads the Daily archive with an explicit schedule cache revision. */
+/* BOXXY v357 — month-by-month Daily archive loader with explicit schedule cache revision. */
 (() => {
   "use strict";
 
   const launchDate = "2026-08-30";
-  const scheduleRevision = "326";
+  const scheduleRevision = "357";
   const validDate = value => /^\d{4}-\d{2}-\d{2}$/.test(String(value || ""));
   const localDateKey = (date = new Date()) => {
     const year = date.getFullYear();

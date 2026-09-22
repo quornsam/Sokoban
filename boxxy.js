@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "356",
-  lastUpdated: "2026-09-20"
+  version: "357",
+  lastUpdated: "2026-09-22"
 });
+/* BOXXY v357 — October Dailies added; gameplay contexts are mutually exclusive so editor/practice/preview sessions can never write Daily scores or streaks. */
 /* BOXXY v356 — Basement admins can reset a player's normal BOXXY password securely while preserving progress and Google linking. */
 /* BOXXY v355 — iOS Google sign-in compatibility uses the required redirect flow without changing BOXXY account behaviour. */
 /* BOXXY v354 — Pack Builder adds global used-level triage, persistent hidden puzzles and a live-pack comparison reference. */
@@ -1192,7 +1193,6 @@ window.BOXXY_RELEASE = Object.freeze({
   const DAILY_PUZZLE_BY_DATE = new Map(DAILY_PUZZLES.map(puzzle => [String(puzzle.date), puzzle]));
   const DAILY_COMPLETIONS_KEY = "boxxy-daily-completions-v1";
   const DAILY_STREAK_KEY = "boxxy-daily-streak-v1";
-  const DAILY_TEST_STREAK_KEY = "boxxy-daily-streak-test-v1";
   const DAILY_INVITE_SEEN_PREFIX = "boxxy-daily-invite-seen-";
   const DAILY_QUOTE_DISMISSED_PREFIX = "boxxy-daily-quote-dismissed-";
   const DAILY_MAX_PUBLIC_MOVES_PER_SECOND = 15;
@@ -1204,6 +1204,7 @@ window.BOXXY_RELEASE = Object.freeze({
       return "";
     }
   })();
+  const DAILY_PREVIEW_MODE = Boolean(DAILY_DATE_OVERRIDE);
 
   function localDateKey(date = new Date()) {
     const year = date.getFullYear();
@@ -1260,7 +1261,7 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   function recordDailyCompletion(puzzle, result) {
-    if (!puzzle?.date) return null;
+    if (!puzzle?.date || !dailyScoringAllowedFor(puzzle)) return null;
     const completions = readDailyCompletions();
     const key = String(puzzle.date);
     const attemptStartedAt = Math.max(0, Number(result.startedAt) || 0);
@@ -1344,13 +1345,9 @@ window.BOXXY_RELEASE = Object.freeze({
     return localDateKey(date);
   }
 
-  function dailyStreakStorageKey() {
-    return DAILY_DATE_OVERRIDE ? DAILY_TEST_STREAK_KEY : DAILY_STREAK_KEY;
-  }
-
   function readDailyStreakState() {
     try {
-      const parsed = JSON.parse(localStorage.getItem(dailyStreakStorageKey()) || "null");
+      const parsed = JSON.parse(localStorage.getItem(DAILY_STREAK_KEY) || "null");
       const rawCount = Number(parsed?.count);
       const count = Number.isFinite(rawCount) ? Math.max(0, Math.trunc(rawCount)) : 0;
       const lastQualifiedDate = /^\d{4}-\d{2}-\d{2}$/.test(String(parsed?.lastQualifiedDate || ""))
@@ -1369,7 +1366,7 @@ window.BOXXY_RELEASE = Object.freeze({
 
   function writeDailyStreakState(state) {
     try {
-      localStorage.setItem(dailyStreakStorageKey(), JSON.stringify({
+      localStorage.setItem(DAILY_STREAK_KEY, JSON.stringify({
         count: Math.max(0, Math.trunc(Number(state.count) || 0)),
         lastQualifiedDate: String(state.lastQualifiedDate || "")
       }));
@@ -1391,6 +1388,14 @@ window.BOXXY_RELEASE = Object.freeze({
   function awardDailyStreakForCompletion(completedDateKey) {
     const completedDate = String(completedDateKey || "");
     const currentDate = activeDailyDateKey();
+
+    if (!dailyScoringAllowedFor(dailyPuzzle) || completedDate !== String(dailyPuzzle?.date || "")) {
+      return {
+        count: currentDailyStreak(currentDate),
+        changed: false,
+        reason: "non-scoring-session"
+      };
+    }
 
     if (completedDate !== currentDate) {
       return {
@@ -2399,6 +2404,57 @@ window.BOXXY_RELEASE = Object.freeze({
   let sharedPuzzleName = "";
   let dailyMode = false;
   let dailyPuzzle = null;
+  const GAMEPLAY_CONTEXT = Object.freeze({
+    NORMAL: "normal",
+    DAILY: "daily",
+    DAILY_PREVIEW: "daily-preview",
+    MAKER: "maker",
+    DAILY_PRACTICE: "daily-practice",
+    SHARED: "shared"
+  });
+  let gameplayContext = GAMEPLAY_CONTEXT.NORMAL;
+  let dailyScoringEnabled = false;
+
+  function setGameplayContext(kind, options = {}) {
+    const allowed = Object.values(GAMEPLAY_CONTEXT);
+    const next = allowed.includes(kind) ? kind : GAMEPLAY_CONTEXT.NORMAL;
+    const isDaily = next === GAMEPLAY_CONTEXT.DAILY || next === GAMEPLAY_CONTEXT.DAILY_PREVIEW;
+    const isMaker = next === GAMEPLAY_CONTEXT.MAKER || next === GAMEPLAY_CONTEXT.DAILY_PRACTICE;
+    const isPractice = next === GAMEPLAY_CONTEXT.DAILY_PRACTICE;
+    const isShared = next === GAMEPLAY_CONTEXT.SHARED;
+
+    gameplayContext = next;
+    makerTesting = isMaker;
+    makerDailyPractice = isPractice;
+    makerDailyPracticePuzzle = isPractice && options.practiceDaily ? { ...options.practiceDaily } : null;
+    sharedPuzzleMode = isShared;
+    sharedPuzzleName = isShared ? String(options.sharedName || "") : "";
+    dailyMode = isDaily;
+    dailyPuzzle = isDaily ? (options.dailyPuzzle || null) : null;
+    dailyScoringEnabled = next === GAMEPLAY_CONTEXT.DAILY
+      && Boolean(dailyPuzzle)
+      && !DAILY_PREVIEW_MODE
+      && !window.BOXXY_PRIVATE_PRACTICE;
+
+    window.BOXXY_PRACTICE_MODE = isPractice;
+    window.BOXXY_SHARED_MODE = isShared;
+    document.body?.classList.toggle("daily-mode", isDaily);
+    document.body?.classList.toggle("maker-testing", isMaker);
+    document.body?.classList.toggle("shared-puzzle", isShared);
+  }
+
+  function dailyScoringAllowedFor(puzzle = dailyPuzzle) {
+    return dailyScoringEnabled
+      && gameplayContext === GAMEPLAY_CONTEXT.DAILY
+      && dailyMode
+      && !makerTesting
+      && !makerDailyPractice
+      && !sharedPuzzleMode
+      && !DAILY_PREVIEW_MODE
+      && Boolean(puzzle?.date)
+      && String(puzzle.date) === String(dailyPuzzle?.date || "");
+  }
+
   let dailyMidnightTimer = 0;
   let dailyArchiveCountdownTimer = 0;
   let makerLayout = null;
@@ -7197,18 +7253,11 @@ window.BOXXY_RELEASE = Object.freeze({
     closePackModal();
     closeDailyInvite();
     closeDailyArchive();
-    makerTesting = false;
-    makerDailyPractice = Boolean(window.BOXXY_PRIVATE_PRACTICE);
-    makerDailyPracticePuzzle = null;
-    window.BOXXY_PRACTICE_MODE = Boolean(window.BOXXY_PRIVATE_PRACTICE);
-    sharedPuzzleMode = false;
-    sharedPuzzleName = "";
-    dailyMode = true;
-    dailyPuzzle = puzzle;
+    setGameplayContext(
+      DAILY_PREVIEW_MODE || window.BOXXY_PRIVATE_PRACTICE ? GAMEPLAY_CONTEXT.DAILY_PREVIEW : GAMEPLAY_CONTEXT.DAILY,
+      { dailyPuzzle: puzzle }
+    );
     dailyPointControlUsed = false;
-    window.BOXXY_SHARED_MODE = false;
-    document.body.classList.remove("maker-testing", "shared-puzzle");
-    document.body.classList.add("daily-mode");
     if (collectionBtn) collectionBtn.disabled = false;
     if (makerReturnBtn) makerReturnBtn.hidden = true;
     makerLayout = null;
@@ -7277,7 +7326,7 @@ window.BOXXY_RELEASE = Object.freeze({
     scheduleIdle();
     if (thoughtText) thoughtText.textContent = `Daily Boxxy #${Number(puzzle.sequence) || ""}. One puzzle. One day. Good luck.`;
     refreshLevelButtons();
-    if (!guidedRestart) {
+    if (!guidedRestart && dailyScoringAllowedFor(puzzle)) {
       recordLevelAttempt("daily-boxxy", String(puzzle.date || puzzle.sequence || "daily"), {
         packName: "Daily Boxxy",
         levelNumber: Number(puzzle.sequence) || 0,
@@ -7291,18 +7340,8 @@ window.BOXXY_RELEASE = Object.freeze({
   function loadLevel(index, preserveAutoplay = false, preserveBackground = false, quietReturn = false) {
     if (konamiShowcaseActive && !preserveAutoplay) { konamiShowcaseActive = false; stopKonamiMusic(); }
     resetMouseSupportInteraction();
-    dailyMode = false;
-    dailyPuzzle = null;
-    document.body.classList.remove("daily-mode");
+    setGameplayContext(GAMEPLAY_CONTEXT.NORMAL);
     if (completedPackHeading) completedPackHeading.textContent = "";
-    makerTesting = false;
-    makerDailyPractice = Boolean(window.BOXXY_PRIVATE_PRACTICE);
-    makerDailyPracticePuzzle = null;
-    window.BOXXY_PRACTICE_MODE = Boolean(window.BOXXY_PRIVATE_PRACTICE);
-    sharedPuzzleMode = false;
-    sharedPuzzleName = "";
-    window.BOXXY_SHARED_MODE = false;
-    document.body.classList.remove("shared-puzzle");
     if (collectionBtn) collectionBtn.disabled = false;
     document.title = "BOXXY — Pushbox Puzzle";
     makerLayout = null;
@@ -7311,7 +7350,6 @@ window.BOXXY_RELEASE = Object.freeze({
     playedRoute = "";
     makerCompletedRoute = "";
     if (makerApplySolveBtn) makerApplySolveBtn.hidden = true;
-    document.body.classList.remove("maker-testing");
     if (makerReturnBtn) makerReturnBtn.hidden = true;
     const requestedIndex = (index + LEVELS.length) % LEVELS.length;
     if (!preserveAutoplay && requestedIndex > highestUnlockedLevel) return;
@@ -7404,13 +7442,11 @@ window.BOXXY_RELEASE = Object.freeze({
       resetGuidedSolveSecret();
       blockedPushHeld = false;
       clearTimeout(animTimer);
-      makerTesting = !shared;
-      makerDailyPractice = !shared && (Boolean(options.practiceDaily) || Boolean(window.BOXXY_PRIVATE_PRACTICE));
-      makerDailyPracticePuzzle = makerDailyPractice ? { ...options.practiceDaily } : null;
-      window.BOXXY_PRACTICE_MODE = makerDailyPractice;
-      sharedPuzzleMode = shared;
-      sharedPuzzleName = shared ? customName : "";
-      window.BOXXY_SHARED_MODE = shared;
+      const practiceSession = !shared && (Boolean(options.practiceDaily) || Boolean(window.BOXXY_PRIVATE_PRACTICE));
+      setGameplayContext(
+        shared ? GAMEPLAY_CONTEXT.SHARED : (practiceSession ? GAMEPLAY_CONTEXT.DAILY_PRACTICE : GAMEPLAY_CONTEXT.MAKER),
+        { sharedName: customName, practiceDaily: options.practiceDaily }
+      );
       makerLayout = cleanRows.slice();
       makerGoalColours = GOAL_COLOURS?.normaliseMap?.(options.goalColours, cleanRows) || {};
       makerSolution = String(attachedSolution || "").replace(/[^udlrUDLR]/g, "");
@@ -7419,8 +7455,6 @@ window.BOXXY_RELEASE = Object.freeze({
       if (makerApplySolveBtn) makerApplySolveBtn.hidden = true;
       completeMode = "normal";
       restoreStandardCompletionActions();
-      document.body.classList.toggle("maker-testing", !shared);
-      document.body.classList.toggle("shared-puzzle", shared);
       if (makerReturnBtn) makerReturnBtn.hidden = shared;
       if (collectionBtn) collectionBtn.disabled = shared;
       if (shared && collectionName) collectionName.innerHTML = "PRIVATE<br>PUZZLE";
@@ -7498,17 +7532,10 @@ window.BOXXY_RELEASE = Object.freeze({
   function exitMakerTest() {
     if (!makerTesting) return;
     const wasDailyPractice = makerDailyPractice;
-    makerTesting = false;
-    makerDailyPractice = Boolean(window.BOXXY_PRIVATE_PRACTICE);
-    makerDailyPracticePuzzle = null;
-    window.BOXXY_PRACTICE_MODE = Boolean(window.BOXXY_PRIVATE_PRACTICE);
-    sharedPuzzleMode = false;
-    sharedPuzzleName = "";
-    window.BOXXY_SHARED_MODE = false;
+    setGameplayContext(GAMEPLAY_CONTEXT.NORMAL);
     makerLayout = null;
     makerGoalColours = {};
     makerSolution = "";
-    document.body.classList.remove("maker-testing");
     if (makerReturnBtn) makerReturnBtn.hidden = true;
     loadLevel(levelIndex, false, false, wasDailyPractice);
   }
@@ -7726,17 +7753,20 @@ window.BOXXY_RELEASE = Object.freeze({
     if (!makerTesting && !sharedPuzzleMode && !dailyMode) clearCurrentCheckpoint();
 
     if (dailyMode && dailyPuzzle) {
+      const scoringDailySession = dailyScoringAllowedFor(dailyPuzzle);
       const solvedWithGuidedRoute = autoplayRunning || guidedSolveUsed;
-      let streakMessage = "Guided solves do not count as a Daily completion, streak or fastest time.";
+      let streakMessage = scoringDailySession
+        ? "Guided solves do not count as a Daily completion, streak or fastest time."
+        : "Preview and testing sessions do not record Daily results, streaks or fastest times.";
       let streakResult = null;
 
       const publicMoveRate = completionSeconds > 0 && moves > 1
         ? (moves - 1) / completionSeconds
         : 0;
       const inhumanPublicSpeed = publicMoveRate > DAILY_MAX_PUBLIC_MOVES_PER_SECOND;
-      const leaderboardEligible = !dailyPointControlUsed && !inhumanPublicSpeed;
+      const leaderboardEligible = scoringDailySession && !dailyPointControlUsed && !inhumanPublicSpeed;
 
-      if (!solvedWithGuidedRoute) {
+      if (scoringDailySession && !solvedWithGuidedRoute) {
         recordDailyCompletion(dailyPuzzle, {
           moves,
           pushes,
@@ -7767,11 +7797,15 @@ window.BOXXY_RELEASE = Object.freeze({
       completeCard?.classList.add("daily-complete");
       if (finalPackPicker) finalPackPicker.hidden = true;
       if (finalPackStatus) finalPackStatus.textContent = "";
-      if (completeKicker) completeKicker.textContent = `DAILY BOXXY #${Number(dailyPuzzle.sequence) || ""}`;
-      if (completeTitle) completeTitle.textContent = solvedWithGuidedRoute ? "GUIDED SOLVE" : "DAILY COMPLETE";
+      if (completeKicker) completeKicker.textContent = scoringDailySession
+        ? `DAILY BOXXY #${Number(dailyPuzzle.sequence) || ""}`
+        : `DAILY PREVIEW #${Number(dailyPuzzle.sequence) || ""}`;
+      if (completeTitle) completeTitle.textContent = scoringDailySession
+        ? (solvedWithGuidedRoute ? "GUIDED SOLVE" : "DAILY COMPLETE")
+        : "PREVIEW COMPLETE";
       if (completedPackHeading) completedPackHeading.textContent = formatDailyDate(dailyPuzzle.date, { weekday: true, long: true, year: true });
       if (makerApplySolveBtn) makerApplySolveBtn.hidden = true;
-      const leaderboardEligibilityMessage = !solvedWithGuidedRoute && !leaderboardEligible
+      const leaderboardEligibilityMessage = scoringDailySession && !solvedWithGuidedRoute && !leaderboardEligible
         ? '<span class="daily-complete-leaderboard-warning">This result doesn’t qualify for the public fastest-times table. If you think we have made a mistake please write to us via the Contact Us page.</span>'
         : '';
       completeText.innerHTML = `
@@ -7787,17 +7821,21 @@ window.BOXXY_RELEASE = Object.freeze({
         </span>
         <span class="daily-complete-streak-message">${streakMessage}</span>
         ${leaderboardEligibilityMessage}`;
-      if (dailyShareText) dailyShareText.value = solvedWithGuidedRoute ? "" : buildDailyShareText(dailyPuzzle, { seconds: completionSeconds, moves });
-      if (dailySharePanel) dailySharePanel.hidden = solvedWithGuidedRoute;
+      if (dailyShareText) dailyShareText.value = scoringDailySession && !solvedWithGuidedRoute
+        ? buildDailyShareText(dailyPuzzle, { seconds: completionSeconds, moves })
+        : "";
+      if (dailySharePanel) dailySharePanel.hidden = !scoringDailySession || solvedWithGuidedRoute;
       if (dailyShareStatus) dailyShareStatus.textContent = "";
-      if (dailyCompletionLeaderboard) dailyCompletionLeaderboard.hidden = false;
-      if (dailyCompletionLeaderboardList) loadDailyLeaderboardInto(dailyCompletionLeaderboardList, dailyPuzzle, 3, { force: true });
+      if (dailyCompletionLeaderboard) dailyCompletionLeaderboard.hidden = !scoringDailySession;
+      if (scoringDailySession && dailyCompletionLeaderboardList) {
+        loadDailyLeaderboardInto(dailyCompletionLeaderboardList, dailyPuzzle, 3, { force: true });
+      }
       setCompletionActionMode("daily");
       updateDailyStreak();
       updateDailyQuotePrompt();
       refreshLevelButtons();
       renderDailyArchive();
-      if (!solvedWithGuidedRoute && streakResult) {
+      if (scoringDailySession && !solvedWithGuidedRoute && streakResult) {
         captureBoxxyAnalytics("daily_puzzle_completed", currentLevelAnalytics({
           moves: Number(moves),
           pushes: Number(pushes),
@@ -13820,7 +13858,8 @@ window.BOXXY_RELEASE = Object.freeze({
     }
     const result = window.BoxxyGameAPI?.startMakerTest?.(validation.rows, solutionMatchesCurrentBoard() ? currentSolution : "", {
       name: saveNameInput?.value?.trim() || "Custom Test",
-      goalColours: exportGoalColourMap()
+      goalColours: exportGoalColourMap(),
+      rainbowMode
     });
     if (!result?.ok) {
       setStatus(result?.error || "The game could not load this level.", "error");
@@ -13960,7 +13999,7 @@ window.BOXXY_RELEASE = Object.freeze({
     const result = window.BoxxyGameAPI?.startMakerTest?.(
       validation.rows,
       solutionMatchesCurrentBoard() ? currentSolution : String(event?.detail?.solution || ""),
-      { name: displayName, goalColours: exportGoalColourMap() }
+      { name: displayName, goalColours: exportGoalColourMap(), rainbowMode }
     );
     if (!result?.ok) {
       setStatus(result?.error || "The game could not load this pack puzzle.", "error");

@@ -1,4 +1,4 @@
-/* BOXXY v336 — private practice load reporting. */
+/* BOXXY v357 — private practice load reporting for the current non-scoring runtime. */
 (() => {
   "use strict";
   const config = window.BOXXY_PRIVATE_PRACTICE;
@@ -60,7 +60,7 @@
     }
     timer = setTimeout(check,100);
     setTimeout(() => {
-      if (!settled && !failed) fail("The game did not finish loading. Retry, or check that all v336 files have been deployed together.");
+      if (!settled && !failed) fail("The game did not finish loading. Retry, or check that all v357 files have been deployed together.");
     },45000);
   });
 })();

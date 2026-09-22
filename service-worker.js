@@ -1,8 +1,8 @@
-/* BOXXY v291 — redirect-safe offline navigation cache for iOS/PWA relaunches. */
+/* BOXXY v357 — offline package includes the October 2026 Daily schedule. */
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "291";
+const RELEASE_VERSION = "357";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [
@@ -129,6 +129,7 @@ const ASSETS = [
   "/daily-puzzles/boxxy-daily-loader.js",
   "/daily-puzzles/boxxy-daily-puzzles-2026-08.js",
   "/daily-puzzles/boxxy-daily-puzzles-2026-09.js",
+  "/daily-puzzles/boxxy-daily-puzzles-2026-10.js",
   "/daily-puzzles/boxxy-daily-puzzles.js",
   "/how-to-play.css",
   "/how-to-play.js",
