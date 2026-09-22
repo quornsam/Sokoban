@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "360",
+  version: "361",
   lastUpdated: "2026-09-22"
 });
+/* BOXXY v361: Daily personal fastest-time, fewest-move and fewest-push records update independently; archived sharing labels them as separate achievements. */
 /* BOXXY v360: Daily fastest-time records store the device class used for the score and show a compact device icon on the leaderboard. */
 /* BOXXY v359: quote facts/tips appear one time in six; site-wide PostHog totals removed from the footer system. */
 /* BOXXY v357 — October Dailies added; gameplay contexts are mutually exclusive so editor/practice/preview sessions can never write Daily scores or streaks. */
@@ -1247,7 +1248,21 @@ window.BOXXY_RELEASE = Object.freeze({
   function readDailyCompletions() {
     try {
       const parsed = JSON.parse(localStorage.getItem(DAILY_COMPLETIONS_KEY) || "{}");
-      return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+      // Recover a personal time lost by older versions when the corresponding
+      // faster qualifying leaderboard time is still saved. No historical runs
+      // or other bests are fabricated when that evidence is absent.
+      let recovered = false;
+      Object.values(parsed).forEach(record => {
+        if (!record || typeof record !== "object" || record.leaderboardTracked !== true) return;
+        const fastest = dailyBestNumber([record.seconds, record.leaderboardSeconds]);
+        if (fastest !== null && fastest !== Number(record.seconds)) {
+          record.seconds = fastest;
+          recovered = true;
+        }
+      });
+      if (recovered) writeDailyCompletions(parsed);
+      return parsed;
     } catch (_) {
       return {};
     }
@@ -1260,6 +1275,17 @@ window.BOXXY_RELEASE = Object.freeze({
   function dailyCompletion(dateKey) {
     const value = readDailyCompletions()[String(dateKey || "")];
     return value && typeof value === "object" ? value : null;
+  }
+
+  // Personal Daily records are three independent bests. Public leaderboard fields
+  // below remain a single eligible run, with its own time and matching move count.
+  function dailyBestNumber(values, { allowZero = false } = {}) {
+    const valid = values.map(value => {
+      if (value === null || value === undefined || value === "") return null;
+      const number = Number(value);
+      return Number.isFinite(number) && (allowZero ? number >= 0 : number > 0) ? number : null;
+    }).filter(value => value !== null);
+    return valid.length ? Math.min(...valid) : null;
   }
 
   function recordDailyCompletion(puzzle, result) {
@@ -1276,17 +1302,12 @@ window.BOXXY_RELEASE = Object.freeze({
       completedAt: attemptCompletedAt
     };
     const previous = completions[key];
-    const previousMoves = Number(previous?.moves);
-    const previousPushes = Number(previous?.pushes);
-    const previousSeconds = Number(previous?.seconds);
     const previousLeaderboardSeconds = previous?.leaderboardTracked === true
-      ? (Number.isFinite(Number(previous?.leaderboardSeconds)) && Number(previous.leaderboardSeconds) > 0
-          ? Number(previous.leaderboardSeconds)
-          : null)
-      : (Number.isFinite(previousSeconds) && previousSeconds > 0 ? previousSeconds : null);
-    const previousLeaderboardMoves = Number.isFinite(Number(previous?.leaderboardMoves))
-      ? Math.max(0, Math.trunc(Number(previous.leaderboardMoves)))
-      : (previous?.leaderboardTracked === true ? null : (Number.isFinite(previousMoves) ? Math.max(0, Math.trunc(previousMoves)) : null));
+      ? dailyBestNumber([previous.leaderboardSeconds])
+      : dailyBestNumber([previous?.seconds]);
+    const previousLeaderboardMoves = dailyBestNumber([
+      previous?.leaderboardTracked === true ? previous?.leaderboardMoves : previous?.moves
+    ], { allowZero: true });
     const previousLeaderboardStartedAt = Number.isFinite(Number(previous?.leaderboardStartedAt))
       ? Math.max(0, Number(previous.leaderboardStartedAt))
       : null;
@@ -1297,23 +1318,25 @@ window.BOXXY_RELEASE = Object.freeze({
     const attemptLeaderboardDevice = dailyLeaderboardDeviceClass();
     const attemptLeaderboardSeconds = result.leaderboardEligible === false ? null : attempt.seconds;
 
-    if (!previous || !Number.isFinite(previousMoves) || attempt.moves < Math.max(0, previousMoves)) {
-      completions[key] = attempt;
-    } else {
-      completions[key] = {
-        ...previous,
-        pushes: Number.isFinite(previousPushes) ? Math.min(Math.max(0, previousPushes), attempt.pushes) : attempt.pushes,
-        seconds: Number.isFinite(previousSeconds) ? Math.min(Math.max(0, previousSeconds), attempt.seconds) : attempt.seconds,
-        completedAt: attempt.completedAt
-      };
-    }
+    // Do not replace a faster time or fewer pushes when a run uses fewer moves.
+    // A v360 record may already have lost its best personal time, but a valid
+    // public fastest-time record can recover that time where available.
+    const fastest = dailyBestNumber([
+      previous?.seconds, previous?.leaderboardTracked === true ? previous.leaderboardSeconds : null, attempt.seconds
+    ]);
+    const fewestMoves = dailyBestNumber([previous?.moves, attempt.moves], { allowZero: true });
+    const fewestPushes = dailyBestNumber([previous?.pushes, attempt.pushes], { allowZero: true });
+    completions[key] = {
+      ...previous,
+      ...attempt,
+      moves: fewestMoves ?? attempt.moves,
+      pushes: fewestPushes ?? attempt.pushes,
+      seconds: fastest ?? attempt.seconds,
+      completedAt: Math.max(Number(previous?.completedAt) || 0, attempt.completedAt)
+    };
 
-    let leaderboardSeconds = Number.isFinite(previousLeaderboardSeconds) && previousLeaderboardSeconds > 0
-      ? previousLeaderboardSeconds
-      : null;
-    let leaderboardMoves = Number.isFinite(previousLeaderboardMoves)
-      ? previousLeaderboardMoves
-      : null;
+    let leaderboardSeconds = previousLeaderboardSeconds;
+    let leaderboardMoves = previousLeaderboardMoves;
     let leaderboardStartedAt = previousLeaderboardStartedAt;
     let leaderboardCompletedAt = previousLeaderboardCompletedAt;
     let leaderboardDevice = previousLeaderboardDevice;
@@ -3349,7 +3372,7 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   async function shareArchivedDailyResult(puzzle, result, button) {
-    const text = buildDailyShareText(puzzle, result);
+    const text = buildDailyBestShareText(puzzle, result);
     if (!text) return;
     const original = button?.textContent || "SHARE";
     try {
@@ -3405,7 +3428,8 @@ window.BOXXY_RELEASE = Object.freeze({
         ? data.entries.map(entry => ({
             username: String(entry?.username || "").trim(),
             seconds: Math.max(0, Math.round((Number(entry?.seconds) || 0) * 100) / 100),
-            moves: Number.isFinite(Number(entry?.moves)) && Number(entry.moves) >= 0
+            moves: entry?.moves !== null && entry?.moves !== undefined
+              && Number.isFinite(Number(entry.moves)) && Number(entry.moves) >= 0
               ? Math.trunc(Number(entry.moves))
               : null,
             device: normaliseDailyLeaderboardDevice(entry?.device)
@@ -3493,7 +3517,8 @@ window.BOXXY_RELEASE = Object.freeze({
       }
       const moves = document.createElement("span");
       moves.className = "daily-leaderboard-moves";
-      moves.textContent = Number.isFinite(Number(entry.moves)) ? `${Math.max(0, Math.trunc(Number(entry.moves)))} MOVES` : "— MOVES";
+      moves.textContent = entry.moves !== null && entry.moves !== undefined && Number.isFinite(Number(entry.moves))
+        ? `${Math.max(0, Math.trunc(Number(entry.moves)))} MOVES` : "— MOVES";
       row.append(rank, name, time, moves);
       container.appendChild(row);
     });
@@ -7378,6 +7403,24 @@ window.BOXXY_RELEASE = Object.freeze({
     if (minutes) parts.push(`${minutes} ${minutes === 1 ? "minute" : "minutes"}`);
     if (seconds || !minutes) parts.push(`${seconds} ${seconds === 1 ? "second" : "seconds"}`);
     return parts.join(" ");
+  }
+
+  // Archived records can combine achievements from separate runs. Never share
+  // their independently stored time and moves as though they were one solve.
+  function buildDailyBestShareText(puzzle, result) {
+    if (!puzzle || !result) return "";
+    const time = Math.max(0, Number(result.seconds) || 0).toFixed(2);
+    const moves = Math.max(0, Math.trunc(Number(result.moves) || 0));
+    const pushes = Math.max(0, Math.trunc(Number(result.pushes) || 0));
+    return [
+      `Daily Boxxy #${Number(puzzle.sequence) || ""} · ${formatDailyDate(puzzle.date, { long: true, year: true })}`,
+      `My personal bests (possibly from separate runs):`,
+      `Fastest time: ${time}s`,
+      `Fewest moves: ${moves}`,
+      `Fewest pushes: ${pushes}`,
+      "",
+      emojiDailyBoard(puzzle.layout)
+    ].join("\n");
   }
 
   function buildDailyShareText(puzzle, result) {

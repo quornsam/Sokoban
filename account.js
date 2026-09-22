@@ -1,3 +1,4 @@
+/* BOXXY v361: Daily cloud merging independently preserves fastest personal time, fewest moves and pushes without altering the matched public run. */
 /* BOXXY v360: Daily cloud merging preserves the fastest public score metadata, including its recorded device class. */
 /* BOXXY v358 — exposes a read-only local player-time summary for the rotating BOXXY fact line. */
 /* BOXXY v355 — iOS Sign in with Google uses Google's required redirect UX while preserving the existing BOXXY account flow. */
@@ -617,23 +618,56 @@
     const tracked = attempt.leaderboardTracked === true;
     const seconds = Number(tracked ? attempt.leaderboardSeconds : attempt.seconds);
     if (!Number.isFinite(seconds) || seconds <= 0) return null;
-    const rawMoves = Number(tracked ? attempt.leaderboardMoves : attempt.moves);
+    const moveValue = tracked ? attempt.leaderboardMoves : attempt.moves;
+    const rawMoves = moveValue === null || moveValue === undefined || moveValue === ""
+      ? null : Number(moveValue);
     return {
       seconds,
-      moves: Number.isFinite(rawMoves) && rawMoves >= 0 ? Math.trunc(rawMoves) : null,
+      moves: rawMoves !== null && Number.isFinite(rawMoves) && rawMoves >= 0 ? Math.trunc(rawMoves) : null,
       startedAt: tracked && Number.isFinite(Number(attempt.leaderboardStartedAt)) ? Math.max(0, Number(attempt.leaderboardStartedAt)) : null,
       completedAt: tracked && Number.isFinite(Number(attempt.leaderboardCompletedAt)) ? Math.max(0, Number(attempt.leaderboardCompletedAt)) : null,
       device: tracked ? cleanDailyLeaderboardDevice(attempt.leaderboardDevice) : ""
     };
   }
 
+  function bestDailyStat(values, { allowZero = false } = {}) {
+    const valid = values.map(value => {
+      if (value === null || value === undefined || value === "") return null;
+      const number = Number(value);
+      return Number.isFinite(number) && (allowZero ? number >= 0 : number > 0) ? number : null;
+    }).filter(value => value !== null);
+    return valid.length ? Math.min(...valid) : null;
+  }
+
   function mergeDailyAttempt(leftAttempt, rightAttempt) {
-    const selectedPersonal = betterAttempt(leftAttempt, rightAttempt);
-    const merged = selectedPersonal && typeof selectedPersonal === "object" ? { ...selectedPersonal } : {};
-    const hasTrackedLeaderboard = leftAttempt?.leaderboardTracked === true || rightAttempt?.leaderboardTracked === true;
+    if (!leftAttempt && !rightAttempt) return null;
+    const left = leftAttempt && typeof leftAttempt === "object" ? leftAttempt : {};
+    const right = rightAttempt && typeof rightAttempt === "object" ? rightAttempt : {};
+    const leftCompletedAt = Math.max(0, Number(left.completedAt) || 0);
+    const rightCompletedAt = Math.max(0, Number(right.completedAt) || 0);
+    const newer = leftCompletedAt > rightCompletedAt ? left : right;
+    const older = newer === left ? right : left;
+    const merged = { ...older, ...newer };
+
+    // Merge each personal achievement independently, not by selecting whichever
+    // entire record has fewer moves. The public record remains a separate run.
+    const moves = bestDailyStat([left.moves, right.moves], { allowZero: true });
+    const pushes = bestDailyStat([left.pushes, right.pushes], { allowZero: true });
+    const seconds = bestDailyStat([
+      left.seconds, right.seconds,
+      left.leaderboardTracked === true ? left.leaderboardSeconds : null,
+      right.leaderboardTracked === true ? right.leaderboardSeconds : null
+    ]);
+    if (moves !== null) merged.moves = moves;
+    if (pushes !== null) merged.pushes = pushes;
+    if (seconds !== null) merged.seconds = seconds;
+    merged.completedAt = Math.max(leftCompletedAt, rightCompletedAt);
+    if (!Number(merged.sequence)) merged.sequence = Number(older.sequence) || 0;
+
+    const hasTrackedLeaderboard = left.leaderboardTracked === true || right.leaderboardTracked === true;
     if (!hasTrackedLeaderboard) return merged;
 
-    const candidates = [dailyLeaderboardCandidate(leftAttempt), dailyLeaderboardCandidate(rightAttempt)].filter(Boolean);
+    const candidates = [dailyLeaderboardCandidate(left), dailyLeaderboardCandidate(right)].filter(Boolean);
     candidates.sort((a, b) => {
       if (a.seconds !== b.seconds) return a.seconds - b.seconds;
       const leftMoves = Number.isFinite(a.moves) ? a.moves : Number.MAX_SAFE_INTEGER;
@@ -672,9 +706,10 @@
     const right = parseJson(rightValue, {});
     const leftDaily = left && typeof left === "object" && !Array.isArray(left) ? left : {};
     const rightDaily = right && typeof right === "object" && !Array.isArray(right) ? right : {};
-    const result = { ...rightDaily };
-    Object.entries(leftDaily).forEach(([date, attempt]) => {
-      result[date] = mergeDailyAttempt(attempt, result[date]);
+    const result = {};
+    new Set([...Object.keys(leftDaily), ...Object.keys(rightDaily)]).forEach(date => {
+      const merged = mergeDailyAttempt(leftDaily[date], rightDaily[date]);
+      if (merged) result[date] = merged;
     });
     return JSON.stringify(result);
   }

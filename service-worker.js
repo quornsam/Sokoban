@@ -1,8 +1,8 @@
-/* BOXXY v360: offline package includes Daily leaderboard device metadata support. */
+/* BOXXY v361: offline package includes independent Daily personal-best recording and clearer personal-best labels. */
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "360";
+const RELEASE_VERSION = "361";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [

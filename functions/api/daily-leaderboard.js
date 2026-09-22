@@ -52,10 +52,9 @@ export async function onRequestGet(context) {
           END AS seconds,
           CASE
             WHEN json_extract(daily_json, ?) = 1 THEN
-              COALESCE(
-                CAST(json_extract(daily_json, ?) AS INTEGER),
-                CAST(json_extract(daily_json, ?) AS INTEGER)
-              )
+              -- Never pair a tracked fastest time with a move count from a
+              -- different personal-best run when its own moves are missing.
+              CAST(json_extract(daily_json, ?) AS INTEGER)
             ELSE
               CAST(json_extract(daily_json, ?) AS INTEGER)
           END AS moves,
@@ -99,7 +98,7 @@ export async function onRequestGet(context) {
       ORDER BY seconds ASC, username COLLATE NOCASE ASC
     `).bind(
       leaderboardTrackedPath, leaderboardSecondsPath, secondsPath,
-      leaderboardTrackedPath, leaderboardMovesPath, movesPath, movesPath,
+      leaderboardTrackedPath, leaderboardMovesPath, movesPath,
       leaderboardTrackedPath, leaderboardStartedAtPath,
       leaderboardTrackedPath, leaderboardCompletedAtPath,
       leaderboardTrackedPath, leaderboardDevicePath,
@@ -109,7 +108,8 @@ export async function onRequestGet(context) {
     const entries = (result.results || []).map(row => ({
       username: String(row.username || "").slice(0, 20),
       seconds: Math.max(0, Math.round((Number(row.seconds) || 0) * 100) / 100),
-      moves: Number.isFinite(Number(row.moves)) && Number(row.moves) >= 0
+      moves: row.moves !== null && row.moves !== undefined
+        && Number.isFinite(Number(row.moves)) && Number(row.moves) >= 0
         ? Math.trunc(Number(row.moves))
         : null,
       device: cleanDeviceClass(row.leaderboard_device) || null
