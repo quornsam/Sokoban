@@ -1,3 +1,5 @@
+/* BOXXY v360: Daily cloud merging preserves the fastest public score metadata, including its recorded device class. */
+/* BOXXY v358 — exposes a read-only local player-time summary for the rotating BOXXY fact line. */
 /* BOXXY v355 — iOS Sign in with Google uses Google's required redirect UX while preserving the existing BOXXY account flow. */
 /* BOXXY v346 — Click-Push reporting uses merge-safe per-device state so one device cannot overwrite another. */
 /* BOXXY v345 — Click-Push beta access and on/off state join account cloud sync for Basement reporting. */
@@ -112,6 +114,12 @@
   // Read-only identity for first-completion records. Authentication remains
   // server-side; this is never used to authorise a request.
   window.BOXXYAccountIdentity = { get id() { return account?.id || ""; } };
+  // Read-only display statistics for BOXXY's rotating footer facts. This exposes
+  // no account credentials or identifiers and always reflects the live session.
+  window.BOXXYPlayerStats = Object.freeze({
+    get signedIn() { return Boolean(account); },
+    get activeSeconds() { return account ? Math.max(0, Number(account.totalActiveSeconds) || 0) + activeSecondsDelta : 0; }
+  });
   let mode = "create";
   let busy = false;
   let lastSyncedFingerprint = "";
@@ -597,12 +605,76 @@
     return Number(left.completedAt || 0) >= Number(right.completedAt || 0) ? left : right;
   }
 
+  const DAILY_LEADERBOARD_DEVICE_CLASSES = new Set(["phone", "tablet", "computer"]);
+
+  function cleanDailyLeaderboardDevice(value) {
+    const device = String(value || "").trim().toLowerCase();
+    return DAILY_LEADERBOARD_DEVICE_CLASSES.has(device) ? device : "";
+  }
+
+  function dailyLeaderboardCandidate(attempt) {
+    if (!attempt || typeof attempt !== "object") return null;
+    const tracked = attempt.leaderboardTracked === true;
+    const seconds = Number(tracked ? attempt.leaderboardSeconds : attempt.seconds);
+    if (!Number.isFinite(seconds) || seconds <= 0) return null;
+    const rawMoves = Number(tracked ? attempt.leaderboardMoves : attempt.moves);
+    return {
+      seconds,
+      moves: Number.isFinite(rawMoves) && rawMoves >= 0 ? Math.trunc(rawMoves) : null,
+      startedAt: tracked && Number.isFinite(Number(attempt.leaderboardStartedAt)) ? Math.max(0, Number(attempt.leaderboardStartedAt)) : null,
+      completedAt: tracked && Number.isFinite(Number(attempt.leaderboardCompletedAt)) ? Math.max(0, Number(attempt.leaderboardCompletedAt)) : null,
+      device: tracked ? cleanDailyLeaderboardDevice(attempt.leaderboardDevice) : ""
+    };
+  }
+
+  function mergeDailyAttempt(leftAttempt, rightAttempt) {
+    const selectedPersonal = betterAttempt(leftAttempt, rightAttempt);
+    const merged = selectedPersonal && typeof selectedPersonal === "object" ? { ...selectedPersonal } : {};
+    const hasTrackedLeaderboard = leftAttempt?.leaderboardTracked === true || rightAttempt?.leaderboardTracked === true;
+    if (!hasTrackedLeaderboard) return merged;
+
+    const candidates = [dailyLeaderboardCandidate(leftAttempt), dailyLeaderboardCandidate(rightAttempt)].filter(Boolean);
+    candidates.sort((a, b) => {
+      if (a.seconds !== b.seconds) return a.seconds - b.seconds;
+      const leftMoves = Number.isFinite(a.moves) ? a.moves : Number.MAX_SAFE_INTEGER;
+      const rightMoves = Number.isFinite(b.moves) ? b.moves : Number.MAX_SAFE_INTEGER;
+      return leftMoves - rightMoves;
+    });
+    const leaderboard = candidates[0] || null;
+
+    merged.leaderboardTracked = true;
+    if (!leaderboard) {
+      merged.leaderboardSeconds = null;
+      delete merged.leaderboardMoves;
+      delete merged.leaderboardStartedAt;
+      delete merged.leaderboardCompletedAt;
+      delete merged.leaderboardDevice;
+      return merged;
+    }
+
+    merged.leaderboardSeconds = leaderboard.seconds;
+    if (Number.isFinite(leaderboard.moves)) merged.leaderboardMoves = leaderboard.moves;
+    else delete merged.leaderboardMoves;
+    if (leaderboard.startedAt && leaderboard.completedAt && leaderboard.completedAt >= leaderboard.startedAt) {
+      merged.leaderboardStartedAt = leaderboard.startedAt;
+      merged.leaderboardCompletedAt = leaderboard.completedAt;
+    } else {
+      delete merged.leaderboardStartedAt;
+      delete merged.leaderboardCompletedAt;
+    }
+    if (leaderboard.device) merged.leaderboardDevice = leaderboard.device;
+    else delete merged.leaderboardDevice;
+    return merged;
+  }
+
   function mergeDailyCompletions(leftValue, rightValue) {
     const left = parseJson(leftValue, {});
     const right = parseJson(rightValue, {});
-    const result = { ...(right && typeof right === "object" ? right : {}) };
-    Object.entries(left && typeof left === "object" ? left : {}).forEach(([date, attempt]) => {
-      result[date] = betterAttempt(attempt, result[date]);
+    const leftDaily = left && typeof left === "object" && !Array.isArray(left) ? left : {};
+    const rightDaily = right && typeof right === "object" && !Array.isArray(right) ? right : {};
+    const result = { ...rightDaily };
+    Object.entries(leftDaily).forEach(([date, attempt]) => {
+      result[date] = mergeDailyAttempt(attempt, result[date]);
     });
     return JSON.stringify(result);
   }

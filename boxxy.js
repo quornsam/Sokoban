@@ -6,9 +6,11 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "357",
+  version: "360",
   lastUpdated: "2026-09-22"
 });
+/* BOXXY v360: Daily fastest-time records store the device class used for the score and show a compact device icon on the leaderboard. */
+/* BOXXY v359: quote facts/tips appear one time in six; site-wide PostHog totals removed from the footer system. */
 /* BOXXY v357 — October Dailies added; gameplay contexts are mutually exclusive so editor/practice/preview sessions can never write Daily scores or streaks. */
 /* BOXXY v356 — Basement admins can reset a player's normal BOXXY password securely while preserving progress and Google linking. */
 /* BOXXY v355 — iOS Google sign-in compatibility uses the required redirect flow without changing BOXXY account behaviour. */
@@ -1291,6 +1293,8 @@ window.BOXXY_RELEASE = Object.freeze({
     const previousLeaderboardCompletedAt = Number.isFinite(Number(previous?.leaderboardCompletedAt))
       ? Math.max(0, Number(previous.leaderboardCompletedAt))
       : null;
+    const previousLeaderboardDevice = normaliseDailyLeaderboardDevice(previous?.leaderboardDevice);
+    const attemptLeaderboardDevice = dailyLeaderboardDeviceClass();
     const attemptLeaderboardSeconds = result.leaderboardEligible === false ? null : attempt.seconds;
 
     if (!previous || !Number.isFinite(previousMoves) || attempt.moves < Math.max(0, previousMoves)) {
@@ -1312,6 +1316,7 @@ window.BOXXY_RELEASE = Object.freeze({
       : null;
     let leaderboardStartedAt = previousLeaderboardStartedAt;
     let leaderboardCompletedAt = previousLeaderboardCompletedAt;
+    let leaderboardDevice = previousLeaderboardDevice;
     if (Number.isFinite(attemptLeaderboardSeconds) && attemptLeaderboardSeconds > 0) {
       const isFaster = leaderboardSeconds === null || attemptLeaderboardSeconds < leaderboardSeconds;
       const isEqualButFewerMoves = attemptLeaderboardSeconds === leaderboardSeconds
@@ -1321,6 +1326,7 @@ window.BOXXY_RELEASE = Object.freeze({
         leaderboardMoves = attempt.moves;
         leaderboardStartedAt = attemptStartedAt > 0 ? attemptStartedAt : null;
         leaderboardCompletedAt = attemptCompletedAt > 0 ? attemptCompletedAt : null;
+        leaderboardDevice = attemptLeaderboardDevice;
       }
     }
     completions[key].leaderboardTracked = true;
@@ -1334,6 +1340,8 @@ window.BOXXY_RELEASE = Object.freeze({
       delete completions[key].leaderboardStartedAt;
       delete completions[key].leaderboardCompletedAt;
     }
+    if (leaderboardDevice) completions[key].leaderboardDevice = leaderboardDevice;
+    else delete completions[key].leaderboardDevice;
     writeDailyCompletions(completions);
     return completions[key];
   }
@@ -1491,6 +1499,27 @@ window.BOXXY_RELEASE = Object.freeze({
   function unlockInstantSpeed() {
     try { localStorage.setItem(STARRY_NIGHT_INSTANT_SPEED_KEY, "true"); } catch (_) {}
     updateInstantSpeedOption();
+  }
+
+  const DAILY_LEADERBOARD_DEVICE_CLASSES = new Set(["phone", "tablet", "computer"]);
+
+  function normaliseDailyLeaderboardDevice(value) {
+    const device = String(value || "").trim().toLowerCase();
+    return DAILY_LEADERBOARD_DEVICE_CLASSES.has(device) ? device : "";
+  }
+
+  function dailyLeaderboardDeviceClass() {
+    const ua = String(navigator.userAgent || "");
+    const platform = String(navigator.platform || "");
+    const touchPoints = Math.max(0, Number(navigator.maxTouchPoints || 0));
+    const iPadDesktopMode = platform === "MacIntel" && touchPoints > 1;
+    if (/iPad/i.test(ua) || iPadDesktopMode || (/Android/i.test(ua) && !/Mobile/i.test(ua)) || /Tablet|Silk|Kindle|PlayBook/i.test(ua)) {
+      return "tablet";
+    }
+    if (/iPhone|iPod/i.test(ua) || (/Android/i.test(ua) && /Mobile/i.test(ua)) || /Mobile|IEMobile|Windows Phone/i.test(ua)) {
+      return "phone";
+    }
+    return "computer";
   }
 
   function boxxyDeviceId() {
@@ -2371,6 +2400,7 @@ window.BOXXY_RELEASE = Object.freeze({
   const cancelGuidedBtn = document.getElementById("cancelGuidedBtn");
   const instruction = document.querySelector(".instruction");
   const thoughtText = document.getElementById("thoughtText");
+  const thoughtNextBtn = document.getElementById("thoughtNextBtn");
   const splashScreen = document.getElementById("splashScreen");
   const collectionBtn = document.getElementById("collectionBtn");
   const collectionName = document.getElementById("collectionName");
@@ -2596,6 +2626,7 @@ window.BOXXY_RELEASE = Object.freeze({
   let currentCheckpoint = null;
   let recentThoughtParts = Object.create(null);
   let thoughtReady = false;
+  let lastThoughtFactKey = "";
   let audioUnlocked = false;
   let konamiIndex = 0;
   let konamiShowcaseActive = false;
@@ -3376,7 +3407,8 @@ window.BOXXY_RELEASE = Object.freeze({
             seconds: Math.max(0, Math.round((Number(entry?.seconds) || 0) * 100) / 100),
             moves: Number.isFinite(Number(entry?.moves)) && Number(entry.moves) >= 0
               ? Math.trunc(Number(entry.moves))
-              : null
+              : null,
+            device: normaliseDailyLeaderboardDevice(entry?.device)
           })).filter(entry => entry.username)
         : [];
       dailyLeaderboardCache.set(key, { loadedAt: Date.now(), entries });
@@ -3450,6 +3482,15 @@ window.BOXXY_RELEASE = Object.freeze({
       const time = document.createElement("b");
       time.className = "daily-leaderboard-time";
       setPreciseClockContent(time, entry.seconds);
+      const deviceClass = normaliseDailyLeaderboardDevice(entry.device);
+      if (deviceClass) {
+        const device = document.createElement("span");
+        device.className = "daily-leaderboard-device";
+        device.setAttribute("role", "img");
+        device.setAttribute("aria-label", deviceClass === "computer" ? "Computer" : (deviceClass === "tablet" ? "Tablet" : "Phone"));
+        device.textContent = deviceClass === "computer" ? "🖥" : "📱";
+        time.appendChild(device);
+      }
       const moves = document.createElement("span");
       moves.className = "daily-leaderboard-moves";
       moves.textContent = Number.isFinite(Number(entry.moves)) ? `${Math.max(0, Math.trunc(Number(entry.moves)))} MOVES` : "— MOVES";
@@ -4911,11 +4952,159 @@ window.BOXXY_RELEASE = Object.freeze({
     }
   }
 
-  function composeCharacterThought() {
-    let thought = "";
-    for (let attempt = 0; attempt < 30; attempt++) {
-      thought = generateThoughtCandidate();
-      if (!recentThoughts.includes(thought)) break;
+  const THOUGHT_FACT_CHANCE = 1 / 6;
+
+  function formatThoughtNumber(value) {
+    return Math.max(0, Math.trunc(Number(value) || 0)).toLocaleString("en-GB");
+  }
+
+  function readJsonObject(keyName) {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(keyName) || "null");
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function playerCompletedPuzzleCount() {
+    let total = 0;
+    PACKS.forEach(pack => {
+      const indexes = new Set();
+      try {
+        const saved = JSON.parse(localStorage.getItem(packStorageKeyFor(pack.id, "completed")) || "[]");
+        if (Array.isArray(saved)) saved.forEach(value => {
+          const index = Number(value);
+          if (Number.isInteger(index) && index >= 0 && index < (pack.levels?.length || 0)) indexes.add(index);
+        });
+      } catch (_) {}
+      if (pack.id === MICROBAN_PACK_ID) {
+        try {
+          const legacy = JSON.parse(localStorage.getItem("boxxy-completed-levels-v1") || "[]");
+          if (Array.isArray(legacy)) legacy.forEach(value => {
+            const index = Number(value);
+            if (Number.isInteger(index) && index >= 0 && index < (pack.levels?.length || 0)) indexes.add(index);
+          });
+        } catch (_) {}
+      }
+      total += indexes.size;
+    });
+    const daily = readJsonObject("boxxy-daily-completions-v1");
+    if (daily) total += Object.keys(daily).length;
+    return total;
+  }
+
+  function playerLifetimeMoves() {
+    try { return Math.max(0, Math.trunc(Number(localStorage.getItem(ALL_TIME_STEPS_KEY)) || 0)); }
+    catch (_) { return 0; }
+  }
+
+  function playerActiveMinutes() {
+    const seconds = Number(window.BOXXYPlayerStats?.activeSeconds);
+    return Number.isFinite(seconds) && seconds >= 60 ? Math.max(1, Math.floor(seconds / 60)) : 0;
+  }
+
+  function thoughtFactCandidates() {
+    const items = [];
+    const add = (keyName, variants) => {
+      if (!Array.isArray(variants) || !variants.length) return;
+      items.push({ key: keyName, text: variants[Math.floor(Math.random() * variants.length)] });
+    };
+
+    const activeMinutes = playerActiveMinutes();
+    if (activeMinutes > 0) {
+      const minutesText = formatThoughtNumber(activeMinutes);
+      add("player-time", [
+        `You have been playing BOXXY for ${minutesText} minutes so far.`,
+        `${minutesText} minutes of BOXXY so far. Time well spent, probably.`,
+        `Your BOXXY clock has reached ${minutesText} minutes.`,
+        `You have put ${minutesText} minutes into BOXXY so far.`
+      ]);
+    }
+
+    const lifetimeMoves = playerLifetimeMoves();
+    if (lifetimeMoves > 0) {
+      const movesText = formatThoughtNumber(lifetimeMoves);
+      add("player-moves", [
+        `Did you know you have made ${movesText} moves so far?`,
+        `${movesText} moves so far. Your arrow keys deserve a rest.`,
+        `You have clocked up ${movesText} BOXXY moves.`,
+        `That is ${movesText} moves from you so far. Not bad.`
+      ]);
+    }
+
+    const completed = playerCompletedPuzzleCount();
+    if (completed > 0) {
+      const completedText = formatThoughtNumber(completed);
+      add("player-completed", [
+        `You've completed ${completedText} puzzles. Why not make it one more?`,
+        `${completedText} puzzles cleared so far. There is always room for one more.`,
+        `Your completed-puzzle count is ${completedText}. Fancy adding another?`,
+        `You have beaten ${completedText} BOXXY puzzles so far.`
+      ]);
+    }
+
+    add("colours", [
+      "Don't like the block colours? Change 'em in Menu → Style.",
+      "The boxes do not have to stay yellow. Menu → Style has the paint tin.",
+      "Fancy different box colours? Open Menu → Style and make them yours.",
+      "You can change both box and target colours in Menu → Style."
+    ]);
+    add("hand-crafted", [
+      "All these levels are hand-crafted.",
+      "Every BOXXY puzzle has been put together by hand.",
+      "No generated level filler here. BOXXY's puzzles are hand-crafted.",
+      "These puzzles were made by people, one layout at a time."
+    ]);
+    add("outfit", [
+      "Have you tried changing your outfit yet? Menu → Style → Attire.",
+      "Your BOXXY character has a wardrobe. Have a look in Menu → Style → Attire.",
+      "Same puzzle, different trousers? Attire is waiting in Menu → Style.",
+      "You can change your character's outfit in Menu → Style → Attire."
+    ]);
+    add("music", [
+      "Did you know there are several soothing music options in Menu?",
+      "Need a calmer warehouse? Try one of the music options in Menu.",
+      "BOXXY has several background music choices tucked away in Menu.",
+      "Fancy a different soundtrack? There are several music options in Menu."
+    ]);
+    add("bug-contact", [
+      "Found a bug? Drop BOXXY a message via Menu → Contact Us.",
+      "Something gone wonky? Menu → Contact Us is the place to report it.",
+      "Spotted a BOXXY bug? Send the details through Menu → Contact Us."
+    ]);
+    add("idea-contact", [
+      "Thought of an improvement? Drop BOXXY a message via Menu → Contact Us.",
+      "Got an idea for BOXXY? Send it through Menu → Contact Us.",
+      "Think something could work better? Menu → Contact Us is listening."
+    ]);
+    add("stuck-contact", [
+      "Stuck on a level? Drop BOXXY a message via Menu → Contact Us.",
+      "Completely wedged? You can ask for help through Menu → Contact Us.",
+      "If a puzzle has you beaten, try Menu → Contact Us and send a message."
+    ]);
+
+    return items;
+  }
+
+  function generateThoughtFact() {
+    const candidates = thoughtFactCandidates();
+    if (!candidates.length) return "";
+    let available = candidates.filter(item => item.key !== lastThoughtFactKey);
+    if (!available.length) available = candidates;
+    const selected = available[Math.floor(Math.random() * available.length)];
+    lastThoughtFactKey = selected.key;
+    return selected.text;
+  }
+
+  function composeCharacterThought(options = {}) {
+    const includeFact = options.preferFact === true || Math.random() < THOUGHT_FACT_CHANCE;
+    let thought = includeFact ? generateThoughtFact() : "";
+    if (!thought) {
+      for (let attempt = 0; attempt < 30; attempt++) {
+        thought = generateThoughtCandidate();
+        if (!recentThoughts.includes(thought)) break;
+      }
     }
     recentThoughts.push(thought);
     if (recentThoughts.length > 500) recentThoughts.shift();
@@ -4946,6 +5135,10 @@ window.BOXXY_RELEASE = Object.freeze({
       scheduleCharacterThought();
     }, 430);
   }
+
+  thoughtNextBtn?.addEventListener("click", () => {
+    showCharacterThought(null, true);
+  });
 
   function normaliseKonamiKey(keyName) {
     return keyName.length === 1 ? keyName.toLowerCase() : keyName;

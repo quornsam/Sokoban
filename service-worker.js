@@ -1,8 +1,8 @@
-/* BOXXY v357 — offline package includes the October 2026 Daily schedule. */
+/* BOXXY v360: offline package includes Daily leaderboard device metadata support. */
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "357";
+const RELEASE_VERSION = "360";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [
