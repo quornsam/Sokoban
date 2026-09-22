@@ -1,6 +1,7 @@
 /* BOXXY v356 — Basement can securely reset a player's normal BOXXY password without touching progress or Google linking. */
 /* BOXXY v346 — Click-Push status is explicit and merge-safe across multiple devices. */
 /* BOXXY v345 — show Click-Push beta access/use in Basement. */
+/* BOXXY v357 — private Daily practice loads the current non-scoring game runtime and October catalogue. */
 /* BOXXY v337 — compact Basement type scale and non-wrapping numeric presentation; private practice protocol unchanged. */
 /* BOXXY v335 — verified completion views, responsive type and private prepared Daily catalogue. */
 /* BOXXY v334 — sortable player totals, chronological pack completion records and readable text controls. */
@@ -639,19 +640,19 @@
     try {
       // The authenticated parent makes the request. An opaque sandboxed
       // iframe cannot reliably send a SameSite=Lax Basement session cookie.
-      const response=await fetch(`/basement/practice?date=${encodeURIComponent(date)}&requestId=${encodeURIComponent(requestId)}&v=336`,{
+      const response=await fetch(`/basement/practice?date=${encodeURIComponent(date)}&requestId=${encodeURIComponent(requestId)}&v=357`,{
         credentials:"same-origin",cache:"no-store",signal:controller.signal,
         headers:{Accept:"text/html"}
       });
       const source=await response.text();
       if(practiceSession?.requestId!==requestId)return;
       if(!response.ok)throw new Error(source.slice(0,400)||`Practice request failed (${response.status}).`);
-      if(!response.headers.get("content-type")?.includes("text/html") || !source.includes('practice-runtime.js?v=336'))
-        throw new Error("The practice page is missing or does not match v336. Re-upload the complete replacement.");
+      if(!response.headers.get("content-type")?.includes("text/html") || !source.includes('practice-runtime.js?v=357'))
+        throw new Error("The practice page is missing or does not match v357. Re-upload the complete replacement.");
       practiceLoading("Preparing private character artwork…");
       const privateAssets=await loadPrivateImageAssets();
       if(practiceSession?.requestId!==requestId)return;
-      if(!source.includes("__BOXXY_PRIVATE_ASSET_DATA__"))throw new Error("The private practice page does not match v336.");
+      if(!source.includes("__BOXXY_PRIVATE_ASSET_DATA__"))throw new Error("The private practice page does not match v357.");
       const assetPayload=JSON.stringify(privateAssets).replace(/</g,"\\u003c").replace(/>/g,"\\u003e").replace(/&/g,"\\u0026");
       practiceLoading("Loading the private game…");
       practiceFrame.srcdoc=source.replace("__BOXXY_PRIVATE_ASSET_DATA__",assetPayload);
