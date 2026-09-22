@@ -3,6 +3,12 @@ import { json, requireDatabase } from "../_lib/auth.js";
 const DAILY_LAUNCH_DATE = "2026-08-30";
 const MAX_PUBLIC_MOVES_PER_SECOND = 15;
 const MAX_TIMING_DRIFT_SECONDS = 0.15;
+const DAILY_LEADERBOARD_DEVICE_CLASSES = new Set(["phone", "tablet", "computer"]);
+
+function cleanDeviceClass(value) {
+  const device = String(value || "").trim().toLowerCase();
+  return DAILY_LEADERBOARD_DEVICE_CLASSES.has(device) ? device : "";
+}
 
 function validDateKey(value) {
   const dateKey = String(value || "").trim();
@@ -27,6 +33,7 @@ export async function onRequestGet(context) {
     const leaderboardTrackedPath = `$."${dateKey}".leaderboardTracked`;
     const leaderboardStartedAtPath = `$."${dateKey}".leaderboardStartedAt`;
     const leaderboardCompletedAtPath = `$."${dateKey}".leaderboardCompletedAt`;
+    const leaderboardDevicePath = `$."${dateKey}".leaderboardDevice`;
     const result = await db.prepare(`
       WITH daily_records AS (
         SELECT
@@ -61,10 +68,15 @@ export async function onRequestGet(context) {
             WHEN json_extract(daily_json, ?) = 1 THEN
               CAST(json_extract(daily_json, ?) AS INTEGER)
             ELSE NULL
-          END AS leaderboard_completed_at
+          END AS leaderboard_completed_at,
+          CASE
+            WHEN json_extract(daily_json, ?) = 1 THEN
+              CAST(json_extract(daily_json, ?) AS TEXT)
+            ELSE NULL
+          END AS leaderboard_device
         FROM daily_records
       )
-      SELECT username, seconds, moves
+      SELECT username, seconds, moves, leaderboard_device
       FROM daily_times
       WHERE
         seconds IS NOT NULL
@@ -90,6 +102,7 @@ export async function onRequestGet(context) {
       leaderboardTrackedPath, leaderboardMovesPath, movesPath, movesPath,
       leaderboardTrackedPath, leaderboardStartedAtPath,
       leaderboardTrackedPath, leaderboardCompletedAtPath,
+      leaderboardTrackedPath, leaderboardDevicePath,
       MAX_PUBLIC_MOVES_PER_SECOND, MAX_TIMING_DRIFT_SECONDS
     ).all();
 
@@ -98,7 +111,8 @@ export async function onRequestGet(context) {
       seconds: Math.max(0, Math.round((Number(row.seconds) || 0) * 100) / 100),
       moves: Number.isFinite(Number(row.moves)) && Number(row.moves) >= 0
         ? Math.trunc(Number(row.moves))
-        : null
+        : null,
+      device: cleanDeviceClass(row.leaderboard_device) || null
     }));
 
     return json({ ok: true, date: dateKey, entries }, 200, {

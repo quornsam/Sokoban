@@ -6,10 +6,11 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "358",
+  version: "360",
   lastUpdated: "2026-09-22"
 });
-/* BOXXY v358 — quote button advances thoughts; occasional live BOXXY/player facts and helpful tips join the existing character thoughts. */
+/* BOXXY v360: Daily fastest-time records store the device class used for the score and show a compact device icon on the leaderboard. */
+/* BOXXY v359: quote facts/tips appear one time in six; site-wide PostHog totals removed from the footer system. */
 /* BOXXY v357 — October Dailies added; gameplay contexts are mutually exclusive so editor/practice/preview sessions can never write Daily scores or streaks. */
 /* BOXXY v356 — Basement admins can reset a player's normal BOXXY password securely while preserving progress and Google linking. */
 /* BOXXY v355 — iOS Google sign-in compatibility uses the required redirect flow without changing BOXXY account behaviour. */
@@ -1292,6 +1293,8 @@ window.BOXXY_RELEASE = Object.freeze({
     const previousLeaderboardCompletedAt = Number.isFinite(Number(previous?.leaderboardCompletedAt))
       ? Math.max(0, Number(previous.leaderboardCompletedAt))
       : null;
+    const previousLeaderboardDevice = normaliseDailyLeaderboardDevice(previous?.leaderboardDevice);
+    const attemptLeaderboardDevice = dailyLeaderboardDeviceClass();
     const attemptLeaderboardSeconds = result.leaderboardEligible === false ? null : attempt.seconds;
 
     if (!previous || !Number.isFinite(previousMoves) || attempt.moves < Math.max(0, previousMoves)) {
@@ -1313,6 +1316,7 @@ window.BOXXY_RELEASE = Object.freeze({
       : null;
     let leaderboardStartedAt = previousLeaderboardStartedAt;
     let leaderboardCompletedAt = previousLeaderboardCompletedAt;
+    let leaderboardDevice = previousLeaderboardDevice;
     if (Number.isFinite(attemptLeaderboardSeconds) && attemptLeaderboardSeconds > 0) {
       const isFaster = leaderboardSeconds === null || attemptLeaderboardSeconds < leaderboardSeconds;
       const isEqualButFewerMoves = attemptLeaderboardSeconds === leaderboardSeconds
@@ -1322,6 +1326,7 @@ window.BOXXY_RELEASE = Object.freeze({
         leaderboardMoves = attempt.moves;
         leaderboardStartedAt = attemptStartedAt > 0 ? attemptStartedAt : null;
         leaderboardCompletedAt = attemptCompletedAt > 0 ? attemptCompletedAt : null;
+        leaderboardDevice = attemptLeaderboardDevice;
       }
     }
     completions[key].leaderboardTracked = true;
@@ -1335,6 +1340,8 @@ window.BOXXY_RELEASE = Object.freeze({
       delete completions[key].leaderboardStartedAt;
       delete completions[key].leaderboardCompletedAt;
     }
+    if (leaderboardDevice) completions[key].leaderboardDevice = leaderboardDevice;
+    else delete completions[key].leaderboardDevice;
     writeDailyCompletions(completions);
     return completions[key];
   }
@@ -1492,6 +1499,27 @@ window.BOXXY_RELEASE = Object.freeze({
   function unlockInstantSpeed() {
     try { localStorage.setItem(STARRY_NIGHT_INSTANT_SPEED_KEY, "true"); } catch (_) {}
     updateInstantSpeedOption();
+  }
+
+  const DAILY_LEADERBOARD_DEVICE_CLASSES = new Set(["phone", "tablet", "computer"]);
+
+  function normaliseDailyLeaderboardDevice(value) {
+    const device = String(value || "").trim().toLowerCase();
+    return DAILY_LEADERBOARD_DEVICE_CLASSES.has(device) ? device : "";
+  }
+
+  function dailyLeaderboardDeviceClass() {
+    const ua = String(navigator.userAgent || "");
+    const platform = String(navigator.platform || "");
+    const touchPoints = Math.max(0, Number(navigator.maxTouchPoints || 0));
+    const iPadDesktopMode = platform === "MacIntel" && touchPoints > 1;
+    if (/iPad/i.test(ua) || iPadDesktopMode || (/Android/i.test(ua) && !/Mobile/i.test(ua)) || /Tablet|Silk|Kindle|PlayBook/i.test(ua)) {
+      return "tablet";
+    }
+    if (/iPhone|iPod/i.test(ua) || (/Android/i.test(ua) && /Mobile/i.test(ua)) || /Mobile|IEMobile|Windows Phone/i.test(ua)) {
+      return "phone";
+    }
+    return "computer";
   }
 
   function boxxyDeviceId() {
@@ -2598,8 +2626,6 @@ window.BOXXY_RELEASE = Object.freeze({
   let currentCheckpoint = null;
   let recentThoughtParts = Object.create(null);
   let thoughtReady = false;
-  let globalThoughtStats = null;
-  let globalThoughtStatsRequested = false;
   let lastThoughtFactKey = "";
   let audioUnlocked = false;
   let konamiIndex = 0;
@@ -3381,7 +3407,8 @@ window.BOXXY_RELEASE = Object.freeze({
             seconds: Math.max(0, Math.round((Number(entry?.seconds) || 0) * 100) / 100),
             moves: Number.isFinite(Number(entry?.moves)) && Number(entry.moves) >= 0
               ? Math.trunc(Number(entry.moves))
-              : null
+              : null,
+            device: normaliseDailyLeaderboardDevice(entry?.device)
           })).filter(entry => entry.username)
         : [];
       dailyLeaderboardCache.set(key, { loadedAt: Date.now(), entries });
@@ -3455,6 +3482,15 @@ window.BOXXY_RELEASE = Object.freeze({
       const time = document.createElement("b");
       time.className = "daily-leaderboard-time";
       setPreciseClockContent(time, entry.seconds);
+      const deviceClass = normaliseDailyLeaderboardDevice(entry.device);
+      if (deviceClass) {
+        const device = document.createElement("span");
+        device.className = "daily-leaderboard-device";
+        device.setAttribute("role", "img");
+        device.setAttribute("aria-label", deviceClass === "computer" ? "Computer" : (deviceClass === "tablet" ? "Tablet" : "Phone"));
+        device.textContent = deviceClass === "computer" ? "🖥" : "📱";
+        time.appendChild(device);
+      }
       const moves = document.createElement("span");
       moves.className = "daily-leaderboard-moves";
       moves.textContent = Number.isFinite(Number(entry.moves)) ? `${Math.max(0, Math.trunc(Number(entry.moves)))} MOVES` : "— MOVES";
@@ -4916,7 +4952,7 @@ window.BOXXY_RELEASE = Object.freeze({
     }
   }
 
-  const THOUGHT_FACT_CHANCE = 0.24;
+  const THOUGHT_FACT_CHANCE = 1 / 6;
 
   function formatThoughtNumber(value) {
     return Math.max(0, Math.trunc(Number(value) || 0)).toLocaleString("en-GB");
@@ -4975,27 +5011,6 @@ window.BOXXY_RELEASE = Object.freeze({
       items.push({ key: keyName, text: variants[Math.floor(Math.random() * variants.length)] });
     };
 
-    const played = Math.max(0, Math.trunc(Number(globalThoughtStats?.levelsPlayed) || 0));
-    const solved = Math.max(0, Math.trunc(Number(globalThoughtStats?.levelsSolved) || 0));
-    if (played > 0) {
-      const playedText = formatThoughtNumber(played);
-      add("global-played", [
-        `To date, ${playedText} levels have been played on BOXXY.`,
-        `BOXXY players have started ${playedText} puzzles so far.`,
-        `${playedText} level plays and counting. That is a lot of boxes.`,
-        `Across BOXXY, players have taken on ${playedText} levels so far.`
-      ]);
-      if (solved > 0 && solved <= played) {
-        const solvedText = formatThoughtNumber(solved);
-        add("global-played-solved", [
-          `To date, ${playedText} levels have been played on BOXXY and only ${solvedText} solved.`,
-          `${playedText} BOXXY levels have been played so far; ${solvedText} ended in a solve.`,
-          `Players have started ${playedText} levels and completed ${solvedText} of those runs.`,
-          `${playedText} attempts at BOXXY levels so far. ${solvedText} have reached the finish.`
-        ]);
-      }
-    }
-
     const activeMinutes = playerActiveMinutes();
     if (activeMinutes > 0) {
       const minutesText = formatThoughtNumber(activeMinutes);
@@ -5022,7 +5037,7 @@ window.BOXXY_RELEASE = Object.freeze({
     if (completed > 0) {
       const completedText = formatThoughtNumber(completed);
       add("player-completed", [
-        `You've completed ${completedText} puzzles — why not make it one more?`,
+        `You've completed ${completedText} puzzles. Why not make it one more?`,
         `${completedText} puzzles cleared so far. There is always room for one more.`,
         `Your completed-puzzle count is ${completedText}. Fancy adding another?`,
         `You have beaten ${completedText} BOXXY puzzles so far.`
@@ -5038,7 +5053,7 @@ window.BOXXY_RELEASE = Object.freeze({
     add("hand-crafted", [
       "All these levels are hand-crafted.",
       "Every BOXXY puzzle has been put together by hand.",
-      "No generated level filler here — BOXXY's puzzles are hand-crafted.",
+      "No generated level filler here. BOXXY's puzzles are hand-crafted.",
       "These puzzles were made by people, one layout at a time."
     ]);
     add("outfit", [
@@ -5080,19 +5095,6 @@ window.BOXXY_RELEASE = Object.freeze({
     const selected = available[Math.floor(Math.random() * available.length)];
     lastThoughtFactKey = selected.key;
     return selected.text;
-  }
-
-  async function refreshGlobalThoughtStats() {
-    if (globalThoughtStatsRequested) return;
-    globalThoughtStatsRequested = true;
-    try {
-      const response = await fetch("/api/public-stats", { headers: { accept: "application/json" } });
-      if (!response.ok) return;
-      const payload = await response.json();
-      const levelsPlayed = Math.max(0, Math.trunc(Number(payload?.levelsPlayed) || 0));
-      const levelsSolved = Math.max(0, Math.trunc(Number(payload?.levelsSolved) || 0));
-      if (payload?.ok && levelsPlayed > 0) globalThoughtStats = { levelsPlayed, levelsSolved };
-    } catch (_) {}
   }
 
   function composeCharacterThought(options = {}) {
@@ -5137,7 +5139,6 @@ window.BOXXY_RELEASE = Object.freeze({
   thoughtNextBtn?.addEventListener("click", () => {
     showCharacterThought(null, true);
   });
-  refreshGlobalThoughtStats();
 
   function normaliseKonamiKey(keyName) {
     return keyName.length === 1 ? keyName.toLowerCase() : keyName;
