@@ -18,6 +18,7 @@ import {
   parseProgress,
   safeProgressJson,
   publicAccount,
+  verifiedDailyActivity,
   expireCookie
 } from "../_lib/auth.js";
 import { mergeFirstCompletionMarkers, recordPackCompletions } from "../_lib/pack-completions.js";
@@ -71,27 +72,20 @@ function utcDayKey(timestamp) {
 function withServerActivity(existingValue, incomingValue, activeSeconds, now) {
   const existing = parseProgress(existingValue);
   const incoming = parseProgress(incomingValue);
-  let activity = { version: 1, days: {} };
-  const previous = existing[SERVER_ACTIVITY_KEY];
-  if (previous && typeof previous === "object" && !Array.isArray(previous)) {
-    const days = previous.days && typeof previous.days === "object" && !Array.isArray(previous.days) ? previous.days : {};
-    activity = { version: 1, days: { ...days } };
-  }
+  // Live time is authoritative from the server. A verified, previously unsynced
+  // Daily run can only add the missing activity marker, never invented seconds.
+  const prior = verifiedDailyActivity(existing, now);
+  const activity = verifiedDailyActivity(incoming, now, prior);
 
   const seconds = Math.max(0, Math.min(1800, Math.trunc(Number(activeSeconds) || 0)));
   if (seconds > 0) {
     const day = utcDayKey(now);
-    const prior = activity.days[day] && typeof activity.days[day] === "object" ? activity.days[day] : {};
+    const previousDay = activity.days[day] || {};
     activity.days[day] = {
-      seconds: Math.max(0, Math.trunc(Number(prior.seconds) || 0)) + seconds,
+      ...previousDay,
+      seconds: Math.max(0, Math.trunc(Number(previousDay.seconds) || 0)) + seconds,
       lastSeenAt: Number(now) || Date.now()
     };
-  }
-
-  const cutoff = Date.now() - (14 * 24 * 60 * 60 * 1000);
-  for (const day of Object.keys(activity.days)) {
-    const stamp = Date.parse(`${day}T00:00:00Z`);
-    if (!Number.isFinite(stamp) || stamp < cutoff) delete activity.days[day];
   }
   incoming[SERVER_ACTIVITY_KEY] = activity;
 

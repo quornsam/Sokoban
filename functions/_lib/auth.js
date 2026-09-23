@@ -421,6 +421,79 @@ function progressBoardStyle(progress) {
   return { box, target };
 }
 
+// A saved Daily fastest-run record can establish that somebody played on a
+// missing day even if an expired login prevented live server activity uploads.
+// This does not prove network connectivity or reconstruct time spent on site.
+// Require actual start/finish timestamps, a matching elapsed time and the
+// Daily date in the timestamp's recorded local timezone (UTC for legacy runs
+// without timezone data). This function is shared by account sync and Basement.
+const SERVER_ACTIVITY_KEY = "__boxxy-server-activity-v1";
+const DAILY_COMPLETIONS_KEY = "boxxy-daily-completions-v1";
+const ACTIVITY_RETENTION_DAYS = 14;
+
+function parsedDailyResults(value) {
+  try {
+    const data = typeof value === "string" ? JSON.parse(value) : value;
+    return data && typeof data === "object" && !Array.isArray(data) ? data : {};
+  } catch (_) { return {}; }
+}
+
+function calendarDayAtOffset(timestamp, offsetMinutes) {
+  // Date.getTimezoneOffset(): minutes to add to local time to obtain UTC.
+  return new Date(timestamp - offsetMinutes * 60000).toISOString().slice(0, 10);
+}
+
+export function verifiedDailyActivity(progressValue, now = Date.now(), previousActivity = null) {
+  const progress = parseProgress(progressValue);
+  const previous = previousActivity ?? progress[SERVER_ACTIVITY_KEY];
+  const originalDays = previous && typeof previous === "object" && !Array.isArray(previous)
+    && previous.days && typeof previous.days === "object" && !Array.isArray(previous.days)
+    ? previous.days : {};
+  const days = {};
+  const cutoff = now - ACTIVITY_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+  for (const [date, entry] of Object.entries(originalDays)) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !entry || typeof entry !== "object") continue;
+    const dayStart = Date.parse(`${date}T00:00:00Z`);
+    if (!Number.isFinite(dayStart) || dayStart < cutoff) continue;
+    const seconds = Math.max(0, Math.trunc(Number(entry.seconds) || 0));
+    days[date] = {
+      seconds,
+      lastSeenAt: Math.max(0, Number(entry.lastSeenAt) || 0)
+    };
+    const recoveredAt = Number(entry.verifiedDailyCompletionAt);
+    if (Number.isSafeInteger(recoveredAt) && recoveredAt > 0) days[date].verifiedDailyCompletionAt = recoveredAt;
+  }
+
+  for (const [dailyDate, result] of Object.entries(parsedDailyResults(progress[DAILY_COMPLETIONS_KEY]))) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dailyDate) || !result || typeof result !== "object") continue;
+    // A personal best can combine separate attempts. Only a single qualifying
+    // leaderboard run retains a start and finish from the same playthrough.
+    if (result.leaderboardTracked !== true) continue;
+    const startedAt = Number(result.leaderboardStartedAt);
+    const completedAt = Number(result.leaderboardCompletedAt);
+    const seconds = Number(result.leaderboardSeconds);
+    if (!Number.isSafeInteger(startedAt) || !Number.isSafeInteger(completedAt)
+        || !Number.isFinite(seconds) || seconds <= 0 || startedAt < Date.UTC(2026, 0, 1)
+        || completedAt <= startedAt || completedAt > now + 5 * 60 * 1000
+        || completedAt - startedAt > 24 * 60 * 60 * 1000
+        || Math.abs((completedAt - startedAt) / 1000 - seconds) > 0.06) continue;
+    const rawOffset = result.leaderboardTimezoneOffsetMinutes;
+    const offset = rawOffset !== null && rawOffset !== undefined && rawOffset !== ""
+      && Number.isInteger(Number(rawOffset)) && Math.abs(Number(rawOffset)) <= 840
+      ? Number(rawOffset) : 0;
+    if (calendarDayAtOffset(startedAt, offset) !== dailyDate
+        || calendarDayAtOffset(completedAt, offset) !== dailyDate) continue;
+    const dayStart = Date.parse(`${dailyDate}T00:00:00Z`);
+    if (!Number.isFinite(dayStart) || dayStart < cutoff) continue;
+    const previousDay = days[dailyDate] || { seconds: 0, lastSeenAt: 0 };
+    previousDay.verifiedDailyCompletionAt = Math.max(
+      Number(previousDay.verifiedDailyCompletionAt) || 0, completedAt
+    );
+    days[dailyDate] = previousDay;
+  }
+  return { version: 1, days };
+}
+
 export function progressSummary(progressValue) {
   const progress = parseProgress(progressValue);
   const packs = {};
@@ -558,20 +631,12 @@ export function progressSummary(progressValue) {
   ].filter(Boolean))];
   const clickPushCode = clickPushCodes[0] || "";
 
-  const activityDays = [];
-  try {
-    const activity = progress["__boxxy-server-activity-v1"];
-    const days = activity && typeof activity === "object" && !Array.isArray(activity) && activity.days && typeof activity.days === "object" ? activity.days : {};
-    for (const [date, entry] of Object.entries(days)) {
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !entry || typeof entry !== "object") continue;
-      activityDays.push({
-        date,
-        seconds: Math.max(0, Math.trunc(Number(entry.seconds) || 0)),
-        lastSeenAt: Math.max(0, Number(entry.lastSeenAt) || 0)
-      });
-    }
-    activityDays.sort((a, b) => String(a.date).localeCompare(String(b.date)));
-  } catch (_) {}
+  const activityDays = Object.entries(verifiedDailyActivity(progress).days).map(([date, entry]) => ({
+    date,
+    seconds: Math.max(0, Math.trunc(Number(entry.seconds) || 0)),
+    lastSeenAt: Math.max(0, Number(entry.lastSeenAt) || 0),
+    verifiedDailyCompletionAt: Math.max(0, Number(entry.verifiedDailyCompletionAt) || 0)
+  })).sort((a, b) => String(a.date).localeCompare(String(b.date)));
 
   return {
     activePack: String(progress["boxxy-active-pack-v2"] || ""),

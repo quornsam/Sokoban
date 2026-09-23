@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "363",
+  version: "364",
   lastUpdated: "2026-09-23"
 });
+/* BOXXY v364: preserve Daily fastest-run timezone for verified recovery of missed activity days. */
 /* BOXXY v363: original Daily completion sharing retained alongside the v361 score-recording correction. */
 /* BOXXY v361: Daily personal fastest-time, fewest-move and fewest-push records update independently. */
 /* BOXXY v360: Daily fastest-time records store the device class used for the score and show a compact device icon on the leaderboard. */
@@ -1316,6 +1317,10 @@ window.BOXXY_RELEASE = Object.freeze({
       ? Math.max(0, Number(previous.leaderboardCompletedAt))
       : null;
     const previousLeaderboardDevice = normaliseDailyLeaderboardDevice(previous?.leaderboardDevice);
+    const previousOffset = previous?.leaderboardTimezoneOffsetMinutes;
+    let leaderboardTimezoneOffsetMinutes = previousOffset !== null && previousOffset !== undefined
+      && Number.isInteger(Number(previousOffset)) && Math.abs(Number(previousOffset)) <= 840
+      ? Number(previousOffset) : null;
     const attemptLeaderboardDevice = dailyLeaderboardDeviceClass();
     const attemptLeaderboardSeconds = result.leaderboardEligible === false ? null : attempt.seconds;
 
@@ -1351,6 +1356,8 @@ window.BOXXY_RELEASE = Object.freeze({
         leaderboardStartedAt = attemptStartedAt > 0 ? attemptStartedAt : null;
         leaderboardCompletedAt = attemptCompletedAt > 0 ? attemptCompletedAt : null;
         leaderboardDevice = attemptLeaderboardDevice;
+        leaderboardTimezoneOffsetMinutes = attemptStartedAt > 0
+          ? new Date(attemptStartedAt).getTimezoneOffset() : null;
       }
     }
     completions[key].leaderboardTracked = true;
@@ -1366,6 +1373,9 @@ window.BOXXY_RELEASE = Object.freeze({
     }
     if (leaderboardDevice) completions[key].leaderboardDevice = leaderboardDevice;
     else delete completions[key].leaderboardDevice;
+    if (leaderboardTimezoneOffsetMinutes !== null && leaderboardStartedAt && leaderboardCompletedAt) {
+      completions[key].leaderboardTimezoneOffsetMinutes = leaderboardTimezoneOffsetMinutes;
+    } else delete completions[key].leaderboardTimezoneOffsetMinutes;
     writeDailyCompletions(completions);
     return completions[key];
   }

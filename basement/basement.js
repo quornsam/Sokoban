@@ -155,16 +155,17 @@
       const key = dayKey(date);
       const item = byDate.get(key) || {};
       const seconds = Math.max(0, Number(item.seconds) || 0);
-      const intensity = seconds <= 0 ? 0 : seconds < 15 * 60 ? 1 : seconds < 45 * 60 ? 2 : seconds < 2 * 60 * 60 ? 3 : 4;
-      days.push({ key, seconds, intensity, label: formatter.format(date), short: date.toLocaleDateString("en-GB", { weekday:"narrow" }), today: offset === 0 });
+      const recovered = seconds <= 0 && Number(item.verifiedDailyCompletionAt) > 0;
+      const intensity = seconds <= 0 ? (recovered ? 1 : 0) : seconds < 15 * 60 ? 1 : seconds < 45 * 60 ? 2 : seconds < 2 * 60 * 60 ? 3 : 4;
+      days.push({ key, seconds, recovered, intensity, label: formatter.format(date), short: date.toLocaleDateString("en-GB", { weekday:"narrow" }), today: offset === 0 });
     }
     return days;
   }
   function activityStrip(summary, compact = false) {
     const days = weekActivity(summary);
-    const hasAny = days.some(day => day.seconds > 0);
+    const hasAny = days.some(day => day.seconds > 0 || day.recovered);
     const classes = `activity-week${compact ? " activity-week-compact" : ""}${hasAny ? "" : " activity-week-empty"}`;
-    return `<div class="${classes}" aria-label="Activity over the last seven days">${days.map(day => `<div class="activity-day${day.today ? " is-today" : ""}" title="${escapeHtml(day.label)} · ${escapeHtml(duration(day.seconds))}"><i data-level="${day.intensity}" aria-hidden="true"></i><span>${escapeHtml(day.short)}</span></div>`).join("")}</div>`;
+    return `<div class="${classes}" aria-label="Activity over the last seven days">${days.map(day => `<div class="activity-day${day.today ? " is-today" : ""}" title="${escapeHtml(day.label)} · ${escapeHtml(day.recovered ? "Daily completion recovered from saved result; time on site unknown" : duration(day.seconds))}"><i data-level="${day.intensity}" aria-hidden="true"></i><span>${escapeHtml(day.short)}</span></div>`).join("")}</div>`;
   }
   function onlineDot(user) {
     return onlineRecently(user) ? `<span class="online-dot" title="Online within the last hour" aria-label="Online within the last hour"></span>` : "";

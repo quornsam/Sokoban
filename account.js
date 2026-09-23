@@ -1,3 +1,4 @@
+/* BOXXY v364: preserve timezone metadata from the actual fastest Daily run for recovered activity days. */
 /* BOXXY v363: independent Daily personal bests retained; player sessions now renew server-side through normal account checks/cloud saves. */
 /* BOXXY v360: Daily cloud merging preserves the fastest public score metadata, including its recorded device class. */
 /* BOXXY v358 — exposes a read-only local player-time summary for the rotating BOXXY fact line. */
@@ -626,7 +627,12 @@
       moves: rawMoves !== null && Number.isFinite(rawMoves) && rawMoves >= 0 ? Math.trunc(rawMoves) : null,
       startedAt: tracked && Number.isFinite(Number(attempt.leaderboardStartedAt)) ? Math.max(0, Number(attempt.leaderboardStartedAt)) : null,
       completedAt: tracked && Number.isFinite(Number(attempt.leaderboardCompletedAt)) ? Math.max(0, Number(attempt.leaderboardCompletedAt)) : null,
-      device: tracked ? cleanDailyLeaderboardDevice(attempt.leaderboardDevice) : ""
+      device: tracked ? cleanDailyLeaderboardDevice(attempt.leaderboardDevice) : "",
+      timezoneOffsetMinutes: tracked && attempt.leaderboardTimezoneOffsetMinutes !== null
+        && attempt.leaderboardTimezoneOffsetMinutes !== undefined
+        && Number.isInteger(Number(attempt.leaderboardTimezoneOffsetMinutes))
+        && Math.abs(Number(attempt.leaderboardTimezoneOffsetMinutes)) <= 840
+        ? Number(attempt.leaderboardTimezoneOffsetMinutes) : null
     };
   }
 
@@ -683,6 +689,7 @@
       delete merged.leaderboardStartedAt;
       delete merged.leaderboardCompletedAt;
       delete merged.leaderboardDevice;
+      delete merged.leaderboardTimezoneOffsetMinutes;
       return merged;
     }
 
@@ -698,6 +705,9 @@
     }
     if (leaderboard.device) merged.leaderboardDevice = leaderboard.device;
     else delete merged.leaderboardDevice;
+    if (leaderboard.timezoneOffsetMinutes !== null && leaderboard.startedAt && leaderboard.completedAt) {
+      merged.leaderboardTimezoneOffsetMinutes = leaderboard.timezoneOffsetMinutes;
+    } else delete merged.leaderboardTimezoneOffsetMinutes;
     return merged;
   }
 

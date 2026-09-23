@@ -1,8 +1,9 @@
+/* BOXXY v364: recorded Daily results can restore missing activity dates without fabricated playtime. */
 /* BOXXY v363: retains v361 recording fix and original Daily share wording; persistent player sessions and Basement history. */
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "363";
+const RELEASE_VERSION = "364";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [
