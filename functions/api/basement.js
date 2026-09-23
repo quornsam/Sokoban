@@ -11,7 +11,10 @@ import {
   passwordRecord,
   expireCookie,
   parseProgress,
-  progressSummary
+  progressSummary,
+  ensureSessionHistorySchema,
+  backfillLegacySessions,
+  sessionRevocationStatements
 } from "../_lib/auth.js";
 import { ensureGoogleAuthSchema } from "../_lib/google-auth.js";
 import { readPackCompletions, completionRecordsForUsers, canonicalAdminSummary } from "../_lib/pack-completions.js";
@@ -60,6 +63,7 @@ async function resetUserPassword(context, body) {
   `).bind(userId).first();
   if (!user) return json({ ok: false, error: "User not found." }, 404);
 
+  await ensureSessionHistorySchema(db);
   const { salt, hash } = await passwordRecord(password, "", env.BOXXY_PASSWORD_PEPPER);
   const statements = [
     db.prepare("UPDATE users SET password_hash = ?, password_salt = ? WHERE id = ?")
@@ -69,7 +73,7 @@ async function resetUserPassword(context, body) {
       VALUES (?, 1)
       ON CONFLICT(user_id) DO UPDATE SET password_enabled = 1
     `).bind(user.id),
-    db.prepare("DELETE FROM sessions WHERE user_id = ?").bind(user.id)
+    ...sessionRevocationStatements(db, user.id, "admin_password_reset")
   ];
 
   const ips = [...new Set([user.last_ip, user.signup_ip].map(value => String(value || "").trim()).filter(Boolean))];
@@ -100,6 +104,9 @@ function mappedUser(user, includeProgress = false) {
     passwordEnabled: user.password_enabled == null ? true : Number(user.password_enabled) !== 0,
     createdAt: Number(user.created_at) || 0,
     lastLoginAt: Number(user.last_login_at) || 0,
+    validSessionCount: Number(user.valid_session_count) || 0,
+    latestSessionStartedAt: Number(user.latest_session_started_at) || 0,
+    firstRecordedLoginAt: Number(user.first_recorded_login_at) || 0,
     lastSeenAt: Number(user.last_seen_at) || 0,
     signupIp: user.signup_ip || "",
     lastIp: user.last_ip || "",
@@ -112,8 +119,72 @@ function mappedUser(user, includeProgress = false) {
   return value;
 }
 
+// Aggregate only live server sessions, not a guess based on last activity.
+// Cookie deletion on a device cannot be detected until that device contacts us.
+async function readSessionStats(db, now, userId = "") {
+  const filter = userId ? "WHERE user_id = ?" : "";
+  const query = `
+    SELECT user_id,
+      SUM(CASE WHEN expires_at > ? THEN 1 ELSE 0 END) AS valid_session_count,
+      MAX(CASE WHEN expires_at > ? THEN created_at ELSE NULL END) AS latest_session_started_at
+    FROM sessions ${filter}
+    GROUP BY user_id
+  `;
+  const statement = db.prepare(query);
+  const result = await (userId ? statement.bind(now, now, userId) : statement.bind(now, now)).all();
+  return new Map((result.results || []).map(row => [String(row.user_id), row]));
+}
+
+async function readFirstRecordedLogins(db, userId = "") {
+  const filter = userId ? "WHERE user_id = ?" : "";
+  const statement = db.prepare(`
+    SELECT user_id, MIN(started_at) AS first_recorded_login_at
+    FROM session_history ${filter}
+    GROUP BY user_id
+  `);
+  const result = await (userId ? statement.bind(userId) : statement).all();
+  return new Map((result.results || []).map(row => [String(row.user_id), row]));
+}
+
+function attachSessionStats(user, stats, earliest) {
+  return {
+    ...user,
+    valid_session_count: Number(stats?.valid_session_count) || 0,
+    latest_session_started_at: Number(stats?.latest_session_started_at) || 0,
+    first_recorded_login_at: Number(earliest?.first_recorded_login_at) || 0
+  };
+}
+
+async function readRecentSessions(db, userId, now) {
+  const result = await db.prepare(`
+    SELECT h.started_at, h.last_seen_at, h.expires_at, h.ended_at,
+      h.end_reason, h.ip, h.user_agent, h.legacy,
+      CASE WHEN s.token_hash IS NOT NULL AND s.expires_at > ?
+        THEN 1 ELSE 0 END AS valid,
+      CASE WHEN h.expires_at <= ? THEN 1 ELSE 0 END AS expired
+    FROM session_history h
+    LEFT JOIN sessions s ON s.token_hash = h.token_hash
+    WHERE h.user_id = ?
+    ORDER BY h.started_at DESC LIMIT 30
+  `).bind(now, now, userId).all();
+  return (result.results || []).map(row => ({
+    startedAt: Number(row.started_at) || 0,
+    lastSeenAt: Number(row.last_seen_at) || 0,
+    expiresAt: Number(row.expires_at) || 0,
+    endedAt: Number(row.ended_at) || 0,
+    endReason: String(row.end_reason || ""),
+    ip: String(row.ip || ""),
+    userAgent: String(row.user_agent || ""),
+    legacy: Boolean(row.legacy),
+    valid: Boolean(row.valid),
+    expired: Boolean(row.expired)
+  }));
+}
+
 async function listUsers(context) {
   const db = requireDatabase(context.env);
+  await backfillLegacySessions(db);
+  const now = Date.now();
   const result = await db.prepare(`
     SELECT u.id, u.username, u.email, u.created_at, u.last_login_at, u.last_seen_at,
            u.signup_ip, u.last_ip, u.user_agent, u.total_active_seconds,
@@ -128,7 +199,12 @@ async function listUsers(context) {
     ORDER BY u.last_seen_at DESC, u.created_at DESC
   `).all();
   const rows = result.results || [];
-  const users = rows.map(user => mappedUser(user));
+  const [stats, firstLogins] = await Promise.all([
+    readSessionStats(db, now), readFirstRecordedLogins(db)
+  ]);
+  const users = rows.map(user => mappedUser(attachSessionStats(
+    user, stats.get(String(user.id)), firstLogins.get(String(user.id))
+  )));
   const evidenceUsers = rows.map((row,index) => ({...users[index],progress:parseProgress(row.progress_json)}));
   const records = await readPackCompletions(db);
   return json({ ok: true, authenticated: true, users,
@@ -137,6 +213,8 @@ async function listUsers(context) {
 
 async function userDetail(context, id) {
   const db = requireDatabase(context.env);
+  await backfillLegacySessions(db);
+  const now = Date.now();
   const user = await db.prepare(`
     SELECT u.id, u.username, u.email, u.created_at, u.last_login_at, u.last_seen_at,
            u.signup_ip, u.last_ip, u.user_agent, u.total_active_seconds,
@@ -151,9 +229,14 @@ async function userDetail(context, id) {
     WHERE u.id = ? LIMIT 1
   `).bind(id).first();
   if (!user) return json({ ok: false, error: "User not found." }, 404);
-  const mapped = mappedUser(user, true);
-  const records = await readPackCompletions(db, id);
-  return json({ ok: true, authenticated: true, user: mapped,
+  const [stats, firstLogins, sessions, records] = await Promise.all([
+    readSessionStats(db, now, id), readFirstRecordedLogins(db, id),
+    readRecentSessions(db, id, now), readPackCompletions(db, id)
+  ]);
+  const mapped = mappedUser(attachSessionStats(
+    user, stats.get(String(user.id)), firstLogins.get(String(user.id))
+  ), true);
+  return json({ ok: true, authenticated: true, user: mapped, sessions,
     completions: completionRecordsForUsers([mapped], records) });
 }
 

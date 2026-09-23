@@ -13,6 +13,7 @@ import {
   createSession,
   destroySession,
   authenticatedUser,
+  refreshAuthenticatedSession,
   consumeRateLimit,
   parseProgress,
   safeProgressJson,
@@ -188,8 +189,9 @@ async function userByEmail(db, email, excludedUserId = "") {
 async function handleGet(context) {
   const { env, request } = context;
   const db = requireDatabase(env);
-  const user = await authenticatedUser(env, request);
-  if (!user) return json({ ok: true, authenticated: false });
+  const session = await refreshAuthenticatedSession(env, request);
+  if (!session) return json({ ok: true, authenticated: false });
+  const { user } = session;
 
   const now = Date.now();
   if (now - Number(user.last_seen_at || 0) > 5 * 60 * 1000) {
@@ -198,7 +200,8 @@ async function handleGet(context) {
     `).bind(now, clientIp(request), userAgent(request), user.id).run();
     user.last_seen_at = now;
   }
-  return json(await accountPayload(db, user));
+  return json(await accountPayload(db, user), 200,
+    session.cookieHeader ? { "set-cookie": session.cookieHeader } : {});
 }
 
 async function handleRegister(context, body) {
@@ -484,8 +487,9 @@ async function handleDisconnectGoogle(context) {
 async function handleSync(context, body) {
   const { env, request } = context;
   const db = requireDatabase(env);
-  const user = await authenticatedUser(env, request);
-  if (!user) return json({ ok: false, authenticated: false, error: "Please sign in again." }, 401);
+  const session = await refreshAuthenticatedSession(env, request);
+  if (!session) return json({ ok: false, authenticated: false, error: "Please sign in again." }, 401);
+  const { user } = session;
 
   const activeSeconds = Math.max(0, Math.min(1800, Math.trunc(Number(body.activeSecondsDelta) || 0)));
   const now = Date.now();
@@ -503,7 +507,8 @@ async function handleSync(context, body) {
   catch (error) { console.error("BOXXY pack completion ledger", error); }
   const refreshed = await db.prepare("SELECT * FROM users WHERE id = ?").bind(user.id).first();
   const authInfo = await userAuthInfo(db, user.id);
-  return json({ ok: true, account: publicAccount(refreshed, authInfo), progressUpdatedAt: now });
+  return json({ ok: true, account: publicAccount(refreshed, authInfo), progressUpdatedAt: now }, 200,
+    session.cookieHeader ? { "set-cookie": session.cookieHeader } : {});
 }
 
 async function handleLogout(context) {

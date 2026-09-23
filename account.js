@@ -1,4 +1,4 @@
-/* BOXXY v361: Daily cloud merging independently preserves fastest personal time, fewest moves and pushes without altering the matched public run. */
+/* BOXXY v363: independent Daily personal bests retained; player sessions now renew server-side through normal account checks/cloud saves. */
 /* BOXXY v360: Daily cloud merging preserves the fastest public score metadata, including its recorded device class. */
 /* BOXXY v358 — exposes a read-only local player-time summary for the rotating BOXXY fact line. */
 /* BOXXY v355 — iOS Sign in with Google uses Google's required redirect UX while preserving the existing BOXXY account flow. */

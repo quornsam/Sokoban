@@ -1,3 +1,4 @@
+/* BOXXY v363 — server-confirmed sessions, first recorded login and per-device sign-in history. */
 /* BOXXY v356 — Basement can securely reset a player's normal BOXXY password without touching progress or Google linking. */
 /* BOXXY v346 — Click-Push status is explicit and merge-safe across multiple devices. */
 /* BOXXY v345 — show Click-Push beta access/use in Basement. */
@@ -77,6 +78,9 @@
     ["totalAttempts", "Attempts", "number"], ["dailyStreak", "Daily streak", "number"],
     ["activity7d", "Activity 7D", "number"],
     ["lastIp", "IP", "text"], ["lastLoginAt", "Last login", "number"],
+    ["validSessionCount", "Valid sessions", "number"],
+    ["latestSessionStartedAt", "Latest session began", "number"],
+    ["firstRecordedLoginAt", "First recorded login", "number"],
     ["dailyCompleted", "Daily completed", "number"],
     ["pack:boxxy-original-puzzle-pack-of-50-levels", "BOXXY Originals levels", "number"],
     ["pack:microban", "Microban levels", "number"],
@@ -699,6 +703,28 @@
     const list = query ? users.filter(user => [user.username, user.email, user.googleEmail, user.signupIp, user.lastIp, user.summary?.clickPushCode, ...(user.summary?.clickPushCodes || [])].some(value => String(value || "").toLowerCase().includes(query))) : users;
     return list.slice().sort(compareUsers);
   }
+  function sessionBadge(user) {
+    const count = Math.max(0, Number(user?.validSessionCount) || 0);
+    return `<span class="session-badge" data-valid="${count > 0}" title="${count ? `${count} valid server session${count === 1 ? "" : "s"}. Cookie may have been removed from device.` : "No valid sessions recorded on the server."}">${count ? `SIGNED IN · ${count}` : "SIGNED OUT"}</span>`;
+  }
+  function sessionHistoryHtml(sessions) {
+    if (!Array.isArray(sessions) || !sessions.length) {
+      return `<p class="muted">No preserved login sessions. Sign-ins deleted before v363 cannot be recovered.</p>`;
+    }
+    return `<p class="muted">A valid server session does not prove the cookie still exists on that device. Last contact is recorded when the app checks the account or uploads progress. Pre-v363 session history may be incomplete.</p>
+      <div class="session-history">${sessions.map(s => {
+        const status = s.valid ? "VALID SESSION" : s.endedAt ?
+          (s.endReason === "logout" ? "SIGNED OUT" : "REVOKED") :
+          s.expired ? "EXPIRED" : "NO LONGER VALID";
+        const endedAt = s.endedAt || (s.expired ? s.expiresAt : 0);
+        const reason = s.endedAt && s.endReason ? ` (${escapeHtml(s.endReason.replace(/_/g, " "))})` : "";
+        return `<div class="session-record"><div class="session-record-head"><strong>${escapeHtml(status)}</strong><span>${escapeHtml(browserDevice(s.userAgent))}</span></div>
+          <div>STARTED <strong>${escapeHtml(dateTime(s.startedAt))}</strong></div>
+          <div>LAST CONFIRMED CONTACT <strong>${s.legacy && s.lastSeenAt === s.startedAt ? "Not recorded before v363" : escapeHtml(dateTime(s.lastSeenAt))}</strong></div>
+          <div>ENDED <strong>${s.valid ? "Still valid" : escapeHtml(dateTime(endedAt))}${reason}</strong></div>
+          <div>IP <strong>${escapeHtml(s.ip || "—")}</strong></div></div>`;
+      }).join("")}</div>`;
+  }
   function googleBadge(user) {
     return user?.googleLinked ? `<span class="google-badge">GOOGLE</span>` : "";
   }
@@ -729,7 +755,7 @@
     const list=filteredUsers();
     const number=value=>Number(value||0).toLocaleString("en-GB");
     if(userRows)userRows.innerHTML=list.map(user=>`<tr data-user-id="${escapeHtml(user.id)}" tabindex="0">
-      <td><div class="basement-user-identity"><canvas class="basement-avatar" data-avatar-user="${escapeHtml(user.id)}" width="90" height="78" aria-label="Current character"></canvas><div class="basement-user-copy"><div class="user-main user-with-status">${onlineDot(user)}${escapeHtml(user.username)}${googleBadge(user)}${clickPushBadge(user.summary)}</div>${medalRail(user.summary)}${outfitMini(user.summary)}${boardStyleMini(user.summary)}</div></div></td>
+      <td><div class="basement-user-identity"><canvas class="basement-avatar" data-avatar-user="${escapeHtml(user.id)}" width="90" height="78" aria-label="Current character"></canvas><div class="basement-user-copy"><div class="user-main user-with-status">${onlineDot(user)}${escapeHtml(user.username)}${sessionBadge(user)}${googleBadge(user)}${clickPushBadge(user.summary)}</div>${medalRail(user.summary)}${outfitMini(user.summary)}${boardStyleMini(user.summary)}</div></div></td>
       <td>${escapeHtml(dateTime(user.lastSeenAt))}</td>
       <td><strong>${escapeHtml(duration(user.totalActiveSeconds))}</strong></td>
       <td class="numeric-cell">${number(user.summary?.levelsCompleted)}</td>
@@ -738,9 +764,10 @@
       <td class="numeric-cell">${number(user.summary?.totalPushes)}</td>
     </tr>`).join("");
     if(userCards)userCards.innerHTML=list.map(user=>`<button type="button" class="user-card" data-user-id="${escapeHtml(user.id)}" aria-label="Open ${escapeHtml(user.username)} account">
-      <div class="user-card-heading"><canvas class="basement-avatar" data-avatar-user="${escapeHtml(user.id)}" width="90" height="78" aria-hidden="true"></canvas><div><div class="user-main user-with-status">${onlineDot(user)}${escapeHtml(user.username)}${googleBadge(user)}${clickPushBadge(user.summary)}</div><span class="muted">${escapeHtml(user.email)}</span></div></div>
+      <div class="user-card-heading"><canvas class="basement-avatar" data-avatar-user="${escapeHtml(user.id)}" width="90" height="78" aria-hidden="true"></canvas><div><div class="user-main user-with-status">${onlineDot(user)}${escapeHtml(user.username)}${sessionBadge(user)}${googleBadge(user)}${clickPushBadge(user.summary)}</div><span class="muted">${escapeHtml(user.email)}</span></div></div>
       <div class="user-card-grid"><div><span>LEVELS</span><strong>${number(user.summary?.levelsCompleted)}</strong></div><div><span>PACKS</span><strong>${number(user.summary?.packsCompleted)}</strong></div><div><span>STEPS</span><strong>${number(user.summary?.totalSteps)}</strong></div><div><span>PUSHES</span><strong>${number(user.summary?.totalPushes)}</strong></div></div>
       <div class="user-card-footer"><span>LAST ACTIVE</span><strong>${escapeHtml(dateTime(user.lastSeenAt))}</strong></div>
+      <div class="user-card-footer"><span>LATEST SESSION</span><strong>${escapeHtml(dateTime(user.latestSessionStartedAt))}</strong></div>
     </button>`).join("");
     renderAvatarCanvases(list);
   }
@@ -797,6 +824,9 @@
           <div><span>ACCOUNT ID</span><strong>${escapeHtml(user.id)}</strong></div>
           <div><span>JOINED</span><strong>${escapeHtml(dateTime(user.createdAt))}</strong></div>
           <div><span>LAST LOGIN</span><strong>${escapeHtml(dateTime(user.lastLoginAt))}</strong></div>
+          <div><span>SERVER SIGN-IN STATUS</span><strong>${sessionBadge(user)}</strong></div>
+          <div><span>FIRST RECORDED LOGIN</span><strong>${escapeHtml(dateTime(user.firstRecordedLoginAt))}</strong></div>
+          <div><span>NEWEST VALID SESSION STARTED</span><strong>${escapeHtml(dateTime(user.latestSessionStartedAt))}</strong></div>
           <div><span>LAST ACTIVE</span><strong>${escapeHtml(dateTime(user.lastSeenAt))}</strong></div>
           <div><span>TOTAL TIME ONLINE</span><strong>${escapeHtml(duration(user.totalActiveSeconds))}</strong></div>
           <div><span>SIGNUP IP</span><strong>${escapeHtml(user.signupIp || "—")}</strong></div>
@@ -806,6 +836,7 @@
           <div><span>BROWSER / DEVICE</span><strong>${escapeHtml(browserDevice(user.userAgent))}</strong></div>
           <div><span>CLICK-PUSH BETA</span><strong>${clickPushDetail(user.summary)}</strong></div>
         </div>
+        <section><h3>LOGIN / SESSION HISTORY</h3>${sessionHistoryHtml(data.sessions)}</section>
         <section class="admin-account-access">
           <div class="admin-account-access-copy">
             <h3>ACCOUNT ACCESS</h3>

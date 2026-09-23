@@ -81,3 +81,21 @@ CREATE TABLE IF NOT EXISTS pack_completions (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS pack_completions_order_idx ON pack_completions(pack_id, completed_at, recorded_at);
+
+-- v363: persistent login/session history; token hashes are not bearer cookies.
+-- Pre-v363 deleted sessions cannot be reconstructed.
+CREATE TABLE IF NOT EXISTS session_history (
+  token_hash TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  started_at INTEGER NOT NULL,
+  last_seen_at INTEGER NOT NULL,
+  expires_at INTEGER NOT NULL,
+  ended_at INTEGER,
+  end_reason TEXT,
+  ip TEXT NOT NULL DEFAULT '',
+  user_agent TEXT NOT NULL DEFAULT '',
+  legacy INTEGER NOT NULL DEFAULT 0,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS session_history_user_started_idx
+  ON session_history(user_id, started_at DESC);

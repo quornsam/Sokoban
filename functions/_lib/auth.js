@@ -1,5 +1,15 @@
 const encoder = new TextEncoder();
 
+// Player sessions have no fixed 30-day logout. Each authenticated app launch
+// or cloud save renews a persistent 365-day cookie when its previous lifetime
+// has aged by a day. A browser may cap cookie lifetime, so we renew on return.
+// Unused/lost devices ultimately expire; explicit logout/reset still revokes.
+// Pre-upgrade sessions that are still valid are extended on their next request.
+const SESSION_IDLE_SECONDS = 365 * 24 * 60 * 60;
+const SESSION_RENEW_AFTER_MS = 24 * 60 * 60 * 1000;
+const SESSION_SEEN_AFTER_MS = 5 * 60 * 1000;
+let sessionHistorySchemaPromise = null;
+
 export function json(data, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(data), {
     status,
@@ -125,43 +135,182 @@ export function expireCookie(name) {
   return cookie(name, "", 0);
 }
 
+// Session history is separate from live bearer tokens so explicit logout,
+// expiry and administrative revocation can be reported without retaining a
+// usable session. Creating it lazily also makes the upgrade safe if the owner
+// has not run a manual D1 migration before deployment.
+export async function ensureSessionHistorySchema(db) {
+  if (!sessionHistorySchemaPromise) {
+    sessionHistorySchemaPromise = (async () => {
+      await db.prepare(`
+        CREATE TABLE IF NOT EXISTS session_history (
+          token_hash TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          started_at INTEGER NOT NULL,
+          last_seen_at INTEGER NOT NULL,
+          expires_at INTEGER NOT NULL,
+          ended_at INTEGER,
+          end_reason TEXT,
+          ip TEXT NOT NULL DEFAULT '',
+          user_agent TEXT NOT NULL DEFAULT '',
+          legacy INTEGER NOT NULL DEFAULT 0,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+      `).run();
+      await db.prepare(`CREATE INDEX IF NOT EXISTS session_history_user_started_idx
+        ON session_history(user_id, started_at DESC)`).run();
+
+    })().catch(error => {
+      sessionHistorySchemaPromise = null;
+      throw error;
+    });
+  }
+  return sessionHistorySchemaPromise;
+}
+
+// Legacy backfill is admin-only rather than a full-table write on each new
+// Cloudflare isolate's first public account request. Normal account refreshes
+// snapshot just that authenticated token instead.
+export async function backfillLegacySessions(db) {
+  await ensureSessionHistorySchema(db);
+  await db.prepare(`
+    INSERT OR IGNORE INTO session_history
+      (token_hash, user_id, started_at, last_seen_at, expires_at, ip, user_agent, legacy)
+    SELECT token_hash, user_id, created_at, created_at, expires_at, ip, user_agent, 1
+    FROM sessions
+  `).run();
+}
+
+// Preserve a pre-upgrade session's original start and device when it is first
+// seen after v363. Earlier logouts were deleted and cannot be reconstructed.
+function snapshotSession(db, tokenHash, userId = "") {
+  return db.prepare(`
+    INSERT OR IGNORE INTO session_history
+      (token_hash, user_id, started_at, last_seen_at, expires_at, ip, user_agent, legacy)
+    SELECT token_hash, user_id, created_at, created_at, expires_at, ip, user_agent, 1
+    FROM sessions WHERE token_hash = ? ${userId ? "AND user_id = ?" : ""}
+  `).bind(...(userId ? [tokenHash, userId] : [tokenHash]));
+}
+
 export async function createSession(env, request, userId) {
   const db = requireDatabase(env);
+  await ensureSessionHistorySchema(db);
   const token = randomToken(32);
   const tokenHash = await sha256(token);
   const now = Date.now();
-  const expiresAt = now + (30 * 24 * 60 * 60 * 1000);
-  await db.prepare(`
-    INSERT INTO sessions (token_hash, user_id, created_at, expires_at, ip, user_agent)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `).bind(tokenHash, userId, now, expiresAt, clientIp(request), userAgent(request)).run();
-  return { token, header: cookie("boxxy_session", token, 30 * 24 * 60 * 60) };
+  const expiresAt = now + SESSION_IDLE_SECONDS * 1000;
+  const ip = clientIp(request);
+  const agent = userAgent(request);
+  await db.batch([
+    db.prepare(`
+      INSERT INTO sessions (token_hash, user_id, created_at, expires_at, ip, user_agent)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).bind(tokenHash, userId, now, expiresAt, ip, agent),
+    db.prepare(`
+      INSERT INTO session_history
+        (token_hash, user_id, started_at, last_seen_at, expires_at, ip, user_agent)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).bind(tokenHash, userId, now, now, expiresAt, ip, agent)
+  ]);
+  return { token, header: cookie("boxxy_session", token, SESSION_IDLE_SECONDS) };
 }
 
 export async function destroySession(env, request) {
   const db = requireDatabase(env);
   const token = parseCookies(request).boxxy_session || "";
   if (token) {
+    await ensureSessionHistorySchema(db);
     const tokenHash = await sha256(token);
-    await db.prepare("DELETE FROM sessions WHERE token_hash = ?").bind(tokenHash).run();
+    const now = Date.now();
+    await db.batch([
+      snapshotSession(db, tokenHash),
+      db.prepare(`UPDATE session_history
+        SET ended_at = ?, end_reason = 'logout', last_seen_at = ?
+        WHERE token_hash = ? AND ended_at IS NULL`).bind(now, now, tokenHash),
+      db.prepare("DELETE FROM sessions WHERE token_hash = ?").bind(tokenHash)
+    ]);
   }
 }
 
-export async function authenticatedUser(env, request) {
+async function activeSession(env, request) {
   const db = requireDatabase(env);
   const token = parseCookies(request).boxxy_session || "";
   if (!token) return null;
   const tokenHash = await sha256(token);
   const now = Date.now();
-  const user = await db.prepare(`
-    SELECT u.*
+  const row = await db.prepare(`
+    SELECT u.*, s.expires_at AS session_expires_at,
+      s.created_at AS session_started_at, s.token_hash AS session_token_hash
     FROM sessions s
     JOIN users u ON u.id = s.user_id
     WHERE s.token_hash = ? AND s.expires_at > ?
     LIMIT 1
   `).bind(tokenHash, now).first();
-  if (!user) return null;
-  return user;
+  return row ? { user: row, token, tokenHash, now } : null;
+}
+
+export async function authenticatedUser(env, request) {
+  const session = await activeSession(env, request);
+  return session?.user || null;
+}
+
+// Called only by account GET and cloud sync, both of which the PWA already
+// makes during normal play. Reissues the same secure cookie; the raw token is
+// never exposed to page JS, and the original sign-in time never changes.
+export async function refreshAuthenticatedSession(env, request) {
+  const session = await activeSession(env, request);
+  if (!session) return null;
+  const { user, token, tokenHash, now } = session;
+  const db = requireDatabase(env);
+  await ensureSessionHistorySchema(db);
+  const known = await db.prepare(`
+    SELECT last_seen_at FROM session_history WHERE token_hash = ?
+  `).bind(tokenHash).first();
+  const expiresAt = Number(user.session_expires_at);
+  const renew = expiresAt < now + SESSION_IDLE_SECONDS * 1000 - SESSION_RENEW_AFTER_MS;
+  const recordSeen = !known || now - Number(known.last_seen_at || 0) >= SESSION_SEEN_AFTER_MS;
+  if (renew || recordSeen) {
+    const nextExpiry = renew ? now + SESSION_IDLE_SECONDS * 1000 : expiresAt;
+    const statements = [snapshotSession(db, tokenHash, user.id)];
+    if (renew) statements.push(db.prepare(`
+      UPDATE sessions SET expires_at = MAX(expires_at, ?) WHERE token_hash = ? AND expires_at > ?
+    `).bind(nextExpiry, tokenHash, now));
+    statements.push(db.prepare(`
+      UPDATE session_history SET
+        expires_at = MAX(expires_at, ?), last_seen_at = CASE WHEN last_seen_at < ? THEN ? ELSE last_seen_at END
+      WHERE token_hash = ? AND ended_at IS NULL
+    `).bind(nextExpiry, now - SESSION_SEEN_AFTER_MS, now, tokenHash));
+    await db.batch(statements);
+  }
+  return {
+    user,
+    cookieHeader: renew ? cookie("boxxy_session", token, SESSION_IDLE_SECONDS) : ""
+  };
+}
+
+// Password resets invalidate every existing device while retaining a dated
+// audit entry for each session. Unknown pre-v363 session history is snapshotted.
+export function sessionRevocationStatements(db, userId, reason = "password_reset") {
+  const now = Date.now();
+  return [
+    db.prepare(`
+      INSERT OR IGNORE INTO session_history
+        (token_hash, user_id, started_at, last_seen_at, expires_at, ip, user_agent, legacy)
+      SELECT token_hash, user_id, created_at, created_at, expires_at, ip, user_agent, 1
+      FROM sessions WHERE user_id = ?
+    `).bind(userId),
+    db.prepare(`
+      UPDATE session_history SET ended_at = ?, end_reason = ?
+      WHERE user_id = ? AND ended_at IS NULL
+        AND token_hash IN (SELECT token_hash FROM sessions WHERE user_id = ?)
+    `).bind(now, reason, userId, userId),
+    db.prepare("DELETE FROM sessions WHERE user_id = ?").bind(userId)
+  ];
+}
+
+export async function revokeUserSessions(db, userId, reason = "password_reset") {
+  await ensureSessionHistorySchema(db);
+  await db.batch(sessionRevocationStatements(db, userId, reason));
 }
 
 export async function consumeRateLimit(env, key, limit, windowSeconds) {

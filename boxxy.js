@@ -6,10 +6,11 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "361",
-  lastUpdated: "2026-09-22"
+  version: "363",
+  lastUpdated: "2026-09-23"
 });
-/* BOXXY v361: Daily personal fastest-time, fewest-move and fewest-push records update independently; archived sharing labels them as separate achievements. */
+/* BOXXY v363: original Daily completion sharing retained alongside the v361 score-recording correction. */
+/* BOXXY v361: Daily personal fastest-time, fewest-move and fewest-push records update independently. */
 /* BOXXY v360: Daily fastest-time records store the device class used for the score and show a compact device icon on the leaderboard. */
 /* BOXXY v359: quote facts/tips appear one time in six; site-wide PostHog totals removed from the footer system. */
 /* BOXXY v357 — October Dailies added; gameplay contexts are mutually exclusive so editor/practice/preview sessions can never write Daily scores or streaks. */
@@ -3372,7 +3373,7 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   async function shareArchivedDailyResult(puzzle, result, button) {
-    const text = buildDailyBestShareText(puzzle, result);
+    const text = buildDailyShareText(puzzle, result);
     if (!text) return;
     const original = button?.textContent || "SHARE";
     try {
@@ -7403,24 +7404,6 @@ window.BOXXY_RELEASE = Object.freeze({
     if (minutes) parts.push(`${minutes} ${minutes === 1 ? "minute" : "minutes"}`);
     if (seconds || !minutes) parts.push(`${seconds} ${seconds === 1 ? "second" : "seconds"}`);
     return parts.join(" ");
-  }
-
-  // Archived records can combine achievements from separate runs. Never share
-  // their independently stored time and moves as though they were one solve.
-  function buildDailyBestShareText(puzzle, result) {
-    if (!puzzle || !result) return "";
-    const time = Math.max(0, Number(result.seconds) || 0).toFixed(2);
-    const moves = Math.max(0, Math.trunc(Number(result.moves) || 0));
-    const pushes = Math.max(0, Math.trunc(Number(result.pushes) || 0));
-    return [
-      `Daily Boxxy #${Number(puzzle.sequence) || ""} · ${formatDailyDate(puzzle.date, { long: true, year: true })}`,
-      `My personal bests (possibly from separate runs):`,
-      `Fastest time: ${time}s`,
-      `Fewest moves: ${moves}`,
-      `Fewest pushes: ${pushes}`,
-      "",
-      emojiDailyBoard(puzzle.layout)
-    ].join("\n");
   }
 
   function buildDailyShareText(puzzle, result) {
