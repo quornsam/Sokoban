@@ -1,3 +1,4 @@
+/* BOXXY v365: include server-controlled account feature flags in authenticated responses. */
 import {
   json,
   requireDatabase,
@@ -19,6 +20,7 @@ import {
   safeProgressJson,
   publicAccount,
   verifiedDailyActivity,
+  ensureUserFeatureFlagsSchema,
   expireCookie
 } from "../_lib/auth.js";
 import { mergeFirstCompletionMarkers, recordPackCompletions } from "../_lib/pack-completions.js";
@@ -32,6 +34,31 @@ const SERVER_ACTIVITY_KEY = "__boxxy-server-activity-v1";
 const CLICK_PUSH_ENABLED_KEY = "boxxy-touch-click-push-v1";
 const CLICK_PUSH_ACCESS_KEY = "boxxy-touch-click-push-access-v1";
 const CLICK_PUSH_DEVICES_KEY = "boxxy-touch-click-push-devices-v1";
+
+const INSTANT_MOVE_FEATURE_KEY = "instant_move";
+
+async function accountFeatureState(db, userId) {
+  await ensureUserFeatureFlagsSchema(db);
+  const row = await db.prepare(`
+    SELECT enabled, updated_at
+    FROM user_feature_flags
+    WHERE user_id = ? AND feature_key = ?
+    LIMIT 1
+  `).bind(userId, INSTANT_MOVE_FEATURE_KEY).first();
+  return {
+    instantMove: Boolean(Number(row?.enabled) || 0),
+    instantMoveUpdatedAt: Math.max(0, Number(row?.updated_at) || 0)
+  };
+}
+
+async function accountPublicData(db, user, authInfo = null) {
+  const resolvedAuthInfo = authInfo || await userAuthInfo(db, user.id);
+  const features = await accountFeatureState(db, user.id);
+  return {
+    ...publicAccount(user, resolvedAuthInfo),
+    features
+  };
+}
 
 function normaliseClickPushDevices(value) {
   let parsed = null;
@@ -129,7 +156,7 @@ async function accountPayload(db, user) {
   return {
     ok: true,
     authenticated: true,
-    account: publicAccount(user, authInfo),
+    account: await accountPublicData(db, user, authInfo),
     progress: parseProgress(user.progress_json)
   };
 }
@@ -501,7 +528,7 @@ async function handleSync(context, body) {
   catch (error) { console.error("BOXXY pack completion ledger", error); }
   const refreshed = await db.prepare("SELECT * FROM users WHERE id = ?").bind(user.id).first();
   const authInfo = await userAuthInfo(db, user.id);
-  return json({ ok: true, account: publicAccount(refreshed, authInfo), progressUpdatedAt: now }, 200,
+  return json({ ok: true, account: await accountPublicData(db, refreshed, authInfo), progressUpdatedAt: now }, 200,
     session.cookieHeader ? { "set-cookie": session.cookieHeader } : {});
 }
 

@@ -1,3 +1,4 @@
+/* BOXXY v365: generic persistent user feature-flag schema for admin-controlled access. */
 const encoder = new TextEncoder();
 
 // Player sessions have no fixed 30-day logout. Each authenticated app launch
@@ -347,6 +348,24 @@ export function safeProgressJson(value, maxBytes = 256000) {
   const text = JSON.stringify(progress);
   if (encoder.encode(text).byteLength > maxBytes) throw new Error("Cloud save is too large.");
   return text;
+}
+
+
+export async function ensureUserFeatureFlagsSchema(db) {
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS user_feature_flags (
+      user_id TEXT NOT NULL,
+      feature_key TEXT NOT NULL,
+      enabled INTEGER NOT NULL DEFAULT 0 CHECK (enabled IN (0, 1)),
+      updated_at INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (user_id, feature_key),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `).run();
+  await db.prepare(`
+    CREATE INDEX IF NOT EXISTS user_feature_flags_feature_idx
+    ON user_feature_flags(feature_key, enabled, updated_at DESC)
+  `).run();
 }
 
 export function publicAccount(user, authInfo = {}) {

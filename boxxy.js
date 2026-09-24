@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "364",
-  lastUpdated: "2026-09-23"
+  version: "365",
+  lastUpdated: "2026-09-24"
 });
+/* BOXXY v365: admin-gated Instant Move executes legal box routes immediately; assisted runs cannot set high scores. */
 /* BOXXY v364: preserve Daily fastest-run timezone for verified recovery of missed activity days. */
 /* BOXXY v363: original Daily completion sharing retained alongside the v361 score-recording correction. */
 /* BOXXY v361: Daily personal fastest-time, fewest-move and fewest-push records update independently. */
@@ -2566,8 +2567,11 @@ window.BOXXY_RELEASE = Object.freeze({
     : "ivory";
   let musicPlayAllIndex = 0;
   const BOXXY_SPEED_FACTORS = Object.freeze({ slow: 1.4, normal: 1, fast: 0.68, instant: 0.12 });
+  const INSTANT_MOVE_NOTICE_KEY = "boxxy-instant-move-notice-v1";
   const storedBoxxySpeed = localStorage.getItem("boxxy-speed-v1");
   let boxxySpeed = BOXXY_SPEED_FACTORS[storedBoxxySpeed] ? storedBoxxySpeed : "normal";
+  let instantMoveAllowed = false;
+  let instantMoveUsedThisLevel = false;
   let musicPausedForHiddenTab = false;
   let audioCtx = null;
   let autoplayRunning = false;
@@ -5922,6 +5926,10 @@ window.BOXXY_RELEASE = Object.freeze({
     return boxxySpeed === "instant" && instantSpeedUnlocked();
   }
 
+  function instantMoveModeActive() {
+    return instantMoveAllowed && boxxySpeed === "instantmove";
+  }
+
   function scaledBoxxyDelay(milliseconds) {
     const scaled = Math.round(Number(milliseconds || 0) * boxxySpeedFactor());
     return boxxyInstantSpeedActive() ? Math.max(12, scaled) : Math.max(28, scaled);
@@ -5929,31 +5937,73 @@ window.BOXXY_RELEASE = Object.freeze({
 
   function updateInstantSpeedOption() {
     if (!settingsSpeedSelect) return;
-    let option = settingsSpeedSelect.querySelector('option[value="instant"]');
-    const unlocked = instantSpeedUnlocked();
-    if (!unlocked) {
-      option?.remove();
+    let turboOption = settingsSpeedSelect.querySelector('option[value="instant"]');
+    const turboUnlocked = instantSpeedUnlocked();
+    if (!turboUnlocked) {
+      turboOption?.remove();
       if (boxxySpeed === "instant") boxxySpeed = "fast";
-      settingsSpeedSelect.value = boxxySpeed;
-      return;
+    } else if (!turboOption) {
+      turboOption = document.createElement("option");
+      turboOption.value = "instant";
+      turboOption.textContent = "TURBO";
+      settingsSpeedSelect.appendChild(turboOption);
     }
-    if (!option) {
-      option = document.createElement("option");
-      option.value = "instant";
-      option.textContent = "TURBO";
-      settingsSpeedSelect.appendChild(option);
+
+    let instantMoveOption = settingsSpeedSelect.querySelector('option[value="instantmove"]');
+    if (!instantMoveAllowed) {
+      instantMoveOption?.remove();
+      if (boxxySpeed === "instantmove") boxxySpeed = "normal";
+    } else if (!instantMoveOption) {
+      instantMoveOption = document.createElement("option");
+      instantMoveOption.value = "instantmove";
+      instantMoveOption.textContent = "INSTANT MOVE";
+      settingsSpeedSelect.appendChild(instantMoveOption);
     }
     settingsSpeedSelect.value = boxxySpeed;
   }
 
   function applyBoxxySpeed(value, persist = true) {
     const requested = String(value || "normal");
-    boxxySpeed = requested === "instant" && !instantSpeedUnlocked()
-      ? "fast"
-      : (BOXXY_SPEED_FACTORS[requested] ? requested : "normal");
+    if (requested === "instantmove") {
+      boxxySpeed = instantMoveAllowed ? "instantmove" : "normal";
+    } else {
+      boxxySpeed = requested === "instant" && !instantSpeedUnlocked()
+        ? "fast"
+        : (BOXXY_SPEED_FACTORS[requested] ? requested : "normal");
+    }
     document.body.dataset.boxxySpeed = boxxySpeed;
     updateInstantSpeedOption();
     if (persist) localStorage.setItem("boxxy-speed-v1", boxxySpeed);
+    if (!instantMoveModeActive() && pointControlMode() === "") resetMouseSupportInteraction();
+  }
+
+  function applyInstantMoveEntitlement(detail = {}) {
+    const allowed = Boolean(detail.loggedIn && detail.instantMoveAllowed);
+    const updatedAt = Math.max(0, Number(detail.instantMoveUpdatedAt) || 0);
+    const wasAllowed = instantMoveAllowed;
+    instantMoveAllowed = allowed;
+
+    if (!allowed) {
+      if (boxxySpeed === "instantmove") applyBoxxySpeed("normal", true);
+      updateInstantSpeedOption();
+      resetMouseSupportInteraction();
+      return;
+    }
+
+    updateInstantSpeedOption();
+    let seenAt = 0;
+    try { seenAt = Math.max(0, Number(localStorage.getItem(INSTANT_MOVE_NOTICE_KEY)) || 0); } catch (_) {}
+    const newlyGranted = updatedAt > 0 && updatedAt > seenAt;
+    const savedInstantMove = String(localStorage.getItem("boxxy-speed-v1") || "") === "instantmove";
+    if (newlyGranted) {
+      applyBoxxySpeed("instantmove", true);
+      try { localStorage.setItem(INSTANT_MOVE_NOTICE_KEY, String(updatedAt)); } catch (_) {}
+      window.setTimeout(() => {
+        showCharacterThought("INSTANT MOVE ENABLED. You can turn this off in Menu → Boxxy Speed.", true);
+      }, 450);
+    } else if (!wasAllowed && savedInstantMove) {
+      applyBoxxySpeed("instantmove", false);
+    }
   }
 
   function boardStyleColourLabel(colour) {
@@ -6216,6 +6266,7 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   function pointControlMode() {
+    if (instantMoveModeActive()) return "instant";
     if (settingsTouchDevice()) return touchClickPushEnabled && hasTouchClickPushAccess() ? "touch" : "";
     if (desktopEasterEggAvailable() && mouseSupportEnabled) return "mouse";
     return "";
@@ -7487,6 +7538,7 @@ window.BOXXY_RELEASE = Object.freeze({
       { dailyPuzzle: puzzle }
     );
     dailyPointControlUsed = false;
+    instantMoveUsedThisLevel = false;
     if (collectionBtn) collectionBtn.disabled = false;
     if (makerReturnBtn) makerReturnBtn.hidden = true;
     makerLayout = null;
@@ -7584,6 +7636,7 @@ window.BOXXY_RELEASE = Object.freeze({
     if (!preserveAutoplay && requestedIndex > highestUnlockedLevel) return;
     if (!preserveAutoplay) stopAutoplay();
     guidedSolveUsed = false;
+    instantMoveUsedThisLevel = false;
     resetGuidedSolveSecret();
     blockedPushHeld = false;
     clearTimeout(animTimer);
@@ -8142,7 +8195,7 @@ window.BOXXY_RELEASE = Object.freeze({
       const firstCompletion = !completedLevels.has(levelIndex);
       const packWasFullyCompleted = completedLevels.size === LEVELS.length;
       const completionDurationSeconds = completionSeconds;
-      const isNewBest = !solvedWithWalkthrough && (!oldBest || moves < oldBest);
+      const isNewBest = !solvedWithWalkthrough && !instantMoveUsedThisLevel && (!oldBest || moves < oldBest);
       if (isNewBest) localStorage.setItem(bestKey, moves);
       recordLevelCompletionStats(activePack, levelIndex, {
         moves,
@@ -8705,7 +8758,12 @@ window.BOXXY_RELEASE = Object.freeze({
     mouseSupportPlans = mouseSupportBoxDestinationPlans(index);
     renderMouseSupportOverlay();
     if (mouseSupportPlans.size) {
-      showCharacterThought(pointControlMode() === "touch" ? "Tap a highlighted square to move this box there." : "Click a highlighted square to move this box there.", true);
+      const controlMode = pointControlMode();
+      showCharacterThought(controlMode === "touch"
+        ? "Tap a highlighted square to move this box there."
+        : controlMode === "instant"
+          ? "Choose a highlighted square to move this box there instantly."
+          : "Click a highlighted square to move this box there.", true);
     } else {
       showCharacterThought("I cannot reach a legal pushing position for that box.", true);
     }
@@ -8731,8 +8789,30 @@ window.BOXXY_RELEASE = Object.freeze({
     clearMouseSupportOverlay();
     mouseSupportBusy = true;
     if (dailyMode) dailyPointControlUsed = true;
+    const instantMoveRun = pointControlMode() === "instant";
+    if (instantMoveRun) instantMoveUsedThisLevel = true;
     document.body.classList.add("mouse-support-busy");
     showCharacterThought(description, true);
+
+    if (instantMoveRun) {
+      for (const code of cleanRoute) {
+        if (!mouseSupportBusy || completed || autoplayRunning || firstPersonMode) break;
+        const delta = CODE_TO_DELTA[code];
+        if (!delta) continue;
+        const beforeMoves = moves;
+        mouseSupportExecutingStep = true;
+        try { move(delta[0], delta[1], false, true); }
+        finally { mouseSupportExecutingStep = false; }
+        if (moves === beforeMoves) {
+          stopMouseSupportRoute();
+          showCharacterThought("That route is no longer clear. Choose another square.", true);
+          return false;
+        }
+      }
+      stopMouseSupportRoute();
+      return true;
+    }
+
     let stepIndex = 0;
 
     const playNext = () => {
@@ -8804,6 +8884,10 @@ window.BOXXY_RELEASE = Object.freeze({
     }
 
     clearMouseSupportOverlay();
+    if (controlMode === "instant") {
+      showCharacterThought("Select a box, then choose one of its highlighted destinations.", true);
+      return;
+    }
     const route = mouseSupportWalkingRoute(player, [x, y], mouseSupportBlockedSet());
     if (route === null) {
       showCharacterThought("I cannot walk to that square from here.", true);
@@ -9428,6 +9512,10 @@ window.BOXXY_RELEASE = Object.freeze({
   trophyCabinetModal?.addEventListener("click", event => { if (event.target === trophyCabinetModal) closeTrophyCabinet(); });
   dailyArchiveCloseBtn?.addEventListener("click", closeDailyArchive);
   dailyArchiveModal?.addEventListener("click", event => { if (event.target === dailyArchiveModal) closeDailyArchive(); });
+  window.addEventListener("boxxyaccountfeatures", event => {
+    applyInstantMoveEntitlement(event?.detail || {});
+  });
+
   window.addEventListener("boxxyaccountdailysynced", event => {
     const dateKey = String(event?.detail?.date || "");
     if (dateKey) refreshVisibleDailyLeaderboards(dateKey);

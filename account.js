@@ -1,3 +1,4 @@
+/* BOXXY v365: receive server-authorised account feature flags for private Instant Move access. */
 /* BOXXY v364: preserve timezone metadata from the actual fastest Daily run for recovered activity days. */
 /* BOXXY v363: independent Daily personal bests retained; player sessions now renew server-side through normal account checks/cloud saves. */
 /* BOXXY v360: Daily cloud merging preserves the fastest public score metadata, including its recorded device class. */
@@ -133,6 +134,17 @@
   let googleReady = false;
   let pendingGoogleCredential = "";
   let googleRenderTimer = 0;
+
+  function broadcastAccountFeatures() {
+    const features = account?.features && typeof account.features === "object" ? account.features : {};
+    window.dispatchEvent(new CustomEvent("boxxyaccountfeatures", {
+      detail: {
+        loggedIn: Boolean(account),
+        instantMoveAllowed: Boolean(account && features.instantMove),
+        instantMoveUpdatedAt: Math.max(0, Number(features.instantMoveUpdatedAt) || 0)
+      }
+    }));
+  }
 
   function setStatus(message = "", kind = "") {
     if (!status) return;
@@ -1051,6 +1063,7 @@
     try { localStorage.removeItem(ACCOUNT_MARKER_KEY); } catch (_) {}
     clearOfflineAccountSnapshot();
     setOfflineRequestCookie(false);
+    broadcastAccountFeatures();
   }
 
   function disableGoogleAutoSelect() {
@@ -1270,6 +1283,7 @@
       try { localStorage.removeItem(ACCOUNT_MARKER_KEY); } catch (_) {}
       clearOfflineAccountSnapshot();
       render();
+      broadcastAccountFeatures();
       return false;
     }
     try { localStorage.setItem(ACCOUNT_MARKER_KEY, "1"); } catch (_) {}
@@ -1281,6 +1295,7 @@
     const changed = applyCloudState(merged);
     lastSyncedFingerprint = stableStringify(merged);
     render();
+    broadcastAccountFeatures();
 
     if (options.pushMerged && stableStringify(remote) !== lastSyncedFingerprint) {
       try {
@@ -1288,6 +1303,7 @@
         if (sync.response.ok && sync.data.account) {
           account = sync.data.account;
           render();
+          broadcastAccountFeatures();
         }
       } catch (_) {}
     }
@@ -1349,8 +1365,9 @@
       if (standalone) {
         const snapshot = loadOfflineAccountSnapshot();
         if (snapshot) {
-          account = snapshot;
+          account = { ...snapshot, features: { instantMove: false, instantMoveUpdatedAt: Number(snapshot?.features?.instantMoveUpdatedAt) || 0 } };
           render();
+          broadcastAccountFeatures();
           setStatus("OFFLINE · PROGRESS WILL SYNC WHEN INTERNET RETURNS", "success");
         }
       }
@@ -1375,6 +1392,7 @@
         lastSyncedFingerprint = "";
         clearOfflineAccountSnapshot();
         render();
+        broadcastAccountFeatures();
         return false;
       }
       if (!response.ok) return false;
@@ -1383,6 +1401,7 @@
       if (data.account) account = data.account;
       saveOfflineAccountSnapshot();
       render();
+      broadcastAccountFeatures();
       return true;
     } catch (_) {
       return false;
@@ -1620,6 +1639,7 @@
   prepareAndroidInstallPrompt();
   seedLifetimeStats();
   render();
+  broadcastAccountFeatures();
   (async () => {
     await initialAccountCheck();
     await resumeGoogleRedirect();

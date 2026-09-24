@@ -1,3 +1,4 @@
+/* BOXXY v365 — Basement can grant/revoke server-authorised Instant Move access per account. */
 /* BOXXY v363 — server-confirmed sessions, first recorded login and per-device sign-in history. */
 /* BOXXY v356 — Basement can securely reset a player's normal BOXXY password without touching progress or Google linking. */
 /* BOXXY v346 — Click-Push status is explicit and merge-safe across multiple devices. */
@@ -738,6 +739,12 @@
     const devices = on && deviceCount > 1 ? ` · ${deviceCount} DEVICES` : "";
     return `<span class="click-push-badge">CLICK-PUSH · ${on ? "ON" : "OFF"}${devices}${code ? ` · ${escapeHtml(code)}` : ""}</span>`;
   }
+  function instantMoveBadge(user) {
+    return user?.instantMoveEnabled
+      ? '<span class="instant-move-badge">INSTANT</span>'
+      : '';
+  }
+
   function clickPushDetail(summary) {
     if (!summary?.clickPushUnlocked) return "—";
     const codes = Array.isArray(summary?.clickPushCodes) ? summary.clickPushCodes.filter(Boolean) : [];
@@ -756,7 +763,7 @@
     const list=filteredUsers();
     const number=value=>Number(value||0).toLocaleString("en-GB");
     if(userRows)userRows.innerHTML=list.map(user=>`<tr data-user-id="${escapeHtml(user.id)}" tabindex="0">
-      <td><div class="basement-user-identity"><canvas class="basement-avatar" data-avatar-user="${escapeHtml(user.id)}" width="90" height="78" aria-label="Current character"></canvas><div class="basement-user-copy"><div class="user-main user-with-status">${onlineDot(user)}${escapeHtml(user.username)}${sessionBadge(user)}${googleBadge(user)}${clickPushBadge(user.summary)}</div>${medalRail(user.summary)}${outfitMini(user.summary)}${boardStyleMini(user.summary)}</div></div></td>
+      <td><div class="basement-user-identity"><canvas class="basement-avatar" data-avatar-user="${escapeHtml(user.id)}" width="90" height="78" aria-label="Current character"></canvas><div class="basement-user-copy"><div class="user-main user-with-status">${onlineDot(user)}${escapeHtml(user.username)}${sessionBadge(user)}${googleBadge(user)}${clickPushBadge(user.summary)}${instantMoveBadge(user)}</div>${medalRail(user.summary)}${outfitMini(user.summary)}${boardStyleMini(user.summary)}</div></div></td>
       <td>${escapeHtml(dateTime(user.lastSeenAt))}</td>
       <td><strong>${escapeHtml(duration(user.totalActiveSeconds))}</strong></td>
       <td class="numeric-cell">${number(user.summary?.levelsCompleted)}</td>
@@ -765,7 +772,7 @@
       <td class="numeric-cell">${number(user.summary?.totalPushes)}</td>
     </tr>`).join("");
     if(userCards)userCards.innerHTML=list.map(user=>`<button type="button" class="user-card" data-user-id="${escapeHtml(user.id)}" aria-label="Open ${escapeHtml(user.username)} account">
-      <div class="user-card-heading"><canvas class="basement-avatar" data-avatar-user="${escapeHtml(user.id)}" width="90" height="78" aria-hidden="true"></canvas><div><div class="user-main user-with-status">${onlineDot(user)}${escapeHtml(user.username)}${sessionBadge(user)}${googleBadge(user)}${clickPushBadge(user.summary)}</div><span class="muted">${escapeHtml(user.email)}</span></div></div>
+      <div class="user-card-heading"><canvas class="basement-avatar" data-avatar-user="${escapeHtml(user.id)}" width="90" height="78" aria-hidden="true"></canvas><div><div class="user-main user-with-status">${onlineDot(user)}${escapeHtml(user.username)}${sessionBadge(user)}${googleBadge(user)}${clickPushBadge(user.summary)}${instantMoveBadge(user)}</div><span class="muted">${escapeHtml(user.email)}</span></div></div>
       <div class="user-card-grid"><div><span>LEVELS</span><strong>${number(user.summary?.levelsCompleted)}</strong></div><div><span>PACKS</span><strong>${number(user.summary?.packsCompleted)}</strong></div><div><span>STEPS</span><strong>${number(user.summary?.totalSteps)}</strong></div><div><span>PUSHES</span><strong>${number(user.summary?.totalPushes)}</strong></div></div>
       <div class="user-card-footer"><span>LAST ACTIVE</span><strong>${escapeHtml(dateTime(user.lastSeenAt))}</strong></div>
       <div class="user-card-footer"><span>LATEST SESSION</span><strong>${escapeHtml(dateTime(user.latestSessionStartedAt))}</strong></div>
@@ -836,8 +843,19 @@
           <div><span>LAST CLOUD SAVE</span><strong>${escapeHtml(dateTime(user.progressUpdatedAt))}</strong></div>
           <div><span>BROWSER / DEVICE</span><strong>${escapeHtml(browserDevice(user.userAgent))}</strong></div>
           <div><span>CLICK-PUSH BETA</span><strong>${clickPushDetail(user.summary)}</strong></div>
+          <div><span>INSTANT MOVE ACCESS</span><strong>${user.instantMoveEnabled ? "ENABLED" : "DISABLED"}</strong></div>
         </div>
         <section><h3>LOGIN / SESSION HISTORY</h3>${sessionHistoryHtml(data.sessions)}</section>
+        <section class="admin-feature-access">
+          <div>
+            <h3>INSTANT MOVE</h3>
+            <p>Private account feature. When enabled, this player can select INSTANT MOVE from Menu → Boxxy Speed. Runs using it cannot set high scores.</p>
+          </div>
+          <div class="admin-feature-action">
+            <button type="button" data-instant-move-toggle data-user-id="${escapeHtml(user.id)}" data-enabled="${user.instantMoveEnabled ? "true" : "false"}">${user.instantMoveEnabled ? "TURN OFF" : "TURN ON"}</button>
+            <p class="status admin-instant-move-status" aria-live="polite"></p>
+          </div>
+        </section>
         <section class="admin-account-access">
           <div class="admin-account-access-copy">
             <h3>ACCOUNT ACCESS</h3>
@@ -869,6 +887,38 @@
       requestAnimationFrame(() => detailClose?.focus());
     } catch (_) { setStatus(dashboardStatus, "Could not load that account.", "error"); }
   }
+  detailBody?.addEventListener("click", async event => {
+    const button = event.target.closest("[data-instant-move-toggle]");
+    if (!button) return;
+    const userId = String(button.dataset.userId || "");
+    const enabled = button.dataset.enabled === "true";
+    const next = !enabled;
+    const status = button.parentElement?.querySelector(".admin-instant-move-status");
+    button.disabled = true;
+    setStatus(status, next ? "ENABLING…" : "DISABLING…");
+    try {
+      const { response, data } = await api("", { action:"set_instant_move", userId, enabled:next });
+      if (response.status === 401 || data.authenticated === false) { showLogin(); return; }
+      if (!response.ok) {
+        setStatus(status, data.error || "Could not update Instant Move.", "error");
+        return;
+      }
+      button.dataset.enabled = String(next);
+      button.textContent = next ? "TURN OFF" : "TURN ON";
+      const user = users.find(item => String(item.id) === userId);
+      if (user) {
+        user.instantMoveEnabled = next;
+        user.instantMoveUpdatedAt = Number(data.instantMoveUpdatedAt) || Date.now();
+      }
+      setStatus(status, next ? "INSTANT MOVE ENABLED" : "INSTANT MOVE DISABLED", "success");
+      renderUsers();
+    } catch (_) {
+      setStatus(status, "Could not reach the Basement API.", "error");
+    } finally {
+      button.disabled = false;
+    }
+  });
+
   detailBody?.addEventListener("submit", async event => {
     const form = event.target.closest("[data-password-reset]");
     if (!form) return;

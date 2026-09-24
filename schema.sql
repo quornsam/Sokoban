@@ -99,3 +99,16 @@ CREATE TABLE IF NOT EXISTS session_history (
 );
 CREATE INDEX IF NOT EXISTS session_history_user_started_idx
   ON session_history(user_id, started_at DESC);
+
+
+-- v365: admin-controlled account feature flags.
+CREATE TABLE IF NOT EXISTS user_feature_flags (
+  user_id TEXT NOT NULL,
+  feature_key TEXT NOT NULL,
+  enabled INTEGER NOT NULL DEFAULT 0 CHECK (enabled IN (0, 1)),
+  updated_at INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (user_id, feature_key),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS user_feature_flags_feature_idx
+  ON user_feature_flags(feature_key, enabled, updated_at DESC);

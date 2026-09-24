@@ -1,3 +1,4 @@
+/* BOXXY v365: Basement can grant or revoke private Instant Move access per user. */
 import {
   json,
   requireDatabase,
@@ -14,10 +15,13 @@ import {
   progressSummary,
   ensureSessionHistorySchema,
   backfillLegacySessions,
-  sessionRevocationStatements
+  sessionRevocationStatements,
+  ensureUserFeatureFlagsSchema
 } from "../_lib/auth.js";
 import { ensureGoogleAuthSchema } from "../_lib/google-auth.js";
 import { readPackCompletions, completionRecordsForUsers, canonicalAdminSummary } from "../_lib/pack-completions.js";
+
+const INSTANT_MOVE_FEATURE_KEY = "instant_move";
 
 async function readBody(request) {
   try { return await request.json(); }
@@ -94,6 +98,29 @@ async function resetUserPassword(context, body) {
   });
 }
 
+
+async function setInstantMoveAccess(context, body) {
+  const { env } = context;
+  const db = requireDatabase(env);
+  const userId = String(body.userId || "").trim();
+  if (!userId) return json({ ok: false, error: "User is required." }, 400);
+  const user = await db.prepare("SELECT id, username FROM users WHERE id = ? LIMIT 1").bind(userId).first();
+  if (!user) return json({ ok: false, error: "User not found." }, 404);
+  await ensureUserFeatureFlagsSchema(db);
+  const enabled = body.enabled === true;
+  const now = Date.now();
+  await db.prepare(`
+    INSERT INTO user_feature_flags (user_id, feature_key, enabled, updated_at)
+    VALUES (?, ?, ?, ?)
+    ON CONFLICT(user_id, feature_key) DO UPDATE SET
+      enabled = excluded.enabled, updated_at = excluded.updated_at
+  `).bind(user.id, INSTANT_MOVE_FEATURE_KEY, enabled ? 1 : 0, now).run();
+  return json({
+    ok: true, userId: String(user.id), username: String(user.username),
+    instantMoveEnabled: enabled, instantMoveUpdatedAt: now
+  });
+}
+
 function mappedUser(user, includeProgress = false) {
   const value = {
     id: user.id,
@@ -113,6 +140,8 @@ function mappedUser(user, includeProgress = false) {
     userAgent: user.user_agent || "",
     totalActiveSeconds: Math.max(0, Number(user.total_active_seconds) || 0),
     progressUpdatedAt: Number(user.progress_updated_at) || 0,
+    instantMoveEnabled: Boolean(Number(user.instant_move_enabled) || 0),
+    instantMoveUpdatedAt: Math.max(0, Number(user.instant_move_updated_at) || 0),
     summary: canonicalAdminSummary(progressSummary(user.progress_json), user.progress_json)
   };
   if (includeProgress) value.progress = parseProgress(user.progress_json);
@@ -184,18 +213,22 @@ async function readRecentSessions(db, userId, now) {
 async function listUsers(context) {
   const db = requireDatabase(context.env);
   await backfillLegacySessions(db);
+  await ensureUserFeatureFlagsSchema(db);
   const now = Date.now();
   const result = await db.prepare(`
     SELECT u.id, u.username, u.email, u.created_at, u.last_login_at, u.last_seen_at,
            u.signup_ip, u.last_ip, u.user_agent, u.total_active_seconds,
            u.progress_json, u.progress_updated_at,
            ai.provider_subject AS google_sub, ai.provider_email AS google_email,
-           uas.password_enabled AS password_enabled
+           uas.password_enabled AS password_enabled,
+           imf.enabled AS instant_move_enabled, imf.updated_at AS instant_move_updated_at
     FROM users u
     LEFT JOIN auth_identities ai
       ON ai.user_id = u.id AND ai.provider = 'google'
     LEFT JOIN user_auth_state uas
       ON uas.user_id = u.id
+    LEFT JOIN user_feature_flags imf
+      ON imf.user_id = u.id AND imf.feature_key = 'instant_move'
     ORDER BY u.last_seen_at DESC, u.created_at DESC
   `).all();
   const rows = result.results || [];
@@ -214,18 +247,22 @@ async function listUsers(context) {
 async function userDetail(context, id) {
   const db = requireDatabase(context.env);
   await backfillLegacySessions(db);
+  await ensureUserFeatureFlagsSchema(db);
   const now = Date.now();
   const user = await db.prepare(`
     SELECT u.id, u.username, u.email, u.created_at, u.last_login_at, u.last_seen_at,
            u.signup_ip, u.last_ip, u.user_agent, u.total_active_seconds,
            u.progress_json, u.progress_updated_at,
            ai.provider_subject AS google_sub, ai.provider_email AS google_email,
-           uas.password_enabled AS password_enabled
+           uas.password_enabled AS password_enabled,
+           imf.enabled AS instant_move_enabled, imf.updated_at AS instant_move_updated_at
     FROM users u
     LEFT JOIN auth_identities ai
       ON ai.user_id = u.id AND ai.provider = 'google'
     LEFT JOIN user_auth_state uas
       ON uas.user_id = u.id
+    LEFT JOIN user_feature_flags imf
+      ON imf.user_id = u.id AND imf.feature_key = 'instant_move'
     WHERE u.id = ? LIMIT 1
   `).bind(id).first();
   if (!user) return json({ ok: false, error: "User not found." }, 404);
@@ -257,6 +294,7 @@ export async function onRequest(context) {
         return json({ ok: false, authenticated: false, error: "Basement session has expired. Please sign in again." }, 401);
       }
       if (action === "reset_password") return await resetUserPassword(context, body);
+      if (action === "set_instant_move") return await setInstantMoveAccess(context, body);
       return json({ ok: false, error: "Unknown action." }, 400);
     }
 
