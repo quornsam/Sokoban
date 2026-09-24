@@ -6,10 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "366",
+  version: "367",
   lastUpdated: "2026-09-24"
 });
-/* BOXXY v366: Instant Move suppresses all per-step movement animation so the selected legal box route resolves in one visual update. */
+/* BOXXY v367: Instant Move executes as one silent visual transaction while preserving the normal move/history/scoring logic. */
 /* BOXXY v364: preserve Daily fastest-run timezone for verified recovery of missed activity days. */
 /* BOXXY v363: original Daily completion sharing retained alongside the v361 score-recording correction. */
 /* BOXXY v361: Daily personal fastest-time, fewest-move and fewest-push records update independently. */
@@ -2572,6 +2572,7 @@ window.BOXXY_RELEASE = Object.freeze({
   let boxxySpeed = BOXXY_SPEED_FACTORS[storedBoxxySpeed] ? storedBoxxySpeed : "normal";
   let instantMoveAllowed = false;
   let instantMoveUsedThisLevel = false;
+  let instantMoveBatchExecuting = false;
   let musicPausedForHiddenTab = false;
   let audioCtx = null;
   let autoplayRunning = false;
@@ -7879,7 +7880,7 @@ window.BOXXY_RELEASE = Object.freeze({
     if (mouseSupportBusy && !mouseSupportExecutingStep) stopMouseSupportRoute();
     if (!mouseSupportExecutingStep && mouseSupportSelectedBoxIndex >= 0) clearMouseSupportOverlay();
     if (completed || (autoplayRunning && !fromAutoplay)) return;
-    ensureAudio();
+    if (!instantMoveBatchExecuting) ensureAudio();
     clearTimeout(animTimer);
     const turboAnimationSuppressed = (boxxyInstantSpeedActive() && !forceTurboAnimation)
       || (instantMoveModeActive() && mouseSupportExecutingStep);
@@ -7941,10 +7942,12 @@ window.BOXXY_RELEASE = Object.freeze({
         addLifetimeStat(ALL_TIME_PUSHES_KEY);
       }
       facing = facingOverride || attemptedFacing;
-      sfx.push();
-      if (isGoal(bx, by)) sfx.goal();
-      if (turboAnimationSuppressed) render("idle");
-      else render("pushing");
+      if (!instantMoveBatchExecuting) {
+        sfx.push();
+        if (isGoal(bx, by)) sfx.goal();
+        if (turboAnimationSuppressed) render("idle");
+        else render("pushing");
+      }
     } else {
       startLevelTimerIfNeeded();
       blockedPushHeld = false;
@@ -7960,20 +7963,22 @@ window.BOXXY_RELEASE = Object.freeze({
       moves++;
       if (!fromAutoplay && !makerDailyPractice) addLifetimeStat(ALL_TIME_STEPS_KEY);
       facing = facingOverride || attemptedFacing;
-      sfx.walk();
-      if (turboAnimationSuppressed) render("idle");
-      else render("walking");
+      if (!instantMoveBatchExecuting) {
+        sfx.walk();
+        if (turboAnimationSuppressed) render("idle");
+        else render("walking");
+      }
     }
 
     playedRoute += DELTA_TO_CODE(dx, dy);
-    if (!turboAnimationSuppressed) {
+    if (!turboAnimationSuppressed && !instantMoveBatchExecuting) {
       scheduleIdle();
       const animationHold = boxxyInstantSpeedActive() && forceTurboAnimation
         ? 180
         : scaledBoxxyDelay(180);
       animTimer = setTimeout(() => render("idle"), animationHold);
     }
-    if (solved()) finish();
+    if (!instantMoveBatchExecuting && solved()) finish();
   }
 
   function solved() {
@@ -8796,21 +8801,43 @@ window.BOXXY_RELEASE = Object.freeze({
     showCharacterThought(description, true);
 
     if (instantMoveRun) {
-      for (const code of cleanRoute) {
-        if (!mouseSupportBusy || completed || autoplayRunning || firstPersonMode) break;
-        const delta = CODE_TO_DELTA[code];
-        if (!delta) continue;
-        const beforeMoves = moves;
-        mouseSupportExecutingStep = true;
-        try { move(delta[0], delta[1], false, true); }
-        finally { mouseSupportExecutingStep = false; }
-        if (moves === beforeMoves) {
-          stopMouseSupportRoute();
-          showCharacterThought("That route is no longer clear. Choose another square.", true);
-          return false;
+      let routeFailed = false;
+      let routeSolved = false;
+      instantMoveBatchExecuting = true;
+      try {
+        for (const code of cleanRoute) {
+          if (!mouseSupportBusy || completed || autoplayRunning || firstPersonMode) break;
+          const delta = CODE_TO_DELTA[code];
+          if (!delta) continue;
+          const beforeMoves = moves;
+          mouseSupportExecutingStep = true;
+          try { move(delta[0], delta[1], false, true); }
+          finally { mouseSupportExecutingStep = false; }
+          if (moves === beforeMoves) {
+            routeFailed = true;
+            break;
+          }
+          if (solved()) {
+            routeSolved = true;
+            break;
+          }
         }
+      } finally {
+        mouseSupportExecutingStep = false;
+        instantMoveBatchExecuting = false;
       }
+
+      /* Instant Move deliberately performs all validated logical steps without
+         intermediate audio or paints, then publishes the final board once.
+         The normal move() path still owns history, counters and route data. */
+      render("idle");
       stopMouseSupportRoute();
+
+      if (routeFailed) {
+        showCharacterThought("That route is no longer clear. Choose another square.", true);
+        return false;
+      }
+      if (routeSolved || solved()) finish();
       return true;
     }
 
