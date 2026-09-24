@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "368",
+  version: "369",
   lastUpdated: "2026-09-24"
 });
+/* BOXXY v369: touch Turbo uses a deliberate hold and display-frame-paced repeats to prevent accidental extra moves and uneven phone rendering. */
 /* BOXXY v368: optional wider phone arrow spacing and targeted iOS rapid-double-tap suppression on the directional pad. */
 /* BOXXY v367: Instant Move executes as one silent visual transaction while preserving the normal move/history/scoring logic. */
 /* BOXXY v364: preserve Daily fastest-run timezone for verified recovery of missed activity days. */
@@ -9216,6 +9217,11 @@ window.BOXXY_RELEASE = Object.freeze({
   });
 
   const buttonDirections = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+  // Turbo's 12-13 ms timer is suitable for a keyboard but can outpace phone
+  // paints. A touch hold must be deliberate, and each repeat gets its own
+  // display frame; never catch up with a burst of unseen logical moves.
+  const TOUCH_TURBO_MIN_HOLD_MS = 220;
+  const TOUCH_TURBO_FRAME_INTERVAL_MS = 32;
   // The direction keys already act on pointer-down. Prevent the second rapid
   // touch release from triggering iOS Safari's native double-tap magnifier/zoom.
   // Keep this local to the pad: text fields, page gestures and touch-board
@@ -9239,14 +9245,19 @@ window.BOXXY_RELEASE = Object.freeze({
     let activePointerId = null;
     let repeatDelay = 0;
     let repeatTimer = 0;
+    let repeatFrame = 0;
+    let touchTurboHold = false;
     let zenIntentTimer = 0;
     let zenPress = null;
 
     const stopRepeat = () => {
       window.clearTimeout(repeatDelay);
       window.clearInterval(repeatTimer);
+      window.cancelAnimationFrame(repeatFrame);
       repeatDelay = 0;
       repeatTimer = 0;
+      repeatFrame = 0;
+      touchTurboHold = false;
     };
 
     const clearZenIntent = () => {
@@ -9254,7 +9265,7 @@ window.BOXXY_RELEASE = Object.freeze({
       zenIntentTimer = 0;
     };
 
-    const performDirectionMove = () => {
+    const performDirectionMove = (animateTurboTap = false) => {
       if (firstPersonMode) {
         if (button.dataset.dir === "up" || button.dataset.dir === "down") {
           stepFirstPerson(button.dataset.dir === "up" ? 1 : -1, true);
@@ -9263,27 +9274,62 @@ window.BOXXY_RELEASE = Object.freeze({
         }
         return;
       }
-      move(...buttonDirections[button.dataset.dir], true);
+      move(...buttonDirections[button.dataset.dir], true, false, "", animateTurboTap);
+    };
+
+    const repeatHoldDelay = () => touchTurboHold
+      ? Math.max(TOUCH_TURBO_MIN_HOLD_MS, scaledBoxxyDelay(330))
+      : scaledBoxxyDelay(330);
+
+    const beginDirectionRepeats = () => {
+      if (activePointerId === null) return;
+      if (!touchTurboHold) {
+        // Keyboard/mouse and all non-Turbo speeds keep their previous cadence.
+        repeatTimer = window.setInterval(performDirectionMove, scaledBoxxyDelay(105));
+        return;
+      }
+      // A display frame is the smallest unit of visible touch-Turbo movement.
+      // Dropped frames slow the repeats rather than scheduling catch-up steps.
+      let lastStepAt = -Infinity;
+      const repeatOnFrame = () => {
+        repeatFrame = 0;
+        if (activePointerId === null || !touchTurboHold || completed || autoplayRunning || blockedPushHeld) {
+          stopRepeat();
+          return;
+        }
+        // Use actual elapsed time, not the frame's nominal timestamp. A
+        // delayed callback must not be followed by an unusually rapid step.
+        if (performance.now() - lastStepAt >= TOUCH_TURBO_FRAME_INTERVAL_MS) {
+          performDirectionMove();
+          lastStepAt = performance.now();
+        }
+        if (activePointerId !== null && !completed && !autoplayRunning && !blockedPushHeld) {
+          repeatFrame = window.requestAnimationFrame(repeatOnFrame);
+        } else {
+          stopRepeat();
+        }
+      };
+      repeatFrame = window.requestAnimationFrame(repeatOnFrame);
     };
 
     const beginHeldDirection = () => {
       if (!zenPress || zenPress.swiped || zenPress.holdCommitted || activePointerId === null) return;
       zenPress.holdCommitted = true;
-      performDirectionMove();
+      performDirectionMove(touchTurboHold);
 
-      // Preserve the original hold cadence: first repeat is due at the same
-      // point after pointer-down as before, despite the brief swipe/tap intent window.
+      // Account for Zen's 80 ms swipe-intent window so repeat still begins
+      // at the same hold threshold measured from the original pointer-down.
       const elapsed = Math.max(0, performance.now() - zenPress.downAt);
-      const remaining = Math.max(0, scaledBoxxyDelay(330) - elapsed);
-      repeatDelay = window.setTimeout(() => {
-        repeatTimer = window.setInterval(performDirectionMove, scaledBoxxyDelay(105));
-      }, remaining);
+      const remaining = Math.max(0, repeatHoldDelay() - elapsed);
+      repeatDelay = window.setTimeout(beginDirectionRepeats, remaining);
     };
 
     button.addEventListener("pointerdown", event => {
       event.preventDefault();
       if (activePointerId !== null) return;
       activePointerId = event.pointerId;
+      touchTurboHold = !firstPersonMode && boxxyInstantSpeedActive()
+        && (event.pointerType === "touch" || event.pointerType === "pen");
 
       ensureAudio();
       button.setPointerCapture?.(event.pointerId);
@@ -9301,11 +9347,10 @@ window.BOXXY_RELEASE = Object.freeze({
         return;
       }
 
-      // Outside mobile Zen Mode this is the original BOXXY direction-button behaviour.
-      performDirectionMove();
-      repeatDelay = window.setTimeout(() => {
-        repeatTimer = window.setInterval(performDirectionMove, scaledBoxxyDelay(105));
-      }, scaledBoxxyDelay(330));
+      // Touch Turbo matches the desktop's one-step tap; deliberate holds are
+      // display-frame paced. All other input speeds keep their old behaviour.
+      performDirectionMove(touchTurboHold);
+      repeatDelay = window.setTimeout(beginDirectionRepeats, repeatHoldDelay());
     });
 
     button.addEventListener("pointermove", event => {
@@ -9328,8 +9373,8 @@ window.BOXXY_RELEASE = Object.freeze({
       if (zenPress && (!event || event.pointerId === zenPress.id)) {
         clearZenIntent();
         if (!zenPress.swiped && !zenPress.holdCommitted && event?.type === "pointerup") {
-          // A short touch is still a normal one-step arrow-button tap.
-          performDirectionMove();
+          // A short touch is still exactly one step, even in Turbo.
+          performDirectionMove(touchTurboHold);
         }
         zenPress = null;
       }

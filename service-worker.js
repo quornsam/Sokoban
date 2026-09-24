@@ -1,3 +1,4 @@
+/* BOXXY v369: phone Turbo hold/repeat fix; refreshed offline version. */
 /* BOXXY v368: wider phone pad option and iOS double-tap movement-control fix. */
 /* BOXXY v367: Instant Move silent single-paint execution and refreshed gameplay cache. */
 /* BOXXY v364: recorded Daily results can restore missing activity dates without fabricated playtime. */
@@ -5,7 +6,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "368";
+const RELEASE_VERSION = "369";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [
