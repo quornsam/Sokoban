@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "370",
+  version: "371",
   lastUpdated: "2026-09-24"
 });
+/* BOXXY v371: widen Zen arrows horizontally only; keep the board/actions clear and suppress native iOS pad gestures. */
 /* BOXXY v370: existing Spaced Arrows option adds 30–40px gaps in phone Zen Mode, with matching pad dimensions. */
 /* BOXXY v369: touch Turbo uses a deliberate hold and display-frame-paced repeats to prevent accidental extra moves and uneven phone rendering. */
 /* BOXXY v368: optional wider phone arrow spacing and targeted iOS rapid-double-tap suppression on the directional pad. */
@@ -9229,6 +9230,15 @@ window.BOXXY_RELEASE = Object.freeze({
   // controls retain their existing behaviour.
   const arrowPad = document.querySelector(".dpad");
   if (arrowPad) {
+    // Safari may magnify text or zoom on the SECOND touch before touchend.
+    // Gameplay is already handled by pointerdown/up. Prevent native defaults
+    // at touchstart on Zen arrow BUTTONS, including quick repeated presses.
+    // Transparent pad gaps remain available for Zen's swipe-anywhere handler.
+    arrowPad.addEventListener("touchstart", event => {
+      if (!document.body.classList.contains("phone-zen-mode")) return;
+      if (event.touches.length !== 1 || !event.target.closest?.("[data-dir]")) return;
+      if (event.cancelable) event.preventDefault();
+    }, { passive: false });
     let lastArrowTouchEnd = 0;
     arrowPad.addEventListener("touchend", event => {
       if (event.touches.length || event.changedTouches.length !== 1) {

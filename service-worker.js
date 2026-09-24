@@ -1,3 +1,4 @@
+/* BOXXY v371: horizontal-only Zen spacing, clear action hit targets and Safari touchstart protection. */
 /* BOXXY v370: phone Zen Spaced Arrows now 30–40px with matching control-pad dimensions. */
 /* BOXXY v369: phone Turbo hold/repeat fix; refreshed offline version. */
 /* BOXXY v368: wider phone pad option and iOS double-tap movement-control fix. */
@@ -7,7 +8,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "370";
+const RELEASE_VERSION = "371";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [

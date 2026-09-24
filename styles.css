@@ -7696,12 +7696,43 @@ html.touch-ui .dpad button {
     min-height:44px;
   }
 }
-/* BOXXY v370: the existing opt-in Spaced Arrows setting is wider in phone
-   Zen Mode only.  Keep the pad dimensions and grid gaps in sync so the buttons
-   remain centred and the board/Undo/Restart clear the enlarged control area. */
+/* BOXXY v371: Zen's opt-in wider arrows grow LEFT/RIGHT spacing only.
+   The original row gap, board reservation and Restart/Undo positions stay put.
+   Make the transparent grid gaps pointer-transparent: the arrow-pad overlay
+   otherwise intercepts taps on the adjacent Restart and Undo buttons. */
+@media (max-width:760px) and (pointer:coarse),
+       (max-height:520px) and (orientation:landscape) and (pointer:coarse) {
+  body.phone-zen-mode .dpad {
+    pointer-events:none!important;
+    touch-action:none;
+    -webkit-touch-callout:none;
+    -webkit-user-select:none;
+    user-select:none;
+  }
+  body.phone-zen-mode .dpad button {
+    pointer-events:auto!important;
+    touch-action:none;
+    -webkit-touch-callout:none;
+    -webkit-user-select:none;
+    user-select:none;
+  }
+  body.phone-zen-mode .top-actions #restartBtn,
+  body.phone-zen-mode .top-actions #undoBtn {
+    touch-action:none;
+    -webkit-touch-callout:none;
+    -webkit-user-select:none;
+    user-select:none;
+  }
+}
 @media (max-width:760px) and (pointer:coarse) and (orientation:portrait) {
   body.phone-zen-mode.spaced-arrow-controls {
-    --zen-arrow-gap:clamp(30px,9vw,40px);
+    --zen-horizontal-arrow-gap:clamp(30px,9vw,40px);
+    --zen-pad-width:calc((var(--zen-arrow-size) * 3) + (var(--zen-horizontal-arrow-gap) * 2));
+    /* --zen-pad-height still uses the original 8px vertical gap. */
+  }
+  body.phone-zen-mode.spaced-arrow-controls .dpad {
+    column-gap:var(--zen-horizontal-arrow-gap)!important;
+    row-gap:var(--zen-arrow-gap)!important;
   }
 }
 @media (max-height:520px) and (orientation:landscape) and (pointer:coarse) {
@@ -7709,12 +7740,21 @@ html.touch-ui .dpad button {
     column-gap:clamp(13px,3vw,18px);
     row-gap:8px;
   }
-  body.phone-zen-mode.spaced-arrow-controls {
-    --zen-landscape-arrow-gap:clamp(30px,5vw,40px);
-    --zen-pad-size:calc((var(--zen-landscape-arrow) * 3) + (var(--zen-landscape-arrow-gap) * 2));
-    --zen-landscape-pad-height:calc((var(--zen-landscape-arrow) * 2) + var(--zen-landscape-arrow-gap));
-  }
+  /* Landscape has a fixed board-side reservation. Fit wider horizontal gaps
+     inside the existing pad width instead of taking space from the puzzle. */
   body.phone-zen-mode.spaced-arrow-controls .dpad {
-    gap:var(--zen-landscape-arrow-gap)!important;
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    grid-template-rows:repeat(2,max-content)!important;
+    column-gap:clamp(30px,5vw,40px)!important;
+    row-gap:9px!important;
+    align-content:end!important;
+  }
+  body.phone-zen-mode.spaced-arrow-controls .dpad button {
+    width:100%!important;
+    height:auto!important;
+    min-width:0!important;
+    min-height:0!important;
+    aspect-ratio:1/1!important;
+    align-self:end!important;
   }
 }
