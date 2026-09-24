@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "369",
+  version: "370",
   lastUpdated: "2026-09-24"
 });
+/* BOXXY v370: existing Spaced Arrows option adds 30–40px gaps in phone Zen Mode, with matching pad dimensions. */
 /* BOXXY v369: touch Turbo uses a deliberate hold and display-frame-paced repeats to prevent accidental extra moves and uneven phone rendering. */
 /* BOXXY v368: optional wider phone arrow spacing and targeted iOS rapid-double-tap suppression on the directional pad. */
 /* BOXXY v367: Instant Move executes as one silent visual transaction while preserving the normal move/history/scoring logic. */

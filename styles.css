@@ -7695,19 +7695,26 @@ html.touch-ui .dpad button {
     min-width:0;
     min-height:44px;
   }
-  body.phone-zen-mode.spaced-arrow-controls .dpad {
-    column-gap:clamp(15px,4vw,24px)!important;
-    row-gap:clamp(10px,2dvh,16px)!important;
-  }
 }
+/* BOXXY v370: the existing opt-in Spaced Arrows setting is wider in phone
+   Zen Mode only.  Keep the pad dimensions and grid gaps in sync so the buttons
+   remain centred and the board/Undo/Restart clear the enlarged control area. */
 @media (max-width:760px) and (pointer:coarse) and (orientation:portrait) {
   body.phone-zen-mode.spaced-arrow-controls {
-    --zen-arrow-gap:20px;
+    --zen-arrow-gap:clamp(30px,9vw,40px);
   }
 }
 @media (max-height:520px) and (orientation:landscape) and (pointer:coarse) {
   body.spaced-arrow-controls:not(.phone-zen-mode) .dpad {
     column-gap:clamp(13px,3vw,18px);
     row-gap:8px;
+  }
+  body.phone-zen-mode.spaced-arrow-controls {
+    --zen-landscape-arrow-gap:clamp(30px,5vw,40px);
+    --zen-pad-size:calc((var(--zen-landscape-arrow) * 3) + (var(--zen-landscape-arrow-gap) * 2));
+    --zen-landscape-pad-height:calc((var(--zen-landscape-arrow) * 2) + var(--zen-landscape-arrow-gap));
+  }
+  body.phone-zen-mode.spaced-arrow-controls .dpad {
+    gap:var(--zen-landscape-arrow-gap)!important;
   }
 }
