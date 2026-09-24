@@ -39,6 +39,7 @@
     "boxxy-sound-v1",
     "boxxy-music-track-v1",
     "boxxy-speed-v1",
+    "boxxy-arrow-spacing-v1",
     "boxxy-mouse-support-v1",
     "boxxy-touch-click-push-access-v1",
     "boxxy-touch-click-push-devices-v1",
@@ -923,6 +924,7 @@
   function applyCloudState(state) {
     let changed = false;
     let clickPushChanged = false;
+    let arrowSpacingChanged = false;
     Object.entries(state || {}).forEach(([key, value]) => {
       if (!shouldSyncKey(key) || typeof value !== "string") return;
       try {
@@ -930,6 +932,7 @@
           localStorage.setItem(key, value);
           changed = true;
           if (key === "boxxy-touch-click-push-access-v1" || key === "boxxy-touch-click-push-devices-v1") clickPushChanged = true;
+          if (key === "boxxy-arrow-spacing-v1") arrowSpacingChanged = true;
         }
       } catch (_) {}
     });
@@ -946,6 +949,7 @@
     } catch (_) {}
     if (changed) window.BoxxyBoardStyle?.reloadFromStorage?.();
     if (clickPushChanged) window.dispatchEvent(new CustomEvent("boxxyclickpushcloudstate"));
+    if (arrowSpacingChanged) window.dispatchEvent(new CustomEvent("boxxyarrowspacingcloudstate"));
     return changed;
   }
 

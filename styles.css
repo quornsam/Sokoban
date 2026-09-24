@@ -7663,3 +7663,51 @@ body.desktop-zen-mode .zen-camera-mode-btn:not([hidden]){display:grid}
 .instruction .info:hover{transform:translateY(-1px)}
 .instruction .info:active{transform:translateY(1px)}
 .instruction .info:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+
+
+/* BOXXY v368: opt-in wider phone directional pad; default and desktop are unchanged. */
+html.touch-ui .dpad {
+  touch-action:manipulation;
+  -webkit-touch-callout:none;
+}
+html.touch-ui .dpad button {
+  touch-action:none;
+  -webkit-touch-callout:none;
+  -webkit-user-select:none;
+  user-select:none;
+}
+@media (max-width:760px) and (pointer:coarse),
+       (max-height:520px) and (orientation:landscape) and (pointer:coarse) {
+  body.spaced-arrow-controls:not(.phone-zen-mode) .move-zone {
+    padding-inline:4px;
+  }
+  body.spaced-arrow-controls:not(.phone-zen-mode) .dpad {
+    width:min(100%,310px);
+    height:min(100%,148px);
+    max-height:100%;
+    aspect-ratio:auto;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    grid-template-rows:repeat(2,minmax(0,1fr));
+    column-gap:clamp(15px,4vw,24px);
+    row-gap:clamp(10px,2dvh,16px);
+  }
+  body.spaced-arrow-controls:not(.phone-zen-mode) .dpad button {
+    min-width:0;
+    min-height:44px;
+  }
+  body.phone-zen-mode.spaced-arrow-controls .dpad {
+    column-gap:clamp(15px,4vw,24px)!important;
+    row-gap:clamp(10px,2dvh,16px)!important;
+  }
+}
+@media (max-width:760px) and (pointer:coarse) and (orientation:portrait) {
+  body.phone-zen-mode.spaced-arrow-controls {
+    --zen-arrow-gap:20px;
+  }
+}
+@media (max-height:520px) and (orientation:landscape) and (pointer:coarse) {
+  body.spaced-arrow-controls:not(.phone-zen-mode) .dpad {
+    column-gap:clamp(13px,3vw,18px);
+    row-gap:8px;
+  }
+}

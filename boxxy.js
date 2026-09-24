@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "367",
+  version: "368",
   lastUpdated: "2026-09-24"
 });
+/* BOXXY v368: optional wider phone arrow spacing and targeted iOS rapid-double-tap suppression on the directional pad. */
 /* BOXXY v367: Instant Move executes as one silent visual transaction while preserving the normal move/history/scoring logic. */
 /* BOXXY v364: preserve Daily fastest-run timezone for verified recovery of missed activity days. */
 /* BOXXY v363: original Daily completion sharing retained alongside the v361 score-recording correction. */
@@ -2281,6 +2282,8 @@ window.BOXXY_RELEASE = Object.freeze({
   const settingsKeyboardBackBtn = document.getElementById("settingsKeyboardBackBtn");
   const settingsMusicTrack = document.getElementById("settingsMusicTrack");
   const settingsSpeedSelect = document.getElementById("settingsSpeedSelect");
+  const settingsArrowSpacingRow = document.getElementById("settingsArrowSpacingRow");
+  const settingsArrowSpacingToggle = document.getElementById("settingsArrowSpacingToggle");
   const settingsMouseRow = document.getElementById("settingsMouseRow");
   const settingsMouseToggle = document.getElementById("settingsMouseToggle");
   const settingsMouseLeaderboardWarning = document.getElementById("settingsMouseLeaderboardWarning");
@@ -2551,6 +2554,17 @@ window.BOXXY_RELEASE = Object.freeze({
     });
   }
   let blockedPushHeld = false;
+  const ARROW_SPACING_KEY = "boxxy-arrow-spacing-v1";
+  let spacedArrowControls = localStorage.getItem(ARROW_SPACING_KEY) === "wide";
+  function applyArrowSpacing(wide, persist = true) {
+    spacedArrowControls = Boolean(wide);
+    document.body.classList.toggle("spaced-arrow-controls", spacedArrowControls);
+    if (settingsArrowSpacingToggle) {
+      settingsArrowSpacingToggle.textContent = spacedArrowControls ? "ON" : "OFF";
+      settingsArrowSpacingToggle.setAttribute("aria-pressed", String(spacedArrowControls));
+    }
+    if (persist) localStorage.setItem(ARROW_SPACING_KEY, spacedArrowControls ? "wide" : "normal");
+  }
   let soundOn = localStorage.getItem("boxxy-sound-v1") !== "off";
   let musicOn = localStorage.getItem("push-bauhaus-music") !== "off";
   const MUSIC_PLAY_ALL_ID = "all";
@@ -5866,6 +5880,9 @@ window.BOXXY_RELEASE = Object.freeze({
     document.body.classList.toggle("settings-touch-device", touchDevice);
     if (settingsMouseRow) settingsMouseRow.hidden = touchDevice;
     if (settingsTouchPushRow) settingsTouchPushRow.hidden = !touchDevice;
+    // This layout is designed for phones, including those held in landscape.
+    const phoneLayout = touchDevice && window.matchMedia("(max-width: 760px), (max-height: 520px) and (orientation: landscape)").matches;
+    if (settingsArrowSpacingRow) settingsArrowSpacingRow.hidden = !phoneLayout;
     if (settingsControlsPanel) settingsControlsPanel.hidden = touchDevice;
     if (touchDevice && mouseSupportEnabled) {
       mouseSupportEnabled = false;
@@ -5877,6 +5894,7 @@ window.BOXXY_RELEASE = Object.freeze({
     updateSettingsMouseButton();
     updateSettingsTouchPushButton();
     updateSettingsSolutionDataButton();
+    applyArrowSpacing(spacedArrowControls, false);
   }
 
   function updateSoundButton() {
@@ -9198,6 +9216,25 @@ window.BOXXY_RELEASE = Object.freeze({
   });
 
   const buttonDirections = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+  // The direction keys already act on pointer-down. Prevent the second rapid
+  // touch release from triggering iOS Safari's native double-tap magnifier/zoom.
+  // Keep this local to the pad: text fields, page gestures and touch-board
+  // controls retain their existing behaviour.
+  const arrowPad = document.querySelector(".dpad");
+  if (arrowPad) {
+    let lastArrowTouchEnd = 0;
+    arrowPad.addEventListener("touchend", event => {
+      if (event.touches.length || event.changedTouches.length !== 1) {
+        lastArrowTouchEnd = 0;
+        return;
+      }
+      const now = Date.now();
+      if (now - lastArrowTouchEnd < 350 && event.cancelable) event.preventDefault();
+      lastArrowTouchEnd = now;
+    }, { passive: false });
+    arrowPad.addEventListener("dblclick", event => event.preventDefault());
+    arrowPad.addEventListener("contextmenu", event => event.preventDefault());
+  }
   document.querySelectorAll("[data-dir]").forEach(button => {
     let activePointerId = null;
     let repeatDelay = 0;
@@ -9513,6 +9550,7 @@ window.BOXXY_RELEASE = Object.freeze({
     applySelectedMusicTrack(true, true);
   });
   settingsSpeedSelect?.addEventListener("change", event => applyBoxxySpeed(String(event.currentTarget.value || "normal"), true));
+  settingsArrowSpacingToggle?.addEventListener("click", () => applyArrowSpacing(!spacedArrowControls));
   settingsMouseToggle?.addEventListener("click", () => setSettingsMouseSupport(!mouseSupportEnabled));
   settingsTouchPushToggle?.addEventListener("click", () => setSettingsTouchClickPush(!touchClickPushEnabled));
   settingsSolutionDataToggle?.addEventListener("click", () => setLevelSolutionAvailable(!levelSolutionAvailable));
@@ -9528,6 +9566,9 @@ window.BOXXY_RELEASE = Object.freeze({
     settingsContactBtn?.click();
   });
   window.addEventListener("boxxyclickpushcloudstate", reloadTouchClickPushState);
+  window.addEventListener("boxxyarrowspacingcloudstate", () => {
+    applyArrowSpacing(localStorage.getItem(ARROW_SPACING_KEY) === "wide", false);
+  });
   collectionBtn?.addEventListener("click", openPackModal);
   finalPackMoreBtn?.addEventListener("click", () => {
     closeCompleteModal();
