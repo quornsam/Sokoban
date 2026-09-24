@@ -6,10 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "365",
+  version: "366",
   lastUpdated: "2026-09-24"
 });
-/* BOXXY v365: admin-gated Instant Move executes legal box routes immediately; assisted runs cannot set high scores. */
+/* BOXXY v366: Instant Move suppresses all per-step movement animation so the selected legal box route resolves in one visual update. */
 /* BOXXY v364: preserve Daily fastest-run timezone for verified recovery of missed activity days. */
 /* BOXXY v363: original Daily completion sharing retained alongside the v361 score-recording correction. */
 /* BOXXY v361: Daily personal fastest-time, fewest-move and fewest-push records update independently. */
@@ -7881,7 +7881,8 @@ window.BOXXY_RELEASE = Object.freeze({
     if (completed || (autoplayRunning && !fromAutoplay)) return;
     ensureAudio();
     clearTimeout(animTimer);
-    const turboAnimationSuppressed = boxxyInstantSpeedActive() && !forceTurboAnimation;
+    const turboAnimationSuppressed = (boxxyInstantSpeedActive() && !forceTurboAnimation)
+      || (instantMoveModeActive() && mouseSupportExecutingStep);
     const previousPlayer = [...player];
     boardStepMotion = null;
     const attemptedFacing = DELTA_TO_FACING(dx, dy);
