@@ -1,3 +1,4 @@
+/* BOXXY v375 — varied, verified synthetic move counts and update-in-place for previous scores. */
 /* BOXXY v374 — Basement Daily seeding and leaderboard score administration. */
 /* BOXXY v363 — server-confirmed sessions, first recorded login and per-device sign-in history. */
 /* BOXXY v356 — Basement can securely reset a player's normal BOXXY password without touching progress or Google linking. */
@@ -53,6 +54,7 @@
   const syntheticUsersEl = document.getElementById("syntheticUsers");
   const syntheticSelectAll = document.getElementById("syntheticSelectAll");
   const syntheticScoreForm = document.getElementById("syntheticScoreForm");
+  const syntheticRefreshMoves = document.getElementById("syntheticRefreshMoves");
   const syntheticDate = document.getElementById("syntheticDate");
   const syntheticScoreDevice = document.getElementById("syntheticScoreDevice");
   const syntheticMinSeconds = document.getElementById("syntheticMinSeconds");
@@ -1079,8 +1081,29 @@
       });
       if (!response.ok) throw new Error(data.error || "Could not generate scores.");
       await loadDailyScores();
-      setStatus(dailyScoresStatus, `${(data.generated || []).length} SCORES GENERATED · ${Number(data.moves)||0} LEGITIMATE MOVES`, "success");
+      const counts = (data.generated || []).map(item => Number(item.moves));
+      setStatus(dailyScoresStatus, `${counts.length} SCORES GENERATED · ${Math.min(...counts)}–${Math.max(...counts)} VERIFIED MOVES`, "success");
     } catch (error) { setStatus(dailyScoresStatus, error.message || "Could not generate scores.", "error"); }
+  });
+  syntheticRefreshMoves?.addEventListener("click", async () => {
+    const userIds = selectedSyntheticIds();
+    if (!userIds.length) {
+      setStatus(dailyScoresStatus, "SELECT AT LEAST ONE ARTIFICIAL PLAYER.", "error");
+      return;
+    }
+    const date = syntheticDate?.value || dayKey(new Date());
+    if (!window.confirm(`Update the move counts of selected artificial players who already have scores for ${date}? Their times and devices will not change.`)) return;
+    setStatus(dailyScoresStatus, "UPDATING EXISTING MOVE COUNTS…");
+    try {
+      const {response,data} = await api("", {action:"synthetic_regenerate_moves", date, userIds});
+      if (response.status === 401 || data.authenticated === false) { showLogin(); return; }
+      if (!response.ok) throw new Error(data.error || "Could not update move counts.");
+      const counts = (data.generated || []).map(item => Number(item.moves));
+      await loadDailyScores();
+      setStatus(dailyScoresStatus, `${counts.length} MOVE COUNTS UPDATED · ${Math.min(...counts)}–${Math.max(...counts)} MOVES · TIMES AND DEVICES PRESERVED`, "success");
+    } catch (error) {
+      setStatus(dailyScoresStatus, error.message || "Could not update move counts.", "error");
+    }
   });
   syntheticDate?.addEventListener("change", loadDailyScores);
   dailyScoresRefresh?.addEventListener("click", loadDailyScores);

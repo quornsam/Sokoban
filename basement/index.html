@@ -7,7 +7,7 @@
 <meta name="theme-color" content="#efe5d4">
 <title>BOXXY Basement</title>
 <link rel="icon" href="../assets/ui/icons/boxxy-yellow-crate-v150.ico" sizes="any">
-<link rel="stylesheet" href="basement.css?v=374">
+<link rel="stylesheet" href="basement.css?v=375">
 </head>
 <body>
 <main class="basement-shell">
@@ -116,8 +116,9 @@
             <label>MINIMUM TIME · SECONDS <input id="syntheticMinSeconds" type="number" min="1" step="1" placeholder="AUTO"></label>
             <label>MAXIMUM TIME · SECONDS <input id="syntheticMaxSeconds" type="number" min="2" step="1" placeholder="AUTO"></label>
             <button type="submit">GENERATE FOR SELECTED</button>
+            <button id="syntheticRefreshMoves" type="button">UPDATE EXISTING MOVE COUNTS</button>
           </form>
-          <p class="table-hint">Move count uses the stored solution for that Daily. Times are randomly generated within the chosen range, or automatically when left blank.</p>
+          <p class="table-hint">Move counts are varied using legal walking detours in the stored solution; larger and more complex Dailies allow wider variation. UPDATE EXISTING MOVE COUNTS changes selected players’ moves only, preserving their current times and devices.</p>
         </section>
       </div>
       <section class="daily-seed-card">
@@ -150,6 +151,6 @@
     <iframe id="practiceFrame" title="BOXXY private Daily practice" sandbox="allow-scripts" referrerpolicy="no-referrer" allow="fullscreen" allowfullscreen></iframe>
   </section>
 </div>
-<script src="basement.js?v=374"></script>
+<script src="basement.js?v=375"></script>
 </body>
 </html>

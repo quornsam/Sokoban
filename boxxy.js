@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "374",
+  version: "375",
   lastUpdated: "2026-09-25"
 });
+/* BOXXY v375: Basement synthetic Daily move-count variation; gameplay unchanged. */
 /* BOXXY v374: private Daily seeding/admin leaderboard tools and 250×250 Level Maker. */
 /* BOXXY v372: clarify Daily and pack wording and hide redundant signed-in leaderboard note; preserve gameplay. */
 /* BOXXY v371: widen Zen arrows horizontally only; keep the board/actions clear and suppress native iOS pad gestures. */

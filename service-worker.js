@@ -1,3 +1,4 @@
+/* BOXXY v375: varied synthetic score generation; gameplay unaffected. */
 /* BOXXY v374: private Daily seeding/admin leaderboard tools and 250×250 Level Maker. */
 /* BOXXY v372: copy and display-name updates; refresh cached HTML, levels and gameplay script. */
 /* BOXXY v371: horizontal-only Zen spacing, clear action hit targets and Safari touchstart protection. */
@@ -10,7 +11,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "374";
+const RELEASE_VERSION = "375";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [

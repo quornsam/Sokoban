@@ -1,3 +1,4 @@
+/* BOXXY v375: varied, route-verified synthetic move counts and update-in-place for existing seeds. */
 /* BOXXY v374: Basement Daily seeding, score removal and private Instant Move administration. */
 import {
   json,
@@ -23,6 +24,7 @@ import {
 import { ensureGoogleAuthSchema } from "../_lib/google-auth.js";
 import { readPackCompletions, completionRecordsForUsers, canonicalAdminSummary } from "../_lib/pack-completions.js";
 import { DAILY_PRACTICE_CATALOG } from "../_lib/daily-practice-catalog.js";
+import { analyseDailySolution, generateDailySyntheticRoute } from "../_lib/synthetic-daily-moves.js";
 
 const INSTANT_MOVE_FEATURE_KEY = "instant_move";
 
@@ -230,37 +232,93 @@ function generatedSeconds(moves, minimum, maximum) {
   return Math.round(value * 100) / 100;
 }
 
+function selectedSyntheticIds(body) {
+  const ids = Array.isArray(body.userIds)
+    ? [...new Set(body.userIds.map(String).filter(Boolean))] : [];
+  return ids.length <= 200 ? ids : [];
+}
+
 async function generateSyntheticScores(context, body) {
   const db = requireDatabase(context.env);
   await ensureSyntheticDailySchema(db);
   const date = validDailyDate(body.date);
   if (!date) return json({ok:false,error:"Choose a prepared Daily puzzle."},400);
+  const ids = selectedSyntheticIds(body);
+  if (!ids.length) return json({ok:false,error:"Select between 1 and 200 artificial players."},400);
   const puzzle = DAILY_PRACTICE_CATALOG.find(item => item.date === date);
-  const solution = String(puzzle?.solution || "");
-  if (!solution) return json({ok:false,error:"This Daily has no stored solution, so a legitimate move count cannot be generated."},409);
-  const moves = solution.length;
-  const requestedIds = Array.isArray(body.userIds) ? [...new Set(body.userIds.map(String).filter(Boolean))] : [];
-  if (!requestedIds.length) return json({ok:false,error:"Select at least one artificial player."},400);
-  const placeholders = requestedIds.map(() => "?").join(",");
-  const rows = await db.prepare(`SELECT id, username, default_device FROM synthetic_users WHERE id IN (${placeholders})`)
-    .bind(...requestedIds).all();
-  if (!(rows.results || []).length) return json({ok:false,error:"No artificial players were found."},404);
+  let analysis;
+  try { analysis = analyseDailySolution(puzzle); }
+  catch (_) { return json({ok:false,error:"The stored Daily solution could not be validated. No scores were changed."},409); }
+  const placeholders = ids.map(() => "?").join(",");
+  const [players, existing] = await Promise.all([
+    db.prepare(`SELECT id, username, default_device FROM synthetic_users WHERE id IN (${placeholders})`)
+      .bind(...ids).all(),
+    db.prepare("SELECT user_id, moves FROM synthetic_daily_scores WHERE date_key = ?").bind(date).all()
+  ]);
+  if (!(players.results || []).length) return json({ok:false,error:"No artificial players were found."},404);
+  const updating = new Set((players.results || []).map(row => String(row.id)));
+  const usedMoves = new Set((existing.results || [])
+    .filter(row => !updating.has(String(row.user_id))).map(row => Number(row.moves)));
+  const previousMoves = new Map((existing.results || []).map(row => [String(row.user_id), Number(row.moves)]));
   const override = String(body.device || "").trim().toLowerCase();
   const now = Date.now();
   const generated = [];
   const statements = [];
-  for (const row of rows.results || []) {
+  for (const row of players.results || []) {
     const device = SYNTHETIC_DEVICE_CLASSES.has(override) ? override : cleanSyntheticDevice(row.default_device);
-    const seconds = generatedSeconds(moves, body.minimumSeconds, body.maximumSeconds);
+    const avoid = new Set(usedMoves);
+    if (previousMoves.has(String(row.id))) avoid.add(previousMoves.get(String(row.id)));
+    const run = generateDailySyntheticRoute(analysis, {usedMoves:avoid});
+    const seconds = generatedSeconds(run.moves, body.minimumSeconds, body.maximumSeconds);
+    usedMoves.add(run.moves);
     statements.push(db.prepare(`INSERT INTO synthetic_daily_scores (user_id, date_key, seconds, moves, device, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(user_id, date_key) DO UPDATE SET seconds=excluded.seconds, moves=excluded.moves,
         device=excluded.device, updated_at=excluded.updated_at`)
-      .bind(row.id, date, seconds, moves, device, now, now));
-    generated.push({userId:String(row.id),username:String(row.username),date,seconds,moves,device});
+      .bind(row.id, date, seconds, run.moves, device, now, now));
+    generated.push({userId:String(row.id),username:String(row.username),date,seconds,moves:run.moves,device});
   }
   await db.batch(statements);
-  return json({ok:true,date,moves,generated});
+  return json({ok:true,date,baseMoves:analysis.baseMoves,generated});
+}
+
+/* Update already generated entries without changing their original times or devices. */
+async function regenerateSyntheticMoves(context, body) {
+  const db = requireDatabase(context.env);
+  await ensureSyntheticDailySchema(db);
+  const date = validDailyDate(body.date);
+  if (!date) return json({ok:false,error:"Choose a prepared Daily puzzle."},400);
+  const ids = selectedSyntheticIds(body);
+  if (!ids.length) return json({ok:false,error:"Select between 1 and 200 artificial players."},400);
+  const puzzle = DAILY_PRACTICE_CATALOG.find(item => item.date === date);
+  let analysis;
+  try { analysis = analyseDailySolution(puzzle); }
+  catch (_) { return json({ok:false,error:"The stored Daily solution could not be validated. No scores were changed."},409); }
+  const all = await db.prepare(
+    "SELECT user_id, moves, seconds, device FROM synthetic_daily_scores WHERE date_key = ?"
+  ).bind(date).all();
+  const selected = new Set(ids);
+  const rows = all.results || [];
+  const existing = rows.filter(row => selected.has(String(row.user_id)));
+  if (!existing.length) return json({ok:false,error:"None of the selected players has a score for this Daily."},404);
+  const usedMoves = new Set(rows.filter(row => !selected.has(String(row.user_id)))
+    .map(row => Number(row.moves)));
+  const now = Date.now();
+  const generated = [];
+  const statements = [];
+  for (const row of existing) {
+    const avoid = new Set(usedMoves);
+    avoid.add(Number(row.moves));
+    const run = generateDailySyntheticRoute(analysis, {usedMoves:avoid});
+    usedMoves.add(run.moves);
+    statements.push(db.prepare(
+      "UPDATE synthetic_daily_scores SET moves = ?, updated_at = ? WHERE user_id = ? AND date_key = ?"
+    ).bind(run.moves, now, row.user_id, date));
+    generated.push({userId:String(row.user_id),date,moves:run.moves,
+      seconds:Number(row.seconds),device:cleanSyntheticDevice(row.device)});
+  }
+  await db.batch(statements);
+  return json({ok:true,date,baseMoves:analysis.baseMoves,generated});
 }
 
 async function removeDailyLeaderboardScore(context, body) {
@@ -468,6 +526,7 @@ export async function onRequest(context) {
       if (action === "synthetic_add_user") return await addSyntheticUser(context, body);
       if (action === "synthetic_delete_user") return await deleteSyntheticUser(context, body);
       if (action === "synthetic_generate_scores") return await generateSyntheticScores(context, body);
+      if (action === "synthetic_regenerate_moves") return await regenerateSyntheticMoves(context, body);
       if (action === "daily_remove_score") return await removeDailyLeaderboardScore(context, body);
       if (action === "synthetic_state") return await syntheticState(context, body);
       return json({ ok: false, error: "Unknown action." }, 400);
