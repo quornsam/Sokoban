@@ -1,4 +1,4 @@
-/* BOXXY v373: repair Basement Daily practice version validation after main-game version updates. */
+/* BOXXY v374: private Daily seeding/admin leaderboard tools and 250×250 Level Maker. */
 /* BOXXY v372: copy and display-name updates; refresh cached HTML, levels and gameplay script. */
 /* BOXXY v371: horizontal-only Zen spacing, clear action hit targets and Safari touchstart protection. */
 /* BOXXY v370: phone Zen Spaced Arrows now 30–40px with matching control-pad dimensions. */
@@ -10,7 +10,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "373";
+const RELEASE_VERSION = "374";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [

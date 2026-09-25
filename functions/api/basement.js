@@ -1,4 +1,4 @@
-/* BOXXY v365: Basement can grant or revoke private Instant Move access per user. */
+/* BOXXY v374: Basement Daily seeding, score removal and private Instant Move administration. */
 import {
   json,
   requireDatabase,
@@ -12,6 +12,8 @@ import {
   passwordRecord,
   expireCookie,
   parseProgress,
+  safeProgressJson,
+  validUsername,
   progressSummary,
   ensureSessionHistorySchema,
   backfillLegacySessions,
@@ -20,6 +22,7 @@ import {
 } from "../_lib/auth.js";
 import { ensureGoogleAuthSchema } from "../_lib/google-auth.js";
 import { readPackCompletions, completionRecordsForUsers, canonicalAdminSummary } from "../_lib/pack-completions.js";
+import { DAILY_PRACTICE_CATALOG } from "../_lib/daily-practice-catalog.js";
 
 const INSTANT_MOVE_FEATURE_KEY = "instant_move";
 
@@ -119,6 +122,173 @@ async function setInstantMoveAccess(context, body) {
     ok: true, userId: String(user.id), username: String(user.username),
     instantMoveEnabled: enabled, instantMoveUpdatedAt: now
   });
+}
+
+
+const SYNTHETIC_DEVICE_CLASSES = new Set(["phone", "computer"]);
+const DAILY_COMPLETIONS_KEY = "boxxy-daily-completions-v1";
+
+function validDailyDate(value) {
+  const date = String(value || "").trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(date) && DAILY_PRACTICE_CATALOG.some(item => item.date === date) ? date : "";
+}
+
+function cleanSyntheticDevice(value, fallback = "computer") {
+  const device = String(value || "").trim().toLowerCase();
+  return SYNTHETIC_DEVICE_CLASSES.has(device) ? device : fallback;
+}
+
+async function ensureSyntheticDailySchema(db) {
+  await db.batch([
+    db.prepare(`CREATE TABLE IF NOT EXISTS synthetic_users (
+      id TEXT PRIMARY KEY,
+      username TEXT NOT NULL,
+      username_norm TEXT NOT NULL UNIQUE,
+      default_device TEXT NOT NULL DEFAULT 'computer',
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS synthetic_daily_scores (
+      user_id TEXT NOT NULL,
+      date_key TEXT NOT NULL,
+      seconds REAL NOT NULL,
+      moves INTEGER NOT NULL,
+      device TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      PRIMARY KEY(user_id, date_key),
+      FOREIGN KEY(user_id) REFERENCES synthetic_users(id) ON DELETE CASCADE
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS synthetic_daily_scores_date_idx ON synthetic_daily_scores(date_key)")
+  ]);
+}
+
+async function syntheticState(context, body = {}) {
+  const db = requireDatabase(context.env);
+  await ensureSyntheticDailySchema(db);
+  const date = validDailyDate(body.date || new URL(context.request.url).searchParams.get("date")) || "";
+  const usersResult = await db.prepare(`
+    SELECT id, username, default_device, created_at, updated_at
+    FROM synthetic_users ORDER BY username COLLATE NOCASE ASC
+  `).all();
+  let scores = [];
+  if (date) {
+    const result = await db.prepare(`
+      SELECT s.user_id, u.username, s.date_key, s.seconds, s.moves, s.device, s.updated_at
+      FROM synthetic_daily_scores s JOIN synthetic_users u ON u.id = s.user_id
+      WHERE s.date_key = ? ORDER BY s.seconds ASC, u.username COLLATE NOCASE ASC
+    `).bind(date).all();
+    scores = result.results || [];
+  }
+  return json({ ok:true, authenticated:true, date, users:(usersResult.results||[]).map(row => ({
+    id:String(row.id), username:String(row.username), defaultDevice:cleanSyntheticDevice(row.default_device),
+    createdAt:Number(row.created_at)||0, updatedAt:Number(row.updated_at)||0
+  })), scores:scores.map(row => ({
+    userId:String(row.user_id), username:String(row.username), date:String(row.date_key),
+    seconds:Math.round(Number(row.seconds)*100)/100, moves:Number(row.moves)||0,
+    device:cleanSyntheticDevice(row.device), updatedAt:Number(row.updated_at)||0
+  })) });
+}
+
+async function addSyntheticUser(context, body) {
+  const db = requireDatabase(context.env);
+  await ensureSyntheticDailySchema(db);
+  const username = String(body.username || "").trim();
+  if (!validUsername(username)) return json({ok:false,error:"Username must be 3–20 characters using letters, numbers, _ or -."},400);
+  const norm = username.toLowerCase();
+  const real = await db.prepare("SELECT id FROM users WHERE lower(username) = ? LIMIT 1").bind(norm).first();
+  if (real) return json({ok:false,error:"That username belongs to a real BOXXY account."},409);
+  const existing = await db.prepare("SELECT id FROM synthetic_users WHERE username_norm = ? LIMIT 1").bind(norm).first();
+  if (existing) return json({ok:false,error:"That artificial player already exists."},409);
+  const now = Date.now();
+  const id = crypto.randomUUID();
+  const device = cleanSyntheticDevice(body.device);
+  await db.prepare(`INSERT INTO synthetic_users (id, username, username_norm, default_device, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?)` ).bind(id, username, norm, device, now, now).run();
+  return json({ok:true,id,username,defaultDevice:device});
+}
+
+async function deleteSyntheticUser(context, body) {
+  const db = requireDatabase(context.env);
+  await ensureSyntheticDailySchema(db);
+  const id = String(body.userId || "").trim();
+  if (!id) return json({ok:false,error:"Artificial player is required."},400);
+  await db.batch([
+    db.prepare("DELETE FROM synthetic_daily_scores WHERE user_id = ?").bind(id),
+    db.prepare("DELETE FROM synthetic_users WHERE id = ?").bind(id)
+  ]);
+  return json({ok:true});
+}
+
+function generatedSeconds(moves, minimum, maximum) {
+  const autoMin = Math.max(45, Math.round(moves * 0.9));
+  const autoMax = Math.max(autoMin + 45, Math.round(moves * 2.4));
+  let min = Number.isFinite(Number(minimum)) && Number(minimum) > 0 ? Number(minimum) : autoMin;
+  let max = Number.isFinite(Number(maximum)) && Number(maximum) > 0 ? Number(maximum) : autoMax;
+  min = Math.max(1, min); max = Math.max(min + 1, max);
+  const value = min + Math.random() * (max - min);
+  return Math.round(value * 100) / 100;
+}
+
+async function generateSyntheticScores(context, body) {
+  const db = requireDatabase(context.env);
+  await ensureSyntheticDailySchema(db);
+  const date = validDailyDate(body.date);
+  if (!date) return json({ok:false,error:"Choose a prepared Daily puzzle."},400);
+  const puzzle = DAILY_PRACTICE_CATALOG.find(item => item.date === date);
+  const solution = String(puzzle?.solution || "");
+  if (!solution) return json({ok:false,error:"This Daily has no stored solution, so a legitimate move count cannot be generated."},409);
+  const moves = solution.length;
+  const requestedIds = Array.isArray(body.userIds) ? [...new Set(body.userIds.map(String).filter(Boolean))] : [];
+  if (!requestedIds.length) return json({ok:false,error:"Select at least one artificial player."},400);
+  const placeholders = requestedIds.map(() => "?").join(",");
+  const rows = await db.prepare(`SELECT id, username, default_device FROM synthetic_users WHERE id IN (${placeholders})`)
+    .bind(...requestedIds).all();
+  if (!(rows.results || []).length) return json({ok:false,error:"No artificial players were found."},404);
+  const override = String(body.device || "").trim().toLowerCase();
+  const now = Date.now();
+  const generated = [];
+  const statements = [];
+  for (const row of rows.results || []) {
+    const device = SYNTHETIC_DEVICE_CLASSES.has(override) ? override : cleanSyntheticDevice(row.default_device);
+    const seconds = generatedSeconds(moves, body.minimumSeconds, body.maximumSeconds);
+    statements.push(db.prepare(`INSERT INTO synthetic_daily_scores (user_id, date_key, seconds, moves, device, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(user_id, date_key) DO UPDATE SET seconds=excluded.seconds, moves=excluded.moves,
+        device=excluded.device, updated_at=excluded.updated_at`)
+      .bind(row.id, date, seconds, moves, device, now, now));
+    generated.push({userId:String(row.id),username:String(row.username),date,seconds,moves,device});
+  }
+  await db.batch(statements);
+  return json({ok:true,date,moves,generated});
+}
+
+async function removeDailyLeaderboardScore(context, body) {
+  const db = requireDatabase(context.env);
+  await ensureSyntheticDailySchema(db);
+  const date = validDailyDate(body.date);
+  const username = String(body.username || "").trim();
+  if (!date || !username) return json({ok:false,error:"Daily date and username are required."},400);
+  const synthetic = await db.prepare("SELECT id FROM synthetic_users WHERE username_norm = ? LIMIT 1").bind(username.toLowerCase()).first();
+  if (synthetic) {
+    await db.prepare("DELETE FROM synthetic_daily_scores WHERE user_id = ? AND date_key = ?").bind(synthetic.id,date).run();
+    return json({ok:true,username,date,kind:"synthetic"});
+  }
+  const user = await db.prepare("SELECT id, progress_json FROM users WHERE lower(username) = ? LIMIT 1").bind(username.toLowerCase()).first();
+  if (!user) return json({ok:false,error:"Leaderboard player was not found."},404);
+  const progress = parseProgress(user.progress_json);
+  const originalDaily = progress[DAILY_COMPLETIONS_KEY];
+  let daily = {};
+  try { daily = typeof originalDaily === "string" ? JSON.parse(originalDaily || "{}") : (originalDaily || {}); } catch (_) { daily = {}; }
+  if (!daily || typeof daily !== "object" || Array.isArray(daily) || !daily[date]) return json({ok:false,error:"That account has no saved Daily result for this date."},404);
+  const record = {...daily[date], leaderboardTracked:true, leaderboardSeconds:null};
+  delete record.leaderboardMoves; delete record.leaderboardStartedAt; delete record.leaderboardCompletedAt;
+  delete record.leaderboardDevice; delete record.leaderboardTimezoneOffsetMinutes;
+  daily[date] = record;
+  progress[DAILY_COMPLETIONS_KEY] = typeof originalDaily === "string" ? JSON.stringify(daily) : daily;
+  await db.prepare("UPDATE users SET progress_json = ?, progress_updated_at = ? WHERE id = ?")
+    .bind(safeProgressJson(progress), Date.now(), user.id).run();
+  return json({ok:true,username,date,kind:"real"});
 }
 
 function mappedUser(user, includeProgress = false) {
@@ -295,6 +465,11 @@ export async function onRequest(context) {
       }
       if (action === "reset_password") return await resetUserPassword(context, body);
       if (action === "set_instant_move") return await setInstantMoveAccess(context, body);
+      if (action === "synthetic_add_user") return await addSyntheticUser(context, body);
+      if (action === "synthetic_delete_user") return await deleteSyntheticUser(context, body);
+      if (action === "synthetic_generate_scores") return await generateSyntheticScores(context, body);
+      if (action === "daily_remove_score") return await removeDailyLeaderboardScore(context, body);
+      if (action === "synthetic_state") return await syntheticState(context, body);
       return json({ ok: false, error: "Unknown action." }, 400);
     }
 

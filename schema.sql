@@ -112,3 +112,28 @@ CREATE TABLE IF NOT EXISTS user_feature_flags (
 );
 CREATE INDEX IF NOT EXISTS user_feature_flags_feature_idx
   ON user_feature_flags(feature_key, enabled, updated_at DESC);
+
+
+-- v374: private Basement artificial Daily leaderboard players and generated scores.
+CREATE TABLE IF NOT EXISTS synthetic_users (
+  id TEXT PRIMARY KEY,
+  username TEXT NOT NULL,
+  username_norm TEXT NOT NULL UNIQUE,
+  default_device TEXT NOT NULL DEFAULT 'computer',
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS synthetic_daily_scores (
+  user_id TEXT NOT NULL,
+  date_key TEXT NOT NULL,
+  seconds REAL NOT NULL,
+  moves INTEGER NOT NULL,
+  device TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, date_key),
+  FOREIGN KEY (user_id) REFERENCES synthetic_users(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS synthetic_daily_scores_date_idx
+  ON synthetic_daily_scores(date_key);

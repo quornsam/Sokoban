@@ -4,6 +4,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-08-30",
     "sequence": 1,
     "name": "Exponential2-11x11-sq",
+    "solution": "lDruuLrdrUdldRddrruuuLruuulDullDlulldRlddRldddrUdrrUdrrruL",
     "layout": [
       "#########",
       "#       #",
@@ -22,6 +23,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-08-31",
     "sequence": 2,
     "name": "Daily3",
+    "solution": "LLdRurDDurrddlLuulluuuuRRRldLLLrrDDldRRRurDDuullldllluRRduurDrdLLLulDD",
     "layout": [
       "#########",
       "# # $  .#",
@@ -40,6 +42,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-09-01",
     "sequence": 3,
     "name": "Daily13",
+    "solution": "llddDrddlllluurRRlllddrrURuLruuurrdLulDDDlruuullldRRRddlUUruLLrrrrdLLdlUruLdddddrUUUUluRRdlddddrruLdlUUUUluRdldddrrruLddluUUUddddllluRdrUUUUdddlluRdrU",
     "layout": [
       "########",
       "#.....+#",
@@ -57,6 +60,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-09-02",
     "sequence": 4,
     "name": "DailyEasy1",
+    "solution": "dddrrrruUUUddddlllluuuuurrrRddddulluRdrddlllluuuuurrrrdDDDuuuulllldddddrrrR",
     "layout": [
       "########",
       "#     .#",
@@ -74,6 +78,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-09-03",
     "sequence": 5,
     "name": "Daily11",
+    "solution": "drrrddllUdlluRuRRllddrrruUddllUluRRldlldlluRRRdrUluRluullluurrDurrdLdLLrruullldDuurrDrdLLrrururrdLLLulDrrldL",
     "layout": [
       "#########",
       "#       #",
@@ -92,6 +97,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-09-04",
     "sequence": 6,
     "name": "Daily10",
+    "solution": "rDDuurrddLruullllllddRRlluurrDullddddddrrUUddlluuRlddrrrrrruuLLrrddllU",
     "layout": [
       "#########",
       "#   @   #",
@@ -110,6 +116,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-09-05",
     "sequence": 7,
     "name": "Daily4",
+    "solution": "ddrddlddlUruruulldllddRRdrUllluurrDullddrRuulDruurrddLLrrurrdLLuullddddrrrUUluuluurDDllddddrrruuruuuLLdlldlluRRddddrrruuruuullulllDDldddRluuuruurrrdrrdddlddlllUUdlluRluuruurDurrdrrdLrddlddlU",
     "layout": [
       "#########",
       "##  @ ###",
@@ -128,6 +135,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-09-06",
     "sequence": 8,
     "name": "Daily1",
+    "solution": "DDDulllllddrrrrRllUdllluurrRRRddduurUldddrUldldllUluRRRluurrdDldRullllluurDldRRRRRlluulllluururrrdDldRRRlluuullDDullddrRRRRlddrruUUdlluurR",
     "layout": [
       " ########",
       "##      ##",
@@ -147,6 +155,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-09-07",
     "sequence": 9,
     "name": "DailyEasy2",
+    "solution": "DullDRddrruLdlUUddlUUdrrUdrUddDDlllddrrrUUUUUdddlUUUdddlUUUdddlUUU",
     "layout": [
       "######",
       "#..+.#",
@@ -166,6 +175,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-09-08",
     "sequence": 10,
     "name": "Daily6",
+    "solution": "dlddddrdrrruuuUURurDDDDDuuuulldddddluLrruulDrddlllluuudddrrrruuuuddddlluRdrUluuruulrlrddDuuulDrddlddrUUUUluRRurDDDDuuullluddrlDDrddlluRdrUUUUluRRurDDDuulldddddlllluRRRdrUUUUluRRurDDullddddlllluurDldRRRdrUUUUluRRurDllddddlllluuuurDDDldRRRdrUUUUluRRlluRR",
     "layout": [
       " ########",
       "##@#   .#",
@@ -184,6 +194,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-09-09",
     "sequence": 11,
     "name": "Daily24",
+    "solution": "luuuurrrrdRRuLLLLLrldldddddddrrrruRRdLLLLLrrrrruuuLrdddllllluluuuuuururrrrrdddLUruullllldlddddddudrdrrrrruuulUdDrddlluRdrUluRdlldllluluuurRRllluuururrrdRurDldRlD",
     "layout": [
       "#########",
       "#.    $ ##",
@@ -204,6 +215,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-09-10",
     "sequence": 12,
     "name": "Daily23",
+    "solution": "UUUUUUUrrrdrdDldddLLdlUUUUUUddddddrruruuuruullulLLulDldldDrdddRRdrUUUUUUdddddlluluuluururrRRurDrdrddlUUddddrUUUdldddldllllululUUUdrUU",
     "layout": [
       "  #######",
       " ##  .  ##",
@@ -224,6 +236,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-09-11",
     "sequence": 13,
     "name": "Daily9",
+    "solution": "dlddldlddrUUdrUUURuLLulDrrddddRdrrruululLrrdrddllluluUUruulldRRRRurDlllddlddrdrrULLLullddrUluRdrUUUruulldRdddduurrDullddrdrruLLLullddrUluRdrUUddrrrU",
     "layout": [
       "#########",
       "#   @#  #",
@@ -242,6 +255,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-09-12",
     "sequence": 14,
     "name": "Daily26",
+    "solution": "RurUluRdrUluRRdrUdllldldddrDldRRurDDldRulululuulLddLulDrdLulDDrdLruurruuuuuLdlUUruLLdlUrdrrddDDldRdrUUUrrdrUUluurrdLulDDrddlLLdlluRRluuurD",
     "layout": [
       "#####   #####",
       "#.  ## ##  .#",
@@ -264,6 +278,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-09-13",
     "sequence": 15,
     "name": "Daily25",
+    "solution": "rdddrrrrrruruuulllluluuulLrrddlLrruullDurrddlUddlUUrrddrdrruLLLLLrrrrrrrddddlUUUruLLLLLLrrrrrddddlldlluRRRdrUUUUruLLLLLrrrruuullDDurrddlLLdlUUUddrruurDrdLLLdlUUdddRRRurrddlUUruLLLLdlUrrrrddddlllldlluRRRRRdrUUUUruLLLL",
     "layout": [
       "##########",
       "#.*..#   ##",
@@ -284,6 +299,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-09-14",
     "sequence": 16,
     "name": "DailyEasy3",
+    "solution": "dldDrUUllldRdDlDDrUUddrruL",
     "layout": [
       "######",
       "# ##+#",
@@ -303,6 +319,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-09-15",
     "sequence": 17,
     "name": "Daily21",
+    "solution": "ddlluULLLLLulDDrurrrrrddrruuLLLLLLLLdlUrrrrrrrrruullDurrddlLLLLLLulDrdLrurrrrruurDrdLLLLLLLdlUUrdrrrrrddrUruLLLLLL",
     "layout": [
       "#####  #####",
       "# . #  #   #",
@@ -319,6 +336,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-09-16",
     "sequence": 18,
     "name": "Daily14",
+    "solution": "rrRdrruLLrrddDlddlLulluUruulDDruRRurrdddlddllulldRuUUluurDrruLrrrdLDuulldlldDrdrRdrrUUUdddllulldRRulluluurrurrddrddLLLrrruulDuuulldRlllddrU",
     "layout": [
       "########",
       "#@. $  #",
@@ -336,6 +354,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-09-17",
     "sequence": 19,
     "name": "Daily12",
+    "solution": "ullldddrDuluururrdDDDuLruuulldRDrddDRluuululldddrDuluuurrdrdddLdLruruuululldddrRdrUllluuurrdDDDulDruuuuurrrrdddlUUruLLLLLrddrRlluurrrrdddlUUruLLLLddddrUluuurrrddlLdlUUdrrrdLullddrUluRRdrUUruLLrddlldddrUUluRRdrUUdddLLLdlUrrrDldRuuuuuulDDldRdrUUUldllulldRRRdrruulDDDDulllUluRRRdrUUdllDDldRRRurD",
     "layout": [
       "#########",
       "#.......#",
@@ -354,6 +373,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-09-18",
     "sequence": 20,
     "name": "Daily16",
+    "solution": "rruuululldDlLUdrruurrdDuullddRluurrdrdddllULrRdrUllluuurrdDuulldddrRlluuRRlDldRurDldRuulllldRRurrddlUruLL",
     "layout": [
       " #######",
       "##.#   ##",
@@ -370,6 +390,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-09-19",
     "sequence": 21,
     "name": "Daily8",
+    "solution": "uURuruUddrDuUlulullDurrdrddldllulDrrruruulLrrddldllulUdrdrruUUdddlluRdrUruullDurrddldlluRRUlddddlUruulldRurDlddrrUUluurrrddLLLrddlluUrrddrUluluurDDDrdLuuuurrddLruulldDDullluRRurDDullluRRuulDDldRdrUUUddrdrruulLdlUrrDrdLLLulDD",
     "layout": [
       " ######",
       "## ...##",
@@ -388,6 +409,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-09-20",
     "sequence": 22,
     "name": "Daily15",
+    "solution": "rruuLLLuururrrrrdddddlddlldllllluuuuuuRDldddddrruRRRRllldllluRRRRRllllluurDldRRRRlllluuuurDDDDldRRRRlllluuuuuruurrurrrrddDDDuuuuulldRRurDDDDuuululllldRRRRurDDDuulllllllddrUluRRRRRurDDDDuuulllllddrrrddlUruLLLulDDDDDldRRR",
     "layout": [
       "  #########",
       " ##       #",
@@ -408,6 +430,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-09-21",
     "sequence": 23,
     "name": "Dailyeasy5",
+    "solution": "dddrrUdllddddrrrruullUdrrddlUruuuuulLulldddddRUdlddrUluurrUUddllddrRdrruuuuLruuullllddddrrDulluuuurrrrdddlUrdddLUrdddlUUddlluRdrU",
     "layout": [
       "#######",
       "#@    #",
@@ -427,6 +450,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-09-22",
     "sequence": 24,
     "name": "DailyEasy4",
+    "solution": "UUddrrrUUruLLrdddrrrUUddllUUluRdddrruLdlUUddllUUddlluRRdrUU",
     "layout": [
       "#########",
       "#.......#",
@@ -442,6 +466,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-09-23",
     "sequence": 25,
     "name": "Daily19",
+    "solution": "uuuulUrddddldllllluluurDuuluururrrdddRdrruulDlluuurrDulldRlddrrrdddldllluuuLullddrUruuRlddrdddrrrruuuulllUdrddLruulullddrDullluRluururrDullldddrdrrdrruuluLrdrrrdddldllUdrrruuuullluluullldddrdrrdRlulluluururrrDDuulllldddrdrrdrddrrruuuLrddldlllUUddllUUUddRdrrrrruuuuuuLDDuuulldRurDDrddddldlluLLdlUU",
     "layout": [
       "#########",
       "#       ##",
@@ -461,6 +486,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-09-24",
     "sequence": 26,
     "name": "Daily20",
+    "solution": "rrddddddddddddlluuuuuuuuRlddddddddrruuuuuuuUUUUdddllddRluurruuuluRddddllddddddddrruuuuuUUdllddRluurruUUUruLdddddllddddddrruuuUUdllddRluurruUUUUUddddddllddddrruUUUUdlluuuurruulluurrDrdLLrddllddddrruUUUUU",
     "layout": [
       "######",
       "#@  .#",
@@ -485,6 +511,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-09-25",
     "sequence": 27,
     "name": "Daily22",
+    "solution": "uuulLLLddllUUdddllluuurRllddrUUUluRRluRRllluuurrrdDuulldRRRurDDurDDuuurrrdddlLrruulDDDrdLLrrddddulLLdlUUdrUdrrruulDuuuuuuulldRlllllllddrUdddddddrruL",
     "layout": [
       "############",
       "#          #",
@@ -506,6 +533,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-09-26",
     "sequence": 28,
     "name": "Dailytough1",
+    "solution": "uuuuurUldddrUldddrUluuuurrUUddllddddrrDrdLLrrrruLrdrruLdlllluulluuuuuuRuRRRRRRlllllldlddddddrrddrrrruuRRllddlllluulluuuurruUluRRRRRllllldlddddrrUUUUluRRRRlllldldRdrUUluRRRllldlddddddrrUUUUUUluRRldddddddddrruuLrddlluUUUUUUUluRdddddddrrddrrrrUrUUUUUUUdddddddlluRdrUUUUUUdddddlllddlluuRRRRdrUUUUUddddllllllluulDldRRRRRRRRdrUUUUdddlllllddlUluRRRRRRdrUUUddllllllluuuulDDDldRRRRRRRRdrUUdlllddlUluRRRRdrU",
     "layout": [
       " ###########",
       "##  .......#",
@@ -527,6 +555,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-09-27",
     "sequence": 29,
     "name": "Daily18",
+    "solution": "dlllluluururrdrRuLLLrrrRRurrdLLLLLdlUrrrrrrrdddldlllluUUluRRRRlllddddrrrruruulUrdddldlluLdlUUUluRRRRRllllddddlluRdrrrrruruulullllddDldRRurDulluuurrdLulDDDrdLLulDlluluuuRRRRRRdrUlldddlUUruLLLLrrrrdddrUUruLLLLLrrdddldlluluurU",
     "layout": [
       " ##### #####",
       "##. .###. .##",
@@ -545,6 +574,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-09-28",
     "sequence": 30,
     "name": "Daily17",
+    "solution": "lUdrdddrrUruuuuluLrdrddlDD",
     "layout": [
       " #####",
       "##.$ ##",
@@ -563,6 +593,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-09-29",
     "sequence": 31,
     "name": "Daily7",
+    "solution": "uRRlludrUluurRdDrruuLLLrdLurrrdLLrrdddlUUruLdlldR",
     "layout": [
       "#######",
       "#. $  #",
@@ -579,6 +610,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-09-30",
     "sequence": 32,
     "name": "Daily5",
+    "solution": "lllrdddLLddrdrruUddlluURRdLuuuuurrddLruulldDDDuuuullldRDLururrddddrddllllluuRlddrrrrUUUUrruullDDuullddR",
     "layout": [
       "#########",
       "##     @#",
@@ -597,6 +629,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-10-01",
     "sequence": 33,
     "name": "Maze1oct",
+    "solution": "rrrrrrrrrrrrrrrrrrrrrrrruuuuuuuurruurrrrrrrruulluurruuuuuuuuuuuuuuuurrrruurrrruulluullddllddlluulllluurrrrrruurrrruulllllllluuuuurrdddrruuuuulllllllllldddlluuulllllldllulllldddddddddddddllddddlluuuulluulluullllddrrUdllddddrrddddllddrrrruurruulluuuuuuuulLLrddlluUUUUUUUUU",
     "layout": [
       "##################################################",
       "#.      #   #     #       #           #          #",
@@ -656,6 +689,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-10-02",
     "sequence": 34,
     "name": "Daily27",
+    "solution": "uurrrrddrrrrrrlluurrrrddrrrruurrrrrrddddddlllluullllddlllluullllddlllLuullddRRRRuurrddLLuurrrrrrddllUdrruulLddrrrrrruullDurrddlLuurrrrrrddllUdrruulLddrrrrrruullDurrddlLuurruuuullddRluurrdDuullllllddrrUdlluurRllddlllluurrDullddrRuullllllddrrUdlluurRllddlllluurrDullddrRlluullllddrrUdlluurR",
     "layout": [
       "#########################",
       "#   .   #   .   #   .   #",
@@ -674,6 +708,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-10-03",
     "sequence": 35,
     "name": "DailyOct5",
+    "solution": "drDuRRDLdRululldRurrddldlUUUdddruUruLLdlUrrruddrrdLLLdlUUruLrrurDlddrruLLLdlU",
     "layout": [
       "#######",
       "#+.#  #",
@@ -690,6 +725,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-10-04",
     "sequence": 36,
     "name": "DailyOct4",
+    "solution": "uddlddddrrRRRRRRdrruulDDDllllluulllluuuuuurrrrddddDuuuuullllddddddrrrRRRRRdrruLdlluRdrruulDDrdLLLLrrdurrdLLLLuuulllllluurDldRRRRRRRRdrruulDrlrdLLLLLulllluurDldRRRRRRRdrruulDrdLLLLulllluuuuuRurDDDDDuuuuullddddddrRRRRRdrruulDrdLLLullllluuRluuurrddDDLLdrRRRRRdrruulDrdLLulllllllluurDldRRRRRRRRdrruulDrdLullllllluuuRluurDDDDldRRRRRRlllllluuuuururrrrrrrddddddulDlllllluuuurDDDldR",
     "layout": [
       "#############",
       "#           #",
@@ -712,6 +748,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-10-05",
     "sequence": 37,
     "name": "Jordi1",
+    "solution": "rruLdlluuururrdLdddlluuuluRRlddddrrrluuuLulDrrddLruuruLL",
     "layout": [
       "#######",
       "# *   #",
@@ -728,6 +765,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-10-06",
     "sequence": 38,
     "name": "DailyOct9",
+    "solution": "UUrrdLrdrruuuulllDurrrddddlluuUdddrruuLDruuulDlDR",
     "layout": [
       "#######",
       "#  .  #",
@@ -744,6 +782,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-10-07",
     "sequence": 39,
     "name": "lungs",
+    "solution": "urrrrDRRRRurRRldRullldddrRRUUlDuulldddrRlluRRlluRRllllllullDRRRRRRRdrUllllllulllldRRRRRRRRurDDldRuulllllllllddrUluRRRRRRRRRlllllllllddrrUluRRRRRRRurDldRulllllllddrUluRRRRRRduurDDulllllllddrrUluRRRRRdrU",
     "layout": [
       "####### #######",
       "#     ### .*..#",
@@ -759,6 +798,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-10-08",
     "sequence": 40,
     "name": "easy2",
+    "solution": "DDlldDurDuurrdDLUUlldrldRurD",
     "layout": [
       "######",
       "#  @ #",
@@ -776,6 +816,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-10-09",
     "sequence": 41,
     "name": "oct1",
+    "solution": "uUllDDDldRRRluluLLrruuruulDDDDlddrruLdlUruLruuuurrrdLLulDDDDDldRRuluuuuullDulDurdRurDDDDDldR",
     "layout": [
       "#########",
       "#       #",
@@ -794,6 +835,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-10-10",
     "sequence": 42,
     "name": "Rooms",
+    "solution": "lUdrrUdlluRuRRRRRllDDrrrdddddllllllluUdrUddrruLUdrUldLulDrrdrrrrruulDrdLLLLLrrrrruullDrdLLLrrrruuuuulldRurDDDDuuulluluurDldRRluurDrDDDDuuuulldRurDDDuuullullllddrUluR",
     "layout": [
       "##########",
       "#.  .   .#",
@@ -813,6 +855,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-10-11",
     "sequence": 43,
     "name": "DailyOct8",
+    "solution": "ldddddddrrrrrrrrUUUUUUruLLLLLLLLulDDDDDDDuuuuuuudrrrrrrrrrldddddddllllllUUUUUUddddddrrrrrruuuuuuulllllLLulDDDDDDuuuuurrdddddddrrUUUUUUddddddrrrruuuuuuulllLLLLulDDDDDuuuurrrrddLrdddddlluuuuUUdrruulLLulDDDDuuurrrrdddddddrrUUUUUUddddddrruuuuuuulLLLLLLulDDDuurrrrrrddLrdddddlluuuuUUdrruulLLLLulDDurrrrrrrrddLrdddddlluuuuUUdrruulLLLLLLulD",
     "layout": [
       "####",
       "#  #########",
@@ -833,6 +876,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-10-12",
     "sequence": 44,
     "name": "Rooms1",
+    "solution": "DrruuuuuullllllldddddddrrrrRuuRdldllllluuuuuuurrrrrrrddddDuuuuulllllddLruulldDDDDDuuuurUluRRRRRR",
     "layout": [
       "##########",
       "#       .#",
@@ -852,6 +896,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-10-13",
     "sequence": 45,
     "name": "DailyOct10",
+    "solution": "UdDuuLrddLrRluuRlrDldlUlUdDrrurrUdDLullluR",
     "layout": [
       "#######",
       "#.#.#.#",
@@ -868,6 +913,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-10-14",
     "sequence": 46,
     "name": "oct2",
+    "solution": "rdLrddLurRRdRluuULLdlUruLrdrrdLdDDurrddlLLLuuuuRurDDDDullddrRRRlluuuuurrrdLLdlluurDDDDurrUUluRdrU",
     "layout": [
       "#########",
       "#.  #.#.#",
@@ -886,6 +932,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-10-15",
     "sequence": 47,
     "name": "triangle",
+    "solution": "DDDrUdRddllUUUUddrrddddlUruuullddRdrUUUdRdRdRdR",
     "layout": [
       "###",
       "#+##",
@@ -905,6 +952,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-10-16",
     "sequence": 48,
     "name": "Hard1",
+    "solution": "dDDDurRdRdrruuUUUlLrrdddddllulLdLruulDrrrdrruLLLulDrrrruuuullddDldRRluuuuudrrdddDuLruuullddDldRurDrullllluurRlluurDldddrrrrruuullLLrrrrdddllllluuUrrluLdrrdLulrrrrrdddllllluUUrrrrlDurrdLLrrddllUUruLLrrrdddllllluurUdRllddrrruUluRdrU",
     "layout": [
       "#########",
       "#...# ..#",
@@ -923,6 +971,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-10-17",
     "sequence": 49,
     "name": "Tricky1",
+    "solution": "ddrrUdlluuuurrrrDullllddddrrrrrruulLrrddlllluLrdrrrruulluulldDuurrddLrrrddlllULdllUdrrrrrruulluulldDRddlUdlluRdrruuRuulllldDuurrrrddRluulldLurrrddlddlluRdrU",
     "layout": [
       "#######",
       "#     #",
@@ -939,6 +988,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-10-18",
     "sequence": 50,
     "name": "DailyOct14",
+    "solution": "llDDuurrddLruullllldRllddrRllddrdrruRdllluRlluurrDDldRRRlluuulluurrDullddddrrdrruLLuUlluurrDDDDuullddRdRUUUlluururrrrrdddddLLLrrruuuuullllldlddddrdrU",
     "layout": [
       " ########",
       "##     @#",
@@ -957,6 +1007,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-10-19",
     "sequence": 51,
     "name": "easy1",
+    "solution": "urrDDrdulDrdLulDruuuulldRurDDDuuurDD",
     "layout": [
       " ######",
       " #    #",
@@ -974,6 +1025,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-10-20",
     "sequence": 52,
     "name": "Star3",
+    "solution": "ddruRRllluurRRlllddrrUUrDldlluRdrUluRdddrrruUddrruruulDDrdLLLLLrruRdrruulDrdLulluRdrruulDrdLLuU",
     "layout": [
       "###########",
       "#  .   .  #",
@@ -990,6 +1042,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-10-21",
     "sequence": 53,
     "name": "2",
+    "solution": "LrruulLrrddlddLrdLrdLrdLruuuuulDlUrrruullDurrddlLrdddlUruL",
     "layout": [
       "######",
       "#.$  #",
@@ -1009,6 +1062,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-10-22",
     "sequence": 54,
     "name": "spiral1",
+    "solution": "ddddddddrrrrrrrruuuUUdddddlllllllluuuuuuuurrrrrrddrRRllluurrrrdDDDDDDDDuuuuuuulllllllldDDDDuuuuurrrrrrddddddlllllLLruuuuuuuulldddddddDDurruuuuuurrddddrruuRlddlluuuullddddddrrrrrruuuUUdllddlluuuurruurrrrddlLLLLLLrrrrrddddddlllllluuuuuUUdddddddlluuuuuuuurRRRRRRRRlllddrrddllLrddlluUUdrrrruulllLLrrrrrddddddlllllluuuuuUUdrrrruulllLL",
     "layout": [
       "#############",
       "#+         .#",
@@ -1031,6 +1085,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-10-23",
     "sequence": 55,
     "name": "3",
+    "solution": "uuuuuuuurrddDDrUUddddlruuuluuullddddddddrrrUUUUUdddlUUUUddrddddlUUUUUdddddlluuRlddrruUUUddddrrruuLrddlluUUU",
     "layout": [
       "########",
       "#      #",
@@ -1051,6 +1106,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-10-24",
     "sequence": 56,
     "name": "DailyOct3",
+    "solution": "llDDDDDDlluuuuUdddddddrrrrrrrruuuuuuUdddddddlluuuuuuUdRUrDDDDDDlldllllluuruuuuLUlDDDDDDruruuLruulldDDDrddrrrrruuuuRluurrdDDDlluurDDDuuuruulDDDDlddllllluuruulruuuurrDDDDDDDuuuuuuurlddRRddddddlLLLrruuuuuuuullddddlDDrDuuuuuuurrdddddddLrdrruuuuuuuLulDDDDDDDuuuuurrddddddlLuRluuuuuurrdddddDlluRluuuurrdddDlluRluuRDDDDluuuuuuullddddddRluuRluuRluurrrdddddlDDuruuulDDDuuruuulDDDDLulldRRurrrrddlUruLLuuurrrdLLLdddrruuLdlUUUlulDlddRUUdddllluudRdrUUU",
     "layout": [
       "###########",
       "#....@....#",
@@ -1071,6 +1127,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-10-25",
     "sequence": 57,
     "name": "DailyOct1",
+    "solution": "rrrddlLdDrrddlllllluurRuURlllddddrrrrrruullLruUlldD",
     "layout": [
       "#########",
       "#   @   #",
@@ -1089,6 +1146,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-10-26",
     "sequence": 58,
     "name": "1",
+    "solution": "ruuLruuuuullddddDDRurDuuLruuuulldddDDuuuRluurrdDDDDuuulDDDDuuruuuulDDDDD",
     "layout": [
       "#####",
       "#   #",
@@ -1108,6 +1166,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-10-27",
     "sequence": 59,
     "name": "long2",
+    "solution": "llllddrrrrrrrruulLLrrrddlllllllluurrDullddrRRRddrrrruuuulllLLLddrrUdddrrrruuuulllLrrrrddllUdrruulLrrddddlllluuRRRlllddrrrruUUruL",
     "layout": [
       "############",
       "# . .@.$.  #",
@@ -1124,6 +1183,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-10-28",
     "sequence": 60,
     "name": "ilovebev",
+    "solution": "rurUruLLLLLLrrrUdrrrrUdllULuLLLLrrrrddllllUdrrrrrrruLuLrURuululDldLLLuLrdLrrrDururrrddldddlddldllulUluRRUdlddrdrrururuuuuruullldlllDurrrurrrddldlDldRddlUruuruuUruLdddldddrUUUUruulDDuLLLLulldRRRRRRRllluRdDDDuuulldRRulllldRRurrdddrddllddlluluuruUUruLdlUruLrdrrrrrdDuLullllddddlddrdrrururuuluUruLLLdlluRRRRdLLrrddrddllddlluluuruuUluRRlddddlddrUUUUUluRdddddRRllulluRdrUUUluurDldRRRRlllddlUUrrrrddrddLLLrddlluUUUUluRddddrrrruulDrdLLLLdlUUrdddrUruLLdlUruL",
     "layout": [
       "  #### ####",
       " ##  ###  ##",
@@ -1146,6 +1206,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-10-29",
     "sequence": 61,
     "name": "snowflake1",
+    "solution": "UUUUUdddrrddrrrDulllddrrRllllllluulllDurrrddllLrrruuuurrddDDDDDuuurruuuurrrDulllddrrRuullllllllllDurrrddllLrrruRurDDDuulldddrRRluuuurrdddDDDDuuuuuuuuurrrDulllddrrRllllllluulllDurrrddllLrrrrrrrddddddrrrUUUUUUUdllluurrRlllddllllddddddlllUUUUUUUdrrruullLrrrddrrrrdLLLrdddlluuUUUUUddddddRdrUUUluRRdrUUUUddddddLLLruulldDDDDDuuuuuuuuulllUruLrddrrddrrrrrrruuUluRlddllddlllluuuLdlluurDldRRurDDDDDDulllddrrRRRuuuuuuuLLLdlluurDldRRurDDDrrrruuuLLLLLdlluurDldRRurDDulllddrrRuuurrrrRdrruulDrdLLulDDurrrddllLdlllDDruurDrdLLLullllddddrddlUruLuuuurrrrrrrddddrrddrUluRllldRurrddlUruLLdlUUUrrruullllldddddRRRRurDldRuuuuuullllllllllddrrrdddRRRRRurrddlUruLLrruullldDrrruuuullllldddddrRRlllllLLulDrdLrurruuuUdllluurrRRRdrUluRdrrrrdddddLLLLLLLLullddrUluRRdrUUU",
     "layout": [
       "###############",
       "#.  #.#.#.#  .#",
@@ -1170,6 +1231,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-10-30",
     "sequence": 62,
     "name": "DailyOct13",
+    "solution": "dDulDLdlUUdrrruruuRlddDuuullLrrrdddRdrUUdlluuulllUluRRRRRlDDllUluRddrruLLdlUruLrdddddlluRRurDrdLLLulDrruuulDrdLrrrdrruLdlluuurrDDuulldddrRurDuluuluurDllddddrruLdlUUUluRdrUrDDullddrdrruLLLdlUUUUrrdDldRR",
     "layout": [
       "#########",
       "#. ... .#",
@@ -1188,6 +1250,7 @@ export const DAILY_PRACTICE_CATALOG = Object.freeze([
     "date": "2026-10-31",
     "sequence": 63,
     "name": "pumpkin",
+    "solution": "ldddddddddrrrrrUUddrUdrUUddrruLLLdlUdrrrrruuuLrddlULrruuLruLLLLrrrrdddlUUruLLLrrruudLLrruulDDrdLLrruulLLLrrruulDDDuuuulldDlDurRluurDDurDDuulullllllldddddRRRllldRldRRllddrUUUluRRllddddrdrrUdrUdulLUddlUUUUluRluRRlluurDldurldRlurRRRllluurrDRluurDDuRllllddrUluRRR",
     "layout": [
       "#############",
       "#           #",

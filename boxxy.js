@@ -6,10 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "373",
+  version: "374",
   lastUpdated: "2026-09-25"
 });
-/* BOXXY v373: Basement practice compatibility release; gameplay unchanged. */
+/* BOXXY v374: private Daily seeding/admin leaderboard tools and 250×250 Level Maker. */
 /* BOXXY v372: clarify Daily and pack wording and hide redundant signed-in leaderboard note; preserve gameplay. */
 /* BOXXY v371: widen Zen arrows horizontally only; keep the board/actions clear and suppress native iOS pad gestures. */
 /* BOXXY v370: existing Spaced Arrows option adds 30–40px gaps in phone Zen Mode, with matching pad dimensions. */
@@ -131,7 +131,7 @@ window.BOXXY_RELEASE = Object.freeze({
 /* BOXXY v241 — Daily archive cards show map thumbnails for every available current/past puzzle. */
 /* BOXXY v237 — Alphabet Soup adds 27 authored levels with supplied walkthrough solutions and dedicated pack artwork. */
 /* BOXXY v236 — Level Maker imports hyphens as explicit floor tiles and private puzzle URLs support grids up to 64×64. */
-/* BOXXY v235 — Level Maker supports grids up to 100×100; large grids fit the workshop and unsupported solver sizes are blocked cleanly. */
+/* BOXXY v374 — Level Maker supports grids up to 250×250; large grids fit the workshop and unsupported solver sizes are blocked cleanly. */
 /* BOXXY v234 — saved positions rebuild their full Undo history when resumed. */
 /* BOXXY v233 — secret click-to-move mouse support with reachable box destinations. */
 /* BOXXY v232 — level thumbnails prioritise moves, use the progression-current level and keep time tied to the best move score. */
@@ -10204,7 +10204,7 @@ window.BOXXY_RELEASE = Object.freeze({
 
   const MIN_SIZE = 3;
   const GENERATOR_MIN_SIZE = 5;
-  const MAX_SIZE = 100;
+  const MAX_SIZE = 250;
   const SOLVER_MAX_SIZE = 64;
   const SHARE_MAX_SIZE = 64;
   const MAX_GENERATOR_BOXES = 12;

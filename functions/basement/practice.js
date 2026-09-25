@@ -1,4 +1,4 @@
-/* BOXXY v373 — serves isolated Daily practice; validates the practice runtime independently of the main game cache version. */
+/* BOXXY v374 — serves isolated Daily practice; validates the practice runtime independently of the main game cache version. */
 import { requireDatabase, adminAuthenticated } from "../_lib/auth.js";
 import { DAILY_PRACTICE_CATALOG } from "../_lib/daily-practice-catalog.js";
 const text = (value,status=200,headers={}) => new Response(value,{status,headers:{"content-type":"text/plain; charset=utf-8","cache-control":"private, no-store",...headers}});

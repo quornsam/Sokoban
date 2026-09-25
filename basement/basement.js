@@ -1,4 +1,4 @@
-/* BOXXY v365 — Basement can grant/revoke server-authorised Instant Move access per account. */
+/* BOXXY v374 — Basement Daily seeding and leaderboard score administration. */
 /* BOXXY v363 — server-confirmed sessions, first recorded login and per-device sign-in history. */
 /* BOXXY v356 — Basement can securely reset a player's normal BOXXY password without touching progress or Google linking. */
 /* BOXXY v346 — Click-Push status is explicit and merge-safe across multiple devices. */
@@ -45,6 +45,21 @@
   const completionPackCards = document.getElementById("completionPackCards");
   const dailyPracticeTab = document.getElementById("dailyPracticeTab");
   const dailyPracticePanel = document.getElementById("dailyPracticePanel");
+  const dailyScoresTab = document.getElementById("dailyScoresTab");
+  const dailyScoresPanel = document.getElementById("dailyScoresPanel");
+  const syntheticUserForm = document.getElementById("syntheticUserForm");
+  const syntheticUsername = document.getElementById("syntheticUsername");
+  const syntheticDevice = document.getElementById("syntheticDevice");
+  const syntheticUsersEl = document.getElementById("syntheticUsers");
+  const syntheticSelectAll = document.getElementById("syntheticSelectAll");
+  const syntheticScoreForm = document.getElementById("syntheticScoreForm");
+  const syntheticDate = document.getElementById("syntheticDate");
+  const syntheticScoreDevice = document.getElementById("syntheticScoreDevice");
+  const syntheticMinSeconds = document.getElementById("syntheticMinSeconds");
+  const syntheticMaxSeconds = document.getElementById("syntheticMaxSeconds");
+  const dailyScoresRefresh = document.getElementById("dailyScoresRefresh");
+  const dailyScoresList = document.getElementById("dailyScoresList");
+  const dailyScoresStatus = document.getElementById("dailyScoresStatus");
   const practiceSearch = document.getElementById("practiceSearch");
   const practiceFilter = document.getElementById("practiceFilter");
   const practiceCards = document.getElementById("practiceCards");
@@ -66,6 +81,8 @@
   let lastPracticeFocus = null;
   let users = [];
   let completions = [];
+  let syntheticUsers = [];
+  let syntheticScores = [];
   let sortColumn = "lastSeenAt";
   let sortDirection = -1;
   let selectedView = "players";
@@ -408,17 +425,72 @@
     });
     renderUsers();
   }
+
+  function selectedSyntheticIds() {
+    return [...(syntheticUsersEl?.querySelectorAll('input[data-synthetic-select]:checked') || [])].map(input => input.value);
+  }
+  function renderSyntheticUsers() {
+    if (!syntheticUsersEl) return;
+    if (!syntheticUsers.length) {
+      syntheticUsersEl.innerHTML = '<p class="muted">No artificial players yet.</p>';
+      return;
+    }
+    syntheticUsersEl.innerHTML = syntheticUsers.map(user => {
+      const score = syntheticScores.find(item => item.userId === user.id);
+      return `<div class="synthetic-user-row">
+        <label><input type="checkbox" data-synthetic-select value="${escapeHtml(user.id)}"> <strong>${escapeHtml(user.username)}</strong></label>
+        <span>${escapeHtml((user.defaultDevice || "computer").toUpperCase())}</span>
+        <span>${score ? `${score.seconds.toFixed(2)}s · ${score.moves} moves` : "NO SCORE"}</span>
+        <button type="button" data-synthetic-delete="${escapeHtml(user.id)}" data-synthetic-name="${escapeHtml(user.username)}">DELETE</button>
+      </div>`;
+    }).join("");
+  }
+  async function loadDailyScores() {
+    const date = syntheticDate?.value || dayKey(new Date());
+    if (syntheticDate && !syntheticDate.value) syntheticDate.value = date;
+    setStatus(dailyScoresStatus, "LOADING DAILY SCORES…");
+    try {
+      const [{response:stateResponse,data:state}, leaderboardResponse] = await Promise.all([
+        api("", {action:"synthetic_state", date}),
+        fetch(`/api/daily-leaderboard?date=${encodeURIComponent(date)}&admin=${Date.now()}`, {credentials:"same-origin",cache:"no-store"})
+      ]);
+      if (stateResponse.status === 401 || state.authenticated === false) { showLogin(); return; }
+      if (!stateResponse.ok) throw new Error(state.error || "Could not load artificial players.");
+      const leaderboard = await leaderboardResponse.json();
+      if (!leaderboardResponse.ok) throw new Error(leaderboard.error || "Could not load leaderboard.");
+      syntheticUsers = Array.isArray(state.users) ? state.users : [];
+      syntheticScores = Array.isArray(state.scores) ? state.scores : [];
+      renderSyntheticUsers();
+      const syntheticNames = new Set(syntheticUsers.map(user => user.username.toLowerCase()));
+      if (dailyScoresList) dailyScoresList.innerHTML = (leaderboard.entries || []).length
+        ? leaderboard.entries.map((entry,index) => `<div class="daily-score-row">
+            <span>${index + 1}</span><strong>${escapeHtml(entry.username)}</strong>
+            <span>${Number(entry.seconds).toFixed(2)}s</span><span>${entry.moves == null ? "—" : `${Number(entry.moves)} moves`}</span>
+            <span>${escapeHtml(String(entry.device || "—").toUpperCase())}</span>
+            <span>${syntheticNames.has(String(entry.username).toLowerCase()) ? "ARTIFICIAL" : "REAL"}</span>
+            <button type="button" data-daily-score-remove="${escapeHtml(entry.username)}">REMOVE SCORE</button>
+          </div>`).join("")
+        : '<p class="muted">No leaderboard scores for this date.</p>';
+      setStatus(dailyScoresStatus, `${(leaderboard.entries || []).length} LEADERBOARD SCORES`, "success");
+    } catch (error) {
+      setStatus(dailyScoresStatus, error.message || "Could not load Daily scores.", "error");
+    }
+  }
+
   function setView(view) {
-    selectedView = ["players","completions","daily"].includes(view) ? view : "players";
+    selectedView = ["players","completions","daily","scores"].includes(view) ? view : "players";
     if (playersPanel) playersPanel.hidden = selectedView !== "players";
     if (completionsPanel) completionsPanel.hidden = selectedView !== "completions";
     if (dailyPracticePanel) dailyPracticePanel.hidden = selectedView !== "daily";
+    if (dailyScoresPanel) dailyScoresPanel.hidden = selectedView !== "scores";
     if (searchInput) searchInput.hidden = selectedView !== "players";
     playersTab?.setAttribute("aria-pressed", String(selectedView === "players"));
     completionsTab?.setAttribute("aria-pressed", String(selectedView === "completions"));
     dailyPracticeTab?.setAttribute("aria-pressed", String(selectedView === "daily"));
+    dailyScoresTab?.setAttribute("aria-pressed", String(selectedView === "scores"));
     if (selectedView === "completions") renderCompletions();
     if (selectedView === "daily") loadPreparedDailies();
+    if (selectedView === "scores") loadDailyScores();
   }
   function ukCompletionDate(timestamp) {
     if (!Number(timestamp)) return "Original date unavailable";
@@ -961,6 +1033,72 @@
     }
   });
 
+
+  syntheticUserForm?.addEventListener("submit", async event => {
+    event.preventDefault();
+    const username = String(syntheticUsername?.value || "").trim();
+    if (!username) return;
+    setStatus(dailyScoresStatus, "ADDING ARTIFICIAL PLAYER…");
+    try {
+      const {response,data} = await api("", {action:"synthetic_add_user", username, device:syntheticDevice?.value || "computer"});
+      if (response.status === 401 || data.authenticated === false) { showLogin(); return; }
+      if (!response.ok) throw new Error(data.error || "Could not add artificial player.");
+      syntheticUserForm.reset();
+      if (syntheticDevice) syntheticDevice.value = "computer";
+      await loadDailyScores();
+      setStatus(dailyScoresStatus, `${String(data.username || username).toUpperCase()} ADDED`, "success");
+    } catch (error) { setStatus(dailyScoresStatus, error.message || "Could not add artificial player.", "error"); }
+  });
+  syntheticUsersEl?.addEventListener("click", async event => {
+    const button = event.target.closest("[data-synthetic-delete]");
+    if (!button) return;
+    const name = button.dataset.syntheticName || "this artificial player";
+    if (!window.confirm(`Delete ${name} and all generated scores for that artificial player?`)) return;
+    try {
+      const {response,data} = await api("", {action:"synthetic_delete_user", userId:button.dataset.syntheticDelete});
+      if (!response.ok) throw new Error(data.error || "Could not delete artificial player.");
+      await loadDailyScores();
+    } catch (error) { setStatus(dailyScoresStatus, error.message || "Could not delete artificial player.", "error"); }
+  });
+  syntheticSelectAll?.addEventListener("click", () => {
+    const boxes = [...(syntheticUsersEl?.querySelectorAll('input[data-synthetic-select]') || [])];
+    const select = boxes.some(box => !box.checked);
+    boxes.forEach(box => { box.checked = select; });
+    syntheticSelectAll.textContent = select ? "CLEAR SELECTION" : "SELECT ALL";
+  });
+  syntheticScoreForm?.addEventListener("submit", async event => {
+    event.preventDefault();
+    const userIds = selectedSyntheticIds();
+    if (!userIds.length) { setStatus(dailyScoresStatus, "SELECT AT LEAST ONE ARTIFICIAL PLAYER.", "error"); return; }
+    setStatus(dailyScoresStatus, "GENERATING DAILY SCORES…");
+    try {
+      const {response,data} = await api("", {
+        action:"synthetic_generate_scores", date:syntheticDate?.value, userIds,
+        device:syntheticScoreDevice?.value || "",
+        minimumSeconds:syntheticMinSeconds?.value || "", maximumSeconds:syntheticMaxSeconds?.value || ""
+      });
+      if (!response.ok) throw new Error(data.error || "Could not generate scores.");
+      await loadDailyScores();
+      setStatus(dailyScoresStatus, `${(data.generated || []).length} SCORES GENERATED · ${Number(data.moves)||0} LEGITIMATE MOVES`, "success");
+    } catch (error) { setStatus(dailyScoresStatus, error.message || "Could not generate scores.", "error"); }
+  });
+  syntheticDate?.addEventListener("change", loadDailyScores);
+  dailyScoresRefresh?.addEventListener("click", loadDailyScores);
+  dailyScoresList?.addEventListener("click", async event => {
+    const button = event.target.closest("[data-daily-score-remove]");
+    if (!button) return;
+    const username = button.dataset.dailyScoreRemove;
+    const date = syntheticDate?.value || dayKey(new Date());
+    if (!window.confirm(`Remove ${username}'s public Daily score for ${date}? Their real account completion and personal result will be preserved.`)) return;
+    setStatus(dailyScoresStatus, "REMOVING SCORE…");
+    try {
+      const {response,data} = await api("", {action:"daily_remove_score", username, date});
+      if (!response.ok) throw new Error(data.error || "Could not remove score.");
+      await loadDailyScores();
+      setStatus(dailyScoresStatus, `${String(username).toUpperCase()} REMOVED FROM ${date} LEADERBOARD`, "success");
+    } catch (error) { setStatus(dailyScoresStatus, error.message || "Could not remove score.", "error"); }
+  });
+
   loginForm?.addEventListener("submit", async event => {
     event.preventDefault(); const form = new FormData(loginForm); setStatus(loginStatus, "CHECKING…");
     try {
@@ -969,7 +1107,7 @@
       loginForm.reset(); setStatus(loginStatus, ""); await loadUsers();
     } catch (_) { setStatus(loginStatus, "Could not reach the Basement API.", "error"); }
   });
-  logoutBtn?.addEventListener("click", async () => { closePractice(); try { await api("", { action:"logout" }); } catch (_) {} users=[]; completions=[]; preparedDailies=[];practiceLoaded=false;showLogin(); });
+  logoutBtn?.addEventListener("click", async () => { closePractice(); try { await api("", { action:"logout" }); } catch (_) {} users=[]; completions=[]; syntheticUsers=[]; syntheticScores=[]; preparedDailies=[];practiceLoaded=false;showLogin(); });
   refreshBtn?.addEventListener("click", loadUsers);
   if (playerSortSelect) {
     playerSortSelect.innerHTML = SORT_COLUMNS.map(([key,label]) => `<option value="${key}">${label}</option>`).join("");
@@ -981,6 +1119,7 @@
   playersTab?.addEventListener("click", () => setView("players"));
   completionsTab?.addEventListener("click", () => setView("completions"));
   dailyPracticeTab?.addEventListener("click", () => setView("daily"));
+  dailyScoresTab?.addEventListener("click", () => setView("scores"));
   if (completionPackSelect) {
     completionPackSelect.innerHTML = '<option value="">ALL LEVEL PACKS</option>' + COMPLETION_PACKS.map(([id,name]) => `<option value="${id}">${name}</option>`).join("");
     completionPackSelect.addEventListener("change", renderCompletions);

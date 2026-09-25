@@ -5,6 +5,22 @@ const MAX_PUBLIC_MOVES_PER_SECOND = 15;
 const MAX_TIMING_DRIFT_SECONDS = 0.15;
 const DAILY_LEADERBOARD_DEVICE_CLASSES = new Set(["phone", "tablet", "computer"]);
 
+
+async function ensureSyntheticDailySchema(db) {
+  await db.batch([
+    db.prepare(`CREATE TABLE IF NOT EXISTS synthetic_users (
+      id TEXT PRIMARY KEY, username TEXT NOT NULL, username_norm TEXT NOT NULL UNIQUE,
+      default_device TEXT NOT NULL DEFAULT 'computer', created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS synthetic_daily_scores (
+      user_id TEXT NOT NULL, date_key TEXT NOT NULL, seconds REAL NOT NULL, moves INTEGER NOT NULL,
+      device TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+      PRIMARY KEY(user_id, date_key), FOREIGN KEY(user_id) REFERENCES synthetic_users(id) ON DELETE CASCADE
+    )`),
+    db.prepare("CREATE INDEX IF NOT EXISTS synthetic_daily_scores_date_idx ON synthetic_daily_scores(date_key)")
+  ]);
+}
+
 function cleanDeviceClass(value) {
   const device = String(value || "").trim().toLowerCase();
   return DAILY_LEADERBOARD_DEVICE_CLASSES.has(device) ? device : "";
@@ -22,6 +38,7 @@ function validDateKey(value) {
 export async function onRequestGet(context) {
   try {
     const db = requireDatabase(context.env);
+    await ensureSyntheticDailySchema(db);
     const url = new URL(context.request.url);
     const dateKey = validDateKey(url.searchParams.get("date"));
     if (!dateKey) return json({ ok: false, error: "A valid Daily Boxxy date is required." }, 400);
@@ -75,26 +92,40 @@ export async function onRequestGet(context) {
           END AS leaderboard_device
         FROM daily_records
       )
-      SELECT username, seconds, moves, leaderboard_device
-      FROM daily_times
-      WHERE
-        seconds IS NOT NULL
-        AND seconds > 0
-        AND (
-          moves IS NULL
-          OR moves <= 1
-          OR ((moves - 1.0) / seconds) <= ?
-        )
-        AND (
-          leaderboard_started_at IS NULL
-          OR leaderboard_completed_at IS NULL
-          OR leaderboard_started_at <= 0
-          OR leaderboard_completed_at <= 0
-          OR (
-            leaderboard_completed_at >= leaderboard_started_at
-            AND ABS(((leaderboard_completed_at - leaderboard_started_at) / 1000.0) - seconds) <= ?
+      , real_scores AS (
+        SELECT username, seconds, moves, leaderboard_device
+        FROM daily_times
+        WHERE
+          seconds IS NOT NULL
+          AND seconds > 0
+          AND (
+            moves IS NULL
+            OR moves <= 1
+            OR ((moves - 1.0) / seconds) <= ?
           )
-        )
+          AND (
+            leaderboard_started_at IS NULL
+            OR leaderboard_completed_at IS NULL
+            OR leaderboard_started_at <= 0
+            OR leaderboard_completed_at <= 0
+            OR (
+              leaderboard_completed_at >= leaderboard_started_at
+              AND ABS(((leaderboard_completed_at - leaderboard_started_at) / 1000.0) - seconds) <= ?
+            )
+          )
+      ), synthetic_scores AS (
+        SELECT u.username AS username, s.seconds AS seconds, s.moves AS moves, s.device AS leaderboard_device
+        FROM synthetic_daily_scores s
+        JOIN synthetic_users u ON u.id = s.user_id
+        WHERE s.date_key = ? AND s.seconds > 0
+          AND NOT EXISTS (SELECT 1 FROM users r WHERE lower(r.username) = lower(u.username))
+      ), all_scores AS (
+        SELECT username, seconds, moves, leaderboard_device FROM real_scores
+        UNION ALL
+        SELECT username, seconds, moves, leaderboard_device FROM synthetic_scores
+      )
+      SELECT username, seconds, moves, leaderboard_device
+      FROM all_scores
       ORDER BY seconds ASC, username COLLATE NOCASE ASC
     `).bind(
       leaderboardTrackedPath, leaderboardSecondsPath, secondsPath,
@@ -102,7 +133,7 @@ export async function onRequestGet(context) {
       leaderboardTrackedPath, leaderboardStartedAtPath,
       leaderboardTrackedPath, leaderboardCompletedAtPath,
       leaderboardTrackedPath, leaderboardDevicePath,
-      MAX_PUBLIC_MOVES_PER_SECOND, MAX_TIMING_DRIFT_SECONDS
+      MAX_PUBLIC_MOVES_PER_SECOND, MAX_TIMING_DRIFT_SECONDS, dateKey
     ).all();
 
     const entries = (result.results || []).map(row => ({

@@ -7,7 +7,7 @@
 <meta name="theme-color" content="#efe5d4">
 <title>BOXXY Basement</title>
 <link rel="icon" href="../assets/ui/icons/boxxy-yellow-crate-v150.ico" sizes="any">
-<link rel="stylesheet" href="basement.css?v=365">
+<link rel="stylesheet" href="basement.css?v=374">
 </head>
 <body>
 <main class="basement-shell">
@@ -42,6 +42,7 @@
       <button id="playersTab" type="button" aria-pressed="true">PLAYERS</button>
       <button id="completionsTab" type="button" aria-pressed="false">PACK COMPLETIONS</button>
       <button id="dailyPracticeTab" type="button" aria-pressed="false">DAILY PRACTICE</button>
+      <button id="dailyScoresTab" type="button" aria-pressed="false">DAILY SCORES</button>
     </nav>
     <div class="toolbar">
       <input id="searchInput" type="search" placeholder="Search username, email or IP…" aria-label="Search account holders" hidden>
@@ -93,6 +94,38 @@
       <p id="practiceStatus" class="status" aria-live="polite"></p>
       <div id="practiceCards" class="practice-cards" aria-label="Prepared Daily level cards"></div>
     </section>
+
+    <section id="dailyScoresPanel" class="basement-daily-scores" aria-label="Daily leaderboard administration" hidden>
+      <div class="practice-intro"><div><h2>DAILY SCORES</h2><p>Private leaderboard seeding and score administration.</p></div></div>
+      <div class="daily-seed-grid">
+        <section class="daily-seed-card">
+          <h3>ARTIFICIAL PLAYERS</h3>
+          <form id="syntheticUserForm" class="daily-seed-form">
+            <label>USERNAME <input id="syntheticUsername" maxlength="20" required></label>
+            <label>DEFAULT DEVICE <select id="syntheticDevice"><option value="computer">COMPUTER</option><option value="phone">PHONE</option></select></label>
+            <button type="submit">ADD PLAYER</button>
+          </form>
+          <div class="daily-seed-actions"><button id="syntheticSelectAll" type="button">SELECT ALL</button></div>
+          <div id="syntheticUsers" class="synthetic-users"></div>
+        </section>
+        <section class="daily-seed-card">
+          <h3>GENERATE CURRENT DAILY SCORES</h3>
+          <form id="syntheticScoreForm" class="daily-seed-form">
+            <label>DATE <input id="syntheticDate" type="date" required></label>
+            <label>DEVICE <select id="syntheticScoreDevice"><option value="">PLAYER DEFAULT</option><option value="computer">COMPUTER</option><option value="phone">PHONE</option></select></label>
+            <label>MINIMUM TIME · SECONDS <input id="syntheticMinSeconds" type="number" min="1" step="1" placeholder="AUTO"></label>
+            <label>MAXIMUM TIME · SECONDS <input id="syntheticMaxSeconds" type="number" min="2" step="1" placeholder="AUTO"></label>
+            <button type="submit">GENERATE FOR SELECTED</button>
+          </form>
+          <p class="table-hint">Move count uses the stored solution for that Daily. Times are randomly generated within the chosen range, or automatically when left blank.</p>
+        </section>
+      </div>
+      <section class="daily-seed-card">
+        <div class="daily-score-head"><h3>LEADERBOARD</h3><button id="dailyScoresRefresh" type="button">REFRESH</button></div>
+        <div id="dailyScoresList" class="daily-score-list"></div>
+      </section>
+      <p id="dailyScoresStatus" class="status" aria-live="polite"></p>
+    </section>
     <p id="dashboardStatus" class="status" aria-live="polite"></p>
   </section>
 </main>
@@ -117,6 +150,6 @@
     <iframe id="practiceFrame" title="BOXXY private Daily practice" sandbox="allow-scripts" referrerpolicy="no-referrer" allow="fullscreen" allowfullscreen></iframe>
   </section>
 </div>
-<script src="basement.js?v=365"></script>
+<script src="basement.js?v=374"></script>
 </body>
 </html>

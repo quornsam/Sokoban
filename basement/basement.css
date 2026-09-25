@@ -42,3 +42,21 @@
 .admin-feature-access h3{margin:0 0 6px}.admin-feature-access p{margin:0;line-height:1.5}
 .admin-feature-action{display:grid;gap:8px}.admin-feature-action button{background:var(--ink);color:#fff}.admin-feature-action .status{margin:0;min-height:1.3em}
 @media(max-width:760px){.admin-feature-access{grid-template-columns:minmax(0,1fr)}}
+
+/* BOXXY v374 — private Daily score seeding/admin tools. */
+.daily-seed-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin:18px 0}
+.daily-seed-card{border:2px solid var(--ink);background:var(--paper);padding:18px;margin:18px 0}
+.daily-seed-card h3{margin:0 0 14px}
+.daily-seed-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:end}
+.daily-seed-form label{display:grid;gap:5px;font-size:.86em;font-weight:800;letter-spacing:.03em}
+.daily-seed-form button{align-self:end}
+.daily-seed-actions{display:flex;justify-content:flex-end;margin:14px 0 8px}
+.synthetic-users,.daily-score-list{display:grid;gap:7px}
+.synthetic-user-row,.daily-score-row{display:grid;grid-template-columns:minmax(150px,1.4fr) .7fr 1fr auto;gap:10px;align-items:center;border-top:1px solid rgba(23,23,25,.2);padding:9px 0}
+.synthetic-user-row:first-child,.daily-score-row:first-child{border-top:0}
+.synthetic-user-row label{display:flex;align-items:center;gap:8px;min-width:0}
+.synthetic-user-row button,.daily-score-row button{padding:7px 9px;font-size:.82em}
+.daily-score-row{grid-template-columns:42px minmax(120px,1.2fr) .75fr .9fr .8fr .8fr auto}
+.daily-score-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.daily-score-head h3{margin:0}
+@media(max-width:850px){.daily-seed-grid{grid-template-columns:1fr}.daily-seed-form{grid-template-columns:1fr}.daily-score-row{grid-template-columns:32px minmax(100px,1fr) .7fr .8fr}.daily-score-row span:nth-of-type(4),.daily-score-row span:nth-of-type(5){display:none}.synthetic-user-row{grid-template-columns:minmax(130px,1fr) .7fr auto}.synthetic-user-row span:nth-of-type(2){display:none}}
