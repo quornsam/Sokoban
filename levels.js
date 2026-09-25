@@ -4,6 +4,7 @@
  * Third-party puzzle layouts remain the property of their respective creators.
  * See LICENSE.md and THIRD-PARTY-NOTICES.md.
  */
+/* BOXXY v372 — display names only for the 11 Exponentially levels; identifiers and puzzle data unchanged. */
 /* BOXXY v243 — five bundled collections in one standardised level-pack file. */
 (() => {
   "use strict";
@@ -3517,7 +3518,7 @@
       {
         "rank": 1,
         "sourceNumber": "exponentially-1",
-        "name": "Exponential1-9x9-sq",
+        "name": "Point",
         "author": "Sam Cornwell",
         "tier": "EXPONENTIALLY",
         "minimum": null,
@@ -3537,7 +3538,7 @@
       {
         "rank": 2,
         "sourceNumber": "exponentially-2",
-        "name": "Exponential2-11x11-sq",
+        "name": "Segment",
         "author": "Sam Cornwell",
         "tier": "EXPONENTIALLY",
         "minimum": null,
@@ -3559,7 +3560,7 @@
       {
         "rank": 3,
         "sourceNumber": "exponentially-3",
-        "name": "Exponential3-13x13-sq",
+        "name": "Square",
         "author": "Sam Cornwell",
         "tier": "EXPONENTIALLY",
         "minimum": null,
@@ -3583,7 +3584,7 @@
       {
         "rank": 4,
         "sourceNumber": "exponentially-4",
-        "name": "Exponential4-15x15-sq",
+        "name": "Cube",
         "author": "Sam Cornwell",
         "tier": "EXPONENTIALLY",
         "minimum": null,
@@ -3611,7 +3612,7 @@
       {
         "rank": 5,
         "sourceNumber": "exponentially-5",
-        "name": "Exponential5-17x17-sq",
+        "name": "Tesseract",
         "author": "Sam Cornwell",
         "tier": "EXPONENTIALLY",
         "minimum": null,
@@ -3641,7 +3642,7 @@
       {
         "rank": 6,
         "sourceNumber": "exponentially-6",
-        "name": "Exponential6-19x19-sq",
+        "name": "Penteract",
         "author": "Sam Cornwell",
         "tier": "EXPONENTIALLY",
         "minimum": null,
@@ -3673,7 +3674,7 @@
       {
         "rank": 7,
         "sourceNumber": "exponentially-7",
-        "name": "Exponential7-21x21-sq",
+        "name": "Hexeract",
         "author": "Sam Cornwell",
         "tier": "EXPONENTIALLY",
         "minimum": null,
@@ -3707,7 +3708,7 @@
       {
         "rank": 8,
         "sourceNumber": "exponentially-8",
-        "name": "Exponential8-23x23-sq",
+        "name": "Hepteract",
         "author": "Sam Cornwell",
         "tier": "EXPONENTIALLY",
         "minimum": null,
@@ -3743,7 +3744,7 @@
       {
         "rank": 9,
         "sourceNumber": "exponentially-9",
-        "name": "Exponential9-25x25-sq",
+        "name": "Octeract",
         "author": "Sam Cornwell",
         "tier": "EXPONENTIALLY",
         "minimum": null,
@@ -3781,7 +3782,7 @@
       {
         "rank": 10,
         "sourceNumber": "exponentially-10",
-        "name": "Exponential10-27x27-sq",
+        "name": "Enneract",
         "author": "Sam Cornwell",
         "tier": "EXPONENTIALLY",
         "minimum": null,
@@ -3821,7 +3822,7 @@
       {
         "rank": 11,
         "sourceNumber": "exponentially-11",
-        "name": "Exponential11-29x29-sq",
+        "name": "Dekeract",
         "author": "Sam Cornwell",
         "tier": "EXPONENTIALLY",
         "minimum": null,

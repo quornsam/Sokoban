@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "371",
-  lastUpdated: "2026-09-24"
+  version: "372",
+  lastUpdated: "2026-09-25"
 });
+/* BOXXY v372: clarify Daily and pack wording and hide redundant signed-in leaderboard note; preserve gameplay. */
 /* BOXXY v371: widen Zen arrows horizontally only; keep the board/actions clear and suppress native iOS pad gestures. */
 /* BOXXY v370: existing Spaced Arrows option adds 30–40px gaps in phone Zen Mode, with matching pad dimensions. */
 /* BOXXY v369: touch Turbo uses a deliberate hold and display-frame-paced repeats to prevent accidental extra moves and uneven phone rendering. */
@@ -3485,8 +3486,10 @@ window.BOXXY_RELEASE = Object.freeze({
 
   function updateDailyLeaderboardAccountNote() {
     if (!dailyLeaderboardNote) return;
-    dailyLeaderboardNote.textContent = signedInLeaderboardUsername()
-      ? "Your signed-in name is highlighted in the high scores."
+    const signedIn = Boolean(signedInLeaderboardUsername());
+    dailyLeaderboardNote.hidden = signedIn;
+    dailyLeaderboardNote.textContent = signedIn
+      ? ""
       : "Sign in with your account if you want to see your score here too.";
   }
 
