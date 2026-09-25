@@ -654,11 +654,11 @@
       if(practiceSession?.requestId!==requestId)return;
       if(!response.ok)throw new Error(source.slice(0,400)||`Practice request failed (${response.status}).`);
       if(!response.headers.get("content-type")?.includes("text/html") || !source.includes('practice-runtime.js?v=357'))
-        throw new Error("The practice page is missing or does not match v357. Re-upload the complete replacement.");
+        throw new Error("The practice page is missing or incompatible. Re-upload the complete replacement.");
       practiceLoading("Preparing private character artwork…");
       const privateAssets=await loadPrivateImageAssets();
       if(practiceSession?.requestId!==requestId)return;
-      if(!source.includes("__BOXXY_PRIVATE_ASSET_DATA__"))throw new Error("The private practice page does not match v357.");
+      if(!source.includes("__BOXXY_PRIVATE_ASSET_DATA__"))throw new Error("The private practice page is incompatible.");
       const assetPayload=JSON.stringify(privateAssets).replace(/</g,"\\u003c").replace(/>/g,"\\u003e").replace(/&/g,"\\u0026");
       practiceLoading("Loading the private game…");
       practiceFrame.srcdoc=source.replace("__BOXXY_PRIVATE_ASSET_DATA__",assetPayload);

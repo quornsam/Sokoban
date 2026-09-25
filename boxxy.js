@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "372",
+  version: "373",
   lastUpdated: "2026-09-25"
 });
+/* BOXXY v373: Basement practice compatibility release; gameplay unchanged. */
 /* BOXXY v372: clarify Daily and pack wording and hide redundant signed-in leaderboard note; preserve gameplay. */
 /* BOXXY v371: widen Zen arrows horizontally only; keep the board/actions clear and suppress native iOS pad gestures. */
 /* BOXXY v370: existing Spaced Arrows option adds 30–40px gaps in phone Zen Mode, with matching pad dimensions. */
