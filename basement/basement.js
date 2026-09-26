@@ -954,7 +954,7 @@
         <section><h3>ACTIVITY · LAST 7 DAYS</h3>${activityStrip(user.summary)}</section>
         <details><summary>PACK COMPLETION HISTORY</summary>${completionDetail(data.completions)}</details>
         <details><summary>PROGRESS SUMMARY</summary>${detailProgress(user.summary)}</details>
-        <section><h3>PLAY HISTORY</h3><div id="basementPlayerHistory" class="history-browser"></div></section>
+        <details class="admin-player-history"><summary>PLAY HISTORY</summary><div id="basementPlayerHistory" class="history-browser"></div></details>
         <details><summary>OLDER AGGREGATE ATTEMPT COUNTS</summary>${detailAttempts(user.summary)}</details>
         <section><h3>RAW CLOUD SAVE</h3><pre class="raw-progress">${escapeHtml(JSON.stringify(user.progress || {}, null, 2))}</pre></section>`;
       detailModal.hidden = false;

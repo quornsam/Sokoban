@@ -102,14 +102,22 @@
   const accountPlayHistory = document.getElementById('accountPlayHistory');
   const accountPlayHistoryContent = document.getElementById('accountPlayHistoryContent');
   let historyLoadedFor = '';
+  let historyOpeningToken = 0;
   accountPlayHistory?.addEventListener('toggle', () => {
+    const opening = ++historyOpeningToken;
     if (!accountPlayHistory.open || !account || !window.BOXXYHistoryUI) return;
-    if (historyLoadedFor === account.id) return;
-    historyLoadedFor = account.id;
-    window.BOXXYHistoryUI.mount(accountPlayHistoryContent, query => {
-      const params = new URLSearchParams(query);
-      return '/api/attempts' + (params.size ? '?' + params : '');
-    });
+    const userId = account.id;
+    historyLoadedFor = userId;
+    const display = () => {
+      if (opening !== historyOpeningToken || !accountPlayHistory.open || account?.id !== userId) return;
+      historyLoadedFor = userId; // Refresh on every opening, including newly played levels.
+      window.BOXXYHistoryUI.mount(accountPlayHistoryContent, query => {
+        const params = new URLSearchParams(query);
+        return '/api/attempts' + (params.size ? '?' + params : '');
+      });
+    };
+    accountPlayHistoryContent.replaceChildren(document.createTextNode('Updating play history…'));
+    Promise.resolve(window.BOXXYAttemptHistory?.flush?.()).then(display, display);
   });
   const accountGuest = document.getElementById("accountGuest");
   const googleLinked = document.getElementById("accountGoogleLinked");

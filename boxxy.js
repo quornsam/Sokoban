@@ -6,7 +6,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "376",
+  version: "377",
   lastUpdated: "2026-09-26"
 });
 /* BOXXY v375: Basement synthetic Daily move-count variation; gameplay unchanged. */
@@ -1589,6 +1589,17 @@ window.BOXXY_RELEASE = Object.freeze({
     return { version: 1, levels: {} };
   }
 
+  let armedLevelAttempt = null;
+  function armLevelAttempt(packId, levelToken, details = {}) {
+    armedLevelAttempt = {packId:String(packId),levelToken:String(levelToken),details};
+  }
+  function closeLevelHistory(reason = 'left') {
+    // End the previous run before gameplay resets its clock and counters.
+    window.BOXXYAttemptHistory?.end?.(reason, startedAt ? {
+      seconds: elapsedLevelSeconds(Date.now()), moves, pushes
+    } : null);
+    armedLevelAttempt = null;
+  }
   function recordLevelAttempt(packId, levelToken, details = {}) {
     const cleanPackId = String(packId || "").trim();
     const cleanToken = String(levelToken ?? "").trim();
@@ -1615,23 +1626,25 @@ window.BOXXY_RELEASE = Object.freeze({
       localStorage.setItem(LEVEL_ATTEMPTS_KEY, JSON.stringify(data));
       window.BOXXYAttemptHistory?.start?.(cleanPackId, cleanToken, {
         packName:data.levels[key].packName, levelNumber:data.levels[key].levelNumber,
-        levelName:data.levels[key].levelName
+        levelName:data.levels[key].levelName,
+        startedAt:Date.now()
       });
     } catch (_) {}
   }
 
   window.addEventListener('boxxyaccountfeatures', event => {
-    if (!event.detail?.loggedIn || completed || makerTesting || sharedPuzzleMode ||
+    if (!event.detail?.loggedIn || !startedAt || moves < 1 || completed ||
+        makerTesting || sharedPuzzleMode || makerDailyPractice ||
         window.BOXXYAttemptHistory?.hasActive?.()) return;
     if (dailyMode && dailyPuzzle && dailyScoringAllowedFor(dailyPuzzle)) {
       window.BOXXYAttemptHistory?.start?.('daily-boxxy', String(dailyPuzzle.date || dailyPuzzle.sequence), {
         packName:'Daily Boxxy', levelNumber:Number(dailyPuzzle.sequence) || 0,
-        levelName:String(dailyPuzzle.date || 'Daily Boxxy')
+        levelName:String(dailyPuzzle.date || 'Daily Boxxy'), startedAt
       });
     } else if (!dailyMode && activePack && levelData) {
       window.BOXXYAttemptHistory?.start?.(activePack.id, String(levelIndex+1), {
         packName:String(activePack.displayName || activePack.title || activePack.id || ''),
-        levelNumber:levelIndex+1, levelName:String(levelData.name || '')
+        levelNumber:levelIndex+1, levelName:String(levelData.name || ''), startedAt
       });
     }
   });
@@ -7418,7 +7431,14 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   function startLevelTimerIfNeeded() {
-    if (startedAt || completed) return;
+    if (completed) return;
+    // A level load, restart, blocked direction or untouched starting board is NOT an attempt.
+    if (armedLevelAttempt && !autoplayRunning && !makerTesting && !sharedPuzzleMode && !makerDailyPractice) {
+      const attempt = armedLevelAttempt;
+      armedLevelAttempt = null;
+      recordLevelAttempt(attempt.packId, attempt.levelToken, attempt.details);
+    }
+    if (startedAt) return;
     startedAt = Date.now();
     clearInterval(timer);
     timer = setInterval(updateTime, 250);
@@ -7572,6 +7592,7 @@ window.BOXXY_RELEASE = Object.freeze({
       showDailyInvite(true);
       return false;
     }
+    closeLevelHistory('restart');
     stopAutoplay();
     guidedSolveUsed = false;
     resetGuidedSolveSecret();
@@ -7656,7 +7677,7 @@ window.BOXXY_RELEASE = Object.freeze({
     if (thoughtText) thoughtText.textContent = `Daily Boxxy #${Number(puzzle.sequence) || ""}. One puzzle. One day. Good luck.`;
     refreshLevelButtons();
     if (!guidedRestart && dailyScoringAllowedFor(puzzle)) {
-      recordLevelAttempt("daily-boxxy", String(puzzle.date || puzzle.sequence || "daily"), {
+      armLevelAttempt("daily-boxxy", String(puzzle.date || puzzle.sequence || "daily"), {
         packName: "Daily Boxxy",
         levelNumber: Number(puzzle.sequence) || 0,
         levelName: String(puzzle.date || "Daily Boxxy")
@@ -7682,6 +7703,7 @@ window.BOXXY_RELEASE = Object.freeze({
     if (makerReturnBtn) makerReturnBtn.hidden = true;
     const requestedIndex = (index + LEVELS.length) % LEVELS.length;
     if (!preserveAutoplay && requestedIndex > highestUnlockedLevel) return;
+    closeLevelHistory('left');
     if (!preserveAutoplay) stopAutoplay();
     guidedSolveUsed = false;
     instantMoveUsedThisLevel = false;
@@ -7746,7 +7768,7 @@ window.BOXXY_RELEASE = Object.freeze({
     showCharacterThought(null, !thoughtReady);
     refreshLevelButtons();
     if (!preserveAutoplay && !quietReturn) {
-      recordLevelAttempt(activePack.id, String(levelIndex + 1), {
+      armLevelAttempt(activePack.id, String(levelIndex + 1), {
         packName: String(activePack.displayName || activePack.title || activePack.id || ""),
         levelNumber: levelIndex + 1,
         levelName: String(levelData?.name || `Level ${levelIndex + 1}`)
@@ -7766,6 +7788,7 @@ window.BOXXY_RELEASE = Object.freeze({
       if (!Array.isArray(layoutRows) || !layoutRows.length) throw new Error("The level is empty.");
       const cleanRows = layoutRows.map(row => String(row));
       const parsed = parseLayout(cleanRows, options.goalColours);
+      closeLevelHistory('left');
       stopAutoplay();
       guidedSolveUsed = false;
       closeLevelPicker();
@@ -8018,6 +8041,9 @@ window.BOXXY_RELEASE = Object.freeze({
     }
 
     playedRoute += DELTA_TO_CODE(dx, dy);
+    if (!makerTesting && !sharedPuzzleMode && !makerDailyPractice) {
+      window.BOXXYAttemptHistory?.progress?.({moves, pushes, seconds:elapsedLevelSeconds(Date.now())});
+    }
     if (!turboAnimationSuppressed && !instantMoveBatchExecuting) {
       scheduleIdle();
       const animationHold = boxxyInstantSpeedActive() && forceTurboAnimation

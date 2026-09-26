@@ -15,10 +15,10 @@ export async function onRequest(context) {
           packId:url.searchParams.get('packId'),levelToken:url.searchParams.get('levelToken'),
           sort:url.searchParams.get('sort'),direction:url.searchParams.get('direction'),
           offset:url.searchParams.get('offset')
-        });
+        },session.user.progress_json);
         return json({ok:true,...level},200,headers);
       }
-      return json({ok:true,...await readAttemptOverview(db,session.user.id)},200,headers);
+      return json({ok:true,...await readAttemptOverview(db,session.user.id,session.user.progress_json)},200,headers);
     }
     if (context.request.method === 'POST') {
       const body = await context.request.json();

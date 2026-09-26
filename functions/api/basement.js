@@ -503,7 +503,7 @@ async function userDetail(context, id) {
     user, stats.get(String(user.id)), firstLogins.get(String(user.id))
   ), true);
   await ensureAttemptHistorySchema(db);
-  const history = await readAttemptOverview(db,id);
+  const history = await readAttemptOverview(db,id,user.progress_json);
   return json({ ok: true, authenticated: true, user: mapped, sessions, history,
     completions: completionRecordsForUsers([mapped], records) });
 }
@@ -544,11 +544,13 @@ export async function onRequest(context) {
     const id = String(url.searchParams.get("user") || "").trim();
     if (id && url.searchParams.has('packId')) {
       await ensureAttemptHistorySchema(db);
+      const progressRow = await db.prepare('SELECT progress_json FROM users WHERE id = ?').bind(id).first();
+      if (!progressRow) return json({ok:false,error:'User not found.'},404);
       const history = await readLevelAttemptHistory(db,id,{
         packId:url.searchParams.get('packId'),levelToken:url.searchParams.get('levelToken'),
         sort:url.searchParams.get('sort'),direction:url.searchParams.get('direction'),
         offset:url.searchParams.get('offset')
-      });
+      },progressRow.progress_json);
       return json({ok:true,authenticated:true,...history});
     }
     return id ? await userDetail(context, id) : await listUsers(context);

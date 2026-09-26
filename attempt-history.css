@@ -1,17 +1,29 @@
-/* BOXXY v376: history is inside account settings and Basement, never the gameplay board. */
-.history-browser { font:inherit; color:inherit; max-width:100%; }
-.history-browser details { border:1px solid currentColor; border-radius:5px; margin:.45rem 0; padding:.55rem; }
-.history-browser summary { cursor:pointer; font-weight:700; padding:.35rem; }
-.history-browser .history-level { margin:.35rem 0 .35rem .65rem; }
-.history-browser .history-note {font-size:.8em; opacity:.78; margin:.55rem 0;}
-.history-browser .history-recent {display:grid;gap:.35rem; margin:.7rem 0 1.1rem;}
-.history-browser .history-recent h4 { margin:.25rem 0; }
-.history-browser .history-recent button {display:block;text-align:left;white-space:normal; padding:.6rem;border:1px solid currentColor;border-radius:5px;background:transparent;color:inherit;cursor:pointer;}
+/* BOXXY v377: grouped, pack-coloured Play History shared by players and Basement. */
+.history-browser {font:inherit;color:inherit;max-width:100%;}
+.history-browser details {border:1px solid #989083;border-radius:5px;margin:.45rem 0;padding:.55rem;}
+.history-browser summary {cursor:pointer;font-weight:800;padding:.45rem;}
+.history-browser .history-pack {--history-pack-accent:#171719;--history-pack-ink:#fff;background:#fffbf5;}
+.history-browser .history-pack > summary {background:var(--history-pack-accent);color:var(--history-pack-ink);border-radius:3px;padding:.75rem;}
+.history-browser .history-pack .history-level {margin:.45rem 0 .45rem .55rem;background:#fffdf9;color:#171719;}
+.history-browser .history-note {font-size:.82em;opacity:.78;margin:.65rem 0;line-height:1.4;}
+.history-browser .history-recent {margin:.85rem 0 1.2rem;background:#fff9ee;}
+.history-browser .history-recent > summary {font-weight:900;}
+.history-browser .history-recent-items {display:grid;gap:.35rem;padding:.35rem 0;}
+.history-browser .history-recent button {display:block;text-align:left;white-space:normal;padding:.7rem;border:1px solid #333;border-left:8px solid var(--history-pack-accent,#171719);border-radius:5px;background:#fffdf9;color:#171719;cursor:pointer;line-height:1.3;font-weight:760;}
+.history-browser .history-recent button:hover,.history-browser .history-recent button:focus-visible {background:var(--history-pack-accent);color:var(--history-pack-ink);}
 .history-browser .history-table-wrap {overflow-x:auto;}
-.history-browser .history-controls {display:flex;flex-wrap:wrap;align-items:center;gap:.45rem;padding:.6rem 0;}
-.history-browser select {font:inherit; max-width:100%;}
-.history-browser .history-table {width:100%;border-collapse:collapse; font-size:.82em;min-width:390px;}
-.history-browser .history-table th,.history-browser .history-table td {padding:.4rem .3rem;text-align:left; border-bottom:1px solid #8886;}
-.history-browser .history-best {background:#37a86e33; font-weight:900; outline:1px solid #37a86e;}
-.account-play-history {border:1px solid currentColor;border-radius:6px;padding:.85rem;margin:1rem 0;}
-.account-play-history > summary {cursor:pointer;font-weight:800;letter-spacing:.06em;}
+.history-browser .history-controls {display:flex;flex-wrap:wrap;align-items:center;gap:.45rem;padding:.7rem 0;}
+.history-browser select {font:inherit;max-width:100%;}
+.history-browser .history-table {width:100%;border-collapse:collapse;font-size:.85em;min-width:390px;}
+.history-browser .history-table th,.history-browser .history-table td {padding:.45rem .3rem;text-align:left;border-bottom:1px solid #8886;}
+.history-browser .history-incomplete {background:#f5f2ed;}
+.history-browser .history-missing {color:#777;}
+.history-browser .history-best {background:#37a86e33;font-weight:900;outline:1px solid #37a86e;}
+.history-browser .history-legacy {color:#68635e;background:#f1eee9;border-left:4px solid #a9a29c;padding:.7rem;margin:.45rem 0;font-size:.86em;}
+.history-browser .history-legacy:empty {display:none;}
+.history-browser .history-legacy p {margin:.4rem 0;line-height:1.4;}
+.history-browser .history-saved-bests {font-weight:800;}
+.account-play-history {border:2px solid #171719;border-radius:6px;margin:1rem 0;background:#fff9ef;}
+.account-play-history > summary {cursor:pointer;font-weight:900;letter-spacing:.06em;background:#8e44ad;color:#fff;padding:.9rem 1rem;}
+.account-play-history > summary:hover,.account-play-history > summary:focus-visible {background:#70318e;color:#fff;}
+.account-play-history > .history-browser {padding:.9rem;}

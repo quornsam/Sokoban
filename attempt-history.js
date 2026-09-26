@@ -1,4 +1,4 @@
-/* BOXXY v376 — signed-in, offline-safe per-run history, independent of best-score saves. */
+/* BOXXY v377 — signed-in, offline-safe per-run history, independent of best-score saves. */
 (() => {
   'use strict';
   const PREFIX = 'boxxy-run-history-queue-v1:';
@@ -6,6 +6,8 @@
   let active = null;
   let sending = false;
   let flushTimer = 0;
+  let lastProgressSave = 0;
+  const validMetric = value => typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null;
   function scheduleFlush() {
     if (flushTimer) return;
     flushTimer = setTimeout(() => { flushTimer = 0; flush(); }, 2000);
@@ -37,28 +39,48 @@
       id:uid(), packId:String(packId), levelToken:String(levelToken),
       packName:String(details.packName || packId),
       levelNumber:Number(details.levelNumber) || 0,
-      levelName:String(details.levelName || ''), startedAt:Date.now(),
+      levelName:String(details.levelName || ''), startedAt:Number(details.startedAt) || Date.now(),
       endedAt:null, completed:false, seconds:null, moves:null, pushes:null,
-      assisted:false, endReason:''
+      assisted:false, endReason:'', ownerId:userId
     };
     stash(active, userId);
+    lastProgressSave = Date.now();
   }
-  function end(reason='left', result=null) {
-    if (!active) return;
-    const userId = USER();
-    if (userId) {
-      const now = Date.now();
-      active.endedAt = now;
-      active.endReason = result ? 'completed' : reason;
-      if (result) {
-        active.completed = true;
-        active.seconds = Math.max(0, Number(result.seconds) || 0);
-        active.moves = Math.max(0, Math.trunc(Number(result.moves) || 0));
-        active.pushes = Math.max(0, Math.trunc(Number(result.pushes) || 0));
-        active.assisted = Boolean(result.assisted);
-      }
-      stash(active, userId);
+  function progress(result = {}) {
+    if (!active || active.completed) return;
+    for (const metric of ['seconds','moves','pushes']) {
+      const value = validMetric(result[metric]);
+      if (value !== null) active[metric] = metric === 'seconds' ? value : Math.trunc(value);
     }
+    // No network calls on movement. Persist at most every 15 seconds so a crash
+    // loses at most a short interval; always persist when ending a run.
+    if (Date.now() - lastProgressSave >= 15000) {
+      stash(active, active.ownerId);
+      lastProgressSave = Date.now();
+    }
+  }
+  function end(reason='left', partial=null) {
+    if (!active) return;
+    const now = Date.now();
+    if (partial) progress(partial);
+    active.endedAt = now;
+    active.endReason = reason;
+    active.seconds = Math.max(active.seconds ?? 0, (now-active.startedAt)/1000);
+    stash(active, active.ownerId);
+    active = null;
+    scheduleFlush();
+  }
+  function finish(result) {
+    if (!active || !result) return;
+    progress(result);
+    active.completed = true;
+    active.seconds = Math.max(0, Number(result.seconds) || 0);
+    active.moves = Math.max(0, Math.trunc(Number(result.moves) || 0));
+    active.pushes = Math.max(0, Math.trunc(Number(result.pushes) || 0));
+    active.assisted = Boolean(result.assisted);
+    active.endedAt = Date.now();
+    active.endReason = 'completed';
+    stash(active, active.ownerId);
     active = null;
     scheduleFlush();
   }
@@ -97,6 +119,8 @@
       if (entry.endedAt == null && (!active || entry.id !== active.id)) {
         entry.endedAt = Date.now();
         entry.endReason = 'interrupted';
+        // Do not count the hours since a crash as playing time.
+        if (entry.seconds == null && entry.startedAt) entry.seconds = null;
         changed = true;
       }
     }
@@ -104,10 +128,10 @@
     flush();
   }
   window.BOXXYAttemptHistory = Object.freeze({
-    start, finish:result => end('completed',result), end, flush, hasActive:()=>Boolean(active)
+    start, finish, progress, end, flush, hasActive:()=>Boolean(active)
   });
   window.addEventListener('boxxyaccountfeatures', event => {
-    if (!event.detail?.loggedIn) active = null;
+    if (!event.detail?.loggedIn) end('signed_out');
     else recoverPending();
   });
   window.addEventListener('online', flush);
