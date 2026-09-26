@@ -6,7 +6,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "377",
+  version: "378",
   lastUpdated: "2026-09-26"
 });
 /* BOXXY v375: Basement synthetic Daily move-count variation; gameplay unchanged. */

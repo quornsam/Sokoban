@@ -1,4 +1,4 @@
-/* BOXXY v377: grouped, pack-coloured Play History shared by players and Basement. */
+/* BOXXY v378: concise, pack-coloured Play History shared by players and Basement. */
 .history-browser {font:inherit;color:inherit;max-width:100%;}
 .history-browser details {border:1px solid #989083;border-radius:5px;margin:.45rem 0;padding:.55rem;}
 .history-browser summary {cursor:pointer;font-weight:800;padding:.45rem;}
@@ -19,10 +19,8 @@
 .history-browser .history-incomplete {background:#f5f2ed;}
 .history-browser .history-missing {color:#777;}
 .history-browser .history-best {background:#37a86e33;font-weight:900;outline:1px solid #37a86e;}
-.history-browser .history-legacy {color:#68635e;background:#f1eee9;border-left:4px solid #a9a29c;padding:.7rem;margin:.45rem 0;font-size:.86em;}
-.history-browser .history-legacy:empty {display:none;}
-.history-browser .history-legacy p {margin:.4rem 0;line-height:1.4;}
-.history-browser .history-saved-bests {font-weight:800;}
+.history-browser .history-earlier-row {background:#f1eee9;color:#5a5754;}
+.history-browser .history-earlier-row td:first-child {font-weight:800;white-space:nowrap;}
 .account-play-history {border:2px solid #171719;border-radius:6px;margin:1rem 0;background:#fff9ef;}
 .account-play-history > summary {cursor:pointer;font-weight:900;letter-spacing:.06em;background:#8e44ad;color:#fff;padding:.9rem 1rem;}
 .account-play-history > summary:hover,.account-play-history > summary:focus-visible {background:#70318e;color:#fff;}
