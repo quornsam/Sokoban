@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "379",
+  version: "380",
   lastUpdated: "2026-09-26"
 });
+/* BOXXY v380: Exponentially history titles use current canonical names; gameplay unchanged. */
 /* BOXXY v379: replay history links to published Dailys and unlocked ordinary levels. */
 /* BOXXY v375: Basement synthetic Daily move-count variation; gameplay unchanged. */
 /* BOXXY v374: private Daily seeding/admin leaderboard tools and 250×250 Level Maker. */

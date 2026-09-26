@@ -887,7 +887,12 @@
       const levelLabel = item.packId === "daily-boxxy"
         ? `Daily #${Number(item.levelNumber || 0) || escapeHtml(item.levelToken || "")}`
         : `Level ${Number(item.levelNumber || 0) || escapeHtml(item.levelToken || "")}`;
-      const name = item.levelName && item.levelName !== item.levelToken ? ` · ${escapeHtml(item.levelName)}` : "";
+      // The separate pre-v376 aggregate list also needs the current names;
+      // the main Play History already resolves them through this shared UI.
+      const displayName = item.packId === "exponentially"
+        ? (window.BOXXYHistoryUI?.levelNameFor?.(item) || item.levelName)
+        : item.levelName;
+      const name = displayName && displayName !== item.levelToken ? ` · ${escapeHtml(displayName)}` : "";
       return `<div><span><strong>${escapeHtml(item.packName || item.packId || "Pack")}</strong> · ${levelLabel}${name}</span><b>${Number(item.count || 0)} attempt${Number(item.count || 0) === 1 ? "" : "s"}</b><small>Last ${escapeHtml(dateTime(item.lastAt))}</small></div>`;
     }).join("")}</div>`;
   }

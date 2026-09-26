@@ -1,4 +1,4 @@
-/* BOXXY v379 — Daily release dates, newest-first groups, 50-at-a-time history and direct level links. */
+/* BOXXY v380 — current Exponentially titles in player and Basement history, including older records. */
 (() => {
   'use strict';
   const date = ms => ms ? new Date(Number(ms)).toLocaleString('en-GB', { dateStyle:'medium',timeStyle:'short' }) : '—';
@@ -19,6 +19,13 @@
     microban:'Microban', jigsaw:'The Jigsaw', 'alphabet-soup':'Alphabet Soup',
     'starry-night':'Starry Night', exponentially:'Exponentially'
   });
+  // Attempts and older cloud saves can retain Exponentially's pre-v372 names.
+  // Resolve its current display titles by stable puzzle identity, never by
+  // the historical levelName field. Basement does not load levels.js.
+  const EXPONENTIALLY_NAMES = Object.freeze([
+    'Point','Segment','Square','Cube','Tesseract','Penteract',
+    'Hexeract','Hepteract','Octeract','Enneract','Dekeract'
+  ]);
   const TOP_PACKS = ['daily-boxxy','boxxy-original-puzzle-pack-of-50-levels','microban'];
   const PACK_ACCENTS = Object.freeze({
     'boxxy-original-puzzle-pack-of-50-levels':'red',microban:'black',jigsaw:'teal',
@@ -85,7 +92,19 @@
     const number=Number(level.levelNumber)||Number(level.levelToken);
     return Number.isSafeInteger(number)&&number>0?number:null;
   }
+  function canonicalExponentiallyName(level) {
+    if (level.packId!=='exponentially') return '';
+    const token=String(level.levelToken??'').trim();
+    // The recorded numeric token identifies the puzzle; levelNumber is a
+    // fallback for older records without a usable token.
+    const match=/^(?:exponentially-)?(\d+)$/.exec(token);
+    const number=match?Number(match[1]):Number(level.levelNumber);
+    return Number.isSafeInteger(number)&&number>=1&&number<=EXPONENTIALLY_NAMES.length
+      ? EXPONENTIALLY_NAMES[number-1] : '';
+  }
   function actualLevelName(level) {
+    const canonical=canonicalExponentiallyName(level);
+    if (canonical) return canonical;
     const candidate=String(level.levelName||'').trim();
     if(!candidate) return '';
     const pack=labelFor(level);
@@ -294,5 +313,5 @@
     if (overview) render(overview);
     else {root.replaceChildren(el('p','Loading history…'));get({}).then(render).catch(error=>root.replaceChildren(el('p',error.message)));}
   }
-  window.BOXXYHistoryUI=Object.freeze({mount});
+  window.BOXXYHistoryUI=Object.freeze({mount,levelNameFor:actualLevelName});
 })();
