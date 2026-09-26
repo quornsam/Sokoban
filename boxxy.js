@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "378",
+  version: "379",
   lastUpdated: "2026-09-26"
 });
+/* BOXXY v379: replay history links to published Dailys and unlocked ordinary levels. */
 /* BOXXY v375: Basement synthetic Daily move-count variation; gameplay unchanged. */
 /* BOXXY v374: private Daily seeding/admin leaderboard tools and 250×250 Level Maker. */
 /* BOXXY v372: clarify Daily and pack wording and hide redundant signed-in leaderboard note; preserve gameplay. */
@@ -10101,7 +10102,24 @@ window.BOXXY_RELEASE = Object.freeze({
     }
     if (event.key === "Escape" && !levelPicker.hidden) closeLevelPicker();
   });
+  function playHistoryLevel(packId,levelToken) {
+    if (sharedPuzzleMode||makerTesting||window.BOXXY_PRIVATE_PRACTICE) return false;
+    if (packId==='daily-boxxy') {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(String(levelToken||''))) return false;
+      const puzzle=visibleDailyPuzzles().find(item=>String(item.date)===String(levelToken));
+      return puzzle ? loadDailyPuzzle(puzzle) : false;
+    }
+    if (!/^[a-z0-9][a-z0-9-]{0,59}$/i.test(String(packId||'')) ||
+        !/^\d+$/.test(String(levelToken||''))) return false;
+    const index=Number(levelToken)-1;
+    const pack=PACK_BY_ID.get(packId);
+    if (!pack||packIsLocked(pack)||!Number.isSafeInteger(index)||index<0||index>=pack.levels.length ||
+        index>readPackLevelProgress(pack).highestUnlocked) return false;
+    activatePackLevel(packId,index);
+    return true;
+  }
   window.BoxxyGameAPI = {
+    playHistoryLevel,
     startMakerTest(layoutRows, attachedSolution = "", options = {}) { return loadMakerTest(layoutRows, attachedSolution, options); },
     exitMakerTest() { exitMakerTest(); },
     restartMakerTest() { restartMakerTest(); },
@@ -10137,6 +10155,15 @@ window.BOXXY_RELEASE = Object.freeze({
       initial_level_number: Number(levelIndex) + 1
     });
     loadLevel(levelIndex);
+    // Basement links open a fresh game tab at the selected published Daily or
+    // unlocked pack level. Invalid and locked links leave ordinary startup alone.
+    try {
+      const deepLink=new URLSearchParams(window.location.search);
+      const daily=deepLink.get('playDaily');
+      if (daily) playHistoryLevel('daily-boxxy',daily);
+      else if (deepLink.has('playPack')&&deepLink.has('playLevel'))
+        playHistoryLevel(deepLink.get('playPack'),deepLink.get('playLevel'));
+    } catch (_) {}
     if (SHARED_PUZZLE_PAYLOAD && !SHARED_PUZZLE_PAYLOAD.ok && thoughtText) {
       thoughtText.textContent = SHARED_PUZZLE_PAYLOAD.error || "That shared puzzle link could not be read.";
     }

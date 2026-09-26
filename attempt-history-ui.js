@@ -1,4 +1,4 @@
-/* BOXXY v378 — concise, ordered, pack-coloured player and Basement history. */
+/* BOXXY v379 — Daily release dates, newest-first groups, 50-at-a-time history and direct level links. */
 (() => {
   'use strict';
   const date = ms => ms ? new Date(Number(ms)).toLocaleString('en-GB', { dateStyle:'medium',timeStyle:'short' }) : '—';
@@ -22,13 +22,13 @@
   const TOP_PACKS = ['daily-boxxy','boxxy-original-puzzle-pack-of-50-levels','microban'];
   const PACK_ACCENTS = Object.freeze({
     'boxxy-original-puzzle-pack-of-50-levels':'red',microban:'black',jigsaw:'teal',
-    'alphabet-soup':'black','starry-night':'yellow',exponentially:'purple','daily-boxxy':'blue'
+    'alphabet-soup':'yellow','starry-night':'yellow',exponentially:'purple','daily-boxxy':'blue'
   });
   function colour(packId) {
     // In the public game prefer the actual pack metadata; Basement uses the
     // same established accents when the gameplay pack scripts are not loaded.
     const pack=window.BOXXY_LEVEL_PACKS?.find?.(entry=>entry.id===packId);
-    const accent=String(pack?.accent||PACK_ACCENTS[packId]||'black').toLowerCase();
+    const accent=packId==='alphabet-soup'?'yellow':String(pack?.accent||PACK_ACCENTS[packId]||'black').toLowerCase();
     return {background:ACCENTS[accent]||ACCENTS.black,foreground:accent==='yellow'?'#171719':'#ffffff'};
   }
   function tint(node,packId) {
@@ -38,7 +38,27 @@
     return node;
   }
   const labelFor = level => PACK_LABELS[level.packId] || level.packName || level.packId;
-  const validDate = value => /^\d{4}-\d{2}-\d{2}$/.test(String(value || ''));
+  const validDate = value => {
+    const candidate=String(value||'');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(candidate)) return false;
+    const parsed=new Date(candidate+'T12:00:00Z');
+    return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0,10)===candidate;
+  };
+  const publishedDate = level => level.packId==='daily-boxxy'&&validDate(level.levelToken)
+    ? new Date(level.levelToken+'T12:00:00Z').toLocaleDateString('en-GB',{
+      day:'numeric',month:'short',year:'numeric',timeZone:'UTC'
+    }) : '';
+  // The date token identifies a Daily's release date, not the date the player
+  // completed it. Last played always comes from the actual recorded activity.
+  const playUrl = level => {
+    if (level.packId==='daily-boxxy') return validDate(level.levelToken)
+      ? '/?playDaily='+encodeURIComponent(level.levelToken) : '';
+    const number=Number(level.levelToken);
+    return /^[a-z0-9][a-z0-9-]{0,59}$/i.test(level.packId||'') &&
+      /^\d+$/.test(String(level.levelToken||'')) &&
+      Number.isSafeInteger(number) && number>0
+      ? '/?playPack='+encodeURIComponent(level.packId)+'&playLevel='+number : '';
+  };
   function dailyNumber(level) {
     const known=Number(level.levelNumber);
     if (Number.isSafeInteger(known)&&known>0) return known;
@@ -89,6 +109,7 @@
     return `${shortLevel(level)}${name?' · '+name:''}`;
   }
   function recentLabel(level) {
+    // Recent activity stays compact: pack, level and actual last-played time.
     return `${labelFor(level)} · ${levelLabel(level)} · ${date(level.lastAt)}`;
   }
   function orderedPacks(packs) {
@@ -103,7 +124,7 @@
     if(best) {td.classList.add('history-best');td.title=title;}
     tr.appendChild(td);
   }
-  function mount(root,urlFor,overview=null) {
+  function mount(root,urlFor,overview=null,options={}) {
     if (!root) return;
     const get=async query=>{
       const response=await fetch(urlFor(query),{credentials:'same-origin'});
@@ -115,7 +136,7 @@
       root.replaceChildren();
       const levels=Array.isArray(data.levels)?data.levels:[];
       if (!levels.length) {root.appendChild(el('p','No recorded attempts or earlier progress yet.'));return;}
-      const packs=new Map(),packNodes=new Map(),levelNodes=new Map();
+      const packs=new Map(),packNodes=new Map(),levelNodes=new Map(),packEnsure=new Map();
       for (const level of levels) {
         const key=String(level.packId);
         if (!packs.has(key)) packs.set(key,[]);
@@ -126,9 +147,29 @@
         const count=Number(level.attempts)||0;
         const countLabel=count>0?`${count} attempt${count===1?'':'s'}`
           :(level.previousCompletion||level.bestTime!=null||level.bestMoves!=null?'Saved result':'0 attempts');
-        const summary=el('summary',`${levelLabel(level)} · ${countLabel}`);
+        const published=publishedDate(level);
+        const summary=el('summary',`${levelLabel(level)}${published?' · Published '+published:''} · ${countLabel}`);
         section.appendChild(summary);
         const content=el('div',null,'history-table-wrap');
+        const target=playUrl(level);
+        if (target) {
+          const play=el(options.onPlay?'button':'a','PLAY LEVEL','history-play-level');
+          if (options.onPlay) {
+            play.type='button';
+            play.addEventListener('click',()=>{
+              if (options.onPlay(level)===false) {
+                let message=content.querySelector('.history-play-status');
+                if (!message) {message=el('p',null,'history-play-status');content.prepend(message);}
+                message.textContent='This level is not currently available to play.';
+              }
+            });
+          } else {
+            play.href=target;
+            play.target='_blank';
+            play.rel='noopener noreferrer';
+          }
+          content.appendChild(play);
+        }
         const controls=el('div',null,'history-controls');
         const sort=el('select');
         for (const [value,label] of sorts) {const option=el('option',label);option.value=value;sort.appendChild(option);}
@@ -209,7 +250,9 @@
         const button=tint(el('button',recentLabel(level)),level.packId);
         button.type='button';
         button.addEventListener('click',()=>{
-          const pack=packNodes.get(level.packId),item=levelNodes.get(`${level.packId}:${level.levelToken}`);
+          const pack=packNodes.get(level.packId);
+          packEnsure.get(level.packId)?.(level);
+          const item=levelNodes.get(`${level.packId}:${level.levelToken}`);
           if(pack)pack.open=true;
           if(item){item.open=true;item.scrollIntoView?.({block:'nearest',behavior:'smooth'});}
         });recentContent.appendChild(button);
@@ -220,8 +263,31 @@
         const pack=tint(el('details',null,'history-pack'),packId);
         const name=labelFor(items[0]);
         pack.appendChild(el('summary',`${name} · ${items.length} level${items.length===1?'':'s'}`));
-        items.sort((a,b)=>(numberFor(a)||0)-(numberFor(b)||0)||String(a.levelToken).localeCompare(String(b.levelToken)));
-        for(const level of items)pack.appendChild(makeLevel(level));
+        items.sort((a,b)=>packId==='daily-boxxy'
+          ? String(b.levelToken).localeCompare(String(a.levelToken))
+            || (numberFor(b)||0)-(numberFor(a)||0)
+          : (numberFor(a)||0)-(numberFor(b)||0)
+            || String(a.levelToken).localeCompare(String(b.levelToken)));
+        // Dailys are paged at the pack level: old players may eventually have
+        // years of history, but only the first 50 entries need DOM elements.
+        const perPage=packId==='daily-boxxy'?50:items.length;
+        let shown=0;
+        const more=el('button',null,'history-more-levels');
+        more.type='button';
+        const showNext=()=>{
+          const end=Math.min(items.length,shown+perPage);
+          for (;shown<end;shown++) more.before(makeLevel(items[shown]));
+          const left=items.length-shown;
+          more.hidden=!left;
+          more.textContent=left?`MORE (${Math.min(50,left)})`:'';
+        };
+        pack.appendChild(more);
+        more.addEventListener('click',showNext);
+        showNext();
+        packEnsure.set(packId,level=>{
+          const index=items.findIndex(candidate=>String(candidate.levelToken)===String(level.levelToken));
+          while(index>=shown && shown<items.length) showNext();
+        });
         packNodes.set(packId,pack);root.appendChild(pack);
       }
     };

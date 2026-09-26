@@ -114,6 +114,12 @@
       window.BOXXYHistoryUI.mount(accountPlayHistoryContent, query => {
         const params = new URLSearchParams(query);
         return '/api/attempts' + (params.size ? '?' + params : '');
+      },null,{
+        onPlay:level=>{
+          const started=window.BoxxyGameAPI?.playHistoryLevel?.(level.packId,level.levelToken);
+          if (started) closeAccount();
+          return Boolean(started);
+        }
       });
     };
     accountPlayHistoryContent.replaceChildren(document.createTextNode('Updating play history…'));
