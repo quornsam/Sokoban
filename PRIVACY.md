@@ -1,6 +1,6 @@
 # BOXXY Privacy Information
 
-Effective: 6 September 2026
+Effective: 26 September 2026
 
 BOXXY is delivered through Cloudflare. Accounts are optional; the game remains playable without one.
 
@@ -17,6 +17,8 @@ If you create an account with a BOXXY password, BOXXY stores your chosen usernam
 You may instead use Sign in with Google, or link Google to an existing BOXXY account. BOXXY stores Google's stable account identifier (`sub`) and the verified Google email address so that Google sign-in can resolve to the same BOXXY user ID. Google-only accounts do not have BOXXY password login enabled. BOXXY does not receive or store your Google password. Google processes the authentication step under Google's own privacy terms.
 
 Account information, linked authentication information and cloud progress are stored in Cloudflare D1. They are used to provide the account, synchronise progress between devices, administer BOXXY and prevent abuse.
+
+From BOXXY v376, signed-in players also have individual puzzle attempt histories. Each attempt records the puzzle, start/end times, whether it was completed, and—for completed runs—the time, moves and pushes, together with whether assistance was used. Unsynchronised records may remain temporarily in browser storage while offline. Players can view their own histories in account settings and BOXXY administrators can view them in Basement. Anonymous play does not create this cloud history. Earlier individual runs cannot be reconstructed from historic aggregate counts. This history is deleted from D1 when its account is deleted.
 
 A secure, strictly necessary session cookie is used while you are signed in. Account email addresses are not used for advertising. They may be used where reasonably necessary for account, security, abuse or support matters.
 

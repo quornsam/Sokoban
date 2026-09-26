@@ -99,6 +99,18 @@
   const avatarCanvas = document.getElementById("accountAvatarCanvas");
   const medals = document.getElementById("accountMedals");
   const medalsEmpty = document.getElementById("accountMedalsEmpty");
+  const accountPlayHistory = document.getElementById('accountPlayHistory');
+  const accountPlayHistoryContent = document.getElementById('accountPlayHistoryContent');
+  let historyLoadedFor = '';
+  accountPlayHistory?.addEventListener('toggle', () => {
+    if (!accountPlayHistory.open || !account || !window.BOXXYHistoryUI) return;
+    if (historyLoadedFor === account.id) return;
+    historyLoadedFor = account.id;
+    window.BOXXYHistoryUI.mount(accountPlayHistoryContent, query => {
+      const params = new URLSearchParams(query);
+      return '/api/attempts' + (params.size ? '?' + params : '');
+    });
+  });
   const accountGuest = document.getElementById("accountGuest");
   const googleLinked = document.getElementById("accountGoogleLinked");
   const googleLinkedEmail = document.getElementById("accountGoogleLinkedEmail");
@@ -1213,6 +1225,11 @@
     if (accountGuest) accountGuest.hidden = loggedIn;
     if (completeAccountPrompt) completeAccountPrompt.hidden = loggedIn;
     if (details) details.hidden = !loggedIn;
+    if (!loggedIn || historyLoadedFor !== account?.id) {
+      historyLoadedFor = '';
+      if (accountPlayHistory) accountPlayHistory.open = false;
+      if (accountPlayHistoryContent) accountPlayHistoryContent.replaceChildren();
+    }
     if (loggedIn) {
       const googleOnly = account.passwordEnabled === false;
       if (googleLinked) googleLinked.hidden = !account.googleLinked;

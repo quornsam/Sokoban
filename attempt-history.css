@@ -1,0 +1,17 @@
+/* BOXXY v376: history is inside account settings and Basement, never the gameplay board. */
+.history-browser { font:inherit; color:inherit; max-width:100%; }
+.history-browser details { border:1px solid currentColor; border-radius:5px; margin:.45rem 0; padding:.55rem; }
+.history-browser summary { cursor:pointer; font-weight:700; padding:.35rem; }
+.history-browser .history-level { margin:.35rem 0 .35rem .65rem; }
+.history-browser .history-note {font-size:.8em; opacity:.78; margin:.55rem 0;}
+.history-browser .history-recent {display:grid;gap:.35rem; margin:.7rem 0 1.1rem;}
+.history-browser .history-recent h4 { margin:.25rem 0; }
+.history-browser .history-recent button {display:block;text-align:left;white-space:normal; padding:.6rem;border:1px solid currentColor;border-radius:5px;background:transparent;color:inherit;cursor:pointer;}
+.history-browser .history-table-wrap {overflow-x:auto;}
+.history-browser .history-controls {display:flex;flex-wrap:wrap;align-items:center;gap:.45rem;padding:.6rem 0;}
+.history-browser select {font:inherit; max-width:100%;}
+.history-browser .history-table {width:100%;border-collapse:collapse; font-size:.82em;min-width:390px;}
+.history-browser .history-table th,.history-browser .history-table td {padding:.4rem .3rem;text-align:left; border-bottom:1px solid #8886;}
+.history-browser .history-best {background:#37a86e33; font-weight:900; outline:1px solid #37a86e;}
+.account-play-history {border:1px solid currentColor;border-radius:6px;padding:.85rem;margin:1rem 0;}
+.account-play-history > summary {cursor:pointer;font-weight:800;letter-spacing:.06em;}

@@ -137,3 +137,27 @@ CREATE TABLE IF NOT EXISTS synthetic_daily_scores (
 );
 CREATE INDEX IF NOT EXISTS synthetic_daily_scores_date_idx
   ON synthetic_daily_scores(date_key);
+
+-- v376: independent per-run histories; starts at v376 (prior aggregate counts retained).
+CREATE TABLE IF NOT EXISTS level_attempt_history (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  pack_id TEXT NOT NULL,
+  pack_name TEXT NOT NULL,
+  level_token TEXT NOT NULL,
+  level_number INTEGER NOT NULL DEFAULT 0,
+  level_name TEXT NOT NULL DEFAULT '',
+  started_at INTEGER NOT NULL,
+  ended_at INTEGER,
+  completed INTEGER NOT NULL DEFAULT 0 CHECK(completed IN (0,1)),
+  seconds REAL,
+  moves INTEGER,
+  pushes INTEGER,
+  assisted INTEGER NOT NULL DEFAULT 0 CHECK(assisted IN (0,1)),
+  end_reason TEXT NOT NULL DEFAULT '',
+  FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS level_attempt_history_user_level_idx
+  ON level_attempt_history(user_id, pack_id, level_token, started_at DESC);
+CREATE INDEX IF NOT EXISTS level_attempt_history_user_recent_idx
+  ON level_attempt_history(user_id, started_at DESC);

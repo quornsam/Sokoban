@@ -6,8 +6,8 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "375",
-  lastUpdated: "2026-09-25"
+  version: "376",
+  lastUpdated: "2026-09-26"
 });
 /* BOXXY v375: Basement synthetic Daily move-count variation; gameplay unchanged. */
 /* BOXXY v374: private Daily seeding/admin leaderboard tools and 250×250 Level Maker. */
@@ -1613,8 +1613,28 @@ window.BOXXY_RELEASE = Object.freeze({
         devices
       };
       localStorage.setItem(LEVEL_ATTEMPTS_KEY, JSON.stringify(data));
+      window.BOXXYAttemptHistory?.start?.(cleanPackId, cleanToken, {
+        packName:data.levels[key].packName, levelNumber:data.levels[key].levelNumber,
+        levelName:data.levels[key].levelName
+      });
     } catch (_) {}
   }
+
+  window.addEventListener('boxxyaccountfeatures', event => {
+    if (!event.detail?.loggedIn || completed || makerTesting || sharedPuzzleMode ||
+        window.BOXXYAttemptHistory?.hasActive?.()) return;
+    if (dailyMode && dailyPuzzle && dailyScoringAllowedFor(dailyPuzzle)) {
+      window.BOXXYAttemptHistory?.start?.('daily-boxxy', String(dailyPuzzle.date || dailyPuzzle.sequence), {
+        packName:'Daily Boxxy', levelNumber:Number(dailyPuzzle.sequence) || 0,
+        levelName:String(dailyPuzzle.date || 'Daily Boxxy')
+      });
+    } else if (!dailyMode && activePack && levelData) {
+      window.BOXXYAttemptHistory?.start?.(activePack.id, String(levelIndex+1), {
+        packName:String(activePack.displayName || activePack.title || activePack.id || ''),
+        levelNumber:levelIndex+1, levelName:String(levelData.name || '')
+      });
+    }
+  });
 
   function addLifetimeStat(key, amount = 1) {
     try {
@@ -3222,7 +3242,8 @@ window.BOXXY_RELEASE = Object.freeze({
     { name: "Stu Weston", country: "UK" },
     { name: "Carlos Montiers", country: "Chile" },
     { name: "Sean Heapy", country: "US" },
-    { name: "Beverley C", country: "Scotland" }
+    { name: "Beverley C", country: "Scotland" },
+    { name: "Lance Wolters", country: "New Zealand" }
   ]);
 
   function renderOriginalsCompletionBoard() {
@@ -8062,6 +8083,12 @@ window.BOXXY_RELEASE = Object.freeze({
     timer = null;
     const completedAt = Date.now();
     const completionSeconds = elapsedLevelSeconds(completedAt);
+    if (!makerTesting && !sharedPuzzleMode) {
+      window.BOXXYAttemptHistory?.finish?.({
+        seconds:completionSeconds, moves, pushes,
+        assisted:Boolean(autoplayRunning || guidedSolveUsed || instantMoveUsedThisLevel)
+      });
+    }
     completionSolveData = (levelSolutionAvailable && !makerTesting && !sharedPuzzleMode) ? canonicalCompletedSolveData() : "";
     setPreciseClockContent(timeEl, completionSeconds);
     if (!makerTesting && !sharedPuzzleMode && !dailyMode) clearCurrentCheckpoint();

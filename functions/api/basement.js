@@ -25,6 +25,7 @@ import { ensureGoogleAuthSchema } from "../_lib/google-auth.js";
 import { readPackCompletions, completionRecordsForUsers, canonicalAdminSummary } from "../_lib/pack-completions.js";
 import { DAILY_PRACTICE_CATALOG } from "../_lib/daily-practice-catalog.js";
 import { analyseDailySolution, generateDailySyntheticRoute } from "../_lib/synthetic-daily-moves.js";
+import { ensureAttemptHistorySchema, readAttemptOverview, readLevelAttemptHistory } from '../_lib/attempt-history.js';
 
 const INSTANT_MOVE_FEATURE_KEY = "instant_move";
 
@@ -501,7 +502,9 @@ async function userDetail(context, id) {
   const mapped = mappedUser(attachSessionStats(
     user, stats.get(String(user.id)), firstLogins.get(String(user.id))
   ), true);
-  return json({ ok: true, authenticated: true, user: mapped, sessions,
+  await ensureAttemptHistorySchema(db);
+  const history = await readAttemptOverview(db,id);
+  return json({ ok: true, authenticated: true, user: mapped, sessions, history,
     completions: completionRecordsForUsers([mapped], records) });
 }
 
@@ -539,6 +542,15 @@ export async function onRequest(context) {
 
     const url = new URL(context.request.url);
     const id = String(url.searchParams.get("user") || "").trim();
+    if (id && url.searchParams.has('packId')) {
+      await ensureAttemptHistorySchema(db);
+      const history = await readLevelAttemptHistory(db,id,{
+        packId:url.searchParams.get('packId'),levelToken:url.searchParams.get('levelToken'),
+        sort:url.searchParams.get('sort'),direction:url.searchParams.get('direction'),
+        offset:url.searchParams.get('offset')
+      });
+      return json({ok:true,authenticated:true,...history});
+    }
     return id ? await userDetail(context, id) : await listUsers(context);
   } catch (error) {
     console.error("BOXXY basement error", error);

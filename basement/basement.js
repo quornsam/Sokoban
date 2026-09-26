@@ -952,11 +952,16 @@
         <section><h3>MEDALS / BADGES</h3>${medalRail(user.summary) || `<p class="muted">No medals or badges earned yet.</p>`}</section>
         <section><h3>CURRENT STYLE</h3>${detailOutfit(user)}</section>
         <section><h3>ACTIVITY · LAST 7 DAYS</h3>${activityStrip(user.summary)}</section>
-        <section><h3>PACK COMPLETION HISTORY</h3>${completionDetail(data.completions)}</section>
-        <section><h3>PROGRESS SUMMARY</h3>${detailProgress(user.summary)}</section>
-        <section><h3>LEVEL ATTEMPTS</h3>${detailAttempts(user.summary)}</section>
+        <details><summary>PACK COMPLETION HISTORY</summary>${completionDetail(data.completions)}</details>
+        <details><summary>PROGRESS SUMMARY</summary>${detailProgress(user.summary)}</details>
+        <section><h3>PLAY HISTORY</h3><div id="basementPlayerHistory" class="history-browser"></div></section>
+        <details><summary>OLDER AGGREGATE ATTEMPT COUNTS</summary>${detailAttempts(user.summary)}</details>
         <section><h3>RAW CLOUD SAVE</h3><pre class="raw-progress">${escapeHtml(JSON.stringify(user.progress || {}, null, 2))}</pre></section>`;
       detailModal.hidden = false;
+      window.BOXXYHistoryUI?.mount?.(document.getElementById('basementPlayerHistory'), query => {
+        const params = new URLSearchParams({user:String(user.id), ...query});
+        return '/api/basement?' + params;
+      }, data.history || {levels:[],recent:[]});
       renderAvatarCanvases([user]);
       requestAnimationFrame(() => detailClose?.focus());
     } catch (_) { setStatus(dashboardStatus, "Could not load that account.", "error"); }

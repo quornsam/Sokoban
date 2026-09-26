@@ -11,11 +11,14 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "375";
+const RELEASE_VERSION = "376";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [
   "/account.js",
+  "/attempt-history.js",
+  "/attempt-history-ui.js",
+  "/attempt-history.css",
   "/alphabet-soup.js",
   "/assets/audio/Fading-into-Gold-296KB.mp3",
   "/assets/audio/Starry-Night-Lullaby-281KB.mp3",
