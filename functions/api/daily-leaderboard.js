@@ -47,6 +47,7 @@ export async function onRequestGet(context) {
     const movesPath = `$."${dateKey}".moves`;
     const leaderboardSecondsPath = `$."${dateKey}".leaderboardSeconds`;
     const leaderboardMovesPath = `$."${dateKey}".leaderboardMoves`;
+    const bestMovesPath = `$."${dateKey}".moves`;
     const leaderboardTrackedPath = `$."${dateKey}".leaderboardTracked`;
     const leaderboardStartedAtPath = `$."${dateKey}".leaderboardStartedAt`;
     const leaderboardCompletedAtPath = `$."${dateKey}".leaderboardCompletedAt`;
@@ -75,6 +76,9 @@ export async function onRequestGet(context) {
             ELSE
               CAST(json_extract(daily_json, ?) AS INTEGER)
           END AS moves,
+          -- Independently saved personal best, not the move count of the fastest run.
+          COALESCE(CAST(json_extract(daily_json, ?) AS INTEGER),
+                   CAST(json_extract(daily_json, ?) AS INTEGER)) AS best_moves,
           CASE
             WHEN json_extract(daily_json, ?) = 1 THEN
               CAST(json_extract(daily_json, ?) AS INTEGER)
@@ -93,7 +97,7 @@ export async function onRequestGet(context) {
         FROM daily_records
       )
       , real_scores AS (
-        SELECT username, seconds, moves, leaderboard_device
+        SELECT username, seconds, moves, best_moves, leaderboard_device
         FROM daily_times
         WHERE
           seconds IS NOT NULL
@@ -114,22 +118,24 @@ export async function onRequestGet(context) {
             )
           )
       ), synthetic_scores AS (
-        SELECT u.username AS username, s.seconds AS seconds, s.moves AS moves, s.device AS leaderboard_device
+        SELECT u.username AS username, s.seconds AS seconds, s.moves AS moves,
+          s.moves AS best_moves, s.device AS leaderboard_device
         FROM synthetic_daily_scores s
         JOIN synthetic_users u ON u.id = s.user_id
         WHERE s.date_key = ? AND s.seconds > 0
           AND NOT EXISTS (SELECT 1 FROM users r WHERE lower(r.username) = lower(u.username))
       ), all_scores AS (
-        SELECT username, seconds, moves, leaderboard_device FROM real_scores
+        SELECT username, seconds, moves, best_moves, leaderboard_device FROM real_scores
         UNION ALL
-        SELECT username, seconds, moves, leaderboard_device FROM synthetic_scores
+        SELECT username, seconds, moves, best_moves, leaderboard_device FROM synthetic_scores
       )
-      SELECT username, seconds, moves, leaderboard_device
+      SELECT username, seconds, moves, best_moves, leaderboard_device
       FROM all_scores
       ORDER BY seconds ASC, username COLLATE NOCASE ASC
     `).bind(
       leaderboardTrackedPath, leaderboardSecondsPath, secondsPath,
       leaderboardTrackedPath, leaderboardMovesPath, movesPath,
+      bestMovesPath, leaderboardMovesPath,
       leaderboardTrackedPath, leaderboardStartedAtPath,
       leaderboardTrackedPath, leaderboardCompletedAtPath,
       leaderboardTrackedPath, leaderboardDevicePath,
@@ -143,6 +149,9 @@ export async function onRequestGet(context) {
         && Number.isFinite(Number(row.moves)) && Number(row.moves) >= 0
         ? Math.trunc(Number(row.moves))
         : null,
+      bestMoves: row.best_moves !== null && row.best_moves !== undefined
+        && Number.isInteger(Number(row.best_moves)) && Number(row.best_moves) >= 0
+        ? Number(row.best_moves) : null,
       device: cleanDeviceClass(row.leaderboard_device) || null
     }));
 

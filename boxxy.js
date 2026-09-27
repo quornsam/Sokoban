@@ -6,11 +6,12 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "381",
+  version: "382",
   lastUpdated: "2026-09-27"
 });
 /* BOXXY v380: Exponentially history titles use current canonical names; gameplay unchanged. */
-/* BOXXY v381: switch the full Daily leaderboard between fastest runs and their recorded move counts. */
+/* BOXXY v381: full Daily leaderboard switches between fastest runs and move rankings. */
+/* BOXXY v382: move rankings use each player’s independent saved fewest-move result. */
 /* BOXXY v379: replay history links to published Dailys and unlocked ordinary levels. */
 /* BOXXY v375: Basement synthetic Daily move-count variation; gameplay unchanged. */
 /* BOXXY v374: private Daily seeding/admin leaderboard tools and 250×250 Level Maker. */
@@ -2385,7 +2386,6 @@ window.BOXXY_RELEASE = Object.freeze({
   const dailyLeaderboardList = document.getElementById("dailyLeaderboardList");
   const dailyLeaderboardSortTime = document.getElementById("dailyLeaderboardSortTime");
   const dailyLeaderboardSortMoves = document.getElementById("dailyLeaderboardSortMoves");
-  const dailyLeaderboardSortNote = document.getElementById("dailyLeaderboardSortNote");
   const dailyLeaderboardPreviewCanvas = document.getElementById("dailyLeaderboardPreviewCanvas");
   const dailyLeaderboardPlayBtn = document.getElementById("dailyLeaderboardPlayBtn");
   const dailyLeaderboardPlayLabel = document.getElementById("dailyLeaderboardPlayLabel");
@@ -3509,6 +3509,9 @@ window.BOXXY_RELEASE = Object.freeze({
               && Number.isFinite(Number(entry.moves)) && Number(entry.moves) >= 0
               ? Math.trunc(Number(entry.moves))
               : null,
+            bestMoves: entry?.bestMoves !== null && entry?.bestMoves !== undefined
+              && Number.isInteger(Number(entry.bestMoves)) && Number(entry.bestMoves) >= 0
+              ? Number(entry.bestMoves) : null,
             device: normaliseDailyLeaderboardDevice(entry?.device)
           })).filter(entry => entry.username)
         : [];
@@ -3559,7 +3562,7 @@ window.BOXXY_RELEASE = Object.freeze({
     }
     const allEntries = Array.isArray(entries) ? entries : [];
     const rankedEntries = byMoves ? [...allEntries].sort((a,b) =>
-      (a.moves ?? Infinity) - (b.moves ?? Infinity)
+      (a.bestMoves ?? Infinity) - (b.bestMoves ?? Infinity)
       || a.seconds - b.seconds
       || a.username.localeCompare(b.username, undefined, {sensitivity:"base"})
     ) : allEntries;
@@ -3583,29 +3586,38 @@ window.BOXXY_RELEASE = Object.freeze({
       }
       const rank = document.createElement("span");
       rank.className = "daily-leaderboard-rank";
-      const ranked = !byMoves || entry.moves !== null;
+      const ranked = !byMoves || entry.bestMoves !== null;
       rank.textContent = ranked ? medals[index] || String(index + 1) : "—";
       if (ranked && index < 3) rank.classList.add("medal");
       const name = document.createElement("strong");
       name.className = "daily-leaderboard-name";
       name.textContent = String(entry.username || "");
-      const time = document.createElement("b");
-      time.className = "daily-leaderboard-time";
-      setPreciseClockContent(time, entry.seconds);
-      const deviceClass = normaliseDailyLeaderboardDevice(entry.device);
-      if (deviceClass) {
-        const device = document.createElement("span");
-        device.className = "daily-leaderboard-device";
-        device.setAttribute("role", "img");
-        device.setAttribute("aria-label", deviceClass === "computer" ? "Computer" : (deviceClass === "tablet" ? "Tablet" : "Phone"));
-        device.textContent = deviceClass === "computer" ? "🖥" : "📱";
-        time.appendChild(device);
-      }
       const moves = document.createElement("span");
-      moves.className = "daily-leaderboard-moves";
-      moves.textContent = entry.moves !== null && entry.moves !== undefined && Number.isFinite(Number(entry.moves))
-        ? `${Math.max(0, Math.trunc(Number(entry.moves)))} MOVES` : "— MOVES";
-      row.append(rank, name, time, moves);
+      const moveScore = byMoves ? entry.bestMoves : entry.moves;
+      moves.textContent = moveScore !== null && moveScore !== undefined && Number.isFinite(Number(moveScore))
+        ? `${Math.max(0, Math.trunc(Number(moveScore)))} MOVES` : "— MOVES";
+      if (byMoves) {
+        // Display just the independently achieved move score; a fastest time
+        // alongside it would incorrectly imply that both came from one run.
+        row.classList.add("is-moves");
+        moves.className = "daily-leaderboard-time";
+        row.append(rank, name, moves);
+      } else {
+        const time = document.createElement("b");
+        time.className = "daily-leaderboard-time";
+        setPreciseClockContent(time, entry.seconds);
+        const deviceClass = normaliseDailyLeaderboardDevice(entry.device);
+        if (deviceClass) {
+          const device = document.createElement("span");
+          device.className = "daily-leaderboard-device";
+          device.setAttribute("role", "img");
+          device.setAttribute("aria-label", deviceClass === "computer" ? "Computer" : (deviceClass === "tablet" ? "Tablet" : "Phone"));
+          device.textContent = deviceClass === "computer" ? "🖥" : "📱";
+          time.appendChild(device);
+        }
+        moves.className = "daily-leaderboard-moves";
+        row.append(rank, name, time, moves);
+      }
       container.appendChild(row);
     });
   }
@@ -3618,7 +3630,6 @@ window.BOXXY_RELEASE = Object.freeze({
       button.classList.toggle("is-active",selected);
       button.setAttribute("aria-pressed",String(selected));
     }
-    if (dailyLeaderboardSortNote) dailyLeaderboardSortNote.hidden = dailyLeaderboardSort !== "moves";
     const cached = dailyLeaderboardCache.get(dailyLeaderboardList?.dataset.dailyLeaderboardDate || "");
     if (cached?.entries) renderDailyLeaderboardRows(dailyLeaderboardList,cached.entries);
     if (dailyLeaderboardList) dailyLeaderboardList.setAttribute("aria-label",
