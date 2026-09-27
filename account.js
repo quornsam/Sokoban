@@ -1,3 +1,4 @@
+/* BOXXY v383: account merges retain the run-matched time and device for the independent Daily move best. */
 /* BOXXY v381: Play History opens from an account-scoped local cache while D1 refreshes independently. */
 /* BOXXY v365: receive server-authorised account feature flags for private Instant Move access. */
 /* BOXXY v364: preserve timezone metadata from the actual fastest Daily run for recovered activity days. */
@@ -713,6 +714,25 @@
     if (moves !== null) merged.moves = moves;
     if (pushes !== null) merged.pushes = pushes;
     if (seconds !== null) merged.seconds = seconds;
+    // Pair a personal move best with its own completed run, never the fastest run by default.
+    const moveRun = [left, right].filter(record => Number(record.moves) === moves).map(record => {
+      const ownTime = bestDailyStat([record.bestMovesSeconds]);
+      const matchedFastest = Number(record.leaderboardMoves) === moves
+        ? bestDailyStat([record.leaderboardSeconds]) : null;
+      return ownTime !== null
+        ? { seconds: ownTime, device: cleanDailyLeaderboardDevice(record.bestMovesDevice) }
+        : matchedFastest !== null
+          ? { seconds: matchedFastest, device: cleanDailyLeaderboardDevice(record.leaderboardDevice) }
+          : null;
+    }).filter(Boolean).sort((a,b) => a.seconds-b.seconds)[0];
+    if (moveRun) {
+      merged.bestMovesSeconds = moveRun.seconds;
+      if (moveRun.device) merged.bestMovesDevice = moveRun.device;
+      else delete merged.bestMovesDevice;
+    } else {
+      delete merged.bestMovesSeconds;
+      delete merged.bestMovesDevice;
+    }
     merged.completedAt = Math.max(leftCompletedAt, rightCompletedAt);
     if (!Number(merged.sequence)) merged.sequence = Number(older.sequence) || 0;
 

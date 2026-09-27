@@ -6,11 +6,12 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "382",
+  version: "383",
   lastUpdated: "2026-09-27"
 });
 /* BOXXY v380: Exponentially history titles use current canonical names; gameplay unchanged. */
 /* BOXXY v381: full Daily leaderboard switches between fastest runs and move rankings. */
+/* BOXXY v383: both leaderboard rankings display the matching time and device of their selected run. */
 /* BOXXY v382: move rankings use each player’s independent saved fewest-move result. */
 /* BOXXY v379: replay history links to published Dailys and unlocked ordinary levels. */
 /* BOXXY v375: Basement synthetic Daily move-count variation; gameplay unchanged. */
@@ -1344,6 +1345,11 @@ window.BOXXY_RELEASE = Object.freeze({
     ]);
     const fewestMoves = dailyBestNumber([previous?.moves, attempt.moves], { allowZero: true });
     const fewestPushes = dailyBestNumber([previous?.pushes, attempt.pushes], { allowZero: true });
+    const previousBestMovesTime = dailyBestNumber([previous?.bestMovesSeconds]);
+    const improvedMovesRun = attempt.moves === fewestMoves && (
+      dailyBestNumber([previous?.moves], { allowZero: true }) !== fewestMoves
+      || previousBestMovesTime === null || attempt.seconds < previousBestMovesTime
+    );
     completions[key] = {
       ...previous,
       ...attempt,
@@ -1352,6 +1358,11 @@ window.BOXXY_RELEASE = Object.freeze({
       seconds: fastest ?? attempt.seconds,
       completedAt: Math.max(Number(previous?.completedAt) || 0, attempt.completedAt)
     };
+    if (improvedMovesRun && attempt.seconds > 0) {
+      completions[key].bestMovesSeconds = attempt.seconds;
+      if (attemptLeaderboardDevice) completions[key].bestMovesDevice = attemptLeaderboardDevice;
+      else delete completions[key].bestMovesDevice;
+    }
 
     let leaderboardSeconds = previousLeaderboardSeconds;
     let leaderboardMoves = previousLeaderboardMoves;
@@ -3512,6 +3523,10 @@ window.BOXXY_RELEASE = Object.freeze({
             bestMoves: entry?.bestMoves !== null && entry?.bestMoves !== undefined
               && Number.isInteger(Number(entry.bestMoves)) && Number(entry.bestMoves) >= 0
               ? Number(entry.bestMoves) : null,
+            bestMovesSeconds: entry?.bestMovesSeconds !== null && entry?.bestMovesSeconds !== undefined
+              && Number.isFinite(Number(entry.bestMovesSeconds)) && Number(entry.bestMovesSeconds) > 0
+              ? Number(entry.bestMovesSeconds) : null,
+            bestMovesDevice: normaliseDailyLeaderboardDevice(entry?.bestMovesDevice),
             device: normaliseDailyLeaderboardDevice(entry?.device)
           })).filter(entry => entry.username)
         : [];
@@ -3563,7 +3578,7 @@ window.BOXXY_RELEASE = Object.freeze({
     const allEntries = Array.isArray(entries) ? entries : [];
     const rankedEntries = byMoves ? [...allEntries].sort((a,b) =>
       (a.bestMoves ?? Infinity) - (b.bestMoves ?? Infinity)
-      || a.seconds - b.seconds
+      || (a.bestMovesSeconds ?? Infinity) - (b.bestMovesSeconds ?? Infinity)
       || a.username.localeCompare(b.username, undefined, {sensitivity:"base"})
     ) : allEntries;
     const numericLimit = Number(limit) || 0;
@@ -3594,28 +3609,28 @@ window.BOXXY_RELEASE = Object.freeze({
       name.textContent = String(entry.username || "");
       const moves = document.createElement("span");
       const moveScore = byMoves ? entry.bestMoves : entry.moves;
+      moves.className = "daily-leaderboard-moves";
       moves.textContent = moveScore !== null && moveScore !== undefined && Number.isFinite(Number(moveScore))
         ? `${Math.max(0, Math.trunc(Number(moveScore)))} MOVES` : "— MOVES";
-      if (byMoves) {
-        // Display just the independently achieved move score; a fastest time
-        // alongside it would incorrectly imply that both came from one run.
-        row.classList.add("is-moves");
-        moves.className = "daily-leaderboard-time";
-        row.append(rank, name, moves);
+      const time = document.createElement("b");
+      time.className = "daily-leaderboard-time";
+      const runSeconds = byMoves ? entry.bestMovesSeconds : entry.seconds;
+      if (Number.isFinite(runSeconds) && runSeconds > 0) setPreciseClockContent(time, runSeconds);
+      else time.textContent = "—";
+      const deviceClass = normaliseDailyLeaderboardDevice(byMoves ? entry.bestMovesDevice : entry.device);
+      const device = document.createElement("span");
+      device.className = "daily-leaderboard-device";
+      if (deviceClass) {
+        device.setAttribute("role", "img");
+        device.setAttribute("aria-label", deviceClass === "computer" ? "Computer" : (deviceClass === "tablet" ? "Tablet" : "Phone"));
+        device.textContent = deviceClass === "computer" ? "🖥" : "📱";
+      }
+      if (container === dailyLeaderboardList) {
+        if (byMoves) row.classList.add("is-moves");
+        row.append(rank, name, time, device, moves);
       } else {
-        const time = document.createElement("b");
-        time.className = "daily-leaderboard-time";
-        setPreciseClockContent(time, entry.seconds);
-        const deviceClass = normaliseDailyLeaderboardDevice(entry.device);
-        if (deviceClass) {
-          const device = document.createElement("span");
-          device.className = "daily-leaderboard-device";
-          device.setAttribute("role", "img");
-          device.setAttribute("aria-label", deviceClass === "computer" ? "Computer" : (deviceClass === "tablet" ? "Tablet" : "Phone"));
-          device.textContent = deviceClass === "computer" ? "🖥" : "📱";
-          time.appendChild(device);
-        }
-        moves.className = "daily-leaderboard-moves";
+        // Compact Daily previews retain their original time/device grouping.
+        if (deviceClass) time.appendChild(device);
         row.append(rank, name, time, moves);
       }
       container.appendChild(row);
