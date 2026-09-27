@@ -162,6 +162,8 @@
     active.moves = Math.max(0, Math.trunc(Number(result.moves) || 0));
     active.pushes = Math.max(0, Math.trunc(Number(result.pushes) || 0));
     active.assisted = Boolean(result.assisted);
+    // The device belongs to this completed run, not the browser that later views it.
+    active.device = ['phone','tablet','computer'].includes(result.device) ? result.device : '';
     active.endedAt = Date.now();
     active.endReason = 'completed';
     stash(active, active.ownerId);

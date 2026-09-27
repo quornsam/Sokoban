@@ -18,6 +18,7 @@ export async function ensureAttemptHistorySchema(db) {
       pushes INTEGER,
       assisted INTEGER NOT NULL DEFAULT 0 CHECK(assisted IN (0,1)),
       end_reason TEXT NOT NULL DEFAULT '',
+      device TEXT NOT NULL DEFAULT '',
       FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     )`),
     db.prepare(`CREATE INDEX IF NOT EXISTS level_attempt_history_user_level_idx
@@ -25,6 +26,24 @@ export async function ensureAttemptHistorySchema(db) {
     db.prepare(`CREATE INDEX IF NOT EXISTS level_attempt_history_user_recent_idx
       ON level_attempt_history(user_id, started_at DESC)`)
   ]);
+  await ensureAttemptHistoryDeviceColumn(db);
+}
+
+// Upgrade existing D1 histories once, retaining every earlier record unchanged.
+// Also used by the leaderboard when it is opened before Play History.
+export async function ensureAttemptHistoryDeviceColumn(db) {
+  const columns = await db.prepare('PRAGMA table_info(level_attempt_history)').all();
+  if (!(columns.results || []).length) {
+    await ensureAttemptHistorySchema(db);
+    return;
+  }
+  if (!(columns.results || []).some(column => column.name === 'device')) {
+    try {
+      await db.prepare("ALTER TABLE level_attempt_history ADD COLUMN device TEXT NOT NULL DEFAULT ''").run();
+    } catch (error) {
+      if (!/duplicate column name/i.test(String(error?.message || error))) throw error;
+    }
+  }
 }
 
 const num = (value, low, high) => typeof value === 'number' && Number.isFinite(value)
@@ -58,7 +77,8 @@ function validateAttempt(raw) {
     levelToken: token, levelNumber: Math.trunc(num(raw.levelNumber, 0, 100000) || 0),
     levelName: text(raw.levelName, 100), startedAt: Math.trunc(startedAt),
     endedAt: endedAt === null ? null : Math.trunc(endedAt), completed,
-    seconds, moves, pushes, assisted: raw.assisted === true ? 1 : 0, endReason
+    seconds, moves, pushes, assisted: raw.assisted === true ? 1 : 0, endReason,
+    device: ['phone','tablet','computer'].includes(raw.device) ? raw.device : ''
   };
 }
 
@@ -71,8 +91,8 @@ export async function writeAttemptHistory(db, userId, raws) {
   // Owner and puzzle identity never change; repeated start requests cannot undo a completion.
   const stmt = db.prepare(`INSERT INTO level_attempt_history
     (id,user_id,pack_id,pack_name,level_token,level_number,level_name,started_at,ended_at,
-     completed,seconds,moves,pushes,assisted,end_reason)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+     completed,seconds,moves,pushes,assisted,end_reason,device)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     ON CONFLICT(id) DO UPDATE SET
       ended_at = CASE WHEN level_attempt_history.completed = 1 THEN level_attempt_history.ended_at
         ELSE COALESCE(excluded.ended_at, level_attempt_history.ended_at) END,
@@ -86,13 +106,14 @@ export async function writeAttemptHistory(db, userId, raws) {
       assisted = CASE WHEN level_attempt_history.completed = 1 THEN level_attempt_history.assisted
         WHEN excluded.completed = 1 THEN excluded.assisted ELSE level_attempt_history.assisted END,
       end_reason = CASE WHEN level_attempt_history.completed = 1 THEN level_attempt_history.end_reason
-        ELSE CASE WHEN excluded.end_reason != '' THEN excluded.end_reason ELSE level_attempt_history.end_reason END END
+        ELSE CASE WHEN excluded.end_reason != '' THEN excluded.end_reason ELSE level_attempt_history.end_reason END END,
+      device = COALESCE(NULLIF(level_attempt_history.device,''),excluded.device)
     WHERE level_attempt_history.user_id = excluded.user_id
       AND level_attempt_history.pack_id = excluded.pack_id
       AND level_attempt_history.level_token = excluded.level_token`);
   await db.batch(attempts.map(a => stmt.bind(
     a.id,userId,a.packId,a.packName,a.levelToken,a.levelNumber,a.levelName,
-    a.startedAt,a.endedAt,a.completed ? 1 : 0,a.seconds,a.moves,a.pushes,a.assisted,a.endReason
+    a.startedAt,a.endedAt,a.completed ? 1 : 0,a.seconds,a.moves,a.pushes,a.assisted,a.endReason,a.device
   )));
   return attempts.map(a => a.id);
 }

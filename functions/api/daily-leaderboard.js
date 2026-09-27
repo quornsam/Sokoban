@@ -1,4 +1,5 @@
 import { json, requireDatabase } from "../_lib/auth.js";
+import { ensureAttemptHistoryDeviceColumn } from "../_lib/attempt-history.js";
 
 const DAILY_LAUNCH_DATE = "2026-08-30";
 const MAX_PUBLIC_MOVES_PER_SECOND = 15;
@@ -39,6 +40,7 @@ export async function onRequestGet(context) {
   try {
     const db = requireDatabase(context.env);
     await ensureSyntheticDailySchema(db);
+    await ensureAttemptHistoryDeviceColumn(db);
     const url = new URL(context.request.url);
     const dateKey = validDateKey(url.searchParams.get("date"));
     if (!dateKey) return json({ ok: false, error: "A valid Daily Boxxy date is required." }, 400);
@@ -105,35 +107,52 @@ export async function onRequestGet(context) {
           COALESCE(
             CASE WHEN d.best_moves_seconds > 0 THEN d.best_moves_seconds END,
             CASE WHEN d.best_moves = d.moves THEN d.seconds END,
-            -- Pre-v383 totals lack a paired time, although the completed run
-            -- may already be in D1 Play History. Match the actual Daily, user
-            -- and move count; never borrow an unrelated fastest-run time.
-            (SELECT MIN(h.seconds) FROM level_attempt_history h
-              WHERE h.user_id = d.user_id AND h.pack_id = 'daily-boxxy'
-                AND h.level_token = ? AND h.completed = 1 AND h.assisted = 0
-                AND h.moves = d.best_moves AND h.seconds > 0)
+            h.seconds
           ) AS best_moves_run_seconds,
-          CASE WHEN d.best_moves_seconds > 0 THEN d.best_moves_device
-            WHEN d.best_moves = d.moves THEN d.leaderboard_device ELSE NULL END AS best_moves_run_device
+          COALESCE(
+            CASE WHEN d.best_moves_seconds > 0 THEN NULLIF(d.best_moves_device,'') END,
+            CASE WHEN d.best_moves = d.moves AND
+              (d.best_moves_seconds IS NULL OR d.best_moves_seconds <= 0 OR
+               ABS(d.best_moves_seconds - d.seconds) < 0.015)
+              THEN NULLIF(d.leaderboard_device,'') END
+          ) AS saved_moves_device,
+          h.seconds AS history_seconds, NULLIF(h.device,'') AS history_device
         FROM daily_times d
+        -- One indexed lookup selects an actual completed run; its time and
+        -- device must always come from that same run.
+        LEFT JOIN level_attempt_history h ON h.id = (
+          SELECT run.id FROM level_attempt_history run
+          WHERE run.user_id = d.user_id AND run.pack_id = 'daily-boxxy'
+            AND run.level_token = ? AND run.completed = 1 AND run.assisted = 0
+            AND run.moves = d.best_moves AND run.seconds > 0
+          ORDER BY run.seconds ASC, run.started_at ASC, run.id ASC LIMIT 1
+        )
         WHERE
-          seconds IS NOT NULL
-          AND seconds > 0
+          d.seconds IS NOT NULL
+          AND d.seconds > 0
           AND (
-            moves IS NULL
-            OR moves <= 1
-            OR ((moves - 1.0) / seconds) <= ?
+            d.moves IS NULL
+            OR d.moves <= 1
+            OR ((d.moves - 1.0) / d.seconds) <= ?
           )
           AND (
-            leaderboard_started_at IS NULL
-            OR leaderboard_completed_at IS NULL
-            OR leaderboard_started_at <= 0
-            OR leaderboard_completed_at <= 0
+            d.leaderboard_started_at IS NULL
+            OR d.leaderboard_completed_at IS NULL
+            OR d.leaderboard_started_at <= 0
+            OR d.leaderboard_completed_at <= 0
             OR (
-              leaderboard_completed_at >= leaderboard_started_at
-              AND ABS(((leaderboard_completed_at - leaderboard_started_at) / 1000.0) - seconds) <= ?
+              d.leaderboard_completed_at >= d.leaderboard_started_at
+              AND ABS(((d.leaderboard_completed_at - d.leaderboard_started_at) / 1000.0) - d.seconds) <= ?
             )
           )
+      ), real_paired AS (
+        SELECT username, seconds, moves, best_moves, leaderboard_device,
+          best_moves_run_seconds,
+          COALESCE(saved_moves_device,
+            CASE WHEN history_seconds > 0
+              AND ABS(best_moves_run_seconds - history_seconds) < 0.015
+              THEN history_device END) AS best_moves_run_device
+        FROM real_scores
       ), synthetic_scores AS (
         SELECT u.username AS username, s.seconds AS seconds, s.moves AS moves,
           s.moves AS best_moves, s.device AS leaderboard_device,
@@ -144,7 +163,7 @@ export async function onRequestGet(context) {
           AND NOT EXISTS (SELECT 1 FROM users r WHERE lower(r.username) = lower(u.username))
       ), all_scores AS (
         SELECT username, seconds, moves, best_moves, leaderboard_device,
-          best_moves_run_seconds, best_moves_run_device FROM real_scores
+          best_moves_run_seconds, best_moves_run_device FROM real_paired
         UNION ALL
         SELECT username, seconds, moves, best_moves, leaderboard_device,
           best_moves_run_seconds, best_moves_run_device FROM synthetic_scores

@@ -3611,7 +3611,8 @@ window.BOXXY_RELEASE = Object.freeze({
       const moveScore = byMoves ? entry.bestMoves : entry.moves;
       moves.className = "daily-leaderboard-moves";
       moves.textContent = moveScore !== null && moveScore !== undefined && Number.isFinite(Number(moveScore))
-        ? `${Math.max(0, Math.trunc(Number(moveScore)))} MOVES` : "— MOVES";
+        ? `${Math.max(0, Math.trunc(Number(moveScore)))}${byMoves ? " m" : " MOVES"}`
+        : byMoves ? "— m" : "— MOVES";
       const time = document.createElement("b");
       time.className = "daily-leaderboard-time";
       const runSeconds = byMoves ? entry.bestMovesSeconds : entry.seconds;
@@ -8168,7 +8169,8 @@ window.BOXXY_RELEASE = Object.freeze({
     if (!makerTesting && !sharedPuzzleMode) {
       window.BOXXYAttemptHistory?.finish?.({
         seconds:completionSeconds, moves, pushes,
-        assisted:Boolean(autoplayRunning || guidedSolveUsed || instantMoveUsedThisLevel)
+        assisted:Boolean(autoplayRunning || guidedSolveUsed || instantMoveUsedThisLevel),
+        device: dailyMode ? dailyLeaderboardDeviceClass() : ""
       });
     }
     completionSolveData = (levelSolutionAvailable && !makerTesting && !sharedPuzzleMode) ? canonicalCompletedSolveData() : "";
