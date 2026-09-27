@@ -6,7 +6,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "383",
+  version: "386",
   lastUpdated: "2026-09-27"
 });
 /* BOXXY v380: Exponentially history titles use current canonical names; gameplay unchanged. */
@@ -3494,6 +3494,7 @@ window.BOXXY_RELEASE = Object.freeze({
 
   const dailyLeaderboardCache = new Map();
   const DAILY_LEADERBOARD_CACHE_MS = 15000;
+  const DAILY_LEADERBOARD_SORT_KEY = "boxxy-daily-leaderboard-sort-v1";
   let dailyLeaderboardActivePuzzle = null;
   let dailyLeaderboardRequestSerial = 0;
   let dailyLeaderboardSort = "time";
@@ -3566,13 +3567,13 @@ window.BOXXY_RELEASE = Object.freeze({
 
   function renderDailyLeaderboardRows(container, entries, limit = 0) {
     if (!container) return;
-    container.innerHTML = "";
+    const previousScrollTop = container.scrollTop;
     const byMoves = container === dailyLeaderboardList && dailyLeaderboardSort === "moves";
     if (entries === null) {
       const unavailable = document.createElement("p");
       unavailable.className = "daily-leaderboard-empty";
       unavailable.textContent = byMoves ? "FEWEST MOVES ARE UNAVAILABLE RIGHT NOW" : "FASTEST TIMES ARE UNAVAILABLE RIGHT NOW";
-      container.appendChild(unavailable);
+      container.replaceChildren(unavailable);
       return;
     }
     const allEntries = Array.isArray(entries) ? entries : [];
@@ -3587,10 +3588,11 @@ window.BOXXY_RELEASE = Object.freeze({
       const empty = document.createElement("p");
       empty.className = "daily-leaderboard-empty";
       empty.textContent = "NO SIGNED-IN SCORES YET";
-      container.appendChild(empty);
+      container.replaceChildren(empty);
       return;
     }
     const medals = ["🥇", "🥈", "🥉"];
+    const rows = document.createDocumentFragment();
     const signedInUsername = signedInLeaderboardUsername().toLocaleLowerCase();
     visible.forEach((entry, index) => {
       const row = document.createElement("div");
@@ -3634,12 +3636,17 @@ window.BOXXY_RELEASE = Object.freeze({
         if (deviceClass) time.appendChild(device);
         row.append(rank, name, time, moves);
       }
-      container.appendChild(row);
+      rows.appendChild(row);
     });
+    container.replaceChildren(rows);
+    container.scrollTop = previousScrollTop;
   }
 
-  function selectDailyLeaderboardSort(sort) {
+  function selectDailyLeaderboardSort(sort, { persist = false } = {}) {
     dailyLeaderboardSort = sort === "moves" ? "moves" : "time";
+    if (persist) {
+      try { localStorage.setItem(DAILY_LEADERBOARD_SORT_KEY, dailyLeaderboardSort); } catch (_) {}
+    }
     for (const [button,value] of [[dailyLeaderboardSortTime,"time"],[dailyLeaderboardSortMoves,"moves"]]) {
       if (!button) continue;
       const selected = dailyLeaderboardSort === value;
@@ -3711,7 +3718,10 @@ window.BOXXY_RELEASE = Object.freeze({
     if (dailyLeaderboardStatus) dailyLeaderboardStatus.textContent = result ? "COMPLETED" : "NOT YET COMPLETED";
     renderDailyPlayerStats(result);
     updateDailyLeaderboardAccountNote();
-    selectDailyLeaderboardSort("time");
+    // Restore this browser's preference (also included in signed-in account sync).
+    let preferredSort = "time";
+    try { preferredSort = localStorage.getItem(DAILY_LEADERBOARD_SORT_KEY) || "time"; } catch (_) {}
+    selectDailyLeaderboardSort(preferredSort);
     if (dailyLeaderboardList) loadDailyLeaderboardInto(dailyLeaderboardList, puzzle, 0, { force: true });
     dailyLeaderboardModal.hidden = false;
     requestAnimationFrame(() => dailyLeaderboardPlayBtn?.focus?.({ preventScroll: true }));
@@ -9767,8 +9777,8 @@ window.BOXXY_RELEASE = Object.freeze({
     if (dailyLeaderboardActivePuzzle) dailyArchivePlayPuzzle(dailyLeaderboardActivePuzzle);
   });
   dailyLeaderboardModal?.addEventListener("click", event => { if (event.target === dailyLeaderboardModal) closeDailyLeaderboard(); });
-  dailyLeaderboardSortTime?.addEventListener("click", () => selectDailyLeaderboardSort("time"));
-  dailyLeaderboardSortMoves?.addEventListener("click", () => selectDailyLeaderboardSort("moves"));
+  dailyLeaderboardSortTime?.addEventListener("click", () => selectDailyLeaderboardSort("time", { persist: true }));
+  dailyLeaderboardSortMoves?.addEventListener("click", () => selectDailyLeaderboardSort("moves", { persist: true }));
   dailyCompletionLeaderboard?.addEventListener("click", () => {
     if (dailyPuzzle) openDailyLeaderboard(dailyPuzzle);
   });

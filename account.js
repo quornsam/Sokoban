@@ -43,6 +43,7 @@
     "boxxy-speed-v1",
     "boxxy-arrow-spacing-v1",
     "boxxy-mouse-support-v1",
+    "boxxy-daily-leaderboard-sort-v1",
     "boxxy-touch-click-push-access-v1",
     "boxxy-touch-click-push-devices-v1",
     "boxxy-theme",
