@@ -159,7 +159,7 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=371">
+<link rel="stylesheet" href="styles.css?v=381">
 <link rel="stylesheet" href="how-to-play.css?v=225">
 <link rel="preload" as="image" href="assets/board/boxes/box-default-yellow.png?v=226">
 <link rel="preload" as="image" href="assets/board/goals/goal-red.png?v=226">
@@ -728,7 +728,13 @@
     </div>
     <div class="daily-leaderboard-section-head">
       <span>SIGNED-IN PLAYERS</span>
-      <strong>FASTEST TIMES</strong>
+      <div class="daily-leaderboard-sort">
+        <div class="daily-leaderboard-sort-buttons" role="group" aria-label="Sort Daily leaderboard">
+          <button id="dailyLeaderboardSortTime" class="is-active" type="button" aria-pressed="true">FASTEST TIMES</button>
+          <button id="dailyLeaderboardSortMoves" type="button" aria-pressed="false" title="Moves recorded during each player's fastest qualifying run">FEWEST MOVES</button>
+        </div>
+        <small id="dailyLeaderboardSortNote" class="daily-leaderboard-sort-note" hidden>Moves from each player’s fastest qualifying run.</small>
+      </div>
     </div>
     <div id="dailyLeaderboardList" class="daily-leaderboard-list" aria-live="polite"></div>
     <p id="dailyLeaderboardNote" class="daily-leaderboard-note">Sign in with your account if you want to see your score here too.</p>
@@ -1438,10 +1444,10 @@
 <script src="daily-puzzles/boxxy-daily-loader.js?v=357"></script>
 <script src="levels.js?v=372"></script>
 <script src="starry-night.js?v=302"></script>
-<script src="boxxy.js?v=380"></script>
-<script src="attempt-history.js?v=378"></script>
-<script src="attempt-history-ui.js?v=380"></script>
-<script src="account.js?v=379"></script>
+<script src="boxxy.js?v=381"></script>
+<script src="attempt-history.js?v=381"></script>
+<script src="attempt-history-ui.js?v=381"></script>
+<script src="account.js?v=381"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="pack-builder.js?v=354"></script>
 <script src="how-to-play.js?v=153"></script>

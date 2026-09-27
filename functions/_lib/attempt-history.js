@@ -245,7 +245,14 @@ export async function readAttemptOverview(db, userId, progressValue=null) {
     attempts: Number(row.attempts)||0, completions:Number(row.completions)||0,
     lastAt:Number(row.lastAt)||0 }));
   const levels=mergeOlderHistory(detailed,progressValue);
-  return {levels,recent:levels.filter(level=>level.lastAt>0).slice(0,10),historyBeginsVersion:376};
+  // Recent IDs let a player's local device merge its own unsynced attempts
+  // with this overview without inventing duplicates. No scoring data changes.
+  const known = await db.prepare(`SELECT id FROM level_attempt_history
+    WHERE user_id=? ORDER BY started_at DESC LIMIT 1000`).bind(userId).all();
+  return {
+    levels,recent:levels.filter(level=>level.lastAt>0).slice(0,10),
+    knownRunIds:(known.results || []).map(row=>row.id),historyBeginsVersion:376
+  };
 }
 
 const SORT_COLUMNS = Object.freeze({

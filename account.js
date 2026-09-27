@@ -1,3 +1,4 @@
+/* BOXXY v381: Play History opens from an account-scoped local cache while D1 refreshes independently. */
 /* BOXXY v365: receive server-authorised account feature flags for private Instant Move access. */
 /* BOXXY v364: preserve timezone metadata from the actual fastest Daily run for recovered activity days. */
 /* BOXXY v363: independent Daily personal bests retained; player sessions now renew server-side through normal account checks/cloud saves. */
@@ -103,27 +104,33 @@
   const accountPlayHistoryContent = document.getElementById('accountPlayHistoryContent');
   let historyLoadedFor = '';
   let historyOpeningToken = 0;
+  let historyBrowser = null;
   accountPlayHistory?.addEventListener('toggle', () => {
     const opening = ++historyOpeningToken;
+    historyBrowser?.dispose?.();
+    historyBrowser = null;
     if (!accountPlayHistory.open || !account || !window.BOXXYHistoryUI) return;
     const userId = account.id;
     historyLoadedFor = userId;
-    const display = () => {
-      if (opening !== historyOpeningToken || !accountPlayHistory.open || account?.id !== userId) return;
-      historyLoadedFor = userId; // Refresh on every opening, including newly played levels.
-      window.BOXXYHistoryUI.mount(accountPlayHistoryContent, query => {
-        const params = new URLSearchParams(query);
-        return '/api/attempts' + (params.size ? '?' + params : '');
-      },null,{
-        onPlay:level=>{
-          const started=window.BoxxyGameAPI?.playHistoryLevel?.(level.packId,level.levelToken);
-          if (started) closeAccount();
-          return Boolean(started);
-        }
-      });
-    };
-    accountPlayHistoryContent.replaceChildren(document.createTextNode('Updating play history…'));
-    Promise.resolve(window.BOXXYAttemptHistory?.flush?.()).then(display, display);
+    const isCurrent = () => opening === historyOpeningToken && accountPlayHistory.open && account?.id === userId;
+    historyBrowser = window.BOXXYHistoryUI.mount(accountPlayHistoryContent, query => {
+      const params = new URLSearchParams(query);
+      return '/api/attempts' + (params.size ? '?' + params : '');
+    },window.BOXXYAttemptHistory?.localOverview?.(userId),{
+      isCurrent, refreshOverview:true,
+      onOverview:data=>window.BOXXYAttemptHistory?.rememberOverview?.(data,userId),
+      readLocalOverview:()=>window.BOXXYAttemptHistory?.localOverview?.(userId),
+      onPlay:level=>{
+        const started=window.BoxxyGameAPI?.playHistoryLevel?.(level.packId,level.levelToken);
+        if (started) closeAccount();
+        return Boolean(started);
+      }
+    });
+    // Never hold up rendering while the existing upload queue is sent to D1.
+    window.BOXXYAttemptHistory?.flush?.();
+  });
+  window.addEventListener('boxxyhistorysynced',event=>{
+    if (accountPlayHistory?.open && account?.id === event.detail?.userId) historyBrowser?.refresh?.();
   });
   const accountGuest = document.getElementById("accountGuest");
   const googleLinked = document.getElementById("accountGoogleLinked");

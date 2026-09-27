@@ -1,4 +1,4 @@
-/* BOXXY v380 — current Exponentially titles in player and Basement history, including older records. */
+/* BOXXY v381 — local-first player history with background cloud refresh. */
 (() => {
   'use strict';
   const date = ms => ms ? new Date(Number(ms)).toLocaleString('en-GB', { dateStyle:'medium',timeStyle:'short' }) : '—';
@@ -144,7 +144,8 @@
     tr.appendChild(td);
   }
   function mount(root,urlFor,overview=null,options={}) {
-    if (!root) return;
+    if (!root) return null;
+    let disposed=false,refreshSerial=0;
     const get=async query=>{
       const response=await fetch(urlFor(query),{credentials:'same-origin'});
       const data=await response.json();
@@ -152,6 +153,16 @@
       return data;
     };
     const render=data=>{
+      // A background refresh must not collapse a pack the player is reading.
+      const previousRecent=root.querySelector('.history-recent')?.open || false;
+      const previousPacks=new Map([...root.querySelectorAll('.history-pack')]
+        .map(pack=>[pack.dataset.historyPack,{open:pack.open,shown:Number(pack.dataset.historyShown)||0}]));
+      const previousLevels=new Map([...root.querySelectorAll('.history-level')]
+        .map(level=>[level.dataset.historyKey,{
+          open:level.open,
+          sort:level.querySelectorAll('.history-controls select')[0]?.value,
+          direction:level.querySelectorAll('.history-controls select')[1]?.value
+        }]));
       root.replaceChildren();
       const levels=Array.isArray(data.levels)?data.levels:[];
       if (!levels.length) {root.appendChild(el('p','No recorded attempts or earlier progress yet.'));return;}
@@ -163,6 +174,9 @@
       }
       const makeLevel=level=>{
         const section=el('details',null,'history-level');
+        const historyKey=`${level.packId}:${level.levelToken}`;
+        section.dataset.historyKey=historyKey;
+        const previous=previousLevels.get(historyKey);
         const count=Number(level.attempts)||0;
         const countLabel=count>0?`${count} attempt${count===1?'':'s'}`
           :(level.previousCompletion||level.bestTime!=null||level.bestMoves!=null?'Saved result':'0 attempts');
@@ -192,11 +206,12 @@
         const controls=el('div',null,'history-controls');
         const sort=el('select');
         for (const [value,label] of sorts) {const option=el('option',label);option.value=value;sort.appendChild(option);}
-        sort.value='attempt';
+        sort.value=previous?.sort || 'attempt';
         const direction=el('select');
         for (const [value,label] of [['desc','Descending'],['asc','Ascending']]) {
           const option=el('option',label);option.value=value;direction.appendChild(option);
         }
+        direction.value=previous?.direction || 'desc';
         controls.append(el('label','Sort by '),sort,direction);
         const table=el('table',null,'history-table');
         table.innerHTML='<thead><tr><th>Attempt</th><th>Date</th><th>Complete</th><th>Time</th><th>Moves</th><th>Pushes</th></tr></thead>';
@@ -259,10 +274,12 @@
         direction.addEventListener('change',()=>fetchRows(true));
         more.addEventListener('click',()=>fetchRows(false));
         levelNodes.set(`${level.packId}:${level.levelToken}`,section);
+        if (previous?.open) section.open=true;
         return section;
       };
       // Both player and Basement have the same collapsed recent-level drawer.
       const recent=el('details',null,'history-recent');
+      recent.open=previousRecent;
       recent.appendChild(el('summary','10 MOST RECENT LEVELS'));
       const recentContent=el('div',null,'history-recent-items');
       for (const level of (data.recent||levels.slice(0,10))) {
@@ -280,6 +297,7 @@
       recent.appendChild(recentContent);root.appendChild(recent);
       for (const [packId,items] of orderedPacks(packs)) {
         const pack=tint(el('details',null,'history-pack'),packId);
+        pack.dataset.historyPack=packId;
         const name=labelFor(items[0]);
         pack.appendChild(el('summary',`${name} · ${items.length} level${items.length===1?'':'s'}`));
         items.sort((a,b)=>packId==='daily-boxxy'
@@ -297,21 +315,40 @@
           const end=Math.min(items.length,shown+perPage);
           for (;shown<end;shown++) more.before(makeLevel(items[shown]));
           const left=items.length-shown;
+          pack.dataset.historyShown=String(shown);
           more.hidden=!left;
           more.textContent=left?`MORE (${Math.min(50,left)})`:'';
         };
         pack.appendChild(more);
         more.addEventListener('click',showNext);
         showNext();
+        const previouslyShown=previousPacks.get(packId)?.shown || 0;
+        while(shown<previouslyShown && shown<items.length) showNext();
         packEnsure.set(packId,level=>{
           const index=items.findIndex(candidate=>String(candidate.levelToken)===String(level.levelToken));
           while(index>=shown && shown<items.length) showNext();
         });
+        pack.open=Boolean(previousPacks.get(packId)?.open);
         packNodes.set(packId,pack);root.appendChild(pack);
       }
     };
+    const refresh=async()=>{
+      const request=++refreshSerial;
+      try {
+        const result=await get({});
+        if (disposed || request!==refreshSerial || options.isCurrent?.()===false) return;
+        options.onOverview?.(result);
+        render(options.readLocalOverview?.() || result);
+      } catch(error) {
+        if (disposed || request!==refreshSerial || options.isCurrent?.()===false) return;
+        if (!root.querySelector('.history-recent') && !root.querySelector('.history-pack'))
+          root.replaceChildren(el('p',overview?'Saved history is available offline.':error.message,'history-note'));
+      }
+    };
     if (overview) render(overview);
-    else {root.replaceChildren(el('p','Loading history…'));get({}).then(render).catch(error=>root.replaceChildren(el('p',error.message)));}
+    else root.replaceChildren(el('p','Loading history…'));
+    if (!overview || options.refreshOverview) refresh();
+    return {refresh,dispose:()=>{disposed=true;refreshSerial++;}};
   }
   window.BOXXYHistoryUI=Object.freeze({mount,levelNameFor:actualLevelName});
 })();

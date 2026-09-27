@@ -1,7 +1,10 @@
-/* BOXXY v377 — signed-in, offline-safe per-run history, independent of best-score saves. */
+/* BOXXY v381 — local-first player history, with cloud sync independent of opening the history panel. */
 (() => {
   'use strict';
   const PREFIX = 'boxxy-run-history-queue-v1:';
+  const LOCAL_PREFIX = 'boxxy-run-history-local-v1:';
+  const OVERVIEW_PREFIX = 'boxxy-run-history-overview-v1:';
+  const LOCAL_RUN_LIMIT = 500;
   const USER = () => String(window.BOXXYAccountIdentity?.id || '');
   let active = null;
   let sending = false;
@@ -14,6 +17,23 @@
   }
   const json = key => { try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch (_) { return []; } };
   const keyFor = id => PREFIX + id;
+  const localKeyFor = id => LOCAL_PREFIX + id;
+  const overviewKeyFor = id => OVERVIEW_PREFIX + id;
+  const overviewMemory = new Map();
+  function rememberLocalRun(entry, userId) {
+    // Keep a bounded, account-specific read copy after the upload queue clears.
+    // This is display data only: the existing queue remains the sole sync source.
+    try {
+      const key = localKeyFor(userId);
+      const stored = json(key);
+      const runs = Array.isArray(stored) ? stored : [];
+      const index = runs.findIndex(item => item.id === entry.id);
+      if (index >= 0) runs.splice(index, 1);
+      runs.push({...entry});
+      if (runs.length > LOCAL_RUN_LIMIT) runs.splice(0, runs.length - LOCAL_RUN_LIMIT);
+      localStorage.setItem(key, JSON.stringify(runs));
+    } catch (_) { /* Local history is optional; never affect the upload queue. */ }
+  }
   function stash(entry, userId) {
     if (!userId || !entry) return;
     try {
@@ -24,6 +44,70 @@
       else queue[index] = entry;
       localStorage.setItem(key, JSON.stringify(queue));
     } catch (error) { console.warn('BOXXY history local storage unavailable', error); }
+    rememberLocalRun(entry, userId);
+  }
+  function rememberOverview(data, userId = USER()) {
+    if (!userId || !Array.isArray(data?.levels)) return;
+    const knownRunIds = Array.isArray(data.knownRunIds) ? data.knownRunIds : [];
+    const known = new Set(knownRunIds);
+    const queue = json(keyFor(userId));
+    const snapshot = {
+      levels:data.levels, recent:Array.isArray(data.recent) ? data.recent : [],
+      historyBeginsVersion:data.historyBeginsVersion || 376, savedAt:Date.now(),
+      knownRunIds, pendingIds:(Array.isArray(queue) ? queue : [])
+        .filter(run=>run.ownerId===userId && !known.has(run.id)).map(run=>run.id)
+    };
+    overviewMemory.set(userId, snapshot);
+    try { localStorage.setItem(overviewKeyFor(userId), JSON.stringify(snapshot)); }
+    catch (_) { /* In-memory history still works when device storage is full. */ }
+  }
+  function localOverview(userId = USER()) {
+    if (!userId || userId !== USER()) return null;
+    const saved = overviewMemory.get(userId) || json(overviewKeyFor(userId));
+    const snapshot = Array.isArray(saved?.levels) ? saved : null;
+    const stored = json(localKeyFor(userId));
+    const runs = Array.isArray(stored) ? stored : [];
+    const known = new Set(snapshot?.knownRunIds || []);
+    const pendingAtFetch = new Set(snapshot?.pendingIds || []);
+    const queued = json(keyFor(userId));
+    const stillQueued = new Set((Array.isArray(queued) ? queued : []).map(run=>run.id));
+    // The server supplies recent attempt IDs so locally recorded attempts can
+    // be overlaid without double-counting runs already present in D1.
+    const newRuns = snapshot ? runs.filter(run => !known.has(run.id) && (
+      Number(run.startedAt) > snapshot.savedAt || pendingAtFetch.has(run.id) || stillQueued.has(run.id)
+    )) : runs;
+    if (!snapshot && !newRuns.length) return null;
+    const levels = new Map((snapshot?.levels || []).map(level => [
+      `${level.packId}:${level.levelToken}`, {...level}
+    ]));
+    for (const run of newRuns) {
+      if (run.ownerId !== userId || !run.packId || !run.levelToken) continue;
+      const key = `${run.packId}:${run.levelToken}`;
+      const level = levels.get(key) || {
+        packId:run.packId, levelToken:run.levelToken,
+        packName:run.packName || run.packId, levelName:run.levelName || '',
+        levelNumber:run.levelNumber || 0, attempts:0, detailedAttempts:0,
+        completions:0, lastAt:0, bestTime:null, bestMoves:null, bestPushes:null
+      };
+      level.detailedAttempts = (Number(level.detailedAttempts) || 0) + 1;
+      // Older aggregate attempt counts can already include an opening or a
+      // newly synced run; match the server's max(aggregate, detailed) rule.
+      level.attempts = Math.max(Number(level.attempts) || 0,level.detailedAttempts);
+      level.completions = (Number(level.completions) || 0) + (run.completed === true ? 1 : 0);
+      level.lastAt = Math.max(Number(level.lastAt) || 0, Number(run.endedAt || run.startedAt) || 0);
+      if (run.completed === true && run.assisted !== true) {
+        for (const [source,target] of [['seconds','bestTime'],['moves','bestMoves'],['pushes','bestPushes']]) {
+          const metric = validMetric(run[source]);
+          if (metric !== null) level[target] = level[target] == null ? metric : Math.min(level[target],metric);
+        }
+      }
+      levels.set(key,level);
+    }
+    const ordered = [...levels.values()].sort((a,b) => (Number(b.lastAt)||0)-(Number(a.lastAt)||0));
+    return {
+      levels:ordered, recent:ordered.filter(level=>level.lastAt>0).slice(0,10),
+      historyBeginsVersion:snapshot?.historyBeginsVersion || 376
+    };
   }
   function uid() {
     if (crypto.randomUUID) return crypto.randomUUID();
@@ -107,6 +191,7 @@
       const remaining = current.filter(entry => !confirmed.has(entry.id) || sent.get(entry.id) !== JSON.stringify(entry));
       localStorage.setItem(keyFor(userId), JSON.stringify(remaining));
       if (remaining.length) setTimeout(flush, 1000);
+      else window.dispatchEvent(new CustomEvent('boxxyhistorysynced',{detail:{userId}}));
     } catch (_) { /* Offline history is retained for later upload. */ }
     finally { sending = false; }
   }
@@ -128,7 +213,8 @@
     flush();
   }
   window.BOXXYAttemptHistory = Object.freeze({
-    start, finish, progress, end, flush, hasActive:()=>Boolean(active)
+    start, finish, progress, end, flush, localOverview, rememberOverview,
+    hasActive:()=>Boolean(active)
   });
   window.addEventListener('boxxyaccountfeatures', event => {
     if (!event.detail?.loggedIn) end('signed_out');
