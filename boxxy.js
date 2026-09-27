@@ -6,7 +6,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "386",
+  version: "387",
   lastUpdated: "2026-09-27"
 });
 /* BOXXY v380: Exponentially history titles use current canonical names; gameplay unchanged. */

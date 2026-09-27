@@ -7058,13 +7058,12 @@ body.large-level-performance .instruction .thought-text{
 }
 .daily-leaderboard-card>.daily-leaderboard-list :is(.daily-leaderboard-time,.daily-leaderboard-moves){
   min-width:0;
-  text-align:right;
   overflow-wrap:anywhere;
   white-space:normal;
   font-variant-numeric:tabular-nums;
 }
-.daily-leaderboard-card>.daily-leaderboard-list .daily-leaderboard-time{font-size:var(--leader-score-size);font-weight:bold;color:inherit;letter-spacing:.015em;line-height:1}
-.daily-leaderboard-card>.daily-leaderboard-list .daily-leaderboard-moves{font-size:var(--leader-detail-size);font-weight:950;color:#6b6155;letter-spacing:.04em;line-height:normal}
+.daily-leaderboard-card>.daily-leaderboard-list .daily-leaderboard-time{text-align:right;font-size:var(--leader-score-size);font-weight:bold;color:inherit;letter-spacing:.015em;line-height:1}
+.daily-leaderboard-card>.daily-leaderboard-list .daily-leaderboard-moves{text-align:left;font-size:var(--leader-detail-size);font-weight:950;color:#6b6155;letter-spacing:.04em;line-height:normal}
 .daily-leaderboard-card>.daily-leaderboard-list .daily-leaderboard-row.is-moves .daily-leaderboard-time{font-size:var(--leader-detail-size);font-weight:950;color:#6b6155;letter-spacing:.04em;line-height:normal}
 .daily-leaderboard-card>.daily-leaderboard-list .daily-leaderboard-row.is-moves .daily-leaderboard-moves{font-size:var(--leader-score-size);font-weight:bold;color:inherit;letter-spacing:.015em;line-height:1}
 .daily-leaderboard-card>.daily-leaderboard-list .daily-leaderboard-device{min-width:0;margin:0;text-align:center;font-size:14px}
