@@ -57,13 +57,13 @@ export async function onRequestGet(context) {
     const result = await db.prepare(`
       WITH daily_records AS (
         SELECT
-          username,
+          id AS user_id, username,
           json_extract(progress_json, '$."boxxy-daily-completions-v1"') AS daily_json
         FROM users
       ),
       daily_times AS (
         SELECT
-          username,
+          user_id, username,
           CASE
             WHEN json_extract(daily_json, ?) = 1 THEN
               CAST(json_extract(daily_json, ?) AS REAL)
@@ -101,12 +101,21 @@ export async function onRequestGet(context) {
         FROM daily_records
       )
       , real_scores AS (
-        SELECT username, seconds, moves, best_moves, leaderboard_device,
-          CASE WHEN best_moves_seconds > 0 THEN best_moves_seconds
-            WHEN best_moves = moves THEN seconds ELSE NULL END AS best_moves_run_seconds,
-          CASE WHEN best_moves_seconds > 0 THEN best_moves_device
-            WHEN best_moves = moves THEN leaderboard_device ELSE NULL END AS best_moves_run_device
-        FROM daily_times
+        SELECT d.username, d.seconds, d.moves, d.best_moves, d.leaderboard_device,
+          COALESCE(
+            CASE WHEN d.best_moves_seconds > 0 THEN d.best_moves_seconds END,
+            CASE WHEN d.best_moves = d.moves THEN d.seconds END,
+            -- Pre-v383 totals lack a paired time, although the completed run
+            -- may already be in D1 Play History. Match the actual Daily, user
+            -- and move count; never borrow an unrelated fastest-run time.
+            (SELECT MIN(h.seconds) FROM level_attempt_history h
+              WHERE h.user_id = d.user_id AND h.pack_id = 'daily-boxxy'
+                AND h.level_token = ? AND h.completed = 1 AND h.assisted = 0
+                AND h.moves = d.best_moves AND h.seconds > 0)
+          ) AS best_moves_run_seconds,
+          CASE WHEN d.best_moves_seconds > 0 THEN d.best_moves_device
+            WHEN d.best_moves = d.moves THEN d.leaderboard_device ELSE NULL END AS best_moves_run_device
+        FROM daily_times d
         WHERE
           seconds IS NOT NULL
           AND seconds > 0
@@ -151,7 +160,7 @@ export async function onRequestGet(context) {
       leaderboardTrackedPath, leaderboardStartedAtPath,
       leaderboardTrackedPath, leaderboardCompletedAtPath,
       leaderboardTrackedPath, leaderboardDevicePath,
-      MAX_PUBLIC_MOVES_PER_SECOND, MAX_TIMING_DRIFT_SECONDS, dateKey
+      dateKey, MAX_PUBLIC_MOVES_PER_SECOND, MAX_TIMING_DRIFT_SECONDS, dateKey
     ).all();
 
     const entries = (result.results || []).map(row => ({
