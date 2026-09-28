@@ -1,3 +1,4 @@
+/* BOXXY v398: spooky character sheets and Dark Quiet Death are available offline. */
 /* BOXXY v375: varied synthetic score generation; gameplay unaffected. */
 /* BOXXY v374: private Daily seeding/admin leaderboard tools and 250×250 Level Maker. */
 /* BOXXY v372: copy and display-name updates; refresh cached HTML, levels and gameplay script. */
@@ -11,7 +12,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "397";
+const RELEASE_VERSION = "398";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [
@@ -25,6 +26,7 @@ const ASSETS = [
   "/assets/audio/Tetris-Piano-293KB.mp3",
   "/assets/audio/Velvet-Static-296KB.mp3",
   "/assets/audio/cracked-ivory-drift.mp3",
+  "/assets/audio/Dark-Quiet-Death-279KB.m4a",
   "/assets/audio/tetris-piano.m4a",
   "/assets/board/board-atlas.png",
   "/assets/board/boxes/box-black.png",
@@ -71,6 +73,11 @@ const ASSETS = [
   "/assets/characters/girl/trousers.png",
   "/assets/characters/girl/tshirt.png",
   "/assets/characters/lincoln/base.png",
+  "/assets/characters/beverley/base.png",
+  "/assets/characters/harry/base.png",
+  "/assets/characters/stuart/base.png",
+  "/assets/characters/davido/base.png",
+  "/assets/characters/samantha/base.png",
   "/assets/characters-fallback/boy/player-back.png",
   "/assets/characters-fallback/boy/player-front.png",
   "/assets/characters-fallback/boy/player-left.png",

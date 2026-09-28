@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "397",
+  version: "398",
   lastUpdated: "2026-09-28"
 });
+/* BOXXY v398: Attire adds the SPOOKY character family, its soundtrack, and one-time spooky board defaults. */
 /* BOXXY v397: Lincoln joins Attire as a fixed standalone character using the supplied 12-frame sprite sheet. */
 /* BOXXY v396: Daily archive/detail actions and Play History level launching refined. */
 /* BOXXY v395: Play History uses compact fixed sort buttons and surfaces recoverable earlier Daily control metadata. */
@@ -324,6 +325,14 @@ window.BOXXY_RELEASE = Object.freeze({
     return true;
   }
 
+  function apply(value) {
+    const next = normaliseStyle(value);
+    if (next.box === style.box && next.target === style.target) return false;
+    style = next;
+    persist(true);
+    return true;
+  }
+
   function reset() {
     style = { ...DEFAULT_STYLE };
     persist(true);
@@ -342,7 +351,7 @@ window.BOXXY_RELEASE = Object.freeze({
   });
 
   window.BoxxyBoardStyle = Object.freeze({
-    STORAGE_KEY, DEFAULT_STYLE, COLOURS, set, reset, reloadFromStorage,
+    STORAGE_KEY, DEFAULT_STYLE, COLOURS, set, apply, reset, reloadFromStorage,
     get style() { return { ...style }; }
   });
 })();
@@ -591,8 +600,18 @@ window.BOXXY_RELEASE = Object.freeze({
     "push-front", "push-back", "push-left", "push-right"
   ];
   const CATEGORIES = ["tshirt", "trousers", "hair", "skin", "shoes"];
-  const BODY_TYPES = ["boy", "girl", "lincoln"];
-  const FIXED_BODY_TYPES = new Set(["lincoln"]);
+  const SPOOKY_BODY_TYPES = Object.freeze(["lincoln", "beverley", "harry", "stuart", "davido", "samantha"]);
+  const BODY_TYPES = ["boy", "girl", ...SPOOKY_BODY_TYPES];
+  const FIXED_BODY_TYPES = new Set(SPOOKY_BODY_TYPES);
+  const SPOOKY_CHARACTER_LABELS = Object.freeze({
+    lincoln: "LINCOLN",
+    beverley: "BEVERLEY",
+    harry: "HARRY",
+    stuart: "STUART",
+    davido: "DAVIDO",
+    samantha: "SAMANTHA"
+  });
+  const SPOOKY_STORAGE_KEY = "boxxy-spooky-character-v1";
   const THEMES = ["bauhaus"];
   const SHEET_COLS = 4;
   // One efficient 300 × 260 frame set is used everywhere. It remains larger than
@@ -941,11 +960,17 @@ window.BOXXY_RELEASE = Object.freeze({
       if (!BODY_TYPES.includes(colour) || style.bodyType === colour) return;
       style.bodyType = colour;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(style));
+      if (SPOOKY_BODY_TYPES.includes(style.bodyType)) {
+        try { localStorage.setItem(SPOOKY_STORAGE_KEY, style.bodyType); } catch (_) {}
+      }
       updateSelectedSwatches();
       redrawAll();
       loadSheetBundle(style.bodyType, activeTheme())
         .then(() => redrawAll())
         .catch(error => console.error("Selected character assets could not be loaded.", error));
+      if (SPOOKY_BODY_TYPES.includes(style.bodyType)) {
+        window.dispatchEvent(new CustomEvent("boxxyspookycharacterselected", { detail: { bodyType: style.bodyType } }));
+      }
       return;
     }
     if (!CATEGORIES.includes(category)) return;
@@ -984,7 +1009,7 @@ window.BOXXY_RELEASE = Object.freeze({
     typeLegend.textContent = LABELS.bodyType;
     const typeChoices = document.createElement("div");
     typeChoices.className = "style-type-choices";
-    [["INDI", "boy"], ["OLI", "girl"], ["LINCOLN", "lincoln"]].forEach(([label, value]) => {
+    [["INDI", "boy"], ["OLI", "girl"]].forEach(([label, value]) => {
       const button = document.createElement("button");
       button.type = "button";
       button.className = "style-type-btn";
@@ -995,8 +1020,46 @@ window.BOXXY_RELEASE = Object.freeze({
       button.addEventListener("click", () => set("bodyType", value));
       typeChoices.appendChild(button);
     });
+    const spookyButton = document.createElement("button");
+    spookyButton.type = "button";
+    spookyButton.className = "style-type-btn";
+    spookyButton.dataset.styleFamily = "spooky";
+    spookyButton.textContent = "SPOOKY";
+    spookyButton.setAttribute("aria-label", "Character family: Spooky");
+    spookyButton.addEventListener("click", () => {
+      if (SPOOKY_BODY_TYPES.includes(style.bodyType)) return;
+      let preferred = "lincoln";
+      try {
+        const saved = String(localStorage.getItem(SPOOKY_STORAGE_KEY) || "");
+        if (SPOOKY_BODY_TYPES.includes(saved)) preferred = saved;
+      } catch (_) {}
+      set("bodyType", preferred);
+    });
+    typeChoices.appendChild(spookyButton);
     typeGroup.append(typeLegend, typeChoices);
     styleControls.appendChild(typeGroup);
+
+    const spookyGroup = document.createElement("fieldset");
+    spookyGroup.className = "style-group style-spooky-group";
+    spookyGroup.dataset.styleCategory = "spooky";
+    const spookyLegend = document.createElement("legend");
+    spookyLegend.textContent = "SPOOKY CHARACTER";
+    const spookyChoices = document.createElement("div");
+    spookyChoices.className = "style-type-choices";
+    SPOOKY_BODY_TYPES.forEach(value => {
+      const label = SPOOKY_CHARACTER_LABELS[value];
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "style-type-btn";
+      button.dataset.category = "bodyType";
+      button.dataset.colour = value;
+      button.textContent = label;
+      button.setAttribute("aria-label", `Spooky character: ${label}`);
+      button.addEventListener("click", () => set("bodyType", value));
+      spookyChoices.appendChild(button);
+    });
+    spookyGroup.append(spookyLegend, spookyChoices);
+    styleControls.appendChild(spookyGroup);
 
     for (const category of CATEGORIES) {
       const group = document.createElement("fieldset");
@@ -1025,16 +1088,23 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   function updateSelectedSwatches() {
+    const spookySelected = SPOOKY_BODY_TYPES.includes(style.bodyType);
     document.querySelectorAll(".style-swatch, .style-type-btn").forEach(button => {
-      const cat = button.dataset.category;
-      const val = button.dataset.colour;
-      const selected = style[cat] === val;
+      const selected = button.dataset.styleFamily === "spooky"
+        ? spookySelected
+        : style[button.dataset.category] === button.dataset.colour;
       button.classList.toggle("selected", selected);
       button.setAttribute("aria-pressed", String(selected));
     });
     const fixedCharacter = FIXED_BODY_TYPES.has(style.bodyType);
     styleControls?.querySelectorAll(".style-group[data-style-category]").forEach(group => {
-      if (group.dataset.styleCategory !== "bodyType") group.hidden = fixedCharacter;
+      const category = group.dataset.styleCategory;
+      if (category === "bodyType") return;
+      if (category === "spooky") {
+        group.hidden = !spookySelected;
+        return;
+      }
+      group.hidden = fixedCharacter;
     });
   }
 
@@ -2659,7 +2729,8 @@ window.BOXXY_RELEASE = Object.freeze({
     starry: { label: "Starry Night Lullaby", src: "assets/audio/Starry-Night-Lullaby-281KB.mp3" },
     fading: { label: "Fading into Gold", src: "assets/audio/Fading-into-Gold-296KB.mp3" },
     velvet: { label: "Velvet Static", src: "assets/audio/Velvet-Static-296KB.mp3" },
-    tetris: { label: "Tetris Piano", src: "assets/audio/Tetris-Piano-293KB.mp3" }
+    tetris: { label: "Tetris Piano", src: "assets/audio/Tetris-Piano-293KB.mp3" },
+    spooky: { label: "Dark Quiet Death", src: "assets/audio/Dark-Quiet-Death-279KB.m4a" }
   });
   const storedMusicTrackId = localStorage.getItem("boxxy-music-track-v1");
   let selectedMusicTrackId = storedMusicTrackId === MUSIC_PLAY_ALL_ID || BOXXY_MUSIC_TRACKS[storedMusicTrackId]
@@ -6090,6 +6161,19 @@ window.BOXXY_RELEASE = Object.freeze({
     }
     if (playAfter && musicOn) startBackgroundMusic();
   }
+
+  function applySpookyCharacterDefaults() {
+    BOARD_STYLE?.apply?.({ box: "orange", target: "green" });
+    selectedMusicTrackId = "spooky";
+    musicPlayAllIndex = 0;
+    try { localStorage.setItem("boxxy-music-track-v1", selectedMusicTrackId); } catch (_) {}
+    musicOn = true;
+    try { localStorage.setItem("push-bauhaus-music", "on"); } catch (_) {}
+    updateMusicButton();
+    applySelectedMusicTrack(true, true);
+  }
+
+  window.addEventListener("boxxyspookycharacterselected", applySpookyCharacterDefaults);
 
   function boxxySpeedFactor() {
     return BOXXY_SPEED_FACTORS[boxxySpeed] || 1;

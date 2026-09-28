@@ -210,6 +210,9 @@
   const JIGSAW_SVG = '<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M8 26H34C34 14 40 6 50 6S66 14 66 26H82V38C82 42 84 44 88 44C94 44 98 48 98 54S94 66 88 66C84 66 82 68 82 72V90H64C64 78 58 72 50 72S36 78 36 90H8V64C20 64 28 58 28 50S20 36 8 36Z"/></svg>';
   const AVATAR_DEFAULT = Object.freeze({ bodyType:"boy", tshirt:"#df3526", trousers:"#292829", hair:"#292727", skin:"#ee9a60", shoes:"#292829" });
   const AVATAR_CATEGORIES = Object.freeze(["tshirt", "trousers", "hair", "skin", "shoes"]);
+  const FIXED_AVATAR_CHARACTERS = Object.freeze({
+    lincoln:"LINCOLN", beverley:"BEVERLEY", harry:"HARRY", stuart:"STUART", davido:"DAVIDO", samantha:"SAMANTHA"
+  });
   const BOARD_STYLE_SWATCHES = Object.freeze({
     red:{label:"Red",hex:"#ec2826"}, blue:{label:"Blue",hex:"#1553ca"}, green:{label:"Green",hex:"#328545"},
     purple:{label:"Purple",hex:"#7433ac"}, "light-blue":{label:"Light blue",hex:"#64c0e8"}, teal:{label:"Teal",hex:"#119f9a"},
@@ -225,7 +228,7 @@
   }
   function avatarStyle(summary) {
     const raw = summary?.avatar && typeof summary.avatar === "object" ? summary.avatar : {};
-    const bodyType = ["boy", "girl", "lincoln"].includes(raw.bodyType) ? raw.bodyType : "boy";
+    const bodyType = ["boy", "girl", ...Object.keys(FIXED_AVATAR_CHARACTERS)].includes(raw.bodyType) ? raw.bodyType : "boy";
     return {
       bodyType,
       tshirt: safeColour(raw.tshirt, AVATAR_DEFAULT.tshirt),
@@ -236,7 +239,7 @@
     };
   }
   function avatarCharacterLabel(bodyType) {
-    if (bodyType === "lincoln") return "LINCOLN";
+    if (FIXED_AVATAR_CHARACTERS[bodyType]) return FIXED_AVATAR_CHARACTERS[bodyType];
     if (bodyType === "girl") return "OLI";
     return "INDI";
   }
@@ -256,7 +259,7 @@
     if (!canvas) return;
     const style = avatarStyle(summary);
     const root = `/assets/characters/${style.bodyType}`;
-    const fixedCharacter = style.bodyType === "lincoln";
+    const fixedCharacter = Boolean(FIXED_AVATAR_CHARACTERS[style.bodyType]);
     try {
       const [base, ...layers] = await Promise.all([
         loadAvatarImage(`${root}/base.png`),
@@ -301,7 +304,7 @@
   function outfitMini(summary) {
     const style = avatarStyle(summary);
     const character = avatarCharacterLabel(style.bodyType);
-    if (style.bodyType === "lincoln") return `<div class="outfit-mini" title="Current character"><span>${character}</span></div>`;
+    if (FIXED_AVATAR_CHARACTERS[style.bodyType]) return `<div class="outfit-mini" title="Current character"><span>${character}</span></div>`;
     return `<div class="outfit-mini" title="Current outfit"><span>${character}</span><i title="T-shirt" style="--swatch:${style.tshirt}"></i><i title="Trousers / skirt" style="--swatch:${style.trousers}"></i><i title="Shoes" style="--swatch:${style.shoes}"></i></div>`;
   }
   function boardStyle(summary) {
@@ -898,7 +901,7 @@
       const swatch = BOARD_STYLE_SWATCHES[colour];
       return `<div><span>${label}</span><strong><i class="outfit-swatch" style="--swatch:${swatch.hex}"></i>${escapeHtml(swatch.label.toUpperCase())}</strong></div>`;
     };
-    const clothingRows = style.bodyType === "lincoln"
+    const clothingRows = FIXED_AVATAR_CHARACTERS[style.bodyType]
       ? ""
       : `${row("T-SHIRT", style.tshirt)}${row("TROUSERS / SKIRT", style.trousers)}${row("SHOES", style.shoes)}`;
     return `<div class="detail-outfit"><canvas class="basement-avatar basement-avatar-large" data-avatar-user="${escapeHtml(user.id)}" width="90" height="78" aria-label="Current BOXXY character and style"></canvas><div class="detail-outfit-grid"><div><span>CHARACTER</span><strong>${character}</strong></div>${clothingRows}${boardRow("BOX", board.box)}${boardRow("BOX ON TARGET", board.target)}</div></div>`;
