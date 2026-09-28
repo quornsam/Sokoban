@@ -1,5 +1,6 @@
-import { json, requireDatabase } from "../_lib/auth.js";
+import { json, requireDatabase, authenticatedUser, adminAuthenticated } from "../_lib/auth.js";
 import { ensureAttemptHistoryDeviceColumn } from "../_lib/attempt-history.js";
+import { ensureDailyLeaderboardVisibilitySchema, cleanDailyLeaderboardVisibility } from "../_lib/daily-leaderboard-visibility.js";
 
 const DAILY_LAUNCH_DATE = "2026-08-30";
 const MAX_PUBLIC_MOVES_PER_SECOND = 15;
@@ -41,9 +42,13 @@ export async function onRequestGet(context) {
     const db = requireDatabase(context.env);
     await ensureSyntheticDailySchema(db);
     await ensureAttemptHistoryDeviceColumn(db);
+    await ensureDailyLeaderboardVisibilitySchema(db);
     const url = new URL(context.request.url);
     const dateKey = validDateKey(url.searchParams.get("date"));
     if (!dateKey) return json({ ok: false, error: "A valid Daily Boxxy date is required." }, 400);
+    const adminView = url.searchParams.has("admin") && await adminAuthenticated(context.env, context.request);
+    const viewer = adminView ? null : await authenticatedUser(context.env, context.request);
+    const viewerUserId = viewer ? String(viewer.id || "") : "";
 
     const secondsPath = `$."${dateKey}".seconds`;
     const movesPath = `$."${dateKey}".moves`;
@@ -107,7 +112,8 @@ export async function onRequestGet(context) {
         FROM daily_records
       )
       , real_scores AS (
-        SELECT d.username, d.seconds, d.moves, d.best_moves, d.leaderboard_device,
+        SELECT d.user_id AS player_id, 'real' AS player_kind,
+          d.username, d.seconds, d.moves, d.best_moves, d.leaderboard_device,
           CASE WHEN d.best_moves_seconds > 0 AND d.best_moves_mouse_or_click_push = 1 THEN 1 ELSE 0 END
             AS best_moves_run_mouse_or_click_push,
           CASE WHEN d.best_moves_seconds > 0 AND d.best_moves_instant_move = 1 THEN 1 ELSE 0 END
@@ -154,7 +160,7 @@ export async function onRequestGet(context) {
             )
           )
       ), real_paired AS (
-        SELECT username, seconds, moves, best_moves, leaderboard_device,
+        SELECT player_id, player_kind, username, seconds, moves, best_moves, leaderboard_device,
           best_moves_run_seconds, best_moves_run_mouse_or_click_push, best_moves_run_instant_move,
           COALESCE(saved_moves_device,
             CASE WHEN history_seconds > 0
@@ -162,7 +168,8 @@ export async function onRequestGet(context) {
               THEN history_device END) AS best_moves_run_device
         FROM real_scores
       ), synthetic_scores AS (
-        SELECT u.username AS username, s.seconds AS seconds, s.moves AS moves,
+        SELECT s.user_id AS player_id, 'synthetic' AS player_kind,
+          u.username AS username, s.seconds AS seconds, s.moves AS moves,
           s.moves AS best_moves, s.device AS leaderboard_device,
           s.seconds AS best_moves_run_seconds, s.device AS best_moves_run_device,
           0 AS best_moves_run_mouse_or_click_push, 0 AS best_moves_run_instant_move
@@ -171,18 +178,24 @@ export async function onRequestGet(context) {
         WHERE s.date_key = ? AND s.seconds > 0
           AND NOT EXISTS (SELECT 1 FROM users r WHERE lower(r.username) = lower(u.username))
       ), all_scores AS (
-        SELECT username, seconds, moves, best_moves, leaderboard_device,
+        SELECT player_id, player_kind, username, seconds, moves, best_moves, leaderboard_device,
           best_moves_run_seconds, best_moves_run_device,
           best_moves_run_mouse_or_click_push, best_moves_run_instant_move FROM real_paired
         UNION ALL
-        SELECT username, seconds, moves, best_moves, leaderboard_device,
+        SELECT player_id, player_kind, username, seconds, moves, best_moves, leaderboard_device,
           best_moves_run_seconds, best_moves_run_device,
           best_moves_run_mouse_or_click_push, best_moves_run_instant_move FROM synthetic_scores
+      ), scored_with_visibility AS (
+        SELECT a.*,
+          COALESCE(v.visibility, 'public') AS visibility
+        FROM all_scores a
+        LEFT JOIN daily_leaderboard_visibility v
+          ON v.date_key = ? AND v.player_kind = a.player_kind AND v.player_id = a.player_id
       )
-      SELECT username, seconds, moves, best_moves, leaderboard_device,
+      SELECT player_id, player_kind, username, seconds, moves, best_moves, leaderboard_device,
         best_moves_run_seconds, best_moves_run_device,
-        best_moves_run_mouse_or_click_push, best_moves_run_instant_move
-      FROM all_scores
+        best_moves_run_mouse_or_click_push, best_moves_run_instant_move, visibility
+      FROM scored_with_visibility
       ORDER BY seconds ASC, username COLLATE NOCASE ASC
     `).bind(
       leaderboardTrackedPath, leaderboardSecondsPath, secondsPath,
@@ -192,10 +205,10 @@ export async function onRequestGet(context) {
       leaderboardTrackedPath, leaderboardStartedAtPath,
       leaderboardTrackedPath, leaderboardCompletedAtPath,
       leaderboardTrackedPath, leaderboardDevicePath,
-      dateKey, MAX_PUBLIC_MOVES_PER_SECOND, MAX_TIMING_DRIFT_SECONDS, dateKey
+      dateKey, MAX_PUBLIC_MOVES_PER_SECOND, MAX_TIMING_DRIFT_SECONDS, dateKey, dateKey
     ).all();
 
-    const entries = (result.results || []).map(row => {
+    const mappedEntries = (result.results || []).map(row => {
       const bestMoves = row.best_moves !== null && row.best_moves !== undefined
         && Number.isInteger(Number(row.best_moves)) && Number(row.best_moves) >= 0
         ? Number(row.best_moves) : null;
@@ -212,6 +225,9 @@ export async function onRequestGet(context) {
         ? rawBestMovesSeconds
         : null;
       return {
+        playerId: String(row.player_id || ""),
+        kind: String(row.player_kind || "real") === "synthetic" ? "synthetic" : "real",
+        visibility: cleanDailyLeaderboardVisibility(row.visibility),
         username: String(row.username || "").slice(0, 20),
         seconds: Math.max(0, Math.round((Number(row.seconds) || 0) * 100) / 100),
         moves: row.moves !== null && row.moves !== undefined
@@ -226,6 +242,20 @@ export async function onRequestGet(context) {
         device: cleanDeviceClass(row.leaderboard_device) || null
       };
     });
+
+    const visibleEntries = adminView
+      ? mappedEntries
+      : mappedEntries.filter(entry => entry.visibility === "public"
+        || (entry.visibility === "owner" && entry.kind === "real" && entry.playerId === viewerUserId));
+    const entries = visibleEntries.map(entry => adminView ? entry : ({
+      username: entry.username,
+      seconds: entry.seconds,
+      moves: entry.moves,
+      bestMoves: entry.bestMoves,
+      bestMovesSeconds: entry.bestMovesSeconds,
+      bestMovesDevice: entry.bestMovesDevice,
+      device: entry.device
+    }));
 
     return json({ ok: true, date: dateKey, entries }, 200, {
       "cache-control": "no-store"

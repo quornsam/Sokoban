@@ -162,3 +162,16 @@ CREATE INDEX IF NOT EXISTS level_attempt_history_user_level_idx
   ON level_attempt_history(user_id, pack_id, level_token, started_at DESC);
 CREATE INDEX IF NOT EXISTS level_attempt_history_user_recent_idx
   ON level_attempt_history(user_id, started_at DESC);
+
+-- v392: server-authoritative visibility for individual Daily leaderboard scores.
+-- Absence of a row means public. This table is not part of player progress sync.
+CREATE TABLE IF NOT EXISTS daily_leaderboard_visibility (
+  date_key TEXT NOT NULL,
+  player_kind TEXT NOT NULL CHECK (player_kind IN ('real','synthetic')),
+  player_id TEXT NOT NULL,
+  visibility TEXT NOT NULL CHECK (visibility IN ('owner','hidden')),
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY(date_key, player_kind, player_id)
+);
+CREATE INDEX IF NOT EXISTS daily_leaderboard_visibility_date_idx
+  ON daily_leaderboard_visibility(date_key, visibility);

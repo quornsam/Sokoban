@@ -1,4 +1,5 @@
 /* BOXXY v375: varied, route-verified synthetic move counts and update-in-place for existing seeds. */
+/* BOXXY v392: Basement Daily score visibility is server-authoritative and never mutates player progress. */
 /* BOXXY v374: Basement Daily seeding, score removal and private Instant Move administration. */
 import {
   json,
@@ -13,7 +14,6 @@ import {
   passwordRecord,
   expireCookie,
   parseProgress,
-  safeProgressJson,
   validUsername,
   progressSummary,
   ensureSessionHistorySchema,
@@ -26,6 +26,7 @@ import { readPackCompletions, completionRecordsForUsers, canonicalAdminSummary }
 import { DAILY_PRACTICE_CATALOG } from "../_lib/daily-practice-catalog.js";
 import { analyseDailySolution, generateDailySyntheticRoute } from "../_lib/synthetic-daily-moves.js";
 import { ensureAttemptHistorySchema, readAttemptOverview, readLevelAttemptHistory } from '../_lib/attempt-history.js';
+import { ensureDailyLeaderboardVisibilitySchema, setDailyLeaderboardVisibility, cleanDailyLeaderboardVisibility } from '../_lib/daily-leaderboard-visibility.js';
 
 const INSTANT_MOVE_FEATURE_KEY = "instant_move";
 
@@ -214,10 +215,12 @@ async function addSyntheticUser(context, body) {
 async function deleteSyntheticUser(context, body) {
   const db = requireDatabase(context.env);
   await ensureSyntheticDailySchema(db);
+  await ensureDailyLeaderboardVisibilitySchema(db);
   const id = String(body.userId || "").trim();
   if (!id) return json({ok:false,error:"Artificial player is required."},400);
   await db.batch([
     db.prepare("DELETE FROM synthetic_daily_scores WHERE user_id = ?").bind(id),
+    db.prepare("DELETE FROM daily_leaderboard_visibility WHERE player_kind = 'synthetic' AND player_id = ?").bind(id),
     db.prepare("DELETE FROM synthetic_users WHERE id = ?").bind(id)
   ]);
   return json({ok:true});
@@ -322,32 +325,46 @@ async function regenerateSyntheticMoves(context, body) {
   return json({ok:true,date,baseMoves:analysis.baseMoves,generated});
 }
 
-async function removeDailyLeaderboardScore(context, body) {
+async function setDailyScoreVisibility(context, body, fallbackVisibility = "") {
   const db = requireDatabase(context.env);
   await ensureSyntheticDailySchema(db);
+  await ensureDailyLeaderboardVisibilitySchema(db);
   const date = validDailyDate(body.date);
   const username = String(body.username || "").trim();
+  const requestedVisibility = String(body.visibility || fallbackVisibility || "").trim().toLowerCase();
   if (!date || !username) return json({ok:false,error:"Daily date and username are required."},400);
-  const synthetic = await db.prepare("SELECT id FROM synthetic_users WHERE username_norm = ? LIMIT 1").bind(username.toLowerCase()).first();
-  if (synthetic) {
-    await db.prepare("DELETE FROM synthetic_daily_scores WHERE user_id = ? AND date_key = ?").bind(synthetic.id,date).run();
-    return json({ok:true,username,date,kind:"synthetic"});
+  if (!["public","owner","hidden"].includes(requestedVisibility)) {
+    return json({ok:false,error:"Score visibility must be public, owner only, or hidden."},400);
   }
-  const user = await db.prepare("SELECT id, progress_json FROM users WHERE lower(username) = ? LIMIT 1").bind(username.toLowerCase()).first();
+  const visibility = cleanDailyLeaderboardVisibility(requestedVisibility);
+
+  const synthetic = await db.prepare("SELECT id, username FROM synthetic_users WHERE username_norm = ? LIMIT 1")
+    .bind(username.toLowerCase()).first();
+  if (synthetic) {
+    if (visibility === "owner") return json({ok:false,error:"Artificial players cannot use owner-only visibility."},400);
+    const score = await db.prepare("SELECT 1 FROM synthetic_daily_scores WHERE user_id = ? AND date_key = ? LIMIT 1")
+      .bind(synthetic.id,date).first();
+    if (!score) return json({ok:false,error:"That artificial player has no score for this date."},404);
+    const savedVisibility = await setDailyLeaderboardVisibility(db, {
+      dateKey:date, playerKind:"synthetic", playerId:synthetic.id, visibility
+    });
+    return json({ok:true,username:String(synthetic.username),date,kind:"synthetic",visibility:savedVisibility});
+  }
+
+  const user = await db.prepare("SELECT id, username, progress_json FROM users WHERE lower(username) = ? LIMIT 1")
+    .bind(username.toLowerCase()).first();
   if (!user) return json({ok:false,error:"Leaderboard player was not found."},404);
   const progress = parseProgress(user.progress_json);
   const originalDaily = progress[DAILY_COMPLETIONS_KEY];
   let daily = {};
   try { daily = typeof originalDaily === "string" ? JSON.parse(originalDaily || "{}") : (originalDaily || {}); } catch (_) { daily = {}; }
-  if (!daily || typeof daily !== "object" || Array.isArray(daily) || !daily[date]) return json({ok:false,error:"That account has no saved Daily result for this date."},404);
-  const record = {...daily[date], leaderboardTracked:true, leaderboardSeconds:null};
-  delete record.leaderboardMoves; delete record.leaderboardStartedAt; delete record.leaderboardCompletedAt;
-  delete record.leaderboardDevice; delete record.leaderboardTimezoneOffsetMinutes;
-  daily[date] = record;
-  progress[DAILY_COMPLETIONS_KEY] = typeof originalDaily === "string" ? JSON.stringify(daily) : daily;
-  await db.prepare("UPDATE users SET progress_json = ?, progress_updated_at = ? WHERE id = ?")
-    .bind(safeProgressJson(progress), Date.now(), user.id).run();
-  return json({ok:true,username,date,kind:"real"});
+  if (!daily || typeof daily !== "object" || Array.isArray(daily) || !daily[date]) {
+    return json({ok:false,error:"That account has no saved Daily result for this date."},404);
+  }
+  const savedVisibility = await setDailyLeaderboardVisibility(db, {
+    dateKey:date, playerKind:"real", playerId:user.id, visibility
+  });
+  return json({ok:true,username:String(user.username),date,kind:"real",visibility:savedVisibility});
 }
 
 function mappedUser(user, includeProgress = false) {
@@ -530,7 +547,9 @@ export async function onRequest(context) {
       if (action === "synthetic_delete_user") return await deleteSyntheticUser(context, body);
       if (action === "synthetic_generate_scores") return await generateSyntheticScores(context, body);
       if (action === "synthetic_regenerate_moves") return await regenerateSyntheticMoves(context, body);
-      if (action === "daily_remove_score") return await removeDailyLeaderboardScore(context, body);
+      if (action === "daily_set_score_visibility") return await setDailyScoreVisibility(context, body);
+      // Backwards compatibility: old Basement clients now hide server-side instead of mutating player progress.
+      if (action === "daily_remove_score") return await setDailyScoreVisibility(context, body, "hidden");
       if (action === "synthetic_state") return await syntheticState(context, body);
       return json({ ok: false, error: "Unknown action." }, 400);
     }

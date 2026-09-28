@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "391",
+  version: "392",
   lastUpdated: "2026-09-28"
 });
+/* BOXXY v392: Daily leaderboard visibility is server-authoritative; personal progress and streaks remain untouched. */
 /* BOXXY v391: deploy the complete Fewest Moves eligibility rule from its correct Cloudflare Function path. */
 /* BOXXY v389: Fewest Moves hides mouse/click-push and over-15-moves/s run times while retaining move results and personal history. */
 /* BOXXY v388: Daily invite acknowledgement waits for an explicit action; fewest-moves run metadata is retained for eligibility decisions. */
@@ -9788,6 +9789,9 @@ window.BOXXY_RELEASE = Object.freeze({
   dailyArchiveModal?.addEventListener("click", event => { if (event.target === dailyArchiveModal) closeDailyArchive(); });
   window.addEventListener("boxxyaccountfeatures", event => {
     applyInstantMoveEntitlement(event?.detail || {});
+    // Leaderboard visibility may depend on which account owns the active session.
+    // Never reuse an owner-scoped leaderboard response across an account change.
+    dailyLeaderboardCache.clear();
   });
 
   window.addEventListener("boxxyaccountdailysynced", event => {

@@ -463,15 +463,25 @@
       syntheticUsers = Array.isArray(state.users) ? state.users : [];
       syntheticScores = Array.isArray(state.scores) ? state.scores : [];
       renderSyntheticUsers();
-      const syntheticNames = new Set(syntheticUsers.map(user => user.username.toLowerCase()));
       if (dailyScoresList) dailyScoresList.innerHTML = (leaderboard.entries || []).length
-        ? leaderboard.entries.map((entry,index) => `<div class="daily-score-row">
-            <span>${index + 1}</span><strong>${escapeHtml(entry.username)}</strong>
-            <span>${Number(entry.seconds).toFixed(2)}s</span><span>${entry.moves == null ? "—" : `${Number(entry.moves)} moves`}</span>
-            <span>${escapeHtml(String(entry.device || "—").toUpperCase())}</span>
-            <span>${syntheticNames.has(String(entry.username).toLowerCase()) ? "ARTIFICIAL" : "REAL"}</span>
-            <button type="button" data-daily-score-remove="${escapeHtml(entry.username)}">REMOVE SCORE</button>
-          </div>`).join("")
+        ? leaderboard.entries.map((entry,index) => {
+            const kind = entry.kind === "synthetic" ? "synthetic" : "real";
+            const visibility = ["owner","hidden"].includes(entry.visibility) ? entry.visibility : "public";
+            const ownerOption = kind === "real"
+              ? `<option value="owner"${visibility === "owner" ? " selected" : ""}>OWNER ONLY</option>`
+              : "";
+            return `<div class="daily-score-row">
+              <span>${index + 1}</span><strong>${escapeHtml(entry.username)}</strong>
+              <span>${Number(entry.seconds).toFixed(2)}s</span><span>${entry.moves == null ? "—" : `${Number(entry.moves)} moves`}</span>
+              <span>${escapeHtml(String(entry.device || "—").toUpperCase())}</span>
+              <span>${kind === "synthetic" ? "ARTIFICIAL" : "REAL"}</span>
+              <select data-daily-score-visibility="${escapeHtml(entry.username)}" aria-label="Leaderboard visibility for ${escapeHtml(entry.username)}">
+                <option value="public"${visibility === "public" ? " selected" : ""}>PUBLIC</option>
+                ${ownerOption}
+                <option value="hidden"${visibility === "hidden" ? " selected" : ""}>HIDDEN</option>
+              </select>
+            </div>`;
+          }).join("")
         : '<p class="muted">No leaderboard scores for this date.</p>';
       setStatus(dailyScoresStatus, `${(leaderboard.entries || []).length} LEADERBOARD SCORES`, "success");
     } catch (error) {
@@ -1117,19 +1127,24 @@
   });
   syntheticDate?.addEventListener("change", loadDailyScores);
   dailyScoresRefresh?.addEventListener("click", loadDailyScores);
-  dailyScoresList?.addEventListener("click", async event => {
-    const button = event.target.closest("[data-daily-score-remove]");
-    if (!button) return;
-    const username = button.dataset.dailyScoreRemove;
+  dailyScoresList?.addEventListener("change", async event => {
+    const select = event.target.closest("[data-daily-score-visibility]");
+    if (!select) return;
+    const username = select.dataset.dailyScoreVisibility;
+    const visibility = String(select.value || "public");
     const date = syntheticDate?.value || dayKey(new Date());
-    if (!window.confirm(`Remove ${username}'s public Daily score for ${date}? Their real account completion and personal result will be preserved.`)) return;
-    setStatus(dailyScoresStatus, "REMOVING SCORE…");
+    select.disabled = true;
+    setStatus(dailyScoresStatus, "UPDATING SCORE VISIBILITY…");
     try {
-      const {response,data} = await api("", {action:"daily_remove_score", username, date});
-      if (!response.ok) throw new Error(data.error || "Could not remove score.");
+      const {response,data} = await api("", {action:"daily_set_score_visibility", username, date, visibility});
+      if (!response.ok) throw new Error(data.error || "Could not update score visibility.");
       await loadDailyScores();
-      setStatus(dailyScoresStatus, `${String(username).toUpperCase()} REMOVED FROM ${date} LEADERBOARD`, "success");
-    } catch (error) { setStatus(dailyScoresStatus, error.message || "Could not remove score.", "error"); }
+      const label = visibility === "owner" ? "OWNER ONLY" : visibility.toUpperCase();
+      setStatus(dailyScoresStatus, `${String(username).toUpperCase()} · ${date} · ${label}`, "success");
+    } catch (error) {
+      await loadDailyScores();
+      setStatus(dailyScoresStatus, error.message || "Could not update score visibility.", "error");
+    }
   });
 
   loginForm?.addEventListener("submit", async event => {
