@@ -1,4 +1,4 @@
-/* BOXXY v381 — local-first player history, with cloud sync independent of opening the history panel. */
+/* BOXXY v394 — local-first player history with independent Mouse/Click Push and Instant Move metadata. */
 (() => {
   'use strict';
   const PREFIX = 'boxxy-run-history-queue-v1:';
@@ -125,7 +125,7 @@
       levelNumber:Number(details.levelNumber) || 0,
       levelName:String(details.levelName || ''), startedAt:Number(details.startedAt) || Date.now(),
       endedAt:null, completed:false, seconds:null, moves:null, pushes:null,
-      assisted:false, endReason:'', ownerId:userId
+      assisted:false, mouseOrClickPushUsed:false, instantMoveUsed:false, endReason:'', ownerId:userId
     };
     stash(active, userId);
     lastProgressSave = Date.now();
@@ -136,6 +136,8 @@
       const value = validMetric(result[metric]);
       if (value !== null) active[metric] = metric === 'seconds' ? value : Math.trunc(value);
     }
+    if (result.mouseOrClickPushUsed === true) active.mouseOrClickPushUsed = true;
+    if (result.instantMoveUsed === true) active.instantMoveUsed = true;
     // No network calls on movement. Persist at most every 15 seconds so a crash
     // loses at most a short interval; always persist when ending a run.
     if (Date.now() - lastProgressSave >= 15000) {
@@ -162,6 +164,8 @@
     active.moves = Math.max(0, Math.trunc(Number(result.moves) || 0));
     active.pushes = Math.max(0, Math.trunc(Number(result.pushes) || 0));
     active.assisted = Boolean(result.assisted);
+    active.mouseOrClickPushUsed = Boolean(result.mouseOrClickPushUsed);
+    active.instantMoveUsed = Boolean(result.instantMoveUsed);
     // The device belongs to this completed run, not the browser that later views it.
     active.device = ['phone','tablet','computer'].includes(result.device) ? result.device : '';
     active.endedAt = Date.now();

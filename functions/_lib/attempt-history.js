@@ -1,5 +1,5 @@
-/* BOXXY v377 — independent, idempotent, account-scoped per-run history.
-   History starts with this release: pre-v376 aggregate counts have no run detail. */
+/* BOXXY v394 — independent, idempotent, account-scoped per-run history.
+   History starts with v376; v394 adds explicit Mouse/Click Push and Instant Move metadata. */
 export async function ensureAttemptHistorySchema(db) {
   await db.batch([
     db.prepare(`CREATE TABLE IF NOT EXISTS level_attempt_history (
@@ -17,6 +17,8 @@ export async function ensureAttemptHistorySchema(db) {
       moves INTEGER,
       pushes INTEGER,
       assisted INTEGER NOT NULL DEFAULT 0 CHECK(assisted IN (0,1)),
+      mouse_or_click_push INTEGER NOT NULL DEFAULT 0 CHECK(mouse_or_click_push IN (0,1)),
+      instant_move INTEGER NOT NULL DEFAULT 0 CHECK(instant_move IN (0,1)),
       end_reason TEXT NOT NULL DEFAULT '',
       device TEXT NOT NULL DEFAULT '',
       FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -29,7 +31,7 @@ export async function ensureAttemptHistorySchema(db) {
   await ensureAttemptHistoryDeviceColumn(db);
 }
 
-// Upgrade existing D1 histories once, retaining every earlier record unchanged.
+// Upgrade existing D1 histories in place, retaining every earlier record unchanged.
 // Also used by the leaderboard when it is opened before Play History.
 export async function ensureAttemptHistoryDeviceColumn(db) {
   const columns = await db.prepare('PRAGMA table_info(level_attempt_history)').all();
@@ -37,9 +39,16 @@ export async function ensureAttemptHistoryDeviceColumn(db) {
     await ensureAttemptHistorySchema(db);
     return;
   }
-  if (!(columns.results || []).some(column => column.name === 'device')) {
+  const names = new Set((columns.results || []).map(column => column.name));
+  const additions = [
+    ['device', "TEXT NOT NULL DEFAULT ''"],
+    ['mouse_or_click_push', 'INTEGER NOT NULL DEFAULT 0 CHECK(mouse_or_click_push IN (0,1))'],
+    ['instant_move', 'INTEGER NOT NULL DEFAULT 0 CHECK(instant_move IN (0,1))']
+  ];
+  for (const [name,definition] of additions) {
+    if (names.has(name)) continue;
     try {
-      await db.prepare("ALTER TABLE level_attempt_history ADD COLUMN device TEXT NOT NULL DEFAULT ''").run();
+      await db.prepare(`ALTER TABLE level_attempt_history ADD COLUMN ${name} ${definition}`).run();
     } catch (error) {
       if (!/duplicate column name/i.test(String(error?.message || error))) throw error;
     }
@@ -77,7 +86,9 @@ function validateAttempt(raw) {
     levelToken: token, levelNumber: Math.trunc(num(raw.levelNumber, 0, 100000) || 0),
     levelName: text(raw.levelName, 100), startedAt: Math.trunc(startedAt),
     endedAt: endedAt === null ? null : Math.trunc(endedAt), completed,
-    seconds, moves, pushes, assisted: raw.assisted === true ? 1 : 0, endReason,
+    seconds, moves, pushes, assisted: raw.assisted === true ? 1 : 0,
+    mouseOrClickPushUsed: raw.mouseOrClickPushUsed === true ? 1 : 0,
+    instantMoveUsed: raw.instantMoveUsed === true ? 1 : 0, endReason,
     device: ['phone','tablet','computer'].includes(raw.device) ? raw.device : ''
   };
 }
@@ -91,8 +102,8 @@ export async function writeAttemptHistory(db, userId, raws) {
   // Owner and puzzle identity never change; repeated start requests cannot undo a completion.
   const stmt = db.prepare(`INSERT INTO level_attempt_history
     (id,user_id,pack_id,pack_name,level_token,level_number,level_name,started_at,ended_at,
-     completed,seconds,moves,pushes,assisted,end_reason,device)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+     completed,seconds,moves,pushes,assisted,mouse_or_click_push,instant_move,end_reason,device)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     ON CONFLICT(id) DO UPDATE SET
       ended_at = CASE WHEN level_attempt_history.completed = 1 THEN level_attempt_history.ended_at
         ELSE COALESCE(excluded.ended_at, level_attempt_history.ended_at) END,
@@ -105,6 +116,10 @@ export async function writeAttemptHistory(db, userId, raws) {
         ELSE COALESCE(excluded.pushes,level_attempt_history.pushes) END,
       assisted = CASE WHEN level_attempt_history.completed = 1 THEN level_attempt_history.assisted
         WHEN excluded.completed = 1 THEN excluded.assisted ELSE level_attempt_history.assisted END,
+      mouse_or_click_push = CASE WHEN level_attempt_history.completed = 1 THEN level_attempt_history.mouse_or_click_push
+        WHEN excluded.completed = 1 THEN excluded.mouse_or_click_push ELSE level_attempt_history.mouse_or_click_push END,
+      instant_move = CASE WHEN level_attempt_history.completed = 1 THEN level_attempt_history.instant_move
+        WHEN excluded.completed = 1 THEN excluded.instant_move ELSE level_attempt_history.instant_move END,
       end_reason = CASE WHEN level_attempt_history.completed = 1 THEN level_attempt_history.end_reason
         ELSE CASE WHEN excluded.end_reason != '' THEN excluded.end_reason ELSE level_attempt_history.end_reason END END,
       device = COALESCE(NULLIF(level_attempt_history.device,''),excluded.device)
@@ -113,7 +128,8 @@ export async function writeAttemptHistory(db, userId, raws) {
       AND level_attempt_history.level_token = excluded.level_token`);
   await db.batch(attempts.map(a => stmt.bind(
     a.id,userId,a.packId,a.packName,a.levelToken,a.levelNumber,a.levelName,
-    a.startedAt,a.endedAt,a.completed ? 1 : 0,a.seconds,a.moves,a.pushes,a.assisted,a.endReason,a.device
+    a.startedAt,a.endedAt,a.completed ? 1 : 0,a.seconds,a.moves,a.pushes,a.assisted,
+    a.mouseOrClickPushUsed,a.instantMoveUsed,a.endReason,a.device
   )));
   return attempts.map(a => a.id);
 }
@@ -280,22 +296,30 @@ const SORT_COLUMNS = Object.freeze({
   attempt:'attempt_number', date:'started_at', completed:'completed',
   time:'seconds', moves:'moves', pushes:'pushes'
 });
+const SPECIAL_SORTS = new Set(['best-time','fewest-moves']);
 export async function readLevelAttemptHistory(db, userId, options={}, progressValue=null) {
   const packId = text(options.packId,60);
   const token = text(options.levelToken,40);
   if (!ident.test(packId) || !/^[a-zA-Z0-9_-]{1,40}$/.test(token)) throw new Error('Invalid level.');
-  const sort = Object.hasOwn(SORT_COLUMNS,options.sort) ? options.sort : 'attempt';
+  const requestedSort = String(options.sort || '');
+  const sort = Object.hasOwn(SORT_COLUMNS,requestedSort) || SPECIAL_SORTS.has(requestedSort) ? requestedSort : 'attempt';
   const direction = options.direction === 'asc' ? 'ASC' : 'DESC';
   const offset = Math.min(1000000, Math.max(0, Math.trunc(Number(options.offset) || 0)));
   const limit = 100;
-  const col = SORT_COLUMNS[sort];
+  const orderBy = sort === 'best-time'
+    ? 'completed DESC, seconds IS NULL, seconds ASC, attempt_number ASC'
+    : sort === 'fewest-moves'
+      ? 'completed DESC, moves IS NULL, moves ASC, seconds IS NULL, seconds ASC, attempt_number ASC'
+      : `${SORT_COLUMNS[sort]} IS NULL, ${SORT_COLUMNS[sort]} ${direction}, attempt_number ASC`;
   const rowsResult = await db.prepare(`SELECT attempt_number AS attemptNumber,
       id, started_at AS startedAt, ended_at AS endedAt, completed,
-      seconds, moves, pushes, assisted, end_reason AS endReason
-    FROM (SELECT id, started_at, ended_at, completed, seconds, moves, pushes, assisted, end_reason,
+      seconds, moves, pushes, assisted, mouse_or_click_push AS mouseOrClickPushUsed,
+      instant_move AS instantMoveUsed, end_reason AS endReason
+    FROM (SELECT id, started_at, ended_at, completed, seconds, moves, pushes, assisted,
+      mouse_or_click_push, instant_move, end_reason,
       ROW_NUMBER() OVER (ORDER BY started_at, id) AS attempt_number
       FROM level_attempt_history WHERE user_id=? AND pack_id=? AND level_token=?)
-    ORDER BY ${col} IS NULL, ${col} ${direction}, attempt_number ASC
+    ORDER BY ${orderBy}
     LIMIT ? OFFSET ?`).bind(userId,packId,token,limit+1,offset).all();
   const all = rowsResult.results || [];
   const old=olderRecords(progressValue).get(`${packId}:${token}`);
@@ -310,6 +334,8 @@ export async function readLevelAttemptHistory(db, userId, options={}, progressVa
     bestPushes:old.legacyBestPushes,previousCompletion:old.previousCompletion
   } : null;
   return { rows: all.slice(0,limit).map(row => ({...row,
-    completed: Boolean(row.completed), assisted:Boolean(row.assisted) })),
-    legacy, nextOffset: all.length > limit ? offset+limit : null,sort,direction:direction.toLowerCase() };
+    completed: Boolean(row.completed), assisted:Boolean(row.assisted),
+    mouseOrClickPushUsed:Boolean(row.mouseOrClickPushUsed), instantMoveUsed:Boolean(row.instantMoveUsed) })),
+    legacy, nextOffset: all.length > limit ? offset+limit : null,sort,
+    direction:SPECIAL_SORTS.has(sort)?'asc':direction.toLowerCase() };
 }

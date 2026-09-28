@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "392",
+  version: "394",
   lastUpdated: "2026-09-28"
 });
+/* BOXXY v394: Play History sorts actual attempts by best time/fewest moves and records Mouse/Click Push and Instant Move independently. */
 /* BOXXY v392: Daily leaderboard visibility is server-authoritative; personal progress and streaks remain untouched. */
 /* BOXXY v391: deploy the complete Fewest Moves eligibility rule from its correct Cloudflare Function path. */
 /* BOXXY v389: Fewest Moves hides mouse/click-push and over-15-moves/s run times while retaining move results and personal history. */
@@ -2650,6 +2651,7 @@ window.BOXXY_RELEASE = Object.freeze({
   let boxxySpeed = BOXXY_SPEED_FACTORS[storedBoxxySpeed] ? storedBoxxySpeed : "normal";
   let instantMoveAllowed = false;
   let instantMoveUsedThisLevel = false;
+  let mouseOrClickPushUsedThisLevel = false;
   let instantMoveBatchExecuting = false;
   let musicPausedForHiddenTab = false;
   let audioCtx = null;
@@ -2712,7 +2714,6 @@ window.BOXXY_RELEASE = Object.freeze({
   let mouseSupportSelectedBoxIndex = -1;
   let mouseSupportPlans = new Map();
   let mouseSupportIgnoreClickUntil = 0;
-  let dailyMouseOrClickPushUsed = false;
   let dailyPointControlUsed = false;
   let firstPersonMode = false;
   let firstPersonHeading = 2;
@@ -7692,7 +7693,7 @@ window.BOXXY_RELEASE = Object.freeze({
       { dailyPuzzle: puzzle }
     );
     dailyPointControlUsed = false;
-    dailyMouseOrClickPushUsed = false;
+    mouseOrClickPushUsedThisLevel = false;
     instantMoveUsedThisLevel = false;
     if (collectionBtn) collectionBtn.disabled = false;
     if (makerReturnBtn) makerReturnBtn.hidden = true;
@@ -7792,6 +7793,7 @@ window.BOXXY_RELEASE = Object.freeze({
     closeLevelHistory('left');
     if (!preserveAutoplay) stopAutoplay();
     guidedSolveUsed = false;
+    mouseOrClickPushUsedThisLevel = false;
     instantMoveUsedThisLevel = false;
     resetGuidedSolveSecret();
     blockedPushHeld = false;
@@ -7877,6 +7879,8 @@ window.BOXXY_RELEASE = Object.freeze({
       closeLevelHistory('left');
       stopAutoplay();
       guidedSolveUsed = false;
+      mouseOrClickPushUsedThisLevel = false;
+      instantMoveUsedThisLevel = false;
       closeLevelPicker();
       resetGuidedSolveSecret();
       blockedPushHeld = false;
@@ -8128,7 +8132,11 @@ window.BOXXY_RELEASE = Object.freeze({
 
     playedRoute += DELTA_TO_CODE(dx, dy);
     if (!makerTesting && !sharedPuzzleMode && !makerDailyPractice) {
-      window.BOXXYAttemptHistory?.progress?.({moves, pushes, seconds:elapsedLevelSeconds(Date.now())});
+      window.BOXXYAttemptHistory?.progress?.({
+        moves, pushes, seconds:elapsedLevelSeconds(Date.now()),
+        mouseOrClickPushUsed:mouseOrClickPushUsedThisLevel,
+        instantMoveUsed:instantMoveUsedThisLevel
+      });
     }
     if (!turboAnimationSuppressed && !instantMoveBatchExecuting) {
       scheduleIdle();
@@ -8199,6 +8207,8 @@ window.BOXXY_RELEASE = Object.freeze({
       window.BOXXYAttemptHistory?.finish?.({
         seconds:completionSeconds, moves, pushes,
         assisted:Boolean(autoplayRunning || guidedSolveUsed || instantMoveUsedThisLevel),
+        mouseOrClickPushUsed: mouseOrClickPushUsedThisLevel,
+        instantMoveUsed: instantMoveUsedThisLevel,
         device: dailyMode ? dailyLeaderboardDeviceClass() : ""
       });
     }
@@ -8228,7 +8238,7 @@ window.BOXXY_RELEASE = Object.freeze({
           startedAt,
           completedAt,
           leaderboardEligible,
-          mouseOrClickPushUsed: dailyMouseOrClickPushUsed,
+          mouseOrClickPushUsed: mouseOrClickPushUsedThisLevel,
           instantMoveUsed: instantMoveUsedThisLevel
         });
         dailyLeaderboardCache.delete(String(dailyPuzzle.date));
@@ -8963,10 +8973,11 @@ window.BOXXY_RELEASE = Object.freeze({
     clearMouseSupportOverlay();
     mouseSupportBusy = true;
     const instantMoveRun = pointControlMode() === "instant";
-    if (dailyMode) {
-      dailyPointControlUsed = true;
-      if (!instantMoveRun) dailyMouseOrClickPushUsed = true;
-    }
+    const mouseOrClickPushRun = settingsTouchDevice()
+      ? Boolean(touchClickPushEnabled && hasTouchClickPushAccess())
+      : Boolean(desktopEasterEggAvailable() && mouseSupportEnabled);
+    if (mouseOrClickPushRun) mouseOrClickPushUsedThisLevel = true;
+    if (dailyMode) dailyPointControlUsed = true;
     if (instantMoveRun) instantMoveUsedThisLevel = true;
     document.body.classList.add("mouse-support-busy");
     showCharacterThought(description, true);

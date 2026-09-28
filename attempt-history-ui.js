@@ -1,4 +1,4 @@
-/* BOXXY v381 — local-first player history with background cloud refresh. */
+/* BOXXY v394 — actual-attempt history with direct best-time/fewest-moves sorting and control-mode markers. */
 (() => {
   'use strict';
   const date = ms => ms ? new Date(Number(ms)).toLocaleString('en-GB', { dateStyle:'medium',timeStyle:'short' }) : '—';
@@ -9,7 +9,7 @@
     if (className) node.className=className;
     return node;
   };
-  const sorts = [['attempt','Attempt #'],['date','Date'],['completed','Completed'],['time','Time'],['moves','Moves'],['pushes','Pushes']];
+  const sorts = [['attempt','Attempt #'],['date','Date'],['completed','Completed'],['best-time','Best time'],['fewest-moves','Fewest moves'],['time','Time'],['moves','Moves'],['pushes','Pushes']];
   const ACCENTS = Object.freeze({red:'#db3b27',black:'#171719',green:'#2f8f5b',blue:'#20539a',yellow:'#e5b32a',purple:'#8e44ad',orange:'#f47a20',teal:'#00a6b2'});
   // Consistent names in player and Basement history, regardless of the longer
   // pack labels saved by older clients. These are display labels only.
@@ -215,62 +215,55 @@
         controls.append(el('label','Sort by '),sort,direction);
         const table=el('table',null,'history-table');
         table.innerHTML='<thead><tr><th>Attempt</th><th>Date</th><th>Complete</th><th>Time</th><th>Moves</th><th>Pushes</th></tr></thead>';
-        const olderBody=el('tbody',null,'history-earlier-body');
-        const body=el('tbody');table.append(olderBody,body);
+        const body=el('tbody');table.appendChild(body);
         const more=el('button','LOAD MORE');more.type='button';more.hidden=true;
         const status=el('p',null,'history-note');
         content.append(controls,table,more,status);section.appendChild(content);
-        let loaded=false,offset=0,legacyDisplayed=false;
-        const showLegacy=older=>{
-          if (legacyDisplayed) return;
-          legacyDisplayed=true;
-          if (!older) return;
-          const undetailed=Number(older.undetailedCount)||0;
-          const anyBest=older.bestTime!=null||older.bestMoves!=null||older.bestPushes!=null;
-          if (!undetailed&&!anyBest&&!older.previousCompletion) return;
-          // One consolidated saved record, not a fabricated individual run.
-          // The level heading already contains the complete attempt total.
-          const tr=el('tr',null,'history-earlier-row');
-          tr.title='Earlier saved record';
-          appendCell(tr,anyBest?'Saved best':'Earlier',{});
-          appendCell(tr,older.lastAt?date(older.lastAt):null);
-          appendCell(tr,older.previousCompletion?'Yes':null);
-          for (const [metric,index] of [['bestTime',3],['bestMoves',4],['bestPushes',5]]) {
-            const value=older[metric];
-            const best=index===3 ? level.bestTime : index===4 ? level.bestMoves : null;
-            appendCell(tr,value==null?null:index===3?time(value):value,{
-              best:index!==5&&value!=null&&best!=null&&Number(value)===Number(best),
-              title:index===3?'Best time':'Best moves'
-            });
-          }
-          olderBody.appendChild(tr);
+        let loaded=false,offset=0;
+        const specialSort=()=>sort.value==='best-time'||sort.value==='fewest-moves';
+        const syncDirectionControl=()=>{
+          const fixed=specialSort();
+          direction.hidden=fixed;
+          direction.disabled=fixed;
         };
+        syncDirectionControl();
         const fetchRows=async reset=>{
           if (reset) {offset=0;body.replaceChildren();}
           status.textContent='Loading…';more.hidden=true;
           try {
-            const result=await get({packId:level.packId,levelToken:level.levelToken,sort:sort.value,direction:direction.value,offset});
-            showLegacy(result.legacy);
+            const result=await get({
+              packId:level.packId,levelToken:level.levelToken,sort:sort.value,
+              direction:specialSort()?'asc':direction.value,offset
+            });
             for (const run of result.rows||[]) {
               const tr=el('tr');
               if (run.assisted) tr.title='Assisted run; excluded from unassisted bests';
               if (!run.completed) tr.classList.add('history-incomplete');
+              const controls=`${run.mouseOrClickPushUsed?' 🐁':''}${run.instantMoveUsed?' 💨':''}`;
+              const controlTitle=[
+                run.mouseOrClickPushUsed?'Mouse Control / Click Push used':'',
+                run.instantMoveUsed?'Instant Move used':''
+              ].filter(Boolean).join(' · ');
               const values=[run.attemptNumber,run.startedAt?date(run.startedAt):null,
-                run.completed?'Yes':'No',run.seconds==null?null:time(run.seconds),run.moves,run.pushes];
-              values.forEach((value,i)=>appendCell(tr,value,{
-                best:run.completed&&!run.assisted&&(
+                run.completed?'Yes':'No',run.seconds==null?null:time(run.seconds)+controls,run.moves,run.pushes];
+              values.forEach((value,i)=>{
+                const isBest=run.completed&&!run.assisted&&(
                   (i===3&&level.bestTime!=null&&run.seconds!=null&&Number(run.seconds)===Number(level.bestTime))||
                   (i===4&&level.bestMoves!=null&&run.moves!=null&&Number(run.moves)===Number(level.bestMoves))
-                ),title:i===3?'Best time':'Best moves'
-              }));body.appendChild(tr);
+                );
+                appendCell(tr,value,{
+                  best:isBest,
+                  title:i===3?[isBest?'Best time':'',controlTitle].filter(Boolean).join(' · '):(i===4&&isBest?'Best moves':'')
+                });
+              });body.appendChild(tr);
             }
             offset=result.nextOffset;more.hidden=offset==null;
-            status.textContent=body.children.length||olderBody.children.length?'':'No results yet.';
+            status.textContent=body.children.length?'':'No individual attempts recorded.';
             loaded=true;
           } catch(error) {status.textContent=error.message;}
         };
         section.addEventListener('toggle',()=>{if(section.open&&!loaded) fetchRows(true);});
-        sort.addEventListener('change',()=>fetchRows(true));
+        sort.addEventListener('change',()=>{syncDirectionControl();fetchRows(true);});
         direction.addEventListener('change',()=>fetchRows(true));
         more.addEventListener('click',()=>fetchRows(false));
         levelNodes.set(`${level.packId}:${level.levelToken}`,section);
