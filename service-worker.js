@@ -1,3 +1,4 @@
+/* BOXXY v400: PARTYGOERS character sheets are available offline with the expanded Attire selector. */
 /* BOXXY v399: spooky soundtrack uses the standard MP3 format and refreshed Samantha artwork is cached offline. */
 /* BOXXY v398: spooky character sheets and Dark Quiet Death are available offline. */
 /* BOXXY v375: varied synthetic score generation; gameplay unaffected. */
@@ -13,7 +14,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "399";
+const RELEASE_VERSION = "400";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [
@@ -79,6 +80,11 @@ const ASSETS = [
   "/assets/characters/stuart/base.png",
   "/assets/characters/davido/base.png",
   "/assets/characters/samantha/base.png",
+  "/assets/characters/optimus/base.png",
+  "/assets/characters/pixella/base.png",
+  "/assets/characters/bolderdash/base.png",
+  "/assets/characters/sputnik/base.png",
+  "/assets/characters/vasquez/base.png",
   "/assets/characters-fallback/boy/player-back.png",
   "/assets/characters-fallback/boy/player-front.png",
   "/assets/characters-fallback/boy/player-left.png",

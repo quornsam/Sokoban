@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "399",
+  version: "400",
   lastUpdated: "2026-09-28"
 });
+/* BOXXY v400: Attire adds the hidden PARTYGOERS family, visual character grids, and an in-modal Spooky Music control. */
 /* BOXXY v399: spooky music autostarts once per browser profile; Samantha artwork and the soundtrack format are corrected. */
 /* BOXXY v398: Attire adds the SPOOKY character family, its soundtrack, and one-time spooky board defaults. */
 /* BOXXY v397: Lincoln joins Attire as a fixed standalone character using the supplied 12-frame sprite sheet. */
@@ -602,8 +603,9 @@ window.BOXXY_RELEASE = Object.freeze({
   ];
   const CATEGORIES = ["tshirt", "trousers", "hair", "skin", "shoes"];
   const SPOOKY_BODY_TYPES = Object.freeze(["lincoln", "beverley", "harry", "stuart", "davido", "samantha"]);
-  const BODY_TYPES = ["boy", "girl", ...SPOOKY_BODY_TYPES];
-  const FIXED_BODY_TYPES = new Set(SPOOKY_BODY_TYPES);
+  const PARTYGOER_BODY_TYPES = Object.freeze(["optimus", "pixella", "bolderdash", "sputnik", "vasquez"]);
+  const BODY_TYPES = ["boy", "girl", ...SPOOKY_BODY_TYPES, ...PARTYGOER_BODY_TYPES];
+  const FIXED_BODY_TYPES = new Set([...SPOOKY_BODY_TYPES, ...PARTYGOER_BODY_TYPES]);
   const SPOOKY_CHARACTER_LABELS = Object.freeze({
     lincoln: "LINCOLN",
     beverley: "BEVERLEY",
@@ -612,7 +614,16 @@ window.BOXXY_RELEASE = Object.freeze({
     davido: "DAVIDO",
     samantha: "SAMANTHA"
   });
+  const PARTYGOER_CHARACTER_LABELS = Object.freeze({
+    optimus: "OPTIMUS",
+    pixella: "PIXELLA",
+    bolderdash: "BOLDERDASH",
+    sputnik: "SPUTNIK",
+    vasquez: "VASQUEZ"
+  });
   const SPOOKY_STORAGE_KEY = "boxxy-spooky-character-v1";
+  const PARTYGOER_STORAGE_KEY = "boxxy-partygoer-character-v1";
+  const PARTYGOERS_UNLOCK_KEY = "boxxy-partygoers-unlocked-v1";
   const THEMES = ["bauhaus"];
   const SHEET_COLS = 4;
   // One efficient 300 × 260 frame set is used everywhere. It remains larger than
@@ -963,6 +974,8 @@ window.BOXXY_RELEASE = Object.freeze({
       localStorage.setItem(STORAGE_KEY, JSON.stringify(style));
       if (SPOOKY_BODY_TYPES.includes(style.bodyType)) {
         try { localStorage.setItem(SPOOKY_STORAGE_KEY, style.bodyType); } catch (_) {}
+      } else if (PARTYGOER_BODY_TYPES.includes(style.bodyType)) {
+        try { localStorage.setItem(PARTYGOER_STORAGE_KEY, style.bodyType); } catch (_) {}
       }
       updateSelectedSwatches();
       redrawAll();
@@ -998,10 +1011,59 @@ window.BOXXY_RELEASE = Object.freeze({
   const styleResetBtn = document.getElementById("styleResetBtn");
   const styleControls = document.getElementById("styleControls");
   let previousFocus = null;
+  let partygoersUnlocked = false;
+  try { partygoersUnlocked = localStorage.getItem(PARTYGOERS_UNLOCK_KEY) === "1"; } catch (_) {}
+  if (PARTYGOER_BODY_TYPES.includes(style.bodyType)) partygoersUnlocked = true;
+  let spookyUnlockClicks = 0;
+  let spookyUnlockArmed = false;
+
+  function revealPartygoers() {
+    if (partygoersUnlocked) return;
+    partygoersUnlocked = true;
+    spookyUnlockArmed = false;
+    try { localStorage.setItem(PARTYGOERS_UNLOCK_KEY, "1"); } catch (_) {}
+    const button = document.getElementById("stylePartygoersFamilyBtn");
+    if (button) button.hidden = false;
+    styleControls?.querySelector(".style-family-choices")?.classList.add("has-partygoers");
+  }
+
+  function noteSpookyUnlockClick() {
+    if (partygoersUnlocked) return;
+    spookyUnlockClicks += 1;
+    if (spookyUnlockClicks >= 5) spookyUnlockArmed = true;
+  }
 
   function buildControls() {
     if (!styleControls) return;
     styleControls.innerHTML = "";
+
+    function characterGrid(bodyTypes, labels, familyName) {
+      const grid = document.createElement("div");
+      grid.className = "style-character-grid";
+      bodyTypes.forEach(value => {
+        const label = labels[value];
+        const card = document.createElement("div");
+        card.className = "style-character-choice";
+
+        const thumb = document.createElement("div");
+        thumb.className = "style-character-thumb";
+        thumb.setAttribute("aria-hidden", "true");
+        thumb.style.backgroundImage = `url("${CHARACTER_ASSET_ROOT}/${value}/base.png")`;
+
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "style-type-btn style-character-name";
+        button.dataset.category = "bodyType";
+        button.dataset.colour = value;
+        button.textContent = label;
+        button.setAttribute("aria-label", `${familyName} character: ${label}`);
+        button.addEventListener("click", () => set("bodyType", value));
+
+        card.append(thumb, button);
+        grid.appendChild(card);
+      });
+      return grid;
+    }
 
     const typeGroup = document.createElement("fieldset");
     typeGroup.className = "style-group style-type-group";
@@ -1009,7 +1071,8 @@ window.BOXXY_RELEASE = Object.freeze({
     const typeLegend = document.createElement("legend");
     typeLegend.textContent = LABELS.bodyType;
     const typeChoices = document.createElement("div");
-    typeChoices.className = "style-type-choices";
+    typeChoices.className = `style-type-choices style-family-choices${partygoersUnlocked ? " has-partygoers" : ""}`;
+
     [["INDI", "boy"], ["OLI", "girl"]].forEach(([label, value]) => {
       const button = document.createElement("button");
       button.type = "button";
@@ -1021,13 +1084,15 @@ window.BOXXY_RELEASE = Object.freeze({
       button.addEventListener("click", () => set("bodyType", value));
       typeChoices.appendChild(button);
     });
+
     const spookyButton = document.createElement("button");
     spookyButton.type = "button";
-    spookyButton.className = "style-type-btn";
+    spookyButton.className = "style-type-btn style-family-spooky";
     spookyButton.dataset.styleFamily = "spooky";
     spookyButton.textContent = "SPOOKY";
     spookyButton.setAttribute("aria-label", "Character family: Spooky");
     spookyButton.addEventListener("click", () => {
+      noteSpookyUnlockClick();
       if (SPOOKY_BODY_TYPES.includes(style.bodyType)) return;
       let preferred = "lincoln";
       try {
@@ -1037,6 +1102,26 @@ window.BOXXY_RELEASE = Object.freeze({
       set("bodyType", preferred);
     });
     typeChoices.appendChild(spookyButton);
+
+    const partyButton = document.createElement("button");
+    partyButton.type = "button";
+    partyButton.id = "stylePartygoersFamilyBtn";
+    partyButton.className = "style-type-btn style-family-partygoers";
+    partyButton.dataset.styleFamily = "partygoers";
+    partyButton.textContent = "PARTYGOERS";
+    partyButton.hidden = !partygoersUnlocked;
+    partyButton.setAttribute("aria-label", "Character family: Partygoers");
+    partyButton.addEventListener("click", () => {
+      if (PARTYGOER_BODY_TYPES.includes(style.bodyType)) return;
+      let preferred = "optimus";
+      try {
+        const saved = String(localStorage.getItem(PARTYGOER_STORAGE_KEY) || "");
+        if (PARTYGOER_BODY_TYPES.includes(saved)) preferred = saved;
+      } catch (_) {}
+      set("bodyType", preferred);
+    });
+    typeChoices.appendChild(partyButton);
+
     typeGroup.append(typeLegend, typeChoices);
     styleControls.appendChild(typeGroup);
 
@@ -1045,22 +1130,29 @@ window.BOXXY_RELEASE = Object.freeze({
     spookyGroup.dataset.styleCategory = "spooky";
     const spookyLegend = document.createElement("legend");
     spookyLegend.textContent = "SPOOKY CHARACTER";
-    const spookyChoices = document.createElement("div");
-    spookyChoices.className = "style-type-choices";
-    SPOOKY_BODY_TYPES.forEach(value => {
-      const label = SPOOKY_CHARACTER_LABELS[value];
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "style-type-btn";
-      button.dataset.category = "bodyType";
-      button.dataset.colour = value;
-      button.textContent = label;
-      button.setAttribute("aria-label", `Spooky character: ${label}`);
-      button.addEventListener("click", () => set("bodyType", value));
-      spookyChoices.appendChild(button);
+    const spookyChoices = characterGrid(SPOOKY_BODY_TYPES, SPOOKY_CHARACTER_LABELS, "Spooky");
+
+    const spookyMusicButton = document.createElement("button");
+    spookyMusicButton.type = "button";
+    spookyMusicButton.id = "styleSpookyMusicBtn";
+    spookyMusicButton.className = "style-spooky-music-btn";
+    spookyMusicButton.textContent = "SPOOKY MUSIC ON";
+    spookyMusicButton.setAttribute("aria-pressed", "true");
+    spookyMusicButton.addEventListener("click", () => {
+      window.dispatchEvent(new CustomEvent("boxxyspookymusictoggle"));
     });
-    spookyGroup.append(spookyLegend, spookyChoices);
+
+    spookyGroup.append(spookyLegend, spookyChoices, spookyMusicButton);
     styleControls.appendChild(spookyGroup);
+
+    const partyGroup = document.createElement("fieldset");
+    partyGroup.className = "style-group style-partygoers-group";
+    partyGroup.dataset.styleCategory = "partygoers";
+    const partyLegend = document.createElement("legend");
+    partyLegend.textContent = "PARTYGOER";
+    const partyChoices = characterGrid(PARTYGOER_BODY_TYPES, PARTYGOER_CHARACTER_LABELS, "Partygoer");
+    partyGroup.append(partyLegend, partyChoices);
+    styleControls.appendChild(partyGroup);
 
     for (const category of CATEGORIES) {
       const group = document.createElement("fieldset");
@@ -1090,10 +1182,12 @@ window.BOXXY_RELEASE = Object.freeze({
 
   function updateSelectedSwatches() {
     const spookySelected = SPOOKY_BODY_TYPES.includes(style.bodyType);
+    const partySelected = PARTYGOER_BODY_TYPES.includes(style.bodyType);
     document.querySelectorAll(".style-swatch, .style-type-btn").forEach(button => {
-      const selected = button.dataset.styleFamily === "spooky"
-        ? spookySelected
-        : style[button.dataset.category] === button.dataset.colour;
+      let selected = false;
+      if (button.dataset.styleFamily === "spooky") selected = spookySelected;
+      else if (button.dataset.styleFamily === "partygoers") selected = partySelected;
+      else selected = style[button.dataset.category] === button.dataset.colour;
       button.classList.toggle("selected", selected);
       button.setAttribute("aria-pressed", String(selected));
     });
@@ -1105,6 +1199,10 @@ window.BOXXY_RELEASE = Object.freeze({
         group.hidden = !spookySelected;
         return;
       }
+      if (category === "partygoers") {
+        group.hidden = !partySelected;
+        return;
+      }
       group.hidden = fixedCharacter;
     });
   }
@@ -1112,8 +1210,11 @@ window.BOXXY_RELEASE = Object.freeze({
   function openModal() {
     if (!styleModal) return;
     previousFocus = document.activeElement;
+    spookyUnlockClicks = 0;
+    spookyUnlockArmed = false;
     styleModal.hidden = false;
     document.body.classList.add("style-open");
+    window.dispatchEvent(new CustomEvent("boxxyspookymusicrequeststate"));
     requestAnimationFrame(() => styleCloseBtn?.focus());
   }
 
@@ -1132,7 +1233,13 @@ window.BOXXY_RELEASE = Object.freeze({
     if (event.target === styleModal) closeModal();
   });
   document.addEventListener("keydown", event => {
-    if (!styleModal?.hidden && event.key === "Escape") {
+    if (styleModal?.hidden) return;
+    if (!partygoersUnlocked && spookyUnlockArmed && String(event.key || "").toLowerCase() === "k") {
+      event.preventDefault();
+      revealPartygoers();
+      return;
+    }
+    if (event.key === "Escape") {
       event.preventDefault();
       closeModal();
     }
@@ -6165,26 +6272,57 @@ window.BOXXY_RELEASE = Object.freeze({
 
   const SPOOKY_MUSIC_AUTOSTART_KEY = "boxxy-spooky-music-autostarted-v1";
 
+  function updateSpookyMusicButton() {
+    const button = document.getElementById("styleSpookyMusicBtn");
+    if (!button) return;
+    const active = musicOn && selectedMusicTrackId === "spooky";
+    button.textContent = active ? "SPOOKY MUSIC ON" : "SPOOKY MUSIC OFF";
+    button.setAttribute("aria-pressed", String(active));
+  }
+
+  function setSpookyMusicEnabled(enabled) {
+    if (enabled) {
+      selectedMusicTrackId = "spooky";
+      musicPlayAllIndex = 0;
+      musicOn = true;
+      try {
+        localStorage.setItem("boxxy-music-track-v1", selectedMusicTrackId);
+        localStorage.setItem("push-bauhaus-music", "on");
+        localStorage.setItem(SPOOKY_MUSIC_AUTOSTART_KEY, "1");
+      } catch (_) {}
+      updateMusicButton();
+      applySelectedMusicTrack(true, true);
+    } else {
+      musicOn = false;
+      try {
+        localStorage.setItem("push-bauhaus-music", "off");
+        localStorage.setItem(SPOOKY_MUSIC_AUTOSTART_KEY, "1");
+      } catch (_) {}
+      updateMusicButton();
+      pauseBackgroundMusic();
+    }
+    updateSpookyMusicButton();
+  }
+
   function applySpookyCharacterDefaults() {
     BOARD_STYLE?.apply?.({ box: "orange", target: "green" });
 
     let musicAlreadyStarted = false;
     try { musicAlreadyStarted = localStorage.getItem(SPOOKY_MUSIC_AUTOSTART_KEY) === "1"; } catch (_) {}
-    if (musicAlreadyStarted) return;
+    if (musicAlreadyStarted) {
+      updateSpookyMusicButton();
+      return;
+    }
 
-    selectedMusicTrackId = "spooky";
-    musicPlayAllIndex = 0;
-    try { localStorage.setItem("boxxy-music-track-v1", selectedMusicTrackId); } catch (_) {}
-    musicOn = true;
-    try {
-      localStorage.setItem("push-bauhaus-music", "on");
-      localStorage.setItem(SPOOKY_MUSIC_AUTOSTART_KEY, "1");
-    } catch (_) {}
-    updateMusicButton();
-    applySelectedMusicTrack(true, true);
+    setSpookyMusicEnabled(true);
   }
 
   window.addEventListener("boxxyspookycharacterselected", applySpookyCharacterDefaults);
+  window.addEventListener("boxxyspookymusictoggle", () => {
+    const currentlyActive = musicOn && selectedMusicTrackId === "spooky";
+    setSpookyMusicEnabled(!currentlyActive);
+  });
+  window.addEventListener("boxxyspookymusicrequeststate", updateSpookyMusicButton);
 
   function boxxySpeedFactor() {
     return BOXXY_SPEED_FACTORS[boxxySpeed] || 1;
@@ -6572,12 +6710,14 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   function updateMusicButton() {
-    if (!musicBtn) return;
-    const label = musicBtn.querySelector("b");
-    const icon = musicBtn.querySelector("span");
-    if (label) label.textContent = musicOn ? "MUSIC ON" : "MUSIC OFF";
-    if (icon) icon.textContent = musicOn ? "♫" : "♪";
-    musicBtn.setAttribute("aria-pressed", String(musicOn));
+    if (musicBtn) {
+      const label = musicBtn.querySelector("b");
+      const icon = musicBtn.querySelector("span");
+      if (label) label.textContent = musicOn ? "MUSIC ON" : "MUSIC OFF";
+      if (icon) icon.textContent = musicOn ? "♫" : "♪";
+      musicBtn.setAttribute("aria-pressed", String(musicOn));
+    }
+    updateSpookyMusicButton();
   }
 
   async function startBackgroundMusic() {
@@ -9887,6 +10027,7 @@ window.BOXXY_RELEASE = Object.freeze({
     if (selectedMusicTrackId === MUSIC_PLAY_ALL_ID) musicPlayAllIndex = 0;
     localStorage.setItem("boxxy-music-track-v1", selectedMusicTrackId);
     applySelectedMusicTrack(true, true);
+    updateSpookyMusicButton();
   });
   settingsSpeedSelect?.addEventListener("change", event => applyBoxxySpeed(String(event.currentTarget.value || "normal"), true));
   settingsArrowSpacingToggle?.addEventListener("click", () => applyArrowSpacing(!spacedArrowControls));

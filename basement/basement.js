@@ -1,3 +1,4 @@
+/* BOXXY v400 — Basement recognises PARTYGOERS avatars and includes fixed-character artwork in private practice. */
 /* BOXXY v375 — varied, verified synthetic move counts and update-in-place for previous scores. */
 /* BOXXY v374 — Basement Daily seeding and leaderboard score administration. */
 /* BOXXY v363 — server-confirmed sessions, first recorded login and per-device sign-in history. */
@@ -211,7 +212,8 @@
   const AVATAR_DEFAULT = Object.freeze({ bodyType:"boy", tshirt:"#df3526", trousers:"#292829", hair:"#292727", skin:"#ee9a60", shoes:"#292829" });
   const AVATAR_CATEGORIES = Object.freeze(["tshirt", "trousers", "hair", "skin", "shoes"]);
   const FIXED_AVATAR_CHARACTERS = Object.freeze({
-    lincoln:"LINCOLN", beverley:"BEVERLEY", harry:"HARRY", stuart:"STUART", davido:"DAVIDO", samantha:"SAMANTHA"
+    lincoln:"LINCOLN", beverley:"BEVERLEY", harry:"HARRY", stuart:"STUART", davido:"DAVIDO", samantha:"SAMANTHA",
+    optimus:"OPTIMUS", pixella:"PIXELLA", bolderdash:"BOLDERDASH", sputnik:"SPUTNIK", vasquez:"VASQUEZ"
   });
   const BOARD_STYLE_SWATCHES = Object.freeze({
     red:{label:"Red",hex:"#ec2826"}, blue:{label:"Blue",hex:"#1553ca"}, green:{label:"Green",hex:"#328545"},
@@ -697,8 +699,11 @@
   // must receive origin-clean spritesheets before it draws them to canvas.
   // Public image assets are fetched by the authenticated parent and reused
   // across practice sessions. No browser storage or account data is copied.
-  const PRIVATE_CHARACTER_ASSETS=["boy","girl"].flatMap(body=>
-    ["base","hair","shoes","skin","trousers","tshirt"].map(layer=>`assets/characters/${body}/${layer}.png`));
+  const PRIVATE_CHARACTER_ASSETS=[
+    ...["boy","girl"].flatMap(body=>
+      ["base","hair","shoes","skin","trousers","tshirt"].map(layer=>`assets/characters/${body}/${layer}.png`)),
+    ...Object.keys(FIXED_AVATAR_CHARACTERS).map(body=>`assets/characters/${body}/base.png`)
+  ];
   let privateImageAssetsPromise=null;
   function loadPrivateImageAssets() {
     if(privateImageAssetsPromise)return privateImageAssetsPromise;
