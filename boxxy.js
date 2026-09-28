@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "396",
+  version: "397",
   lastUpdated: "2026-09-28"
 });
+/* BOXXY v397: Lincoln joins Attire as a fixed standalone character using the supplied 12-frame sprite sheet. */
 /* BOXXY v396: Daily archive/detail actions and Play History level launching refined. */
 /* BOXXY v395: Play History uses compact fixed sort buttons and surfaces recoverable earlier Daily control metadata. */
 /* BOXXY v394: Play History sorts actual attempts by best time/fewest moves and records Mouse/Click Push and Instant Move independently. */
@@ -590,7 +591,8 @@ window.BOXXY_RELEASE = Object.freeze({
     "push-front", "push-back", "push-left", "push-right"
   ];
   const CATEGORIES = ["tshirt", "trousers", "hair", "skin", "shoes"];
-  const BODY_TYPES = ["boy", "girl"];
+  const BODY_TYPES = ["boy", "girl", "lincoln"];
+  const FIXED_BODY_TYPES = new Set(["lincoln"]);
   const THEMES = ["bauhaus"];
   const SHEET_COLS = 4;
   // One efficient 300 × 260 frame set is used everywhere. It remains larger than
@@ -718,13 +720,15 @@ window.BOXXY_RELEASE = Object.freeze({
     const bundleKey = `${themeKey}:${bodyType}`;
     if (sheetBundles.has(bundleKey)) return sheetBundles.get(bundleKey);
     const root = `${CHARACTER_ASSET_ROOT}/${bodyType}`;
-    const promise = Promise.all([
-      loadImage(`${root}/base.png`),
-      ...CATEGORIES.map(category => loadImage(`${root}/${category}.png`))
-    ]).then(([base, ...layers]) => ({
-      base,
-      layers: Object.fromEntries(CATEGORIES.map((category, index) => [category, layers[index]]))
-    }));
+    const promise = FIXED_BODY_TYPES.has(bodyType)
+      ? loadImage(`${root}/base.png`).then(base => ({ base, layers: {} }))
+      : Promise.all([
+          loadImage(`${root}/base.png`),
+          ...CATEGORIES.map(category => loadImage(`${root}/${category}.png`))
+        ]).then(([base, ...layers]) => ({
+          base,
+          layers: Object.fromEntries(CATEGORIES.map((category, index) => [category, layers[index]]))
+        }));
     sheetBundles.set(bundleKey, promise);
     return promise;
   }
@@ -748,7 +752,9 @@ window.BOXXY_RELEASE = Object.freeze({
     const promise = loadSheetBundle(bodyType, themeKey).then(bundle => {
       const assets = {
         base: frameSource(bundle.base, frame),
-        layers: Object.fromEntries(CATEGORIES.map(category => [category, frameSource(bundle.layers[category], frame)]))
+        layers: Object.fromEntries(CATEGORIES
+          .filter(category => bundle.layers[category])
+          .map(category => [category, frameSource(bundle.layers[category], frame)]))
       };
       resolvedAssets.set(cacheKey, assets);
       return assets;
@@ -820,7 +826,9 @@ window.BOXXY_RELEASE = Object.freeze({
     context.imageSmoothingQuality = "high";
     drawSource(context, assets.base, 0, 0, width, height);
     for (const category of CATEGORIES) {
-      drawTintedLayer(context, assets.layers[category], requestedStyle[category], width, height);
+      const layer = assets.layers[category];
+      if (!layer) continue;
+      drawTintedLayer(context, layer, requestedStyle[category], width, height);
     }
     context.globalCompositeOperation = "source-over";
     context.globalAlpha = 1;
@@ -843,10 +851,14 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   function renderedFrameKey(frame, requestedStyle = style) {
-    return [activeTheme(), requestedStyle.bodyType, frame, ...CATEGORIES.map(category => requestedStyle[category])].join("|");
+    const colours = FIXED_BODY_TYPES.has(requestedStyle.bodyType)
+      ? []
+      : CATEGORIES.map(category => requestedStyle[category]);
+    return [activeTheme(), requestedStyle.bodyType, frame, ...colours].join("|");
   }
 
   function fallbackFrameUrl(frame, bodyType = style.bodyType) {
+    if (FIXED_BODY_TYPES.has(bodyType)) return "";
     return `assets/characters-fallback/${bodyType}/${frame}.png`;
   }
 
@@ -884,7 +896,8 @@ window.BOXXY_RELEASE = Object.freeze({
     // Keep an already-rendered customised sprite visible while the replacement is
     // composed. Only use the plain red/black fallback for a brand-new image.
     if (!image.src || image.dataset.characterReady !== "true") {
-      image.src = fallbackFrameUrl(frame, requestedStyle.bodyType);
+      const fallback = fallbackFrameUrl(frame, requestedStyle.bodyType);
+      if (fallback) image.src = fallback;
     }
     image.classList.add("character-loading");
     return renderFrameUrl(frame, requestedStyle).then(url => {
@@ -971,7 +984,7 @@ window.BOXXY_RELEASE = Object.freeze({
     typeLegend.textContent = LABELS.bodyType;
     const typeChoices = document.createElement("div");
     typeChoices.className = "style-type-choices";
-    [["INDI", "boy"], ["OLIVE", "girl"]].forEach(([label, value]) => {
+    [["INDI", "boy"], ["OLI", "girl"], ["LINCOLN", "lincoln"]].forEach(([label, value]) => {
       const button = document.createElement("button");
       button.type = "button";
       button.className = "style-type-btn";
@@ -1018,6 +1031,10 @@ window.BOXXY_RELEASE = Object.freeze({
       const selected = style[cat] === val;
       button.classList.toggle("selected", selected);
       button.setAttribute("aria-pressed", String(selected));
+    });
+    const fixedCharacter = FIXED_BODY_TYPES.has(style.bodyType);
+    styleControls?.querySelectorAll(".style-group[data-style-category]").forEach(group => {
+      if (group.dataset.styleCategory !== "bodyType") group.hidden = fixedCharacter;
     });
   }
 

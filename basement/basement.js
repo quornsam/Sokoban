@@ -225,14 +225,20 @@
   }
   function avatarStyle(summary) {
     const raw = summary?.avatar && typeof summary.avatar === "object" ? summary.avatar : {};
+    const bodyType = ["boy", "girl", "lincoln"].includes(raw.bodyType) ? raw.bodyType : "boy";
     return {
-      bodyType: raw.bodyType === "girl" ? "girl" : "boy",
+      bodyType,
       tshirt: safeColour(raw.tshirt, AVATAR_DEFAULT.tshirt),
       trousers: safeColour(raw.trousers, AVATAR_DEFAULT.trousers),
       hair: safeColour(raw.hair, AVATAR_DEFAULT.hair),
       skin: safeColour(raw.skin, AVATAR_DEFAULT.skin),
       shoes: safeColour(raw.shoes, AVATAR_DEFAULT.shoes)
     };
+  }
+  function avatarCharacterLabel(bodyType) {
+    if (bodyType === "lincoln") return "LINCOLN";
+    if (bodyType === "girl") return "OLI";
+    return "INDI";
   }
   function loadAvatarImage(src) {
     if (avatarImageCache.has(src)) return avatarImageCache.get(src);
@@ -250,10 +256,11 @@
     if (!canvas) return;
     const style = avatarStyle(summary);
     const root = `/assets/characters/${style.bodyType}`;
+    const fixedCharacter = style.bodyType === "lincoln";
     try {
       const [base, ...layers] = await Promise.all([
         loadAvatarImage(`${root}/base.png`),
-        ...AVATAR_CATEGORIES.map(category => loadAvatarImage(`${root}/${category}.png`))
+        ...(fixedCharacter ? [] : AVATAR_CATEGORIES.map(category => loadAvatarImage(`${root}/${category}.png`)))
       ]);
       if (!canvas.isConnected) return;
       const width = 90, height = 78, sourceWidth = 300, sourceHeight = 260;
@@ -261,24 +268,26 @@
       const context = canvas.getContext("2d");
       context.clearRect(0, 0, width, height);
       context.drawImage(base, 0, 0, sourceWidth, sourceHeight, 0, 0, width, height);
-      const scratch = document.createElement("canvas");
-      scratch.width = width; scratch.height = height;
-      const off = scratch.getContext("2d");
-      AVATAR_CATEGORIES.forEach((category, index) => {
-        const layer = layers[index];
-        off.globalCompositeOperation = "source-over";
-        off.clearRect(0, 0, width, height);
-        off.fillStyle = style[category];
-        off.fillRect(0, 0, width, height);
-        off.globalCompositeOperation = "multiply";
-        off.drawImage(layer, 0, 0, sourceWidth, sourceHeight, 0, 0, width, height);
-        off.globalCompositeOperation = "destination-in";
-        off.drawImage(layer, 0, 0, sourceWidth, sourceHeight, 0, 0, width, height);
-        context.globalCompositeOperation = "destination-out";
-        context.drawImage(layer, 0, 0, sourceWidth, sourceHeight, 0, 0, width, height);
-        context.globalCompositeOperation = "source-over";
-        context.drawImage(scratch, 0, 0);
-      });
+      if (!fixedCharacter) {
+        const scratch = document.createElement("canvas");
+        scratch.width = width; scratch.height = height;
+        const off = scratch.getContext("2d");
+        AVATAR_CATEGORIES.forEach((category, index) => {
+          const layer = layers[index];
+          off.globalCompositeOperation = "source-over";
+          off.clearRect(0, 0, width, height);
+          off.fillStyle = style[category];
+          off.fillRect(0, 0, width, height);
+          off.globalCompositeOperation = "multiply";
+          off.drawImage(layer, 0, 0, sourceWidth, sourceHeight, 0, 0, width, height);
+          off.globalCompositeOperation = "destination-in";
+          off.drawImage(layer, 0, 0, sourceWidth, sourceHeight, 0, 0, width, height);
+          context.globalCompositeOperation = "destination-out";
+          context.drawImage(layer, 0, 0, sourceWidth, sourceHeight, 0, 0, width, height);
+          context.globalCompositeOperation = "source-over";
+          context.drawImage(scratch, 0, 0);
+        });
+      }
       context.globalCompositeOperation = "source-over";
     } catch (_) {}
   }
@@ -291,7 +300,8 @@
   }
   function outfitMini(summary) {
     const style = avatarStyle(summary);
-    const character = style.bodyType === "girl" ? "OLIVE" : "INDI";
+    const character = avatarCharacterLabel(style.bodyType);
+    if (style.bodyType === "lincoln") return `<div class="outfit-mini" title="Current character"><span>${character}</span></div>`;
     return `<div class="outfit-mini" title="Current outfit"><span>${character}</span><i title="T-shirt" style="--swatch:${style.tshirt}"></i><i title="Trousers / skirt" style="--swatch:${style.trousers}"></i><i title="Shoes" style="--swatch:${style.shoes}"></i></div>`;
   }
   function boardStyle(summary) {
@@ -882,13 +892,16 @@
   function detailOutfit(user) {
     const style = avatarStyle(user?.summary);
     const board = boardStyle(user?.summary);
-    const character = style.bodyType === "girl" ? "OLIVE" : "INDI";
+    const character = avatarCharacterLabel(style.bodyType);
     const row = (label, colour) => `<div><span>${label}</span><strong><i class="outfit-swatch" style="--swatch:${colour}"></i>${colour.toUpperCase()}</strong></div>`;
     const boardRow = (label, colour) => {
       const swatch = BOARD_STYLE_SWATCHES[colour];
       return `<div><span>${label}</span><strong><i class="outfit-swatch" style="--swatch:${swatch.hex}"></i>${escapeHtml(swatch.label.toUpperCase())}</strong></div>`;
     };
-    return `<div class="detail-outfit"><canvas class="basement-avatar basement-avatar-large" data-avatar-user="${escapeHtml(user.id)}" width="90" height="78" aria-label="Current BOXXY character and style"></canvas><div class="detail-outfit-grid"><div><span>CHARACTER</span><strong>${character}</strong></div>${row("T-SHIRT", style.tshirt)}${row("TROUSERS / SKIRT", style.trousers)}${row("SHOES", style.shoes)}${boardRow("BOX", board.box)}${boardRow("BOX ON TARGET", board.target)}</div></div>`;
+    const clothingRows = style.bodyType === "lincoln"
+      ? ""
+      : `${row("T-SHIRT", style.tshirt)}${row("TROUSERS / SKIRT", style.trousers)}${row("SHOES", style.shoes)}`;
+    return `<div class="detail-outfit"><canvas class="basement-avatar basement-avatar-large" data-avatar-user="${escapeHtml(user.id)}" width="90" height="78" aria-label="Current BOXXY character and style"></canvas><div class="detail-outfit-grid"><div><span>CHARACTER</span><strong>${character}</strong></div>${clothingRows}${boardRow("BOX", board.box)}${boardRow("BOX ON TARGET", board.target)}</div></div>`;
   }
   function detailAttempts(summary) {
     const attempts = Array.isArray(summary?.attempts) ? summary.attempts : [];

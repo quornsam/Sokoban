@@ -11,7 +11,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "396";
+const RELEASE_VERSION = "397";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [
@@ -70,6 +70,7 @@ const ASSETS = [
   "/assets/characters/girl/skin.png",
   "/assets/characters/girl/trousers.png",
   "/assets/characters/girl/tshirt.png",
+  "/assets/characters/lincoln/base.png",
   "/assets/characters-fallback/boy/player-back.png",
   "/assets/characters-fallback/boy/player-front.png",
   "/assets/characters-fallback/boy/player-left.png",

@@ -299,7 +299,7 @@ linear-gradient(135deg,transparent 0 58%,var(--shape-color) 58% 66%,transparent 
 @keyframes bgDriftC{from{transform:translate3d(0,0,0) rotate(0deg)}50%{transform:translate3d(calc(var(--dx) * 0.45),calc(var(--dy) * 0.35),0) rotate(calc(var(--rot) * 0.4))}to{transform:translate3d(calc(var(--dx) * 0.8),calc(var(--dy) * 0.6),0) rotate(calc(var(--rot) * 0.7))}}
 
 
-.style-type-choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.style-type-choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .style-type-btn{border:2px solid rgba(23,23,25,.25);background:#f2eadf;color:var(--ink);font:900 13px/1 var(--font,inherit);letter-spacing:.08em;padding:11px 10px;min-height:42px}
 .style-type-btn.selected{border-color:var(--ink);background:#fff7ea;box-shadow:0 5px 0 var(--ink);transform:translateY(-2px)}
 .style-type-btn:active{transform:translateY(0);box-shadow:none}
