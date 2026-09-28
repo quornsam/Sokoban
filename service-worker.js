@@ -1,3 +1,4 @@
+/* BOXXY v399: spooky soundtrack uses the standard MP3 format and refreshed Samantha artwork is cached offline. */
 /* BOXXY v398: spooky character sheets and Dark Quiet Death are available offline. */
 /* BOXXY v375: varied synthetic score generation; gameplay unaffected. */
 /* BOXXY v374: private Daily seeding/admin leaderboard tools and 250×250 Level Maker. */
@@ -12,7 +13,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "398";
+const RELEASE_VERSION = "399";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [
@@ -26,7 +27,7 @@ const ASSETS = [
   "/assets/audio/Tetris-Piano-293KB.mp3",
   "/assets/audio/Velvet-Static-296KB.mp3",
   "/assets/audio/cracked-ivory-drift.mp3",
-  "/assets/audio/Dark-Quiet-Death-279KB.m4a",
+  "/assets/audio/Dark-Quiet-Death-280KB.mp3",
   "/assets/audio/tetris-piano.m4a",
   "/assets/board/board-atlas.png",
   "/assets/board/boxes/box-black.png",

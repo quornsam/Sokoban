@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "398",
+  version: "399",
   lastUpdated: "2026-09-28"
 });
+/* BOXXY v399: spooky music autostarts once per browser profile; Samantha artwork and the soundtrack format are corrected. */
 /* BOXXY v398: Attire adds the SPOOKY character family, its soundtrack, and one-time spooky board defaults. */
 /* BOXXY v397: Lincoln joins Attire as a fixed standalone character using the supplied 12-frame sprite sheet. */
 /* BOXXY v396: Daily archive/detail actions and Play History level launching refined. */
@@ -2730,7 +2731,7 @@ window.BOXXY_RELEASE = Object.freeze({
     fading: { label: "Fading into Gold", src: "assets/audio/Fading-into-Gold-296KB.mp3" },
     velvet: { label: "Velvet Static", src: "assets/audio/Velvet-Static-296KB.mp3" },
     tetris: { label: "Tetris Piano", src: "assets/audio/Tetris-Piano-293KB.mp3" },
-    spooky: { label: "Dark Quiet Death", src: "assets/audio/Dark-Quiet-Death-279KB.m4a" }
+    spooky: { label: "Dark Quiet Death", src: "assets/audio/Dark-Quiet-Death-280KB.mp3" }
   });
   const storedMusicTrackId = localStorage.getItem("boxxy-music-track-v1");
   let selectedMusicTrackId = storedMusicTrackId === MUSIC_PLAY_ALL_ID || BOXXY_MUSIC_TRACKS[storedMusicTrackId]
@@ -6162,13 +6163,23 @@ window.BOXXY_RELEASE = Object.freeze({
     if (playAfter && musicOn) startBackgroundMusic();
   }
 
+  const SPOOKY_MUSIC_AUTOSTART_KEY = "boxxy-spooky-music-autostarted-v1";
+
   function applySpookyCharacterDefaults() {
     BOARD_STYLE?.apply?.({ box: "orange", target: "green" });
+
+    let musicAlreadyStarted = false;
+    try { musicAlreadyStarted = localStorage.getItem(SPOOKY_MUSIC_AUTOSTART_KEY) === "1"; } catch (_) {}
+    if (musicAlreadyStarted) return;
+
     selectedMusicTrackId = "spooky";
     musicPlayAllIndex = 0;
     try { localStorage.setItem("boxxy-music-track-v1", selectedMusicTrackId); } catch (_) {}
     musicOn = true;
-    try { localStorage.setItem("push-bauhaus-music", "on"); } catch (_) {}
+    try {
+      localStorage.setItem("push-bauhaus-music", "on");
+      localStorage.setItem(SPOOKY_MUSIC_AUTOSTART_KEY, "1");
+    } catch (_) {}
     updateMusicButton();
     applySelectedMusicTrack(true, true);
   }
