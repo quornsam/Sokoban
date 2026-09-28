@@ -53,7 +53,6 @@ export async function onRequestGet(context) {
     const bestMovesSecondsPath = `$."${dateKey}".bestMovesSeconds`;
     const bestMovesDevicePath = `$."${dateKey}".bestMovesDevice`;
     const bestMovesMouseOrClickPushPath = `$."${dateKey}".bestMovesMouseOrClickPush`;
-    const bestMovesInstantMovePath = `$."${dateKey}".bestMovesInstantMove`;
     const leaderboardTrackedPath = `$."${dateKey}".leaderboardTracked`;
     const leaderboardStartedAtPath = `$."${dateKey}".leaderboardStartedAt`;
     const leaderboardCompletedAtPath = `$."${dateKey}".leaderboardCompletedAt`;
@@ -88,7 +87,6 @@ export async function onRequestGet(context) {
           CAST(json_extract(daily_json, ?) AS REAL) AS best_moves_seconds,
           CAST(json_extract(daily_json, ?) AS TEXT) AS best_moves_device,
           CAST(json_extract(daily_json, ?) AS INTEGER) AS best_moves_mouse_or_click_push,
-          CAST(json_extract(daily_json, ?) AS INTEGER) AS best_moves_instant_move,
           CASE
             WHEN json_extract(daily_json, ?) = 1 THEN
               CAST(json_extract(daily_json, ?) AS INTEGER)
@@ -110,8 +108,6 @@ export async function onRequestGet(context) {
         SELECT d.username, d.seconds, d.moves, d.best_moves, d.leaderboard_device,
           CASE WHEN d.best_moves_seconds > 0 AND d.best_moves_mouse_or_click_push = 1 THEN 1 ELSE 0 END
             AS best_moves_run_mouse_or_click_push,
-          CASE WHEN d.best_moves_seconds > 0 AND d.best_moves_instant_move = 1 THEN 1 ELSE 0 END
-            AS best_moves_run_instant_move,
           COALESCE(
             CASE WHEN d.best_moves_seconds > 0 THEN d.best_moves_seconds END,
             CASE WHEN d.best_moves = d.moves THEN d.seconds END,
@@ -155,7 +151,7 @@ export async function onRequestGet(context) {
           )
       ), real_paired AS (
         SELECT username, seconds, moves, best_moves, leaderboard_device,
-          best_moves_run_seconds, best_moves_run_mouse_or_click_push, best_moves_run_instant_move,
+          best_moves_run_seconds, best_moves_run_mouse_or_click_push,
           COALESCE(saved_moves_device,
             CASE WHEN history_seconds > 0
               AND ABS(best_moves_run_seconds - history_seconds) < 0.015
@@ -165,7 +161,7 @@ export async function onRequestGet(context) {
         SELECT u.username AS username, s.seconds AS seconds, s.moves AS moves,
           s.moves AS best_moves, s.device AS leaderboard_device,
           s.seconds AS best_moves_run_seconds, s.device AS best_moves_run_device,
-          0 AS best_moves_run_mouse_or_click_push, 0 AS best_moves_run_instant_move
+          0 AS best_moves_run_mouse_or_click_push
         FROM synthetic_daily_scores s
         JOIN synthetic_users u ON u.id = s.user_id
         WHERE s.date_key = ? AND s.seconds > 0
@@ -173,46 +169,57 @@ export async function onRequestGet(context) {
       ), all_scores AS (
         SELECT username, seconds, moves, best_moves, leaderboard_device,
           best_moves_run_seconds, best_moves_run_device,
-          best_moves_run_mouse_or_click_push, best_moves_run_instant_move FROM real_paired
+          best_moves_run_mouse_or_click_push FROM real_paired
         UNION ALL
         SELECT username, seconds, moves, best_moves, leaderboard_device,
           best_moves_run_seconds, best_moves_run_device,
-          best_moves_run_mouse_or_click_push, best_moves_run_instant_move FROM synthetic_scores
+          best_moves_run_mouse_or_click_push FROM synthetic_scores
       )
       SELECT username, seconds, moves, best_moves, leaderboard_device,
         best_moves_run_seconds, best_moves_run_device,
-        best_moves_run_mouse_or_click_push, best_moves_run_instant_move
+        best_moves_run_mouse_or_click_push
       FROM all_scores
       ORDER BY seconds ASC, username COLLATE NOCASE ASC
     `).bind(
       leaderboardTrackedPath, leaderboardSecondsPath, secondsPath,
       leaderboardTrackedPath, leaderboardMovesPath, movesPath,
       bestMovesPath, leaderboardMovesPath, bestMovesSecondsPath, bestMovesDevicePath,
-      bestMovesMouseOrClickPushPath, bestMovesInstantMovePath,
+      bestMovesMouseOrClickPushPath,
       leaderboardTrackedPath, leaderboardStartedAtPath,
       leaderboardTrackedPath, leaderboardCompletedAtPath,
       leaderboardTrackedPath, leaderboardDevicePath,
       dateKey, MAX_PUBLIC_MOVES_PER_SECOND, MAX_TIMING_DRIFT_SECONDS, dateKey
     ).all();
 
-    const entries = (result.results || []).map(row => ({
-      username: String(row.username || "").slice(0, 20),
-      seconds: Math.max(0, Math.round((Number(row.seconds) || 0) * 100) / 100),
-      moves: row.moves !== null && row.moves !== undefined
-        && Number.isFinite(Number(row.moves)) && Number(row.moves) >= 0
-        ? Math.trunc(Number(row.moves))
-        : null,
-      bestMoves: row.best_moves !== null && row.best_moves !== undefined
+    const entries = (result.results || []).map(row => {
+      const bestMoves = row.best_moves !== null && row.best_moves !== undefined
         && Number.isInteger(Number(row.best_moves)) && Number(row.best_moves) >= 0
-        ? Number(row.best_moves) : null,
-      bestMovesSeconds: row.best_moves_run_seconds !== null && row.best_moves_run_seconds !== undefined
+        ? Number(row.best_moves) : null;
+      const rawBestMovesSeconds = row.best_moves_run_seconds !== null && row.best_moves_run_seconds !== undefined
         && Number.isFinite(Number(row.best_moves_run_seconds)) && Number(row.best_moves_run_seconds) > 0
-        ? Math.round(Number(row.best_moves_run_seconds) * 100) / 100 : null,
-      bestMovesDevice: cleanDeviceClass(row.best_moves_run_device) || null,
-      bestMovesMouseOrClickPush: Number(row.best_moves_run_mouse_or_click_push) === 1,
-      bestMovesInstantMove: Number(row.best_moves_run_instant_move) === 1,
-      device: cleanDeviceClass(row.leaderboard_device) || null
-    }));
+        ? Number(row.best_moves_run_seconds) : null;
+      const mouseOrClickPushRun = Number(row.best_moves_run_mouse_or_click_push) === 1;
+      const movesPerSecond = rawBestMovesSeconds !== null && bestMoves !== null && bestMoves > 1
+        ? (bestMoves - 1) / rawBestMovesSeconds
+        : 0;
+      const publicBestMovesSeconds = !mouseOrClickPushRun && movesPerSecond <= MAX_PUBLIC_MOVES_PER_SECOND
+        ? rawBestMovesSeconds
+        : null;
+      return {
+        username: String(row.username || "").slice(0, 20),
+        seconds: Math.max(0, Math.round((Number(row.seconds) || 0) * 100) / 100),
+        moves: row.moves !== null && row.moves !== undefined
+          && Number.isFinite(Number(row.moves)) && Number(row.moves) >= 0
+          ? Math.trunc(Number(row.moves))
+          : null,
+        bestMoves,
+        bestMovesSeconds: publicBestMovesSeconds !== null
+          ? Math.round(publicBestMovesSeconds * 100) / 100
+          : null,
+        bestMovesDevice: cleanDeviceClass(row.best_moves_run_device) || null,
+        device: cleanDeviceClass(row.leaderboard_device) || null
+      };
+    });
 
     return json({ ok: true, date: dateKey, entries }, 200, {
       "cache-control": "no-store"
