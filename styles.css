@@ -5378,7 +5378,7 @@ body.first-person-mode .board::after{
   letter-spacing:.075em;
   cursor:pointer;
 }
-.daily-archive-share{background:#fff;color:var(--ink);box-shadow:3px 3px 0 rgba(23,23,25,.17)}
+.daily-archive-play{background:var(--green);color:#fff;box-shadow:3px 3px 0 rgba(23,23,25,.17)}
 .daily-archive-empty{
   margin:0;
   padding:38px 22px;
@@ -7098,8 +7098,13 @@ body.large-level-performance .instruction .thought-text{
 .daily-detail-player-stats-grid strong{display:block;min-width:0;margin-top:2px;font-size:12px;line-height:1;white-space:nowrap}
 .daily-detail-player-stats-grid strong .time-fraction{display:inline;font-size:.58em}
 .daily-detail-player-stats-note{display:block;padding:4px 7px 5px;border-top:1px solid rgba(23,23,25,.2);color:#6b6155;font-size:9px;line-height:1.25;letter-spacing:0}
-.daily-detail-play{min-height:48px;padding:10px 14px;border:2px solid var(--ink);background:var(--yellow);color:var(--ink);box-shadow:4px 4px 0 var(--red);font:1000 13px/1 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;letter-spacing:.08em;cursor:pointer}
-.daily-detail-play:active{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--red)}
+.daily-detail-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.daily-detail-actions.single{grid-template-columns:1fr}
+.daily-detail-actions button{min-height:48px;padding:10px 14px;border:2px solid var(--ink);font:1000 13px/1 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;letter-spacing:.08em;cursor:pointer}
+.daily-detail-actions button[hidden]{display:none!important}
+.daily-detail-share{background:#e87528;color:#fff;box-shadow:4px 4px 0 var(--yellow)}
+.daily-detail-play{background:var(--green);color:#fff;box-shadow:4px 4px 0 var(--yellow)}
+.daily-detail-actions button:active{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--yellow)}
 .daily-leaderboard-section-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:8px 12px 7px;border-bottom:2px solid var(--ink);background:#fffaf2}
 .daily-leaderboard-section-head span{color:#6b6155;font-size:7px;font-weight:1000;letter-spacing:.1em}
 .daily-leaderboard-section-head strong{font-size:12px;letter-spacing:.04em}
@@ -7153,7 +7158,7 @@ body.large-level-performance .instruction .thought-text{
   .daily-detail-player-stats-grid>div>span{font-size:5.5px}
   .daily-detail-player-stats-grid strong{font-size:10.5px}
   .daily-detail-player-stats-note{padding:3px 5px 4px;font-size:9px}
-  .daily-detail-play{min-height:43px;padding:8px 10px;font-size:11px;box-shadow:3px 3px 0 var(--red)}
+  .daily-detail-actions button{min-height:43px;padding:8px 10px;font-size:11px;box-shadow:3px 3px 0 var(--yellow)}
   .daily-leaderboard-section-head{padding:7px 9px 6px}
   .daily-leaderboard-section-head span{font-size:6.5px}
   .daily-leaderboard-section-head strong{font-size:10px}
@@ -7161,7 +7166,7 @@ body.large-level-performance .instruction .thought-text{
 @media(max-width:370px){
   .daily-detail-summary{grid-template-columns:96px minmax(0,1fr);gap:8px;padding:8px}
   .daily-detail-preview{width:96px}
-  .daily-detail-play{font-size:10px;letter-spacing:.06em}
+  .daily-detail-actions button{font-size:10px;letter-spacing:.06em}
 }
 
 /* BOXXY v317 — fractional completion time stays subordinate to the main clock. */

@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "395",
+  version: "396",
   lastUpdated: "2026-09-28"
 });
+/* BOXXY v396: Daily archive/detail actions and Play History level launching refined. */
 /* BOXXY v395: Play History uses compact fixed sort buttons and surfaces recoverable earlier Daily control metadata. */
 /* BOXXY v394: Play History sorts actual attempts by best time/fewest moves and records Mouse/Click Push and Instant Move independently. */
 /* BOXXY v392: Daily leaderboard visibility is server-authoritative; personal progress and streaks remain untouched. */
@@ -2408,6 +2409,8 @@ window.BOXXY_RELEASE = Object.freeze({
   const dailyLeaderboardSortTime = document.getElementById("dailyLeaderboardSortTime");
   const dailyLeaderboardSortMoves = document.getElementById("dailyLeaderboardSortMoves");
   const dailyLeaderboardPreviewCanvas = document.getElementById("dailyLeaderboardPreviewCanvas");
+  const dailyLeaderboardActions = document.getElementById("dailyLeaderboardActions");
+  const dailyLeaderboardShareBtn = document.getElementById("dailyLeaderboardShareBtn");
   const dailyLeaderboardPlayBtn = document.getElementById("dailyLeaderboardPlayBtn");
   const dailyLeaderboardPlayLabel = document.getElementById("dailyLeaderboardPlayLabel");
   const dailyLeaderboardStatus = document.getElementById("dailyLeaderboardStatus");
@@ -3478,7 +3481,7 @@ window.BOXXY_RELEASE = Object.freeze({
     }
   }
 
-  async function shareArchivedDailyResult(puzzle, result, button) {
+  async function shareDailyCompletionResult(puzzle, result, button) {
     const text = buildDailyShareText(puzzle, result);
     if (!text) return;
     const original = button?.textContent || "SHARE";
@@ -3730,11 +3733,16 @@ window.BOXXY_RELEASE = Object.freeze({
     if (dailyLeaderboardTitle) dailyLeaderboardTitle.textContent = `DAILY #${Number(puzzle.sequence) || ""}`;
     if (dailyLeaderboardDate) dailyLeaderboardDate.textContent = formatDailyDate(puzzle.date, { weekday: true, long: true, year: true });
     if (dailyLeaderboardPreviewCanvas) drawLevelThumbnail(dailyLeaderboardPreviewCanvas, puzzle);
-    if (dailyLeaderboardPlayLabel) dailyLeaderboardPlayLabel.textContent = result ? "PLAY AGAIN" : "PLAY NOW";
+    if (dailyLeaderboardPlayLabel) dailyLeaderboardPlayLabel.textContent = "PLAY";
     if (dailyLeaderboardPlayBtn) {
-      const actionLabel = result ? "Play Daily Boxxy again" : "Play Daily Boxxy now";
-      dailyLeaderboardPlayBtn.setAttribute("aria-label", `${actionLabel}: Daily #${Number(puzzle.sequence) || ""}`);
+      dailyLeaderboardPlayBtn.setAttribute("aria-label", `Play Daily Boxxy #${Number(puzzle.sequence) || ""}`);
     }
+    if (dailyLeaderboardShareBtn) {
+      dailyLeaderboardShareBtn.hidden = !result;
+      dailyLeaderboardShareBtn.textContent = "SHARE";
+      dailyLeaderboardShareBtn.setAttribute("aria-label", `Share result for Daily Boxxy #${Number(puzzle.sequence) || ""}`);
+    }
+    dailyLeaderboardActions?.classList.toggle("single", !result);
     if (dailyLeaderboardStatus) dailyLeaderboardStatus.textContent = result ? "COMPLETED" : "NOT YET COMPLETED";
     renderDailyPlayerStats(result);
     updateDailyLeaderboardAccountNote();
@@ -3840,15 +3848,15 @@ window.BOXXY_RELEASE = Object.freeze({
     actions.className = "daily-archive-date-actions";
     if (!result) actions.classList.add("single");
     if (result) {
-      const share = document.createElement("button");
-      share.type = "button";
-      share.className = "daily-archive-share";
-      share.textContent = "SHARE";
-      share.addEventListener("click", event => {
+      const play = document.createElement("button");
+      play.type = "button";
+      play.className = "daily-archive-play";
+      play.textContent = "PLAY";
+      play.addEventListener("click", event => {
         event.stopPropagation();
-        shareArchivedDailyResult(puzzle, result, share);
+        dailyArchivePlayPuzzle(puzzle);
       });
-      actions.appendChild(share);
+      actions.appendChild(play);
     }
     const leaderboard = document.createElement("button");
     leaderboard.type = "button";
@@ -6442,12 +6450,13 @@ window.BOXXY_RELEASE = Object.freeze({
     requestAnimationFrame(() => settingsCloseBtn?.focus?.({ preventScroll: true }));
   }
 
-  function closeSettings() {
+  function closeSettings(options = {}) {
     if (!settingsModal) return;
+    const restoreFocus = options?.restoreFocus !== false;
     settingsModal.hidden = true;
     showSettingsMainView();
     settingsBtn?.setAttribute("aria-expanded", "false");
-    settingsBtn?.focus?.({ preventScroll: true });
+    if (restoreFocus) settingsBtn?.focus?.({ preventScroll: true });
   }
 
   function updateMusicButton() {
@@ -9812,6 +9821,11 @@ window.BOXXY_RELEASE = Object.freeze({
   });
 
   dailyLeaderboardCloseBtn?.addEventListener("click", closeDailyLeaderboard);
+  dailyLeaderboardShareBtn?.addEventListener("click", () => {
+    if (!dailyLeaderboardActivePuzzle) return;
+    const result = dailyCompletion(dailyLeaderboardActivePuzzle.date);
+    if (result) shareDailyCompletionResult(dailyLeaderboardActivePuzzle, result, dailyLeaderboardShareBtn);
+  });
   dailyLeaderboardPlayBtn?.addEventListener("click", () => {
     if (dailyLeaderboardActivePuzzle) dailyArchivePlayPuzzle(dailyLeaderboardActivePuzzle);
   });
@@ -10218,7 +10232,9 @@ window.BOXXY_RELEASE = Object.freeze({
     if (packId==='daily-boxxy') {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(String(levelToken||''))) return false;
       const puzzle=visibleDailyPuzzles().find(item=>String(item.date)===String(levelToken));
-      return puzzle ? loadDailyPuzzle(puzzle) : false;
+      if (!puzzle || !loadDailyPuzzle(puzzle)) return false;
+      closeSettings({ restoreFocus: false });
+      return true;
     }
     if (!/^[a-z0-9][a-z0-9-]{0,59}$/i.test(String(packId||'')) ||
         !/^\d+$/.test(String(levelToken||''))) return false;
@@ -10227,6 +10243,7 @@ window.BOXXY_RELEASE = Object.freeze({
     if (!pack||packIsLocked(pack)||!Number.isSafeInteger(index)||index<0||index>=pack.levels.length ||
         index>readPackLevelProgress(pack).highestUnlocked) return false;
     activatePackLevel(packId,index);
+    closeSettings({ restoreFocus: false });
     return true;
   }
   window.BoxxyGameAPI = {

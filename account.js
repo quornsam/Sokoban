@@ -123,11 +123,7 @@
       isCurrent, refreshOverview:true,
       onOverview:data=>window.BOXXYAttemptHistory?.rememberOverview?.(data,userId),
       readLocalOverview:()=>window.BOXXYAttemptHistory?.localOverview?.(userId),
-      onPlay:level=>{
-        const started=window.BoxxyGameAPI?.playHistoryLevel?.(level.packId,level.levelToken);
-        if (started) closeAccount();
-        return Boolean(started);
-      }
+      onPlay:level=>Boolean(window.BoxxyGameAPI?.playHistoryLevel?.(level.packId,level.levelToken))
     });
     // Never hold up rendering while the existing upload queue is sent to D1.
     window.BOXXYAttemptHistory?.flush?.();
