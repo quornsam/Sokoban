@@ -7067,6 +7067,12 @@ body.large-level-performance .instruction .thought-text{
 .daily-leaderboard-card>.daily-leaderboard-list .daily-leaderboard-row.is-moves .daily-leaderboard-time{font-size:var(--leader-detail-size);font-weight:950;color:#6b6155;letter-spacing:.04em;line-height:normal}
 .daily-leaderboard-card>.daily-leaderboard-list .daily-leaderboard-row.is-moves .daily-leaderboard-moves{font-size:var(--leader-score-size);font-weight:bold;color:inherit;letter-spacing:.015em;line-height:1}
 .daily-leaderboard-card>.daily-leaderboard-list .daily-leaderboard-device{min-width:0;margin:0;text-align:center;font-size:14px}
+.daily-leaderboard-card>.daily-leaderboard-list .daily-leaderboard-time.has-assist{white-space:nowrap;overflow-wrap:normal;letter-spacing:0}
+.daily-leaderboard-assisted-clock{white-space:nowrap}
+.daily-leaderboard-assist-badge{display:inline-block;margin-left:2px;font-size:1.05em;line-height:1;vertical-align:-.05em;cursor:help;outline:0}
+.daily-leaderboard-assist-badge:focus-visible{outline:2px solid var(--blue);outline-offset:1px;border-radius:2px}
+.daily-leaderboard-assist-tooltip{position:fixed;z-index:13000;width:max-content;max-width:min(310px,calc(100vw - 16px));padding:7px 9px;border:2px solid var(--ink);background:#fffaf2;color:var(--ink);box-shadow:4px 4px 0 rgba(23,23,25,.25);font:800 11px/1.35 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;letter-spacing:0;text-transform:none;pointer-events:none}
+.daily-leaderboard-assist-tooltip[hidden]{display:none!important}
 .daily-leaderboard-row.is-current-user{background:#f5d85f;box-shadow:inset 4px 0 0 var(--red)}
 .daily-leaderboard-row.is-current-user .daily-leaderboard-name{font-weight:1000}
 .daily-leaderboard-rank{width:24px;height:24px;display:grid;place-items:center;border:1px solid var(--ink);background:var(--yellow);font-size:9px;font-weight:1000}

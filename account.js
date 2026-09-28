@@ -1,3 +1,4 @@
+/* BOXXY v388: account merges retain assistance metadata from the same independent Daily move-best run. */
 /* BOXXY v383: account merges retain the run-matched time and device for the independent Daily move best. */
 /* BOXXY v381: Play History opens from an account-scoped local cache while D1 refreshes independently. */
 /* BOXXY v365: receive server-authorised account feature flags for private Instant Move access. */
@@ -721,18 +722,34 @@
       const matchedFastest = Number(record.leaderboardMoves) === moves
         ? bestDailyStat([record.leaderboardSeconds]) : null;
       return ownTime !== null
-        ? { seconds: ownTime, device: cleanDailyLeaderboardDevice(record.bestMovesDevice) }
+        ? {
+            seconds: ownTime,
+            device: cleanDailyLeaderboardDevice(record.bestMovesDevice),
+            mouseOrClickPush: record.bestMovesMouseOrClickPush === true,
+            instantMove: record.bestMovesInstantMove === true
+          }
         : matchedFastest !== null
-          ? { seconds: matchedFastest, device: cleanDailyLeaderboardDevice(record.leaderboardDevice) }
+          ? {
+              seconds: matchedFastest,
+              device: cleanDailyLeaderboardDevice(record.leaderboardDevice),
+              mouseOrClickPush: false,
+              instantMove: false
+            }
           : null;
     }).filter(Boolean).sort((a,b) => a.seconds-b.seconds)[0];
     if (moveRun) {
       merged.bestMovesSeconds = moveRun.seconds;
       if (moveRun.device) merged.bestMovesDevice = moveRun.device;
       else delete merged.bestMovesDevice;
+      if (moveRun.mouseOrClickPush) merged.bestMovesMouseOrClickPush = true;
+      else delete merged.bestMovesMouseOrClickPush;
+      if (moveRun.instantMove) merged.bestMovesInstantMove = true;
+      else delete merged.bestMovesInstantMove;
     } else {
       delete merged.bestMovesSeconds;
       delete merged.bestMovesDevice;
+      delete merged.bestMovesMouseOrClickPush;
+      delete merged.bestMovesInstantMove;
     }
     merged.completedAt = Math.max(leftCompletedAt, rightCompletedAt);
     if (!Number(merged.sequence)) merged.sequence = Number(older.sequence) || 0;

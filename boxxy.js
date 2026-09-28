@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "387",
-  lastUpdated: "2026-09-27"
+  version: "388",
+  lastUpdated: "2026-09-28"
 });
+/* BOXXY v388: Daily invite acknowledgement waits for an explicit action; fewest-moves runs expose assisted-control badges. */
 /* BOXXY v380: Exponentially history titles use current canonical names; gameplay unchanged. */
 /* BOXXY v381: full Daily leaderboard switches between fastest runs and move rankings. */
 /* BOXXY v383: both leaderboard rankings display the matching time and device of their selected run. */
@@ -1362,6 +1363,10 @@ window.BOXXY_RELEASE = Object.freeze({
       completions[key].bestMovesSeconds = attempt.seconds;
       if (attemptLeaderboardDevice) completions[key].bestMovesDevice = attemptLeaderboardDevice;
       else delete completions[key].bestMovesDevice;
+      if (result.mouseOrClickPushUsed === true) completions[key].bestMovesMouseOrClickPush = true;
+      else delete completions[key].bestMovesMouseOrClickPush;
+      if (result.instantMoveUsed === true) completions[key].bestMovesInstantMove = true;
+      else delete completions[key].bestMovesInstantMove;
     }
 
     let leaderboardSeconds = previousLeaderboardSeconds;
@@ -2704,6 +2709,7 @@ window.BOXXY_RELEASE = Object.freeze({
   let mouseSupportSelectedBoxIndex = -1;
   let mouseSupportPlans = new Map();
   let mouseSupportIgnoreClickUntil = 0;
+  let dailyMouseOrClickPushUsed = false;
   let dailyPointControlUsed = false;
   let firstPersonMode = false;
   let firstPersonHeading = 2;
@@ -3382,8 +3388,18 @@ window.BOXXY_RELEASE = Object.freeze({
     }
   }
 
+  function markDailyInviteSeen(puzzle = dailyPuzzleForToday()) {
+    if (!puzzle?.date) return;
+    try { localStorage.setItem(`${DAILY_INVITE_SEEN_PREFIX}${puzzle.date}`, "1"); } catch (_) {}
+  }
+
   function closeDailyInvite() {
     if (dailyInviteModal) dailyInviteModal.hidden = true;
+  }
+
+  function acknowledgeDailyInvite() {
+    markDailyInviteSeen();
+    closeDailyInvite();
   }
 
   function configureDailyInvite(puzzle = dailyPuzzleForToday()) {
@@ -3432,7 +3448,6 @@ window.BOXXY_RELEASE = Object.freeze({
       if (!puzzle || dailyCompletion(puzzle.date)) return;
       const key = `${DAILY_INVITE_SEEN_PREFIX}${puzzle.date}`;
       if (localStorage.getItem(key) === "1") return;
-      try { localStorage.setItem(key, "1"); } catch (_) {}
     }
     configureDailyInvite(puzzle);
     dailyInviteModal.hidden = false;
@@ -3528,6 +3543,8 @@ window.BOXXY_RELEASE = Object.freeze({
               && Number.isFinite(Number(entry.bestMovesSeconds)) && Number(entry.bestMovesSeconds) > 0
               ? Number(entry.bestMovesSeconds) : null,
             bestMovesDevice: normaliseDailyLeaderboardDevice(entry?.bestMovesDevice),
+            bestMovesMouseOrClickPush: entry?.bestMovesMouseOrClickPush === true,
+            bestMovesInstantMove: entry?.bestMovesInstantMove === true,
             device: normaliseDailyLeaderboardDevice(entry?.device)
           })).filter(entry => entry.username)
         : [];
@@ -3565,8 +3582,67 @@ window.BOXXY_RELEASE = Object.freeze({
     if (dailyLeaderboardPlayerPushes) dailyLeaderboardPlayerPushes.textContent = String(Math.max(0, Number(result.pushes) || 0));
   }
 
+  let dailyLeaderboardAssistTooltip = null;
+  let dailyLeaderboardAssistTooltipTimer = 0;
+
+  function hideDailyLeaderboardAssistTooltip() {
+    window.clearTimeout(dailyLeaderboardAssistTooltipTimer);
+    dailyLeaderboardAssistTooltipTimer = 0;
+    if (dailyLeaderboardAssistTooltip) dailyLeaderboardAssistTooltip.hidden = true;
+  }
+
+  function showDailyLeaderboardAssistTooltip(target, message, { autoHide = false } = {}) {
+    if (!target || !message) return;
+    if (!dailyLeaderboardAssistTooltip) {
+      dailyLeaderboardAssistTooltip = document.createElement("div");
+      dailyLeaderboardAssistTooltip.className = "daily-leaderboard-assist-tooltip";
+      dailyLeaderboardAssistTooltip.setAttribute("role", "tooltip");
+      dailyLeaderboardAssistTooltip.hidden = true;
+      document.body.appendChild(dailyLeaderboardAssistTooltip);
+    }
+    window.clearTimeout(dailyLeaderboardAssistTooltipTimer);
+    dailyLeaderboardAssistTooltip.textContent = message;
+    dailyLeaderboardAssistTooltip.hidden = false;
+    dailyLeaderboardAssistTooltip.style.left = "0px";
+    dailyLeaderboardAssistTooltip.style.top = "0px";
+    const rect = target.getBoundingClientRect();
+    const tipRect = dailyLeaderboardAssistTooltip.getBoundingClientRect();
+    const margin = 8;
+    const left = Math.max(margin, Math.min(
+      window.innerWidth - tipRect.width - margin,
+      rect.left + rect.width / 2 - tipRect.width / 2
+    ));
+    const above = rect.top - tipRect.height - margin;
+    const top = above >= margin ? above : Math.min(
+      window.innerHeight - tipRect.height - margin,
+      rect.bottom + margin
+    );
+    dailyLeaderboardAssistTooltip.style.left = `${Math.round(left)}px`;
+    dailyLeaderboardAssistTooltip.style.top = `${Math.round(Math.max(margin, top))}px`;
+    if (autoHide) dailyLeaderboardAssistTooltipTimer = window.setTimeout(hideDailyLeaderboardAssistTooltip, 3500);
+  }
+
+  function dailyLeaderboardAssistBadge(symbol, message) {
+    const badge = document.createElement("span");
+    badge.className = "daily-leaderboard-assist-badge";
+    badge.textContent = symbol;
+    badge.tabIndex = 0;
+    badge.setAttribute("role", "button");
+    badge.setAttribute("aria-label", message);
+    badge.addEventListener("pointerenter", () => showDailyLeaderboardAssistTooltip(badge, message));
+    badge.addEventListener("pointerleave", hideDailyLeaderboardAssistTooltip);
+    badge.addEventListener("focus", () => showDailyLeaderboardAssistTooltip(badge, message));
+    badge.addEventListener("blur", hideDailyLeaderboardAssistTooltip);
+    badge.addEventListener("click", event => {
+      event.stopPropagation();
+      showDailyLeaderboardAssistTooltip(badge, message, { autoHide: true });
+    });
+    return badge;
+  }
+
   function renderDailyLeaderboardRows(container, entries, limit = 0) {
     if (!container) return;
+    hideDailyLeaderboardAssistTooltip();
     const previousScrollTop = container.scrollTop;
     const byMoves = container === dailyLeaderboardList && dailyLeaderboardSort === "moves";
     if (entries === null) {
@@ -3618,8 +3694,33 @@ window.BOXXY_RELEASE = Object.freeze({
       const time = document.createElement("b");
       time.className = "daily-leaderboard-time";
       const runSeconds = byMoves ? entry.bestMovesSeconds : entry.seconds;
-      if (Number.isFinite(runSeconds) && runSeconds > 0) setPreciseClockContent(time, runSeconds);
-      else time.textContent = "—";
+      const assistedMoveRun = byMoves && (entry.bestMovesMouseOrClickPush || entry.bestMovesInstantMove);
+      if (Number.isFinite(runSeconds) && runSeconds > 0) {
+        if (assistedMoveRun) {
+          time.classList.add("has-assist");
+          const clock = document.createElement("span");
+          clock.className = "daily-leaderboard-assisted-clock";
+          clock.append("(");
+          const value = document.createElement("span");
+          setPreciseClockContent(value, runSeconds);
+          clock.append(value, ")");
+          time.appendChild(clock);
+          if (entry.bestMovesMouseOrClickPush) {
+            time.appendChild(dailyLeaderboardAssistBadge(
+              "🐁",
+              "Mouse Control / Click Push is enabled for this user. You can enable this in settings"
+            ));
+          }
+          if (entry.bestMovesInstantMove) {
+            time.appendChild(dailyLeaderboardAssistBadge(
+              "💨",
+              "Instant move is enabled for this user, please send a message to support if this is a feature you would like to try"
+            ));
+          }
+        } else {
+          setPreciseClockContent(time, runSeconds);
+        }
+      } else time.textContent = "—";
       const deviceClass = normaliseDailyLeaderboardDevice(byMoves ? entry.bestMovesDevice : entry.device);
       const device = document.createElement("span");
       device.className = "daily-leaderboard-device";
@@ -3728,6 +3829,7 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   function closeDailyLeaderboard(options = {}) {
+    hideDailyLeaderboardAssistTooltip();
     const restoreOrigin = options?.restoreOrigin !== false && options?.restoreArchive !== false;
     const returnSurface = dailyLeaderboardReturnSurface;
     if (dailyLeaderboardModal) dailyLeaderboardModal.hidden = true;
@@ -7674,6 +7776,7 @@ window.BOXXY_RELEASE = Object.freeze({
       { dailyPuzzle: puzzle }
     );
     dailyPointControlUsed = false;
+    dailyMouseOrClickPushUsed = false;
     instantMoveUsedThisLevel = false;
     if (collectionBtn) collectionBtn.disabled = false;
     if (makerReturnBtn) makerReturnBtn.hidden = true;
@@ -8208,7 +8311,9 @@ window.BOXXY_RELEASE = Object.freeze({
           seconds: completionSeconds,
           startedAt,
           completedAt,
-          leaderboardEligible
+          leaderboardEligible,
+          mouseOrClickPushUsed: dailyMouseOrClickPushUsed,
+          instantMoveUsed: instantMoveUsedThisLevel
         });
         dailyLeaderboardCache.delete(String(dailyPuzzle.date));
         window.dispatchEvent(new CustomEvent("boxxydailycompletionrecorded", {
@@ -8941,8 +9046,11 @@ window.BOXXY_RELEASE = Object.freeze({
     stopMouseSupportRoute();
     clearMouseSupportOverlay();
     mouseSupportBusy = true;
-    if (dailyMode) dailyPointControlUsed = true;
     const instantMoveRun = pointControlMode() === "instant";
+    if (dailyMode) {
+      dailyPointControlUsed = true;
+      if (!instantMoveRun) dailyMouseOrClickPushUsed = true;
+    }
     if (instantMoveRun) instantMoveUsedThisLevel = true;
     document.body.classList.add("mouse-support-busy");
     showCharacterThought(description, true);
@@ -9798,9 +9906,12 @@ window.BOXXY_RELEASE = Object.freeze({
     if (puzzle) { try { localStorage.setItem(`${DAILY_QUOTE_DISMISSED_PREFIX}${puzzle.date}`, "1"); } catch (_) {} }
     updateDailyQuotePrompt();
   });
-  dailyInvitePlay?.addEventListener("click", () => loadDailyPuzzle(dailyPuzzleForToday()));
-  dailyInviteClose?.addEventListener("click", closeDailyInvite);
-  dailyInviteLater?.addEventListener("click", closeDailyInvite);
+  dailyInvitePlay?.addEventListener("click", () => {
+    markDailyInviteSeen();
+    loadDailyPuzzle(dailyPuzzleForToday());
+  });
+  dailyInviteClose?.addEventListener("click", acknowledgeDailyInvite);
+  dailyInviteLater?.addEventListener("click", acknowledgeDailyInvite);
   dailyInviteModal?.addEventListener("click", event => { if (event.target === dailyInviteModal) closeDailyInvite(); });
   dailyShareButton?.addEventListener("click", shareDailyResult);
   dailyCopyButton?.addEventListener("click", copyDailyResult);
