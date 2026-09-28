@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "389",
+  version: "391",
   lastUpdated: "2026-09-28"
 });
+/* BOXXY v391: deploy the complete Fewest Moves eligibility rule from its correct Cloudflare Function path. */
 /* BOXXY v389: Fewest Moves hides mouse/click-push and over-15-moves/s run times while retaining move results and personal history. */
 /* BOXXY v388: Daily invite acknowledgement waits for an explicit action; fewest-moves run metadata is retained for eligibility decisions. */
 /* BOXXY v380: Exponentially history titles use current canonical names; gameplay unchanged. */
