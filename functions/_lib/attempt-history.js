@@ -1,5 +1,5 @@
-/* BOXXY v394 — independent, idempotent, account-scoped per-run history.
-   History starts with v376; v394 adds explicit Mouse/Click Push and Instant Move metadata. */
+/* BOXXY v395 — independent, idempotent, account-scoped per-run history.
+   History starts with v376; control metadata is explicit on new runs and recovered only where older Daily data identifies the exact saved fewest-moves run. */
 export async function ensureAttemptHistorySchema(db) {
   await db.batch([
     db.prepare(`CREATE TABLE IF NOT EXISTS level_attempt_history (
@@ -296,7 +296,7 @@ const SORT_COLUMNS = Object.freeze({
   attempt:'attempt_number', date:'started_at', completed:'completed',
   time:'seconds', moves:'moves', pushes:'pushes'
 });
-const SPECIAL_SORTS = new Set(['best-time','fewest-moves']);
+const SPECIAL_SORTS = new Set(['best-time','fewest-moves','fewest-pushes']);
 export async function readLevelAttemptHistory(db, userId, options={}, progressValue=null) {
   const packId = text(options.packId,60);
   const token = text(options.levelToken,40);
@@ -310,7 +310,9 @@ export async function readLevelAttemptHistory(db, userId, options={}, progressVa
     ? 'completed DESC, seconds IS NULL, seconds ASC, attempt_number ASC'
     : sort === 'fewest-moves'
       ? 'completed DESC, moves IS NULL, moves ASC, seconds IS NULL, seconds ASC, attempt_number ASC'
-      : `${SORT_COLUMNS[sort]} IS NULL, ${SORT_COLUMNS[sort]} ${direction}, attempt_number ASC`;
+      : sort === 'fewest-pushes'
+        ? 'completed DESC, pushes IS NULL, pushes ASC, seconds IS NULL, seconds ASC, attempt_number ASC'
+        : `${SORT_COLUMNS[sort]} IS NULL, ${SORT_COLUMNS[sort]} ${direction}, attempt_number ASC`;
   const rowsResult = await db.prepare(`SELECT attempt_number AS attemptNumber,
       id, started_at AS startedAt, ended_at AS endedAt, completed,
       seconds, moves, pushes, assisted, mouse_or_click_push AS mouseOrClickPushUsed,
@@ -333,9 +335,43 @@ export async function readLevelAttemptHistory(db, userId, options={}, progressVa
     bestTime:old.legacyBestTime,bestMoves:old.legacyBestMoves,
     bestPushes:old.legacyBestPushes,previousCompletion:old.previousCompletion
   } : null;
-  return { rows: all.slice(0,limit).map(row => ({...row,
-    completed: Boolean(row.completed), assisted:Boolean(row.assisted),
-    mouseOrClickPushUsed:Boolean(row.mouseOrClickPushUsed), instantMoveUsed:Boolean(row.instantMoveUsed) })),
+  // v388+ Daily aggregate data retained control flags for the current saved
+  // fewest-moves run before per-attempt columns existed. Use that evidence only
+  // when it identifies this exact run by both moves and seconds; never infer
+  // control use for other historical attempts.
+  let olderDailyControlRun = null;
+  if (packId === 'daily-boxxy') {
+    const progress=asObject(progressValue);
+    const daily=asObject(progress['boxxy-daily-completions-v1']);
+    const record=asObject(daily[token]);
+    const moves=knownNumber(record.moves);
+    const seconds=knownNumber(record.bestMovesSeconds);
+    if (moves !== null && seconds !== null &&
+        (record.bestMovesMouseOrClickPush === true || record.bestMovesInstantMove === true)) {
+      const instantMoveUsed=record.bestMovesInstantMove === true;
+      olderDailyControlRun = {
+        moves, seconds,
+        // Before v394 Instant Move was stored separately even though it could
+        // only be executed through the point-control route. Recover that fact
+        // as Mouse/Click Push + Instant rather than losing the point-control marker.
+        mouseOrClickPushUsed: record.bestMovesMouseOrClickPush === true || instantMoveUsed,
+        instantMoveUsed
+      };
+    }
+  }
+  const rows=all.slice(0,limit).map(row => {
+    let mouseOrClickPushUsed=Boolean(row.mouseOrClickPushUsed);
+    let instantMoveUsed=Boolean(row.instantMoveUsed);
+    if (!mouseOrClickPushUsed && !instantMoveUsed && olderDailyControlRun && Boolean(row.completed) &&
+        Number(row.moves) === olderDailyControlRun.moves && Number(row.seconds) === olderDailyControlRun.seconds) {
+      mouseOrClickPushUsed=olderDailyControlRun.mouseOrClickPushUsed;
+      instantMoveUsed=olderDailyControlRun.instantMoveUsed;
+    }
+    return {...row,
+      completed:Boolean(row.completed), assisted:Boolean(row.assisted),
+      mouseOrClickPushUsed, instantMoveUsed};
+  });
+  return { rows,
     legacy, nextOffset: all.length > limit ? offset+limit : null,sort,
     direction:SPECIAL_SORTS.has(sort)?'asc':direction.toLowerCase() };
 }

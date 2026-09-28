@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "394",
+  version: "395",
   lastUpdated: "2026-09-28"
 });
+/* BOXXY v395: Play History uses compact fixed sort buttons and surfaces recoverable earlier Daily control metadata. */
 /* BOXXY v394: Play History sorts actual attempts by best time/fewest moves and records Mouse/Click Push and Instant Move independently. */
 /* BOXXY v392: Daily leaderboard visibility is server-authoritative; personal progress and streaks remain untouched. */
 /* BOXXY v391: deploy the complete Fewest Moves eligibility rule from its correct Cloudflare Function path. */

@@ -1,4 +1,4 @@
-/* BOXXY v394 — actual-attempt history with direct best-time/fewest-moves sorting and control-mode markers. */
+/* BOXXY v395 — compact fixed Play History sort buttons and control-mode markers. */
 (() => {
   'use strict';
   const date = ms => ms ? new Date(Number(ms)).toLocaleString('en-GB', { dateStyle:'medium',timeStyle:'short' }) : '—';
@@ -9,7 +9,6 @@
     if (className) node.className=className;
     return node;
   };
-  const sorts = [['attempt','Attempt #'],['date','Date'],['completed','Completed'],['best-time','Best time'],['fewest-moves','Fewest moves'],['time','Time'],['moves','Moves'],['pushes','Pushes']];
   const ACCENTS = Object.freeze({red:'#db3b27',black:'#171719',green:'#2f8f5b',blue:'#20539a',yellow:'#e5b32a',purple:'#8e44ad',orange:'#f47a20',teal:'#00a6b2'});
   // Consistent names in player and Basement history, regardless of the longer
   // pack labels saved by older clients. These are display labels only.
@@ -160,8 +159,7 @@
       const previousLevels=new Map([...root.querySelectorAll('.history-level')]
         .map(level=>[level.dataset.historyKey,{
           open:level.open,
-          sort:level.querySelectorAll('.history-controls select')[0]?.value,
-          direction:level.querySelectorAll('.history-controls select')[1]?.value
+          sort:level.querySelector('.history-sort-button[aria-pressed="true"]')?.dataset.historySort || 'attempt'
         }]));
       root.replaceChildren();
       const levels=Array.isArray(data.levels)?data.levels:[];
@@ -204,15 +202,23 @@
           content.appendChild(play);
         }
         const controls=el('div',null,'history-controls');
-        const sort=el('select');
-        for (const [value,label] of sorts) {const option=el('option',label);option.value=value;sort.appendChild(option);}
-        sort.value=previous?.sort || 'attempt';
-        const direction=el('select');
-        for (const [value,label] of [['desc','Descending'],['asc','Ascending']]) {
-          const option=el('option',label);option.value=value;direction.appendChild(option);
+        controls.appendChild(el('span','Sort by:','history-sort-label'));
+        const sortOptions = [
+          ['attempt','Attempt','attempt','desc'],
+          ['speed','Speed','best-time','asc'],
+          ['moves','Moves','fewest-moves','asc'],
+          ['pushes','Pushes','fewest-pushes','asc']
+        ];
+        let activeSort=sortOptions.some(option=>option[0]===previous?.sort) ? previous.sort : 'attempt';
+        const sortButtons=new Map();
+        for (const [key,label] of sortOptions) {
+          const button=el('button',label,'history-sort-button');
+          button.type='button';
+          button.dataset.historySort=key;
+          button.setAttribute('aria-pressed',key===activeSort?'true':'false');
+          controls.appendChild(button);
+          sortButtons.set(key,button);
         }
-        direction.value=previous?.direction || 'desc';
-        controls.append(el('label','Sort by '),sort,direction);
         const table=el('table',null,'history-table');
         table.innerHTML='<thead><tr><th>Attempt</th><th>Date</th><th>Complete</th><th>Time</th><th>Moves</th><th>Pushes</th></tr></thead>';
         const body=el('tbody');table.appendChild(body);
@@ -220,20 +226,20 @@
         const status=el('p',null,'history-note');
         content.append(controls,table,more,status);section.appendChild(content);
         let loaded=false,offset=0;
-        const specialSort=()=>sort.value==='best-time'||sort.value==='fewest-moves';
-        const syncDirectionControl=()=>{
-          const fixed=specialSort();
-          direction.hidden=fixed;
-          direction.disabled=fixed;
+        const activeSortOption=()=>sortOptions.find(option=>option[0]===activeSort) || sortOptions[0];
+        const setActiveSort=key=>{
+          activeSort=sortOptions.some(option=>option[0]===key) ? key : 'attempt';
+          for (const [buttonKey,button] of sortButtons) {
+            button.setAttribute('aria-pressed',buttonKey===activeSort?'true':'false');
+          }
         };
-        syncDirectionControl();
         const fetchRows=async reset=>{
           if (reset) {offset=0;body.replaceChildren();}
           status.textContent='Loading…';more.hidden=true;
           try {
+            const [, , apiSort, direction]=activeSortOption();
             const result=await get({
-              packId:level.packId,levelToken:level.levelToken,sort:sort.value,
-              direction:specialSort()?'asc':direction.value,offset
+              packId:level.packId,levelToken:level.levelToken,sort:apiSort,direction,offset
             });
             for (const run of result.rows||[]) {
               const tr=el('tr');
@@ -263,8 +269,11 @@
           } catch(error) {status.textContent=error.message;}
         };
         section.addEventListener('toggle',()=>{if(section.open&&!loaded) fetchRows(true);});
-        sort.addEventListener('change',()=>{syncDirectionControl();fetchRows(true);});
-        direction.addEventListener('change',()=>fetchRows(true));
+        for (const [key,button] of sortButtons) button.addEventListener('click',()=>{
+          if (key===activeSort) return;
+          setActiveSort(key);
+          fetchRows(true);
+        });
         more.addEventListener('click',()=>fetchRows(false));
         levelNodes.set(`${level.packId}:${level.levelToken}`,section);
         if (previous?.open) section.open=true;
