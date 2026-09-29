@@ -1,3 +1,4 @@
+/* BOXXY v411 — restores established Character Style name typography and prevents arbitrary mid-word wrapping. */
 /* BOXXY v325 — board-style default choices sit in a dedicated aligned column; palette wrapping no longer breaks row continuity. */
 /* BOXXY v324 — compact crate-art board-style choices with explicit default separation and responsive wrapping. */
 /* BOXXY v323 — responsive standard board-style controls in Menu. */
@@ -324,7 +325,7 @@ linear-gradient(135deg,transparent 0 58%,var(--shape-color) 58% 66%,transparent 
 .style-character-choice.selected{background:#fff7d8;border-color:var(--ink);box-shadow:inset 0 0 0 1px rgba(23,23,25,.08)}
 .style-character-thumb{display:block;width:100%;aspect-ratio:300/197;border:0;border-radius:8px;padding:0;background-color:transparent;background-repeat:no-repeat;background-size:400% auto;background-position:0 10.8%;box-shadow:none;cursor:pointer}
 .style-character-thumb:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
-.style-character-name{width:100%;min-height:34px;padding:7px 4px;border:1px solid var(--ink);border-radius:8px;background:#ece4d7;color:var(--ink);font:900 10px/1.05 var(--font,inherit);letter-spacing:.035em;overflow-wrap:anywhere;cursor:pointer;transition:background-color .15s ease,color .15s ease}
+.style-character-name{width:100%;min-height:34px;padding:7px 4px;border:1px solid var(--ink);border-radius:8px;background:#ece4d7;color:var(--ink);font-family:inherit;font-size:10px;font-weight:900;line-height:1.05;letter-spacing:.035em;overflow-wrap:normal;word-break:normal;hyphens:none;cursor:pointer;transition:background-color .15s ease,color .15s ease}
 .style-character-choice.selected .style-character-name{background:var(--yellow)}
 .style-character-name:hover{background:#f7efe4}
 .style-spooky-music-btn{width:100%;margin-top:10px;padding:11px 12px;border:1px solid #171719;border-radius:9px;background:#171719;color:#fff;font:950 12px/1 var(--font,inherit);letter-spacing:.08em;transition:background-color .15s ease,transform .15s ease,box-shadow .15s ease}

@@ -1,3 +1,4 @@
+/* BOXXY v411: Character Style typography correction and refreshed main app cache. */
 /* BOXXY v410: cache six additional PARTYGOERS characters and refreshed Character Style UI assets. */
 /* BOXXY v409: restore v396 leaderboard typography/alignment with additive centred full-leaderboard avatars. */
 /* BOXXY v407: stable profile bio geometry, corrected leaderboard avatar spacing and refreshed Clara asset. */
@@ -22,7 +23,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "410";
+const RELEASE_VERSION = "411";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [
