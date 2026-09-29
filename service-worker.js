@@ -1,3 +1,4 @@
+/* BOXXY v405: profile avatar crop, trophy tooltips, inline bio placeholder and clean leaderboard profile links. */
 /* BOXXY v404: redesigned public player profiles and profile-modal bio editing. */
 /* BOXXY v403: public player profiles, safe bios and synthetic avatar administration. */
 /* BOXXY v402: leaderboard avatars use existing cached character assets; release references updated. */
@@ -18,7 +19,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "404";
+const RELEASE_VERSION = "405";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [

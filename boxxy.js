@@ -1,3 +1,4 @@
+/* BOXXY v405: profile avatar crop, trophy tooltips, inline bio placeholder and clean clickable leaderboard names. */
 /* BOXXY v404: redesigned public profiles, full-resolution avatars, visual trophies, streak and in-place bio editing. */
 /* BOXXY v403: clickable Daily leaderboard public profiles with current avatar and public stats. */
 /*
@@ -8,7 +9,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "404",
+  version: "405",
   lastUpdated: "2026-09-29"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
@@ -3908,12 +3909,26 @@ window.BOXXY_RELEASE = Object.freeze({
     playerProfileCurrentBio = String(bio || "").trim();
     const editable = playerCanEditProfileBio(username);
     if (playerProfileBio) {
-      playerProfileBio.textContent = playerProfileCurrentBio ? `“${playerProfileCurrentBio}”` : "";
-      playerProfileBio.hidden = !playerProfileCurrentBio;
+      const emptyEditable = editable && !playerProfileCurrentBio;
+      playerProfileBio.textContent = playerProfileCurrentBio
+        ? `“${playerProfileCurrentBio}”`
+        : (emptyEditable ? "Say something about yourself…" : "");
+      playerProfileBio.hidden = !playerProfileCurrentBio && !emptyEditable;
+      playerProfileBio.classList.toggle("is-placeholder", emptyEditable);
+      playerProfileBio.classList.toggle("is-editable", editable);
+      if (editable) {
+        playerProfileBio.setAttribute("role", "button");
+        playerProfileBio.setAttribute("tabindex", "0");
+        playerProfileBio.setAttribute("aria-label", playerProfileCurrentBio ? "Edit public comment" : "Add public comment");
+      } else {
+        playerProfileBio.removeAttribute("role");
+        playerProfileBio.removeAttribute("tabindex");
+        playerProfileBio.removeAttribute("aria-label");
+      }
     }
     if (playerProfileBioEditBtn) {
-      playerProfileBioEditBtn.hidden = !editable;
-      playerProfileBioEditBtn.textContent = playerProfileCurrentBio ? "EDIT" : "ADD COMMENT";
+      playerProfileBioEditBtn.hidden = !editable || !playerProfileCurrentBio;
+      playerProfileBioEditBtn.textContent = "EDIT";
     }
     if (playerProfileBioForm) playerProfileBioForm.hidden = true;
   }
@@ -3929,6 +3944,13 @@ window.BOXXY_RELEASE = Object.freeze({
     playerProfileStreak.setAttribute("aria-label", label);
   }
 
+  function closePlayerProfileTrophyTooltips(except = null) {
+    if (!playerProfileTrophies) return;
+    for (const trophy of playerProfileTrophies.querySelectorAll(".player-profile-trophy.is-tooltip-open")) {
+      if (trophy !== except) trophy.classList.remove("is-tooltip-open");
+    }
+  }
+
   function renderPlayerProfileTrophies(packIds) {
     if (!playerProfileTrophies) return;
     playerProfileTrophies.replaceChildren();
@@ -3938,11 +3960,26 @@ window.BOXXY_RELEASE = Object.freeze({
       const pack = PACK_BY_ID.get(packId);
       if (!pack) return;
       const trophy = document.createElement("span");
+      const label = String(pack.displayName || pack.title || "Completed puzzle pack");
       trophy.className = `player-profile-trophy completed-pack-reward-${packRewardKind(pack)}`;
       trophy.style.setProperty("--pack-star-colour", packAccentColour(pack));
-      trophy.title = String(pack.displayName || pack.title || "Completed puzzle pack");
-      trophy.setAttribute("aria-label", trophy.title);
+      trophy.dataset.tooltip = label;
+      trophy.setAttribute("role", "button");
+      trophy.setAttribute("tabindex", "0");
+      trophy.setAttribute("aria-label", label);
       trophy.innerHTML = packRewardSvg(pack);
+      const toggleTooltip = event => {
+        event?.preventDefault?.();
+        const opening = !trophy.classList.contains("is-tooltip-open");
+        closePlayerProfileTrophyTooltips(trophy);
+        trophy.classList.toggle("is-tooltip-open", opening);
+      };
+      trophy.addEventListener("click", toggleTooltip);
+      trophy.addEventListener("keydown", event => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        toggleTooltip(event);
+      });
+      trophy.addEventListener("blur", () => trophy.classList.remove("is-tooltip-open"));
       playerProfileTrophies.appendChild(trophy);
       rendered++;
     });
@@ -3957,6 +3994,7 @@ window.BOXXY_RELEASE = Object.freeze({
   function closePlayerProfile() {
     if (!playerProfileModal) return;
     playerProfileRequestSerial++;
+    closePlayerProfileTrophyTooltips();
     playerProfileModal.hidden = true;
     playerProfileCurrentUsername = "";
     playerProfileCurrentBio = "";
@@ -10370,8 +10408,20 @@ window.BOXXY_RELEASE = Object.freeze({
 
   dailyLeaderboardCloseBtn?.addEventListener("click", closeDailyLeaderboard);
   playerProfileCloseBtn?.addEventListener("click", closePlayerProfile);
-  playerProfileModal?.addEventListener("click", event => { if (event.target === playerProfileModal) closePlayerProfile(); });
+  playerProfileModal?.addEventListener("click", event => {
+    if (event.target === playerProfileModal) { closePlayerProfile(); return; }
+    if (!event.target?.closest?.(".player-profile-trophy")) closePlayerProfileTrophyTooltips();
+  });
   playerProfileBioEditBtn?.addEventListener("click", openPlayerProfileBioEditor);
+  playerProfileBio?.addEventListener("click", () => {
+    if (playerCanEditProfileBio(playerProfileCurrentUsername)) openPlayerProfileBioEditor();
+  });
+  playerProfileBio?.addEventListener("keydown", event => {
+    if ((event.key === "Enter" || event.key === " ") && playerCanEditProfileBio(playerProfileCurrentUsername)) {
+      event.preventDefault();
+      openPlayerProfileBioEditor();
+    }
+  });
   playerProfileBioCancelBtn?.addEventListener("click", cancelPlayerProfileBioEditor);
   playerProfileBioInput?.addEventListener("input", updatePlayerProfileBioCount);
   playerProfileBioForm?.addEventListener("submit", savePlayerProfileBio);
