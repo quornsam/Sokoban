@@ -7,6 +7,33 @@ const MAX_PUBLIC_MOVES_PER_SECOND = 15;
 const MAX_TIMING_DRIFT_SECONDS = 0.15;
 const DAILY_LEADERBOARD_DEVICE_CLASSES = new Set(["phone", "tablet", "computer"]);
 
+const DAILY_LEADERBOARD_AVATAR_BODY_TYPES = new Set([
+  "boy", "girl",
+  "lincoln", "beverley", "harry", "stuart", "davido", "samantha",
+  "optimus", "pixella", "bolderdash", "sputnik", "vasquez",
+  "bacterium", "clara", "jamil", "clickers", "bertrand", "angie", "the-haining"
+]);
+const DAILY_LEADERBOARD_AVATAR_DEFAULT = Object.freeze({
+  bodyType: "boy", tshirt: "#df3526", trousers: "#292829", hair: "#292727", skin: "#ee9a60", shoes: "#292829"
+});
+const DAILY_LEADERBOARD_AVATAR_COLOUR_KEYS = Object.freeze(["tshirt", "trousers", "hair", "skin", "shoes"]);
+
+function cleanAvatarStyle(value) {
+  let raw = {};
+  try {
+    const parsed = typeof value === "string" ? JSON.parse(value) : value;
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) raw = parsed;
+  } catch (_) {}
+  const avatar = { ...DAILY_LEADERBOARD_AVATAR_DEFAULT };
+  const bodyType = String(raw.bodyType || "").trim().toLowerCase();
+  if (DAILY_LEADERBOARD_AVATAR_BODY_TYPES.has(bodyType)) avatar.bodyType = bodyType;
+  for (const key of DAILY_LEADERBOARD_AVATAR_COLOUR_KEYS) {
+    const colour = String(raw[key] || "").trim().toLowerCase();
+    if (/^#[0-9a-f]{6}$/.test(colour)) avatar[key] = colour;
+  }
+  return avatar;
+}
+
 
 async function ensureSyntheticDailySchema(db) {
   await db.batch([
@@ -67,12 +94,13 @@ export async function onRequestGet(context) {
       WITH daily_records AS (
         SELECT
           id AS user_id, username,
-          json_extract(progress_json, '$."boxxy-daily-completions-v1"') AS daily_json
+          json_extract(progress_json, '$."boxxy-daily-completions-v1"') AS daily_json,
+          json_extract(progress_json, '$."push-bauhaus-character-style-v51"') AS avatar_json
         FROM users
       ),
       daily_times AS (
         SELECT
-          user_id, username,
+          user_id, username, avatar_json,
           CASE
             WHEN json_extract(daily_json, ?) = 1 THEN
               CAST(json_extract(daily_json, ?) AS REAL)
@@ -113,7 +141,7 @@ export async function onRequestGet(context) {
       )
       , real_scores AS (
         SELECT d.user_id AS player_id, 'real' AS player_kind,
-          d.username, d.seconds, d.moves, d.best_moves, d.leaderboard_device,
+          d.username, d.avatar_json, d.seconds, d.moves, d.best_moves, d.leaderboard_device,
           CASE WHEN d.best_moves_seconds > 0 AND d.best_moves_mouse_or_click_push = 1 THEN 1 ELSE 0 END
             AS best_moves_run_mouse_or_click_push,
           CASE WHEN d.best_moves_seconds > 0 AND d.best_moves_instant_move = 1 THEN 1 ELSE 0 END
@@ -160,7 +188,7 @@ export async function onRequestGet(context) {
             )
           )
       ), real_paired AS (
-        SELECT player_id, player_kind, username, seconds, moves, best_moves, leaderboard_device,
+        SELECT player_id, player_kind, username, avatar_json, seconds, moves, best_moves, leaderboard_device,
           best_moves_run_seconds, best_moves_run_mouse_or_click_push, best_moves_run_instant_move,
           COALESCE(saved_moves_device,
             CASE WHEN history_seconds > 0
@@ -169,7 +197,7 @@ export async function onRequestGet(context) {
         FROM real_scores
       ), synthetic_scores AS (
         SELECT s.user_id AS player_id, 'synthetic' AS player_kind,
-          u.username AS username, s.seconds AS seconds, s.moves AS moves,
+          u.username AS username, NULL AS avatar_json, s.seconds AS seconds, s.moves AS moves,
           s.moves AS best_moves, s.device AS leaderboard_device,
           s.seconds AS best_moves_run_seconds, s.device AS best_moves_run_device,
           0 AS best_moves_run_mouse_or_click_push, 0 AS best_moves_run_instant_move
@@ -178,11 +206,11 @@ export async function onRequestGet(context) {
         WHERE s.date_key = ? AND s.seconds > 0
           AND NOT EXISTS (SELECT 1 FROM users r WHERE lower(r.username) = lower(u.username))
       ), all_scores AS (
-        SELECT player_id, player_kind, username, seconds, moves, best_moves, leaderboard_device,
+        SELECT player_id, player_kind, username, avatar_json, seconds, moves, best_moves, leaderboard_device,
           best_moves_run_seconds, best_moves_run_device,
           best_moves_run_mouse_or_click_push, best_moves_run_instant_move FROM real_paired
         UNION ALL
-        SELECT player_id, player_kind, username, seconds, moves, best_moves, leaderboard_device,
+        SELECT player_id, player_kind, username, avatar_json, seconds, moves, best_moves, leaderboard_device,
           best_moves_run_seconds, best_moves_run_device,
           best_moves_run_mouse_or_click_push, best_moves_run_instant_move FROM synthetic_scores
       ), scored_with_visibility AS (
@@ -192,7 +220,7 @@ export async function onRequestGet(context) {
         LEFT JOIN daily_leaderboard_visibility v
           ON v.date_key = ? AND v.player_kind = a.player_kind AND v.player_id = a.player_id
       )
-      SELECT player_id, player_kind, username, seconds, moves, best_moves, leaderboard_device,
+      SELECT player_id, player_kind, username, avatar_json, seconds, moves, best_moves, leaderboard_device,
         best_moves_run_seconds, best_moves_run_device,
         best_moves_run_mouse_or_click_push, best_moves_run_instant_move, visibility
       FROM scored_with_visibility
@@ -229,6 +257,7 @@ export async function onRequestGet(context) {
         kind: String(row.player_kind || "real") === "synthetic" ? "synthetic" : "real",
         visibility: cleanDailyLeaderboardVisibility(row.visibility),
         username: String(row.username || "").slice(0, 20),
+        avatar: String(row.player_kind || "real") === "synthetic" ? null : cleanAvatarStyle(row.avatar_json),
         seconds: Math.max(0, Math.round((Number(row.seconds) || 0) * 100) / 100),
         moves: row.moves !== null && row.moves !== undefined
           && Number.isFinite(Number(row.moves)) && Number(row.moves) >= 0
@@ -249,6 +278,7 @@ export async function onRequestGet(context) {
         || (entry.visibility === "owner" && entry.kind === "real" && entry.playerId === viewerUserId));
     const entries = visibleEntries.map(entry => adminView ? entry : ({
       username: entry.username,
+      avatar: entry.avatar,
       seconds: entry.seconds,
       moves: entry.moves,
       bestMoves: entry.bestMoves,

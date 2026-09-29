@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "401",
+  version: "402",
   lastUpdated: "2026-09-29"
 });
+/* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
 /* BOXXY v401: PARTYGOERS expands to twelve characters, its Easter egg toggles visibility, and Attire character previews are centred/clickable. */
 /* BOXXY v400: Attire adds the hidden PARTYGOERS family, visual character grids, and an in-modal Spooky Music control. */
 /* BOXXY v399: spooky music autostarts once per browser profile; Samantha artwork and the soundtrack format are corrected. */
@@ -892,6 +893,40 @@ window.BOXXY_RELEASE = Object.freeze({
       .then(loaded => drawNow(canvas, frame, loaded, false, requestedStyle));
   }
 
+  function drawStylePreview(canvas, requestedStyle, frame = "player-front", pixelWidth = 60) {
+    if (!canvas) return Promise.resolve();
+    const previewStyle = validStyle(requestedStyle);
+    const width = Math.max(12, Math.min(180, Math.round(Number(pixelWidth) || 60)));
+    const height = Math.round(width * FRAME_HEIGHT / FRAME_WIDTH);
+    const render = assets => {
+      if (!assets) return;
+      if (canvas.width !== width) canvas.width = width;
+      if (canvas.height !== height) canvas.height = height;
+      const context = canvas.getContext("2d");
+      context.clearRect(0, 0, width, height);
+      context.globalCompositeOperation = "source-over";
+      context.globalAlpha = 1;
+      context.imageSmoothingEnabled = true;
+      context.imageSmoothingQuality = "high";
+      drawSource(context, assets.base, 0, 0, width, height);
+      for (const category of CATEGORIES) {
+        const layer = assets.layers[category];
+        if (!layer) continue;
+        drawTintedLayer(context, layer, previewStyle[category], width, height);
+      }
+      context.globalCompositeOperation = "source-over";
+      context.globalAlpha = 1;
+    };
+    const theme = activeTheme();
+    const cacheKey = `${theme}:${previewStyle.bodyType}:${frame}`;
+    const assets = resolvedAssets.get(cacheKey);
+    if (assets) {
+      render(assets);
+      return Promise.resolve();
+    }
+    return loadFrame(frame, previewStyle.bodyType, theme).then(render);
+  }
+
   function renderedFrameKey(frame, requestedStyle = style) {
     const colours = FIXED_BODY_TYPES.has(requestedStyle.bodyType)
       ? []
@@ -1273,6 +1308,7 @@ window.BOXXY_RELEASE = Object.freeze({
     warm: warmCharacterFrames,
     draw,
     drawImage,
+    drawStylePreview,
     redrawAll,
     set,
     reset,
@@ -3767,7 +3803,8 @@ window.BOXXY_RELEASE = Object.freeze({
               && Number.isFinite(Number(entry.bestMovesSeconds)) && Number(entry.bestMovesSeconds) > 0
               ? Number(entry.bestMovesSeconds) : null,
             bestMovesDevice: normaliseDailyLeaderboardDevice(entry?.bestMovesDevice),
-            device: normaliseDailyLeaderboardDevice(entry?.device)
+            device: normaliseDailyLeaderboardDevice(entry?.device),
+            avatar: entry?.avatar && typeof entry.avatar === "object" ? entry.avatar : null
           })).filter(entry => entry.username)
         : [];
       dailyLeaderboardCache.set(key, { loadedAt: Date.now(), entries });
@@ -3847,7 +3884,19 @@ window.BOXXY_RELEASE = Object.freeze({
       if (ranked && index < 3) rank.classList.add("medal");
       const name = document.createElement("strong");
       name.className = "daily-leaderboard-name";
-      name.textContent = String(entry.username || "");
+      const nameText = document.createElement("span");
+      nameText.className = "daily-leaderboard-name-text";
+      nameText.textContent = String(entry.username || "");
+      if (entry.avatar) {
+        const avatar = document.createElement("canvas");
+        avatar.className = "daily-leaderboard-avatar";
+        avatar.setAttribute("aria-hidden", "true");
+        name.append(avatar, nameText);
+        Promise.resolve(window.CharacterStyler?.drawStylePreview?.(avatar, entry.avatar, "player-front", 60))
+          .catch(() => avatar.remove());
+      } else {
+        name.append(nameText);
+      }
       const moves = document.createElement("span");
       const moveScore = byMoves ? entry.bestMoves : entry.moves;
       moves.className = "daily-leaderboard-moves";

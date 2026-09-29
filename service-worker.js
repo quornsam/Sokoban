@@ -1,3 +1,4 @@
+/* BOXXY v402: leaderboard avatars use existing cached character assets; release references updated. */
 /* BOXXY v401: expanded PARTYGOERS character sheets are available offline. */
 /* BOXXY v400: PARTYGOERS character sheets are available offline with the expanded Attire selector. */
 /* BOXXY v399: spooky soundtrack uses the standard MP3 format and refreshed Samantha artwork is cached offline. */
@@ -15,7 +16,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "401";
+const RELEASE_VERSION = "402";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [
