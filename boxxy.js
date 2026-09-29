@@ -1,3 +1,4 @@
+/* BOXXY v403: clickable Daily leaderboard public profiles with current avatar and public stats. */
 /*
  * BOXXY — Pushbox Puzzle
  * Copyright © 2026 Sam Cornwell. All rights reserved.
@@ -6,7 +7,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "402",
+  version: "403",
   lastUpdated: "2026-09-29"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
@@ -2670,6 +2671,17 @@ window.BOXXY_RELEASE = Object.freeze({
   const dailyLeaderboardPlayerMoves = document.getElementById("dailyLeaderboardPlayerMoves");
   const dailyLeaderboardPlayerPushes = document.getElementById("dailyLeaderboardPlayerPushes");
   const dailyLeaderboardNote = document.getElementById("dailyLeaderboardNote");
+  const playerProfileModal = document.getElementById("playerProfileModal");
+  const playerProfileCloseBtn = document.getElementById("playerProfileCloseBtn");
+  const playerProfileAvatar = document.getElementById("playerProfileAvatar");
+  const playerProfileUsername = document.getElementById("playerProfileUsername");
+  const playerProfileBio = document.getElementById("playerProfileBio");
+  const playerProfileLevels = document.getElementById("playerProfileLevels");
+  const playerProfileDailys = document.getElementById("playerProfileDailys");
+  const playerProfileTrophies = document.getElementById("playerProfileTrophies");
+  const playerProfileMoves = document.getElementById("playerProfileMoves");
+  const playerProfilePushes = document.getElementById("playerProfilePushes");
+  const playerProfileStatus = document.getElementById("playerProfileStatus");
   const dailyCompletionLeaderboard = document.getElementById("dailyCompletionLeaderboard");
   const dailyCompletionLeaderboardList = document.getElementById("dailyCompletionLeaderboardList");
   const grandCelebration = document.getElementById("grandCelebration");
@@ -3841,6 +3853,58 @@ window.BOXXY_RELEASE = Object.freeze({
     if (dailyLeaderboardPlayerPushes) dailyLeaderboardPlayerPushes.textContent = String(Math.max(0, Number(result.pushes) || 0));
   }
 
+  let playerProfileRequestSerial = 0;
+
+  function closePlayerProfile() {
+    if (!playerProfileModal) return;
+    playerProfileRequestSerial++;
+    playerProfileModal.hidden = true;
+  }
+
+  async function openPlayerProfile(username) {
+    if (!playerProfileModal || !playerProfileUsername) return;
+    const name = String(username || "").trim();
+    if (!name) return;
+    const requestId = ++playerProfileRequestSerial;
+    playerProfileUsername.textContent = name;
+    if (playerProfileBio) { playerProfileBio.textContent = ""; playerProfileBio.hidden = true; }
+    for (const element of [playerProfileLevels, playerProfileDailys, playerProfileTrophies, playerProfileMoves, playerProfilePushes]) {
+      if (element) element.textContent = "—";
+    }
+    if (playerProfileAvatar) {
+      const context = playerProfileAvatar.getContext?.("2d");
+      context?.clearRect(0, 0, playerProfileAvatar.width, playerProfileAvatar.height);
+    }
+    if (playerProfileStatus) playerProfileStatus.textContent = "LOADING PLAYER PROFILE…";
+    playerProfileModal.hidden = false;
+    requestAnimationFrame(() => playerProfileCloseBtn?.focus?.({ preventScroll:true }));
+    try {
+      const response = await fetch(`/api/player-profile?username=${encodeURIComponent(name)}`, {
+        method:"GET", credentials:"same-origin", cache:"no-store", headers:{ Accept:"application/json" }
+      });
+      const data = await response.json().catch(() => ({}));
+      if (requestId !== playerProfileRequestSerial || playerProfileModal.hidden) return;
+      if (!response.ok || !data?.profile) throw new Error(data?.error || "Player profile unavailable.");
+      const profile = data.profile;
+      playerProfileUsername.textContent = String(profile.username || name);
+      const bio = String(profile.bio || "").trim();
+      if (playerProfileBio) { playerProfileBio.textContent = bio; playerProfileBio.hidden = !bio; }
+      if (playerProfileLevels) playerProfileLevels.textContent = Math.max(0, Math.trunc(Number(profile.levelsCompleted) || 0)).toLocaleString("en-GB");
+      if (playerProfileDailys) playerProfileDailys.textContent = Math.max(0, Math.trunc(Number(profile.dailyCompleted) || 0)).toLocaleString("en-GB");
+      if (playerProfileTrophies) playerProfileTrophies.textContent = Math.max(0, Math.trunc(Number(profile.trophies) || 0)).toLocaleString("en-GB");
+      if (playerProfileMoves) playerProfileMoves.textContent = Math.max(0, Math.trunc(Number(profile.totalMoves) || 0)).toLocaleString("en-GB");
+      if (playerProfilePushes) playerProfilePushes.textContent = Math.max(0, Math.trunc(Number(profile.totalPushes) || 0)).toLocaleString("en-GB");
+      if (playerProfileStatus) playerProfileStatus.textContent = "";
+      if (playerProfileAvatar && profile.avatar) {
+        Promise.resolve(window.CharacterStyler?.drawStylePreview?.(playerProfileAvatar, profile.avatar, "player-front", 180))
+          .catch(() => {});
+      }
+    } catch (error) {
+      if (requestId !== playerProfileRequestSerial || playerProfileModal.hidden) return;
+      if (playerProfileStatus) playerProfileStatus.textContent = String(error?.message || "Player profile unavailable.").toUpperCase();
+    }
+  }
+
   function renderDailyLeaderboardRows(container, entries, limit = 0) {
     if (!container) return;
     const previousScrollTop = container.scrollTop;
@@ -3882,8 +3946,14 @@ window.BOXXY_RELEASE = Object.freeze({
       const ranked = !byMoves || entry.bestMoves !== null;
       rank.textContent = ranked ? medals[index] || String(index + 1) : "—";
       if (ranked && index < 3) rank.classList.add("medal");
-      const name = document.createElement("strong");
-      name.className = "daily-leaderboard-name";
+      const profileClickable = container === dailyLeaderboardList;
+      const name = document.createElement(profileClickable ? "button" : "strong");
+      name.className = `daily-leaderboard-name${profileClickable ? " daily-leaderboard-profile-link" : ""}`;
+      if (profileClickable) {
+        name.type = "button";
+        name.setAttribute("aria-label", `View ${String(entry.username || "player")} profile`);
+        name.addEventListener("click", () => openPlayerProfile(entry.username));
+      }
       const nameText = document.createElement("span");
       nameText.className = "daily-leaderboard-name-text";
       nameText.textContent = String(entry.username || "");
@@ -10143,6 +10213,8 @@ window.BOXXY_RELEASE = Object.freeze({
   });
 
   dailyLeaderboardCloseBtn?.addEventListener("click", closeDailyLeaderboard);
+  playerProfileCloseBtn?.addEventListener("click", closePlayerProfile);
+  playerProfileModal?.addEventListener("click", event => { if (event.target === playerProfileModal) closePlayerProfile(); });
   dailyLeaderboardShareBtn?.addEventListener("click", () => {
     if (!dailyLeaderboardActivePuzzle) return;
     const result = dailyCompletion(dailyLeaderboardActivePuzzle.date);
@@ -10538,6 +10610,7 @@ window.BOXXY_RELEASE = Object.freeze({
   window.addEventListener("keydown", event => {
     if (event.key === "Escape" && phoneZenModeActive()) { setPhoneZenMode(false); return; }
     if (event.key === "Escape" && dailyInviteModal && !dailyInviteModal.hidden) { closeDailyInvite(); return; }
+    if (event.key === "Escape" && playerProfileModal && !playerProfileModal.hidden) { closePlayerProfile(); return; }
     if (event.key === "Escape" && dailyLeaderboardModal && !dailyLeaderboardModal.hidden) { closeDailyLeaderboard(); return; }
     if (event.key === "Escape" && dailyArchiveModal && !dailyArchiveModal.hidden) { closeDailyArchive(); return; }
     if (event.key === "Escape" && trophyCabinetModal && !trophyCabinetModal.hidden) { closeTrophyCabinet(); return; }

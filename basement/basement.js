@@ -1,3 +1,4 @@
+/* BOXXY v403: artificial players can be assigned persistent random avatars. */
 /* BOXXY v401 — Basement recognises the expanded twelve-character PARTYGOERS roster. */
 /* BOXXY v400 — Basement recognises PARTYGOERS avatars and includes fixed-character artwork in private practice. */
 /* BOXXY v375 — varied, verified synthetic move counts and update-in-place for previous scores. */
@@ -456,13 +457,17 @@
     }
     syntheticUsersEl.innerHTML = syntheticUsers.map(user => {
       const score = syntheticScores.find(item => item.userId === user.id);
+      const avatar = user.avatar
+        ? `<canvas class="synthetic-avatar" data-avatar-user="${escapeHtml(user.id)}" width="72" height="62" aria-hidden="true"></canvas>`
+        : `<span class="synthetic-avatar-empty">NO AVATAR</span>`;
       return `<div class="synthetic-user-row">
-        <label><input type="checkbox" data-synthetic-select value="${escapeHtml(user.id)}"> <strong>${escapeHtml(user.username)}</strong></label>
+        <label><input type="checkbox" data-synthetic-select value="${escapeHtml(user.id)}">${avatar}<strong>${escapeHtml(user.username)}</strong></label>
         <span>${escapeHtml((user.defaultDevice || "computer").toUpperCase())}</span>
         <span>${score ? `${score.seconds.toFixed(2)}s · ${score.moves} moves` : "NO SCORE"}</span>
-        <button type="button" data-synthetic-delete="${escapeHtml(user.id)}" data-synthetic-name="${escapeHtml(user.username)}">DELETE</button>
+        <div class="synthetic-user-actions"><button type="button" data-synthetic-avatar="${escapeHtml(user.id)}">RANDOM AVATAR</button><button type="button" data-synthetic-delete="${escapeHtml(user.id)}" data-synthetic-name="${escapeHtml(user.username)}">DELETE</button></div>
       </div>`;
     }).join("");
+    renderAvatarCanvases(syntheticUsers.filter(user => user.avatar).map(user => ({ id:user.id, summary:{ avatar:user.avatar } })));
   }
   async function loadDailyScores() {
     const date = syntheticDate?.value || dayKey(new Date());
@@ -1095,6 +1100,16 @@
     } catch (error) { setStatus(dailyScoresStatus, error.message || "Could not add artificial player.", "error"); }
   });
   syntheticUsersEl?.addEventListener("click", async event => {
+    const avatarButton = event.target.closest("[data-synthetic-avatar]");
+    if (avatarButton) {
+      try {
+        const {response,data} = await api("", {action:"synthetic_random_avatar", userId:avatarButton.dataset.syntheticAvatar});
+        if (!response.ok) throw new Error(data.error || "Could not create a random avatar.");
+        await loadDailyScores();
+        setStatus(dailyScoresStatus, `${String(data.username || "PLAYER").toUpperCase()} AVATAR UPDATED`, "success");
+      } catch (error) { setStatus(dailyScoresStatus, error.message || "Could not create a random avatar.", "error"); }
+      return;
+    }
     const button = event.target.closest("[data-synthetic-delete]");
     if (!button) return;
     const name = button.dataset.syntheticName || "this artificial player";

@@ -1,3 +1,4 @@
+/* BOXXY v403: public player profiles, safe bios and synthetic avatar administration. */
 /* BOXXY v402: leaderboard avatars use existing cached character assets; release references updated. */
 /* BOXXY v401: expanded PARTYGOERS character sheets are available offline. */
 /* BOXXY v400: PARTYGOERS character sheets are available offline with the expanded Attire selector. */
@@ -16,7 +17,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "402";
+const RELEASE_VERSION = "403";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [

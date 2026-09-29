@@ -1,3 +1,4 @@
+/* BOXXY v403: synthetic players receive/manage persistent random avatars for public profiles. */
 /* BOXXY v375: varied, route-verified synthetic move counts and update-in-place for existing seeds. */
 /* BOXXY v392: Basement Daily score visibility is server-authoritative and never mutates player progress. */
 /* BOXXY v374: Basement Daily seeding, score removal and private Instant Move administration. */
@@ -27,6 +28,7 @@ import { DAILY_PRACTICE_CATALOG } from "../_lib/daily-practice-catalog.js";
 import { analyseDailySolution, generateDailySyntheticRoute } from "../_lib/synthetic-daily-moves.js";
 import { ensureAttemptHistorySchema, readAttemptOverview, readLevelAttemptHistory } from '../_lib/attempt-history.js';
 import { ensureDailyLeaderboardVisibilitySchema, setDailyLeaderboardVisibility, cleanDailyLeaderboardVisibility } from '../_lib/daily-leaderboard-visibility.js';
+import { cleanPublicAvatarStyle, ensureSyntheticAvatarColumn, randomPublicAvatarStyle } from '../_lib/public-profile.js';
 
 const INSTANT_MOVE_FEATURE_KEY = "instant_move";
 
@@ -149,6 +151,7 @@ async function ensureSyntheticDailySchema(db) {
       username TEXT NOT NULL,
       username_norm TEXT NOT NULL UNIQUE,
       default_device TEXT NOT NULL DEFAULT 'computer',
+      avatar_json TEXT NOT NULL DEFAULT '',
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     )`),
@@ -165,6 +168,7 @@ async function ensureSyntheticDailySchema(db) {
     )`),
     db.prepare("CREATE INDEX IF NOT EXISTS synthetic_daily_scores_date_idx ON synthetic_daily_scores(date_key)")
   ]);
+  await ensureSyntheticAvatarColumn(db);
 }
 
 async function syntheticState(context, body = {}) {
@@ -172,7 +176,7 @@ async function syntheticState(context, body = {}) {
   await ensureSyntheticDailySchema(db);
   const date = validDailyDate(body.date || new URL(context.request.url).searchParams.get("date")) || "";
   const usersResult = await db.prepare(`
-    SELECT id, username, default_device, created_at, updated_at
+    SELECT id, username, default_device, avatar_json, created_at, updated_at
     FROM synthetic_users ORDER BY username COLLATE NOCASE ASC
   `).all();
   let scores = [];
@@ -186,6 +190,7 @@ async function syntheticState(context, body = {}) {
   }
   return json({ ok:true, authenticated:true, date, users:(usersResult.results||[]).map(row => ({
     id:String(row.id), username:String(row.username), defaultDevice:cleanSyntheticDevice(row.default_device),
+    avatar:cleanPublicAvatarStyle(row.avatar_json, {allowEmpty:true}),
     createdAt:Number(row.created_at)||0, updatedAt:Number(row.updated_at)||0
   })), scores:scores.map(row => ({
     userId:String(row.user_id), username:String(row.username), date:String(row.date_key),
@@ -207,9 +212,24 @@ async function addSyntheticUser(context, body) {
   const now = Date.now();
   const id = crypto.randomUUID();
   const device = cleanSyntheticDevice(body.device);
-  await db.prepare(`INSERT INTO synthetic_users (id, username, username_norm, default_device, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?)` ).bind(id, username, norm, device, now, now).run();
-  return json({ok:true,id,username,defaultDevice:device});
+  const avatar = randomPublicAvatarStyle();
+  await db.prepare(`INSERT INTO synthetic_users (id, username, username_norm, default_device, avatar_json, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)` ).bind(id, username, norm, device, JSON.stringify(avatar), now, now).run();
+  return json({ok:true,id,username,defaultDevice:device,avatar});
+}
+
+async function randomiseSyntheticAvatar(context, body) {
+  const db = requireDatabase(context.env);
+  await ensureSyntheticDailySchema(db);
+  const id = String(body.userId || "").trim();
+  if (!id) return json({ok:false,error:"Artificial player is required."},400);
+  const exists = await db.prepare("SELECT id, username FROM synthetic_users WHERE id = ? LIMIT 1").bind(id).first();
+  if (!exists) return json({ok:false,error:"Artificial player was not found."},404);
+  const avatar = randomPublicAvatarStyle();
+  const now = Date.now();
+  await db.prepare("UPDATE synthetic_users SET avatar_json = ?, updated_at = ? WHERE id = ?")
+    .bind(JSON.stringify(avatar), now, id).run();
+  return json({ok:true,userId:id,username:String(exists.username),avatar,updatedAt:now});
 }
 
 async function deleteSyntheticUser(context, body) {
@@ -544,6 +564,7 @@ export async function onRequest(context) {
       if (action === "reset_password") return await resetUserPassword(context, body);
       if (action === "set_instant_move") return await setInstantMoveAccess(context, body);
       if (action === "synthetic_add_user") return await addSyntheticUser(context, body);
+      if (action === "synthetic_random_avatar") return await randomiseSyntheticAvatar(context, body);
       if (action === "synthetic_delete_user") return await deleteSyntheticUser(context, body);
       if (action === "synthetic_generate_scores") return await generateSyntheticScores(context, body);
       if (action === "synthetic_regenerate_moves") return await regenerateSyntheticMoves(context, body);

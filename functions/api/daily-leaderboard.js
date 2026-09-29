@@ -1,6 +1,8 @@
+/* BOXXY v403: synthetic leaderboard players can carry Basement-assigned avatars. */
 import { json, requireDatabase, authenticatedUser, adminAuthenticated } from "../_lib/auth.js";
 import { ensureAttemptHistoryDeviceColumn } from "../_lib/attempt-history.js";
 import { ensureDailyLeaderboardVisibilitySchema, cleanDailyLeaderboardVisibility } from "../_lib/daily-leaderboard-visibility.js";
+import { ensureSyntheticAvatarColumn } from "../_lib/public-profile.js";
 
 const DAILY_LAUNCH_DATE = "2026-08-30";
 const MAX_PUBLIC_MOVES_PER_SECOND = 15;
@@ -39,7 +41,7 @@ async function ensureSyntheticDailySchema(db) {
   await db.batch([
     db.prepare(`CREATE TABLE IF NOT EXISTS synthetic_users (
       id TEXT PRIMARY KEY, username TEXT NOT NULL, username_norm TEXT NOT NULL UNIQUE,
-      default_device TEXT NOT NULL DEFAULT 'computer', created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+      default_device TEXT NOT NULL DEFAULT 'computer', avatar_json TEXT NOT NULL DEFAULT '', created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
     )`),
     db.prepare(`CREATE TABLE IF NOT EXISTS synthetic_daily_scores (
       user_id TEXT NOT NULL, date_key TEXT NOT NULL, seconds REAL NOT NULL, moves INTEGER NOT NULL,
@@ -48,6 +50,7 @@ async function ensureSyntheticDailySchema(db) {
     )`),
     db.prepare("CREATE INDEX IF NOT EXISTS synthetic_daily_scores_date_idx ON synthetic_daily_scores(date_key)")
   ]);
+  await ensureSyntheticAvatarColumn(db);
 }
 
 function cleanDeviceClass(value) {
@@ -197,7 +200,7 @@ export async function onRequestGet(context) {
         FROM real_scores
       ), synthetic_scores AS (
         SELECT s.user_id AS player_id, 'synthetic' AS player_kind,
-          u.username AS username, NULL AS avatar_json, s.seconds AS seconds, s.moves AS moves,
+          u.username AS username, NULLIF(u.avatar_json,'') AS avatar_json, s.seconds AS seconds, s.moves AS moves,
           s.moves AS best_moves, s.device AS leaderboard_device,
           s.seconds AS best_moves_run_seconds, s.device AS best_moves_run_device,
           0 AS best_moves_run_mouse_or_click_push, 0 AS best_moves_run_instant_move
@@ -257,7 +260,9 @@ export async function onRequestGet(context) {
         kind: String(row.player_kind || "real") === "synthetic" ? "synthetic" : "real",
         visibility: cleanDailyLeaderboardVisibility(row.visibility),
         username: String(row.username || "").slice(0, 20),
-        avatar: String(row.player_kind || "real") === "synthetic" ? null : cleanAvatarStyle(row.avatar_json),
+        avatar: String(row.player_kind || "real") === "synthetic"
+          ? (String(row.avatar_json || "").trim() ? cleanAvatarStyle(row.avatar_json) : null)
+          : cleanAvatarStyle(row.avatar_json),
         seconds: Math.max(0, Math.round((Number(row.seconds) || 0) * 100) / 100),
         moves: row.moves !== null && row.moves !== undefined
           && Number.isFinite(Number(row.moves)) && Number(row.moves) >= 0

@@ -1,3 +1,4 @@
+/* BOXXY v403: public player bio editing and profile-safe account data. */
 /* BOXXY v388: account merges retain assistance metadata from the same independent Daily move-best run. */
 /* BOXXY v383: account merges retain the run-matched time and device for the independent Daily move best. */
 /* BOXXY v381: Play History opens from an account-scoped local cache while D1 refreshes independently. */
@@ -103,6 +104,11 @@
   const avatarCanvas = document.getElementById("accountAvatarCanvas");
   const medals = document.getElementById("accountMedals");
   const medalsEmpty = document.getElementById("accountMedalsEmpty");
+  const bioForm = document.getElementById("accountBioForm");
+  const bioInput = document.getElementById("accountBioInput");
+  const bioCount = document.getElementById("accountBioCount");
+  const bioSubmit = document.getElementById("accountBioSubmit");
+  let bioDirty = false;
   const accountPlayHistory = document.getElementById('accountPlayHistory');
   const accountPlayHistoryContent = document.getElementById('accountPlayHistoryContent');
   let historyLoadedFor = '';
@@ -187,7 +193,7 @@
 
   function setBusy(next) {
     busy = Boolean(next);
-    [createSubmit, loginSubmit, googleCreateSubmit, googleDisconnectBtn, logoutBtn, deletePasswordConfirm].forEach(button => {
+    [createSubmit, loginSubmit, googleCreateSubmit, googleDisconnectBtn, logoutBtn, deletePasswordConfirm, bioSubmit].forEach(button => {
       if (button) button.disabled = busy;
     });
   }
@@ -1223,6 +1229,24 @@
     }
   }
 
+  function bioGraphemeLength(value) {
+    const text = String(value || "");
+    try {
+      if (typeof Intl?.Segmenter === "function") {
+        return [...new Intl.Segmenter(undefined, { granularity:"grapheme" }).segment(text)].length;
+      }
+    } catch (_) {}
+    return Array.from(text).length;
+  }
+
+  function updateBioCounter() {
+    if (!bioInput || !bioCount) return;
+    const count = bioGraphemeLength(bioInput.value.trim());
+    bioCount.textContent = `${count} / 50`;
+    bioCount.classList.toggle("is-over", count > 50);
+    if (bioSubmit) bioSubmit.disabled = busy || count > 50;
+  }
+
   function formatDate(timestamp) {
     if (!Number(timestamp)) return "—";
     try { return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" }).format(new Date(Number(timestamp))); }
@@ -1307,11 +1331,16 @@
       if (packsValue) packsValue.textContent = gameStats.packsCompleted.toLocaleString("en-GB");
       if (stepsValue) stepsValue.textContent = lifetimeStat(ALL_TIME_STEPS_KEY).toLocaleString("en-GB");
       if (pushesValue) pushesValue.textContent = lifetimeStat(ALL_TIME_PUSHES_KEY).toLocaleString("en-GB");
+      if (bioInput && !bioDirty && document.activeElement !== bioInput) bioInput.value = String(account.bio || "");
+      if (bioForm) bioForm.hidden = false;
+      updateBioCounter();
       if (avatarCanvas) window.CharacterStyler?.draw?.(avatarCanvas, "player-front");
       renderMedals();
       saveOfflineAccountSnapshot();
       refreshOfflineButton();
     } else {
+      if (bioForm) bioForm.hidden = true;
+      bioDirty = false;
       if (googleLinked) googleLinked.hidden = true;
       if (googleDisconnectBtn) googleDisconnectBtn.hidden = true;
       if (googleLink) googleLink.hidden = false;
@@ -1498,6 +1527,39 @@
   entryBtn.addEventListener("click", openAccount);
   backBtn?.addEventListener("click", closeAccount);
   offlineBtn?.addEventListener("click", beginOfflineSetup);
+
+  bioInput?.addEventListener("input", () => {
+    bioDirty = true;
+    updateBioCounter();
+  });
+
+  bioForm?.addEventListener("submit", async event => {
+    event.preventDefault();
+    if (busy || !account || !bioInput) return;
+    if (bioGraphemeLength(bioInput.value.trim()) > 50) {
+      setStatus("PUBLIC MESSAGE MUST BE 50 CHARACTERS OR FEWER", "error");
+      return;
+    }
+    setBusy(true);
+    setStatus("SAVING PUBLIC MESSAGE…");
+    try {
+      const { response, data } = await requestAccount({ action:"public_bio", bio:bioInput.value });
+      if (!response.ok) {
+        setStatus(data.error || "Public message could not be saved.", "error");
+        return;
+      }
+      account.bio = String(data.bio || "");
+      bioInput.value = account.bio;
+      bioDirty = false;
+      updateBioCounter();
+      setStatus("PUBLIC MESSAGE SAVED", "success");
+    } catch (_) {
+      setStatus("Public message could not reach the BOXXY account service.", "error");
+    } finally {
+      setBusy(false);
+      updateBioCounter();
+    }
+  });
 
   createForm?.addEventListener("submit", async event => {
     event.preventDefault();

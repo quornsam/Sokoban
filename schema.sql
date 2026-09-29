@@ -120,6 +120,7 @@ CREATE TABLE IF NOT EXISTS synthetic_users (
   username TEXT NOT NULL,
   username_norm TEXT NOT NULL UNIQUE,
   default_device TEXT NOT NULL DEFAULT 'computer',
+  avatar_json TEXT NOT NULL DEFAULT '',
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
 );
@@ -177,3 +178,12 @@ CREATE TABLE IF NOT EXISTS daily_leaderboard_visibility (
 );
 CREATE INDEX IF NOT EXISTS daily_leaderboard_visibility_date_idx
   ON daily_leaderboard_visibility(date_key, visibility);
+
+
+-- v403: public player profile message. Statistics remain derived from canonical progress.
+CREATE TABLE IF NOT EXISTS user_public_profiles (
+  user_id TEXT PRIMARY KEY,
+  bio TEXT NOT NULL DEFAULT '',
+  updated_at INTEGER NOT NULL DEFAULT 0,
+  FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+);
