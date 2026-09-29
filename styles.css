@@ -7072,11 +7072,10 @@ body.large-level-performance .instruction .thought-text{
    The flexible username track absorbs width changes; compact previews are unaffected. */
 .daily-leaderboard-card>.daily-leaderboard-list .daily-leaderboard-row{
   grid-template-columns:28px minmax(0,1fr) 96px 22px 96px;
+  min-height:44px;
   --leader-score-size:17px;
   --leader-detail-size:9px;
 }
-.daily-leaderboard-card>.daily-leaderboard-list .daily-leaderboard-profile-link .daily-leaderboard-avatar-frame{width:34px;height:34px;margin-right:3px}
-.daily-leaderboard-card>.daily-leaderboard-list .daily-leaderboard-profile-link .daily-leaderboard-avatar{width:100%;height:100%;transform:none}
 .daily-leaderboard-card>.daily-leaderboard-list :is(.daily-leaderboard-time,.daily-leaderboard-moves){
   min-width:0;
   overflow-wrap:anywhere;
@@ -7092,10 +7091,15 @@ body.large-level-performance .instruction .thought-text{
 .daily-leaderboard-row.is-current-user .daily-leaderboard-name{font-weight:1000}
 .daily-leaderboard-rank{width:24px;height:24px;display:grid;place-items:center;border:1px solid var(--ink);background:var(--yellow);font-size:9px;font-weight:1000}
 .daily-leaderboard-rank.medal{border:0;background:transparent;font-size:17px}
-.daily-leaderboard-name{min-width:0;display:flex;align-items:center;gap:6px;font-size:13px;line-height:1.05}
-.daily-leaderboard-name-text{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.daily-leaderboard-avatar-frame{flex:0 0 auto;width:30px;height:30px;display:grid;place-items:center;overflow:hidden;align-self:center}
-.daily-leaderboard-avatar{display:block;width:100%;height:100%;max-width:100%;transform:none;pointer-events:none}
+.daily-leaderboard-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;line-height:1.05}
+.daily-leaderboard-profile-link{min-width:0;max-width:100%;margin:0;padding:0;border:0;border-radius:0;background:transparent;color:inherit;box-shadow:none;appearance:none;-webkit-appearance:none;display:flex;align-items:center;gap:7px;font:inherit;text-align:left;text-decoration:none;cursor:pointer}
+.daily-leaderboard-profile-link .daily-leaderboard-name{flex:1 1 auto}
+.daily-leaderboard-avatar-frame{flex:0 0 28px;width:28px;height:28px;display:grid;place-items:center;overflow:hidden}
+.daily-leaderboard-avatar{display:block;width:28px;height:28px;pointer-events:none}
+.daily-leaderboard-profile-link:hover,.daily-leaderboard-profile-link:active{background:transparent;color:inherit;text-decoration:none;box-shadow:none}
+.daily-leaderboard-profile-link:hover .daily-leaderboard-name,.daily-leaderboard-profile-link:focus .daily-leaderboard-name,.daily-leaderboard-profile-link:active .daily-leaderboard-name{text-decoration:none}
+.daily-leaderboard-profile-link:focus{outline:none}
+.daily-leaderboard-profile-link:focus-visible{outline:2px dotted rgba(23,23,25,.52);outline-offset:2px}
 .daily-leaderboard-time{font-size:17px;line-height:1;letter-spacing:.015em}
 .daily-leaderboard-device{display:inline-block;margin-left:5px;font-size:.82em;line-height:1;vertical-align:.04em;font-weight:400}
 .daily-leaderboard-moves{white-space:nowrap;color:#6b6155;font-size:9px;font-weight:950;letter-spacing:.04em}
@@ -7152,9 +7156,8 @@ body.large-level-performance .instruction .thought-text{
     --leader-detail-size:8px;
   }
   .daily-leaderboard-card>.daily-leaderboard-list .daily-leaderboard-device{font-size:12px}
-  .daily-leaderboard-card>.daily-leaderboard-list .daily-leaderboard-profile-link .daily-leaderboard-avatar-frame{width:32px;height:32px;margin-right:2px}
 }
-@media(max-width:820px){.daily-leaderboard-avatar-frame{width:27px;height:27px}.daily-leaderboard-avatar{width:100%;height:100%}.daily-leaderboard-device{margin-left:4px;font-size:.8em}.daily-archive-today-feature{grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin-bottom:11px}.daily-archive-today-leaders{grid-column:span 3}.daily-archive-today-leaders-head{padding:6px 8px 5px}.daily-leaderboard-row{grid-template-columns:24px minmax(0,1fr) auto auto;min-height:34px;padding:5px 7px;gap:6px}.daily-leaderboard-rank{width:20px;height:20px;font-size:7px}.daily-leaderboard-rank.medal{font-size:15px}.daily-leaderboard-name{font-size:11px}.daily-leaderboard-time{font-size:14px}.daily-leaderboard-moves{font-size:8px}}
+@media(max-width:820px){.daily-leaderboard-device{margin-left:4px;font-size:.8em}.daily-archive-today-feature{grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin-bottom:11px}.daily-archive-today-leaders{grid-column:span 3}.daily-archive-today-leaders-head{padding:6px 8px 5px}.daily-leaderboard-row{grid-template-columns:24px minmax(0,1fr) auto auto;min-height:34px;padding:5px 7px;gap:6px}.daily-leaderboard-rank{width:20px;height:20px;font-size:7px}.daily-leaderboard-rank.medal{font-size:15px}.daily-leaderboard-name{font-size:11px}.daily-leaderboard-time{font-size:14px}.daily-leaderboard-moves{font-size:8px}}
 @media(max-width:620px){
   .daily-leaderboard-card>.daily-leaderboard-list .daily-leaderboard-row{
     grid-template-columns:21px minmax(0,1fr) 78px 16px 78px;
@@ -7162,7 +7165,6 @@ body.large-level-performance .instruction .thought-text{
     --leader-score-size:16px;
     --leader-detail-size:8.5px;
   }
-  .daily-leaderboard-card>.daily-leaderboard-list .daily-leaderboard-profile-link .daily-leaderboard-avatar-frame{width:30px;height:30px;margin-right:2px}
 }
 @media(max-width:370px){
   .daily-leaderboard-card>.daily-leaderboard-list .daily-leaderboard-row{
@@ -7170,9 +7172,10 @@ body.large-level-performance .instruction .thought-text{
     --leader-score-size:14px;
     --leader-detail-size:8px;
   }
-  .daily-leaderboard-card>.daily-leaderboard-list .daily-leaderboard-profile-link .daily-leaderboard-avatar-frame{width:28px;height:28px}
+  .daily-leaderboard-avatar-frame{flex-basis:26px;width:26px;height:26px}
+  .daily-leaderboard-avatar{width:26px;height:26px}
 }
-@media(max-width:620px){.daily-leaderboard-avatar-frame{width:25px;height:25px}.daily-leaderboard-avatar{width:100%;height:100%}.daily-archive-today-feature{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin-bottom:10px}.daily-archive-today-leaders{grid-column:span 2;grid-template-rows:auto 1fr auto}.daily-archive-today-card .daily-archive-date-head{padding-right:42px}.daily-archive-today-label{font-size:7px;padding:3px 4px}.daily-archive-today-leaders-head{padding:5px 6px 4px}.daily-archive-today-leaders-head span{font-size:7px}.daily-archive-today-leaders-head strong{font-size:10px}.daily-archive-today-list .daily-leaderboard-row{min-height:25px;padding:2px 5px}.daily-archive-today-list .daily-leaderboard-rank{width:18px;height:18px}.daily-archive-today-list .daily-leaderboard-rank.medal{font-size:15px}.daily-archive-today-list .daily-leaderboard-name{font-size:10.5px}.daily-archive-today-list .daily-leaderboard-time{font-size:13px}.daily-archive-today-list .daily-leaderboard-moves{font-size:7.5px}.daily-archive-today-note{padding:4px 6px;font-size:7px;line-height:1.3}.daily-archive-leaderboard{font-size:14px!important}.daily-leaderboard-modal{padding:7px}.daily-leaderboard-card{width:100%;max-height:92dvh;box-shadow:5px 5px 0 rgba(219,59,39,.62)}.daily-leaderboard-head{padding:11px 11px 9px}.daily-leaderboard-head h2{font-size:28px}.daily-leaderboard-head p{font-size:9px}.daily-leaderboard-close{width:32px;height:32px;flex-basis:32px;font-size:23px}.daily-leaderboard-row{min-height:38px;padding:6px 8px}.daily-leaderboard-name{font-size:12px}.daily-leaderboard-time{font-size:16px}.daily-leaderboard-moves{font-size:8.5px}.daily-leaderboard-card>.daily-leaderboard-note{padding:8px 9px;font-size:8.5px}}
+@media(max-width:620px){.daily-archive-today-feature{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin-bottom:10px}.daily-archive-today-leaders{grid-column:span 2;grid-template-rows:auto 1fr auto}.daily-archive-today-card .daily-archive-date-head{padding-right:42px}.daily-archive-today-label{font-size:7px;padding:3px 4px}.daily-archive-today-leaders-head{padding:5px 6px 4px}.daily-archive-today-leaders-head span{font-size:7px}.daily-archive-today-leaders-head strong{font-size:10px}.daily-archive-today-list .daily-leaderboard-row{min-height:25px;padding:2px 5px}.daily-archive-today-list .daily-leaderboard-rank{width:18px;height:18px}.daily-archive-today-list .daily-leaderboard-rank.medal{font-size:15px}.daily-archive-today-list .daily-leaderboard-name{font-size:10.5px}.daily-archive-today-list .daily-leaderboard-time{font-size:13px}.daily-archive-today-list .daily-leaderboard-moves{font-size:7.5px}.daily-archive-today-note{padding:4px 6px;font-size:7px;line-height:1.3}.daily-archive-leaderboard{font-size:14px!important}.daily-leaderboard-modal{padding:7px}.daily-leaderboard-card{width:100%;max-height:92dvh;box-shadow:5px 5px 0 rgba(219,59,39,.62)}.daily-leaderboard-head{padding:11px 11px 9px}.daily-leaderboard-head h2{font-size:28px}.daily-leaderboard-head p{font-size:9px}.daily-leaderboard-close{width:32px;height:32px;flex-basis:32px;font-size:23px}.daily-leaderboard-row{min-height:38px;padding:6px 8px}.daily-leaderboard-name{font-size:12px}.daily-leaderboard-time{font-size:16px}.daily-leaderboard-moves{font-size:8.5px}.daily-leaderboard-card>.daily-leaderboard-note{padding:8px 9px;font-size:8.5px}}
 
 /* BOXXY v320 — phone Daily cards prioritise the whole-second clock; details live in the roomy puzzle modal. */
 @media(max-width:620px){
@@ -7960,15 +7963,3 @@ html.touch-ui .dpad button {
   .player-profile-stat strong{font-size:22px}
   .player-profile-trophies-card{margin:0 9px 9px}
 }
-
-/* BOXXY v405 — targeted profile polish and neutral leaderboard profile links. */
-.daily-leaderboard-profile-link{
-  min-width:0;max-width:100%;margin:0;padding:0;border:0!important;border-radius:0!important;
-  background:transparent!important;color:inherit!important;box-shadow:none!important;
-  appearance:none;-webkit-appearance:none;font:inherit;text-align:left;text-decoration:none!important;
-  cursor:pointer;
-}
-.daily-leaderboard-profile-link:hover,.daily-leaderboard-profile-link:active{background:transparent!important;color:inherit!important;text-decoration:none!important;box-shadow:none!important}
-.daily-leaderboard-profile-link:hover .daily-leaderboard-name-text,.daily-leaderboard-profile-link:focus .daily-leaderboard-name-text,.daily-leaderboard-profile-link:active .daily-leaderboard-name-text{text-decoration:none!important}
-.daily-leaderboard-profile-link:focus{outline:none}
-.daily-leaderboard-profile-link:focus-visible{outline:2px dotted rgba(23,23,25,.52);outline-offset:3px}

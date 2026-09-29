@@ -1,4 +1,4 @@
-/* BOXXY v408: stable profile identity layout and canonical visually-centred UI avatar rendering. */
+/* BOXXY v409: restore v396 leaderboard typography/alignment while adding centred clickable avatars only to the full leaderboard. */
 /* BOXXY v407: keep profile bio editing geometrically stable and give full leaderboard avatars dedicated row space. */
 /* BOXXY v405: profile avatar crop, trophy tooltips, inline bio placeholder and clean clickable leaderboard names. */
 /* BOXXY v404: redesigned public profiles, full-resolution avatars, visual trophies, streak and in-place bio editing. */
@@ -4206,29 +4206,30 @@ window.BOXXY_RELEASE = Object.freeze({
       rank.textContent = ranked ? medals[index] || String(index + 1) : "—";
       if (ranked && index < 3) rank.classList.add("medal");
       const profileClickable = container === dailyLeaderboardList;
-      const name = document.createElement(profileClickable ? "button" : "strong");
-      name.className = `daily-leaderboard-name${profileClickable ? " daily-leaderboard-profile-link" : ""}`;
+      const name = document.createElement("strong");
+      name.className = "daily-leaderboard-name";
+      name.textContent = String(entry.username || "");
+      let identity = name;
       if (profileClickable) {
-        name.type = "button";
-        name.setAttribute("aria-label", `View ${String(entry.username || "player")} profile`);
-        name.addEventListener("click", () => openPlayerProfile(entry.username));
-      }
-      const nameText = document.createElement("span");
-      nameText.className = "daily-leaderboard-name-text";
-      nameText.textContent = String(entry.username || "");
-      if (entry.avatar) {
-        const avatarFrame = document.createElement("span");
-        avatarFrame.className = "daily-leaderboard-avatar-frame";
-        avatarFrame.setAttribute("aria-hidden", "true");
-        const avatar = document.createElement("canvas");
-        avatar.className = "daily-leaderboard-avatar";
-        avatarFrame.appendChild(avatar);
-        name.append(avatarFrame, nameText);
-        const avatarRenderWidth = profileClickable ? 90 : 60;
-        Promise.resolve(window.CharacterStyler?.drawAvatarPreview?.(avatar, entry.avatar, "player-front", avatarRenderWidth, profileClickable ? 0.08 : 0.10))
-          .catch(() => avatarFrame.remove());
-      } else {
-        name.append(nameText);
+        const profileLink = document.createElement("button");
+        profileLink.type = "button";
+        profileLink.className = "daily-leaderboard-profile-link";
+        profileLink.setAttribute("aria-label", `View ${String(entry.username || "player")} profile`);
+        profileLink.addEventListener("click", () => openPlayerProfile(entry.username));
+        if (entry.avatar) {
+          const avatarFrame = document.createElement("span");
+          avatarFrame.className = "daily-leaderboard-avatar-frame";
+          avatarFrame.setAttribute("aria-hidden", "true");
+          const avatar = document.createElement("canvas");
+          avatar.className = "daily-leaderboard-avatar";
+          avatarFrame.appendChild(avatar);
+          profileLink.append(avatarFrame, name);
+          Promise.resolve(window.CharacterStyler?.drawAvatarPreview?.(avatar, entry.avatar, "player-front", 90, 0.10))
+            .catch(() => avatarFrame.remove());
+        } else {
+          profileLink.append(name);
+        }
+        identity = profileLink;
       }
       const moves = document.createElement("span");
       const moveScore = byMoves ? entry.bestMoves : entry.moves;
@@ -4251,7 +4252,7 @@ window.BOXXY_RELEASE = Object.freeze({
       }
       if (container === dailyLeaderboardList) {
         if (byMoves) row.classList.add("is-moves");
-        row.append(rank, name, time, device, moves);
+        row.append(rank, identity, time, device, moves);
       } else {
         // Compact Daily previews retain their original time/device grouping.
         if (deviceClass) time.appendChild(device);

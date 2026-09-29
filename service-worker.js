@@ -1,4 +1,4 @@
-/* BOXXY v408: canonical visual-centred UI avatars and profile identity anchored independently of bio editing. */
+/* BOXXY v409: restore v396 leaderboard typography/alignment with additive centred full-leaderboard avatars. */
 /* BOXXY v407: stable profile bio geometry, corrected leaderboard avatar spacing and refreshed Clara asset. */
 /* BOXXY v405: profile avatar crop, trophy tooltips, inline bio placeholder and clean leaderboard profile links. */
 /* BOXXY v404: redesigned public player profiles and profile-modal bio editing. */
@@ -21,7 +21,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "408";
+const RELEASE_VERSION = "409";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [
