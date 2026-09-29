@@ -1,4 +1,4 @@
-/* BOXXY v406: protect text-entry keyboard focus, keep leaderboard sort stable across account sync, and refine leaderboard avatars. */
+/* BOXXY v407: keep profile bio editing geometrically stable and give full leaderboard avatars dedicated row space. */
 /* BOXXY v405: profile avatar crop, trophy tooltips, inline bio placeholder and clean clickable leaderboard names. */
 /* BOXXY v404: redesigned public profiles, full-resolution avatars, visual trophies, streak and in-place bio editing. */
 /* BOXXY v403: clickable Daily leaderboard public profiles with current avatar and public stats. */
@@ -10,7 +10,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "406",
+  version: "407",
   lastUpdated: "2026-09-29"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
