@@ -1,3 +1,13 @@
+/* BOXXY v415: profile location sits under the name with a country flag; bio follows with clearer spacing. */
+/* BOXXY v413: mobile Player Profile identity layout uses full width and keeps long usernames on one fitted line. */
+/* BOXXY v412: Daily leaderboards cache per session, refresh manually, page 30 at a time and update the signed-in player locally after sync. */
+/* BOXXY v411: Character Style name typography restored without altering v410 selector behaviour. */
+/* BOXXY v410: character-family tabs browse without changing the selected character; six Partygoers added and profile/style controls refined. */
+/* BOXXY v409: restore v396 leaderboard typography/alignment while adding centred clickable avatars only to the full leaderboard. */
+/* BOXXY v407: keep profile bio editing geometrically stable and give full leaderboard avatars dedicated row space. */
+/* BOXXY v405: profile avatar crop, trophy tooltips, inline bio placeholder and clean clickable leaderboard names. */
+/* BOXXY v404: redesigned public profiles, full-resolution avatars, visual trophies, streak and in-place bio editing. */
+/* BOXXY v403: clickable Daily leaderboard public profiles with current avatar and public stats. */
 /*
  * BOXXY — Pushbox Puzzle
  * Copyright © 2026 Sam Cornwell. All rights reserved.
@@ -6,9 +16,15 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "396",
-  lastUpdated: "2026-09-28"
+  version: "415",
+  lastUpdated: "2026-09-29"
 });
+/* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
+/* BOXXY v401: PARTYGOERS expands to twelve characters, its Easter egg toggles visibility, and Attire character previews are centred/clickable. */
+/* BOXXY v400: Attire adds the hidden PARTYGOERS family, visual character grids, and an in-modal Spooky Music control. */
+/* BOXXY v399: spooky music autostarts once per browser profile; Samantha artwork and the soundtrack format are corrected. */
+/* BOXXY v398: Attire adds the SPOOKY character family, its soundtrack, and one-time spooky board defaults. */
+/* BOXXY v397: Lincoln joins Attire as a fixed standalone character using the supplied 12-frame sprite sheet. */
 /* BOXXY v396: Daily archive/detail actions and Play History level launching refined. */
 /* BOXXY v395: Play History uses compact fixed sort buttons and surfaces recoverable earlier Daily control metadata. */
 /* BOXXY v394: Play History sorts actual attempts by best time/fewest moves and records Mouse/Click Push and Instant Move independently. */
@@ -323,6 +339,14 @@ window.BOXXY_RELEASE = Object.freeze({
     return true;
   }
 
+  function apply(value) {
+    const next = normaliseStyle(value);
+    if (next.box === style.box && next.target === style.target) return false;
+    style = next;
+    persist(true);
+    return true;
+  }
+
   function reset() {
     style = { ...DEFAULT_STYLE };
     persist(true);
@@ -341,7 +365,7 @@ window.BOXXY_RELEASE = Object.freeze({
   });
 
   window.BoxxyBoardStyle = Object.freeze({
-    STORAGE_KEY, DEFAULT_STYLE, COLOURS, set, reset, reloadFromStorage,
+    STORAGE_KEY, DEFAULT_STYLE, COLOURS, set, apply, reset, reloadFromStorage,
     get style() { return { ...style }; }
   });
 })();
@@ -590,7 +614,45 @@ window.BOXXY_RELEASE = Object.freeze({
     "push-front", "push-back", "push-left", "push-right"
   ];
   const CATEGORIES = ["tshirt", "trousers", "hair", "skin", "shoes"];
-  const BODY_TYPES = ["boy", "girl"];
+  const SPOOKY_BODY_TYPES = Object.freeze(["lincoln", "beverley", "harry", "stuart", "davido", "samantha"]);
+  const PARTYGOER_BODY_TYPES = Object.freeze([
+    "optimus", "pixella", "bolderdash", "sputnik", "vasquez",
+    "bacterium", "clara", "jamil", "clickers", "bertrand", "angie", "the-haining",
+    "eric", "marshall", "catherine", "mr-pjkuylasg", "slippy", "gobble"
+  ]);
+  const BODY_TYPES = ["boy", "girl", ...SPOOKY_BODY_TYPES, ...PARTYGOER_BODY_TYPES];
+  const FIXED_BODY_TYPES = new Set([...SPOOKY_BODY_TYPES, ...PARTYGOER_BODY_TYPES]);
+  const SPOOKY_CHARACTER_LABELS = Object.freeze({
+    lincoln: "LINCOLN",
+    beverley: "BEVERLEY",
+    harry: "HARRY",
+    stuart: "STUART",
+    davido: "DAVIDO",
+    samantha: "SAMANTHA"
+  });
+  const PARTYGOER_CHARACTER_LABELS = Object.freeze({
+    optimus: "OPTIMUS",
+    pixella: "PIXELLA",
+    bolderdash: "BOLDERDASH",
+    sputnik: "SPUTNIK",
+    vasquez: "VASQUEZ",
+    bacterium: "BACTERIUM",
+    clara: "CLARA",
+    jamil: "JAMIL",
+    clickers: "CLICKERS",
+    bertrand: "BERTRAND",
+    angie: "ANGIE",
+    "the-haining": "THE HAINING",
+    eric: "ERIC",
+    marshall: "MARSHALL",
+    catherine: "CATHERINE",
+    "mr-pjkuylasg": "MR PJKUËYLASG",
+    slippy: "SLIPPY",
+    gobble: "GOBBLE"
+  });
+  const SPOOKY_STORAGE_KEY = "boxxy-spooky-character-v1";
+  const PARTYGOER_STORAGE_KEY = "boxxy-partygoer-character-v1";
+  const PARTYGOERS_UNLOCK_KEY = "boxxy-partygoers-unlocked-v1";
   const THEMES = ["bauhaus"];
   const SHEET_COLS = 4;
   // One efficient 300 × 260 frame set is used everywhere. It remains larger than
@@ -718,13 +780,15 @@ window.BOXXY_RELEASE = Object.freeze({
     const bundleKey = `${themeKey}:${bodyType}`;
     if (sheetBundles.has(bundleKey)) return sheetBundles.get(bundleKey);
     const root = `${CHARACTER_ASSET_ROOT}/${bodyType}`;
-    const promise = Promise.all([
-      loadImage(`${root}/base.png`),
-      ...CATEGORIES.map(category => loadImage(`${root}/${category}.png`))
-    ]).then(([base, ...layers]) => ({
-      base,
-      layers: Object.fromEntries(CATEGORIES.map((category, index) => [category, layers[index]]))
-    }));
+    const promise = FIXED_BODY_TYPES.has(bodyType)
+      ? loadImage(`${root}/base.png`).then(base => ({ base, layers: {} }))
+      : Promise.all([
+          loadImage(`${root}/base.png`),
+          ...CATEGORIES.map(category => loadImage(`${root}/${category}.png`))
+        ]).then(([base, ...layers]) => ({
+          base,
+          layers: Object.fromEntries(CATEGORIES.map((category, index) => [category, layers[index]]))
+        }));
     sheetBundles.set(bundleKey, promise);
     return promise;
   }
@@ -748,7 +812,9 @@ window.BOXXY_RELEASE = Object.freeze({
     const promise = loadSheetBundle(bodyType, themeKey).then(bundle => {
       const assets = {
         base: frameSource(bundle.base, frame),
-        layers: Object.fromEntries(CATEGORIES.map(category => [category, frameSource(bundle.layers[category], frame)]))
+        layers: Object.fromEntries(CATEGORIES
+          .filter(category => bundle.layers[category])
+          .map(category => [category, frameSource(bundle.layers[category], frame)]))
       };
       resolvedAssets.set(cacheKey, assets);
       return assets;
@@ -820,7 +886,9 @@ window.BOXXY_RELEASE = Object.freeze({
     context.imageSmoothingQuality = "high";
     drawSource(context, assets.base, 0, 0, width, height);
     for (const category of CATEGORIES) {
-      drawTintedLayer(context, assets.layers[category], requestedStyle[category], width, height);
+      const layer = assets.layers[category];
+      if (!layer) continue;
+      drawTintedLayer(context, layer, requestedStyle[category], width, height);
     }
     context.globalCompositeOperation = "source-over";
     context.globalAlpha = 1;
@@ -842,11 +910,110 @@ window.BOXXY_RELEASE = Object.freeze({
       .then(loaded => drawNow(canvas, frame, loaded, false, requestedStyle));
   }
 
+  function drawStylePreview(canvas, requestedStyle, frame = "player-front", pixelWidth = 60) {
+    if (!canvas) return Promise.resolve();
+    const previewStyle = validStyle(requestedStyle);
+    const width = Math.max(12, Math.min(300, Math.round(Number(pixelWidth) || 60)));
+    const height = Math.round(width * FRAME_HEIGHT / FRAME_WIDTH);
+    const render = assets => {
+      if (!assets) return;
+      if (canvas.width !== width) canvas.width = width;
+      if (canvas.height !== height) canvas.height = height;
+      const context = canvas.getContext("2d");
+      context.clearRect(0, 0, width, height);
+      context.globalCompositeOperation = "source-over";
+      context.globalAlpha = 1;
+      context.imageSmoothingEnabled = true;
+      context.imageSmoothingQuality = "high";
+      drawSource(context, assets.base, 0, 0, width, height);
+      for (const category of CATEGORIES) {
+        const layer = assets.layers[category];
+        if (!layer) continue;
+        drawTintedLayer(context, layer, previewStyle[category], width, height);
+      }
+      context.globalCompositeOperation = "source-over";
+      context.globalAlpha = 1;
+    };
+    const theme = activeTheme();
+    const cacheKey = `${theme}:${previewStyle.bodyType}:${frame}`;
+    const assets = resolvedAssets.get(cacheKey);
+    if (assets) {
+      render(assets);
+      return Promise.resolve();
+    }
+    return loadFrame(frame, previewStyle.bodyType, theme).then(render);
+  }
+
+  const avatarBoundsCache = new Map();
+
+  function opaqueCanvasBounds(canvas, cacheKey = "") {
+    if (cacheKey && avatarBoundsCache.has(cacheKey)) return avatarBoundsCache.get(cacheKey);
+    const width = Math.max(1, canvas.width || 1);
+    const height = Math.max(1, canvas.height || 1);
+    let bounds = { x:0, y:0, width, height };
+    try {
+      const pixels = canvas.getContext("2d", { willReadFrequently:true }).getImageData(0, 0, width, height).data;
+      let minX = width, minY = height, maxX = -1, maxY = -1;
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          if (pixels[((y * width + x) * 4) + 3] === 0) continue;
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+      }
+      if (maxX >= minX && maxY >= minY) {
+        bounds = { x:minX, y:minY, width:(maxX - minX + 1), height:(maxY - minY + 1) };
+      }
+    } catch (_) {}
+    if (cacheKey) avatarBoundsCache.set(cacheKey, bounds);
+    return bounds;
+  }
+
+  // UI avatars are visually centred from the opaque character artwork, not from
+  // the gameplay frame's transparent 300x260 canvas. This keeps heads and feet
+  // inside the viewport without per-location translateY/cropping adjustments.
+  function drawAvatarPreview(canvas, requestedStyle, frame = "player-front", pixelSize = 90, paddingRatio = 0.08) {
+    if (!canvas) return Promise.resolve();
+    const previewStyle = validStyle(requestedStyle);
+    const size = Math.max(24, Math.min(300, Math.round(Number(pixelSize) || 90)));
+    const padding = Math.max(1, Math.round(size * Math.max(0.02, Math.min(0.2, Number(paddingRatio) || 0.08))));
+    const source = document.createElement("canvas");
+    const boundsKey = `${activeTheme()}:${previewStyle.bodyType}:${frame}`;
+    return drawStylePreview(source, previewStyle, frame, 300).then(() => {
+      const bounds = opaqueCanvasBounds(source, boundsKey);
+      const available = Math.max(1, size - (padding * 2));
+      const scale = Math.min(available / bounds.width, available / bounds.height);
+      const drawWidth = Math.max(1, bounds.width * scale);
+      const drawHeight = Math.max(1, bounds.height * scale);
+      const dx = (size - drawWidth) / 2;
+      const dy = (size - drawHeight) / 2;
+      if (canvas.width !== size) canvas.width = size;
+      if (canvas.height !== size) canvas.height = size;
+      const context = canvas.getContext("2d");
+      context.clearRect(0, 0, size, size);
+      context.globalCompositeOperation = "source-over";
+      context.globalAlpha = 1;
+      context.imageSmoothingEnabled = true;
+      context.imageSmoothingQuality = "high";
+      context.drawImage(
+        source,
+        bounds.x, bounds.y, bounds.width, bounds.height,
+        dx, dy, drawWidth, drawHeight
+      );
+    });
+  }
+
   function renderedFrameKey(frame, requestedStyle = style) {
-    return [activeTheme(), requestedStyle.bodyType, frame, ...CATEGORIES.map(category => requestedStyle[category])].join("|");
+    const colours = FIXED_BODY_TYPES.has(requestedStyle.bodyType)
+      ? []
+      : CATEGORIES.map(category => requestedStyle[category]);
+    return [activeTheme(), requestedStyle.bodyType, frame, ...colours].join("|");
   }
 
   function fallbackFrameUrl(frame, bodyType = style.bodyType) {
+    if (FIXED_BODY_TYPES.has(bodyType)) return "";
     return `assets/characters-fallback/${bodyType}/${frame}.png`;
   }
 
@@ -884,7 +1051,8 @@ window.BOXXY_RELEASE = Object.freeze({
     // Keep an already-rendered customised sprite visible while the replacement is
     // composed. Only use the plain red/black fallback for a brand-new image.
     if (!image.src || image.dataset.characterReady !== "true") {
-      image.src = fallbackFrameUrl(frame, requestedStyle.bodyType);
+      const fallback = fallbackFrameUrl(frame, requestedStyle.bodyType);
+      if (fallback) image.src = fallback;
     }
     image.classList.add("character-loading");
     return renderFrameUrl(frame, requestedStyle).then(url => {
@@ -927,12 +1095,21 @@ window.BOXXY_RELEASE = Object.freeze({
     if (category === "bodyType") {
       if (!BODY_TYPES.includes(colour) || style.bodyType === colour) return;
       style.bodyType = colour;
+      activeStyleFamily = familyForBodyType(style.bodyType);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(style));
+      if (SPOOKY_BODY_TYPES.includes(style.bodyType)) {
+        try { localStorage.setItem(SPOOKY_STORAGE_KEY, style.bodyType); } catch (_) {}
+      } else if (PARTYGOER_BODY_TYPES.includes(style.bodyType)) {
+        try { localStorage.setItem(PARTYGOER_STORAGE_KEY, style.bodyType); } catch (_) {}
+      }
       updateSelectedSwatches();
       redrawAll();
       loadSheetBundle(style.bodyType, activeTheme())
         .then(() => redrawAll())
         .catch(error => console.error("Selected character assets could not be loaded.", error));
+      if (SPOOKY_BODY_TYPES.includes(style.bodyType)) {
+        window.dispatchEvent(new CustomEvent("boxxyspookycharacterselected", { detail: { bodyType: style.bodyType } }));
+      }
       return;
     }
     if (!CATEGORIES.includes(category)) return;
@@ -947,6 +1124,7 @@ window.BOXXY_RELEASE = Object.freeze({
 
   function reset() {
     style = { ...DEFAULT_STYLE };
+    activeStyleFamily = "indi";
     localStorage.setItem(STORAGE_KEY, JSON.stringify(style));
     updateSelectedSwatches();
     redrawAll();
@@ -959,10 +1137,98 @@ window.BOXXY_RELEASE = Object.freeze({
   const styleResetBtn = document.getElementById("styleResetBtn");
   const styleControls = document.getElementById("styleControls");
   let previousFocus = null;
+  let partygoersUnlocked = false;
+  try { partygoersUnlocked = localStorage.getItem(PARTYGOERS_UNLOCK_KEY) === "1"; } catch (_) {}
+  if (PARTYGOER_BODY_TYPES.includes(style.bodyType)) partygoersUnlocked = true;
+  let spookyUnlockClicks = 0;
+  let spookyUnlockArmed = false;
+
+  function setPartygoersUnlocked(nextUnlocked) {
+    partygoersUnlocked = Boolean(nextUnlocked);
+    spookyUnlockClicks = 0;
+    spookyUnlockArmed = false;
+    try {
+      if (partygoersUnlocked) localStorage.setItem(PARTYGOERS_UNLOCK_KEY, "1");
+      else localStorage.removeItem(PARTYGOERS_UNLOCK_KEY);
+    } catch (_) {}
+    const button = document.getElementById("stylePartygoersFamilyBtn");
+    if (button) button.hidden = !partygoersUnlocked;
+    styleControls?.querySelector(".style-family-choices")?.classList.toggle("has-partygoers", partygoersUnlocked);
+    if (!partygoersUnlocked && activeStyleFamily === "partygoers") activeStyleFamily = "spooky";
+    updateSelectedSwatches();
+  }
+
+  function togglePartygoers() {
+    setPartygoersUnlocked(!partygoersUnlocked);
+  }
+
+  function noteSpookyUnlockClick() {
+    spookyUnlockClicks += 1;
+    if (spookyUnlockClicks >= 5) spookyUnlockArmed = true;
+  }
+
+  function familyForBodyType(bodyType) {
+    if (bodyType === "girl") return "oli";
+    if (SPOOKY_BODY_TYPES.includes(bodyType)) return "spooky";
+    if (PARTYGOER_BODY_TYPES.includes(bodyType)) return "partygoers";
+    return "indi";
+  }
+
+  let activeStyleFamily = familyForBodyType(style.bodyType);
+
+  function animateVisibleStyleGroups() {
+    if (!styleControls || window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches) return;
+    styleControls.querySelectorAll(".style-group:not([hidden])").forEach(group => {
+      if (group.dataset.styleCategory === "bodyType") return;
+      group.animate?.([
+        { opacity: 0.72, transform: "translateY(3px)" },
+        { opacity: 1, transform: "translateY(0)" }
+      ], { duration: 170, easing: "cubic-bezier(.2,.7,.3,1)" });
+    });
+  }
+
+  function setActiveStyleFamily(nextFamily, { animate = true } = {}) {
+    const allowed = ["indi", "oli", "spooky", "partygoers"];
+    if (!allowed.includes(nextFamily)) return;
+    if (nextFamily === "partygoers" && !partygoersUnlocked) return;
+    if (activeStyleFamily === nextFamily) return;
+    activeStyleFamily = nextFamily;
+    updateSelectedSwatches();
+    if (animate) requestAnimationFrame(animateVisibleStyleGroups);
+  }
 
   function buildControls() {
     if (!styleControls) return;
     styleControls.innerHTML = "";
+
+    function characterGrid(bodyTypes, labels, familyName, extraClass = "") {
+      const grid = document.createElement("div");
+      grid.className = `style-character-grid${extraClass ? ` ${extraClass}` : ""}`;
+      bodyTypes.forEach(value => {
+        const label = labels[value];
+        const card = document.createElement("div");
+        card.className = "style-character-choice";
+        card.dataset.bodyType = value;
+
+        const thumb = document.createElement("button");
+        thumb.type = "button";
+        thumb.className = "style-character-thumb";
+        thumb.style.backgroundImage = `url("${CHARACTER_ASSET_ROOT}/${value}/base.png")`;
+        thumb.setAttribute("aria-label", `${familyName} character: ${label}`);
+        thumb.addEventListener("click", () => set("bodyType", value));
+
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "style-character-name";
+        button.textContent = label;
+        button.setAttribute("aria-label", `${familyName} character: ${label}`);
+        button.addEventListener("click", () => set("bodyType", value));
+
+        card.append(thumb, button);
+        grid.appendChild(card);
+      });
+      return grid;
+    }
 
     const typeGroup = document.createElement("fieldset");
     typeGroup.className = "style-group style-type-group";
@@ -970,24 +1236,84 @@ window.BOXXY_RELEASE = Object.freeze({
     const typeLegend = document.createElement("legend");
     typeLegend.textContent = LABELS.bodyType;
     const typeChoices = document.createElement("div");
-    typeChoices.className = "style-type-choices";
-    [["INDI", "boy"], ["OLIVE", "girl"]].forEach(([label, value]) => {
+    typeChoices.className = `style-type-choices style-family-choices${partygoersUnlocked ? " has-partygoers" : ""}`;
+    typeChoices.setAttribute("role", "group");
+    typeChoices.setAttribute("aria-label", "Character families");
+
+    function familyTab(label, family, className = "") {
       const button = document.createElement("button");
       button.type = "button";
-      button.className = "style-type-btn";
-      button.dataset.category = "bodyType";
-      button.dataset.colour = value;
+      button.className = `style-type-btn style-family-tab${className ? ` ${className}` : ""}`;
+      button.dataset.styleFamily = family;
       button.textContent = label;
-      button.setAttribute("aria-label", `Character: ${label}`);
-      button.addEventListener("click", () => set("bodyType", value));
-      typeChoices.appendChild(button);
-    });
+      button.setAttribute("aria-label", `Character family: ${label}`);
+      button.addEventListener("click", () => setActiveStyleFamily(family));
+      return button;
+    }
+
+    typeChoices.appendChild(familyTab("INDI", "indi"));
+    typeChoices.appendChild(familyTab("OLI", "oli"));
+
+    const spookyButton = familyTab("SPOOKY", "spooky", "style-family-spooky");
+    spookyButton.addEventListener("click", noteSpookyUnlockClick);
+    typeChoices.appendChild(spookyButton);
+
+    const partyButton = familyTab("PARTYGOERS", "partygoers", "style-family-partygoers");
+    partyButton.id = "stylePartygoersFamilyBtn";
+    partyButton.hidden = !partygoersUnlocked;
+    typeChoices.appendChild(partyButton);
+
     typeGroup.append(typeLegend, typeChoices);
     styleControls.appendChild(typeGroup);
 
+    const indiGroup = document.createElement("fieldset");
+    indiGroup.className = "style-group style-standard-character-group";
+    indiGroup.dataset.styleCategory = "indi";
+    const indiLegend = document.createElement("legend");
+    indiLegend.textContent = "INDI";
+    indiGroup.append(indiLegend, characterGrid(["boy"], { boy: "INDI" }, "Indi", "style-single-character-grid"));
+    styleControls.appendChild(indiGroup);
+
+    const oliGroup = document.createElement("fieldset");
+    oliGroup.className = "style-group style-standard-character-group";
+    oliGroup.dataset.styleCategory = "oli";
+    const oliLegend = document.createElement("legend");
+    oliLegend.textContent = "OLI";
+    oliGroup.append(oliLegend, characterGrid(["girl"], { girl: "OLI" }, "Oli", "style-single-character-grid"));
+    styleControls.appendChild(oliGroup);
+
+    const spookyGroup = document.createElement("fieldset");
+    spookyGroup.className = "style-group style-spooky-group";
+    spookyGroup.dataset.styleCategory = "spooky";
+    const spookyLegend = document.createElement("legend");
+    spookyLegend.textContent = "SPOOKY CHARACTER";
+    const spookyChoices = characterGrid(SPOOKY_BODY_TYPES, SPOOKY_CHARACTER_LABELS, "Spooky");
+
+    const spookyMusicButton = document.createElement("button");
+    spookyMusicButton.type = "button";
+    spookyMusicButton.id = "styleSpookyMusicBtn";
+    spookyMusicButton.className = "style-spooky-music-btn";
+    spookyMusicButton.textContent = "SPOOKY MUSIC ON";
+    spookyMusicButton.setAttribute("aria-pressed", "true");
+    spookyMusicButton.addEventListener("click", () => {
+      window.dispatchEvent(new CustomEvent("boxxyspookymusictoggle"));
+    });
+
+    spookyGroup.append(spookyLegend, spookyChoices, spookyMusicButton);
+    styleControls.appendChild(spookyGroup);
+
+    const partyGroup = document.createElement("fieldset");
+    partyGroup.className = "style-group style-partygoers-group";
+    partyGroup.dataset.styleCategory = "partygoers";
+    const partyLegend = document.createElement("legend");
+    partyLegend.textContent = "PARTYGOER";
+    const partyChoices = characterGrid(PARTYGOER_BODY_TYPES, PARTYGOER_CHARACTER_LABELS, "Partygoer");
+    partyGroup.append(partyLegend, partyChoices);
+    styleControls.appendChild(partyGroup);
+
     for (const category of CATEGORIES) {
       const group = document.createElement("fieldset");
-      group.className = "style-group";
+      group.className = "style-group style-standard-option-group";
       group.dataset.styleCategory = category;
       const legend = document.createElement("legend");
       legend.textContent = LABELS[category];
@@ -1012,20 +1338,46 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   function updateSelectedSwatches() {
-    document.querySelectorAll(".style-swatch, .style-type-btn").forEach(button => {
-      const cat = button.dataset.category;
-      const val = button.dataset.colour;
-      const selected = style[cat] === val;
+    styleControls?.querySelectorAll(".style-family-tab").forEach(button => {
+      const active = button.dataset.styleFamily === activeStyleFamily;
+      button.classList.toggle("is-active-tab", active);
+      button.setAttribute("aria-pressed", String(active));
+    });
+
+    styleControls?.querySelectorAll(".style-swatch").forEach(button => {
+      const selected = style[button.dataset.category] === button.dataset.colour;
       button.classList.toggle("selected", selected);
       button.setAttribute("aria-pressed", String(selected));
+    });
+
+    styleControls?.querySelectorAll(".style-character-choice").forEach(card => {
+      const selected = card.dataset.bodyType === style.bodyType;
+      card.classList.toggle("selected", selected);
+      card.querySelectorAll("button").forEach(button => button.setAttribute("aria-pressed", String(selected)));
+    });
+
+    styleControls?.querySelectorAll(".style-group[data-style-category]").forEach(group => {
+      const category = group.dataset.styleCategory;
+      if (category === "bodyType") return;
+      if (category === "indi" || category === "oli" || category === "spooky" || category === "partygoers") {
+        group.hidden = category !== activeStyleFamily || (category === "partygoers" && !partygoersUnlocked);
+        return;
+      }
+      group.hidden = activeStyleFamily !== "indi" && activeStyleFamily !== "oli";
     });
   }
 
   function openModal() {
     if (!styleModal) return;
     previousFocus = document.activeElement;
+    spookyUnlockClicks = 0;
+    spookyUnlockArmed = false;
+    activeStyleFamily = familyForBodyType(style.bodyType);
+    if (activeStyleFamily === "partygoers" && !partygoersUnlocked) activeStyleFamily = "indi";
+    updateSelectedSwatches();
     styleModal.hidden = false;
     document.body.classList.add("style-open");
+    window.dispatchEvent(new CustomEvent("boxxyspookymusicrequeststate"));
     requestAnimationFrame(() => styleCloseBtn?.focus());
   }
 
@@ -1044,7 +1396,13 @@ window.BOXXY_RELEASE = Object.freeze({
     if (event.target === styleModal) closeModal();
   });
   document.addEventListener("keydown", event => {
-    if (!styleModal?.hidden && event.key === "Escape") {
+    if (styleModal?.hidden) return;
+    if (spookyUnlockArmed && String(event.key || "").toLowerCase() === "k") {
+      event.preventDefault();
+      togglePartygoers();
+      return;
+    }
+    if (event.key === "Escape") {
       event.preventDefault();
       closeModal();
     }
@@ -1058,6 +1416,8 @@ window.BOXXY_RELEASE = Object.freeze({
     warm: warmCharacterFrames,
     draw,
     drawImage,
+    drawStylePreview,
+    drawAvatarPreview,
     redrawAll,
     set,
     reset,
@@ -2402,6 +2762,7 @@ window.BOXXY_RELEASE = Object.freeze({
   const dailyArchiveCountdown = document.getElementById("dailyArchiveCountdown");
   const dailyArchiveCountdownDate = document.getElementById("dailyArchiveCountdownDate");
   const dailyLeaderboardModal = document.getElementById("dailyLeaderboardModal");
+  const dailyLeaderboardRefreshBtn = document.getElementById("dailyLeaderboardRefreshBtn");
   const dailyLeaderboardCloseBtn = document.getElementById("dailyLeaderboardCloseBtn");
   const dailyLeaderboardTitle = document.getElementById("dailyLeaderboardTitle");
   const dailyLeaderboardDate = document.getElementById("dailyLeaderboardDate");
@@ -2419,6 +2780,31 @@ window.BOXXY_RELEASE = Object.freeze({
   const dailyLeaderboardPlayerMoves = document.getElementById("dailyLeaderboardPlayerMoves");
   const dailyLeaderboardPlayerPushes = document.getElementById("dailyLeaderboardPlayerPushes");
   const dailyLeaderboardNote = document.getElementById("dailyLeaderboardNote");
+  const playerProfileModal = document.getElementById("playerProfileModal");
+  const playerProfileCloseBtn = document.getElementById("playerProfileCloseBtn");
+  const playerProfileAvatar = document.getElementById("playerProfileAvatar");
+  const playerProfileUsername = document.getElementById("playerProfileUsername");
+  const playerProfileStreak = document.getElementById("playerProfileStreak");
+  const playerProfileStreakNumber = document.getElementById("playerProfileStreakNumber");
+  const playerProfileBio = document.getElementById("playerProfileBio");
+  const playerProfileBioEditBtn = document.getElementById("playerProfileBioEditBtn");
+  const playerProfileBioForm = document.getElementById("playerProfileBioForm");
+  const playerProfileBioInput = document.getElementById("playerProfileBioInput");
+  const playerProfileBioCount = document.getElementById("playerProfileBioCount");
+  const playerProfileBioCancelBtn = document.getElementById("playerProfileBioCancelBtn");
+  const playerProfileLocationRow = document.getElementById("playerProfileLocationRow");
+  const playerProfileLocation = document.getElementById("playerProfileLocation");
+  const playerProfileLocationEditBtn = document.getElementById("playerProfileLocationEditBtn");
+  const playerProfileLocationForm = document.getElementById("playerProfileLocationForm");
+  const playerProfileCountry = document.getElementById("playerProfileCountry");
+  const playerProfileRegion = document.getElementById("playerProfileRegion");
+  const playerProfileLocationCancelBtn = document.getElementById("playerProfileLocationCancelBtn");
+  const playerProfileLevels = document.getElementById("playerProfileLevels");
+  const playerProfileDailys = document.getElementById("playerProfileDailys");
+  const playerProfileTrophies = document.getElementById("playerProfileTrophies");
+  const playerProfileMoves = document.getElementById("playerProfileMoves");
+  const playerProfilePushes = document.getElementById("playerProfilePushes");
+  const playerProfileStatus = document.getElementById("playerProfileStatus");
   const dailyCompletionLeaderboard = document.getElementById("dailyCompletionLeaderboard");
   const dailyCompletionLeaderboardList = document.getElementById("dailyCompletionLeaderboardList");
   const grandCelebration = document.getElementById("grandCelebration");
@@ -2642,7 +3028,8 @@ window.BOXXY_RELEASE = Object.freeze({
     starry: { label: "Starry Night Lullaby", src: "assets/audio/Starry-Night-Lullaby-281KB.mp3" },
     fading: { label: "Fading into Gold", src: "assets/audio/Fading-into-Gold-296KB.mp3" },
     velvet: { label: "Velvet Static", src: "assets/audio/Velvet-Static-296KB.mp3" },
-    tetris: { label: "Tetris Piano", src: "assets/audio/Tetris-Piano-293KB.mp3" }
+    tetris: { label: "Tetris Piano", src: "assets/audio/Tetris-Piano-293KB.mp3" },
+    spooky: { label: "Dark Quiet Death", src: "assets/audio/Dark-Quiet-Death-280KB.mp3" }
   });
   const storedMusicTrackId = localStorage.getItem("boxxy-music-track-v1");
   let selectedMusicTrackId = storedMusicTrackId === MUSIC_PLAY_ALL_ID || BOXXY_MUSIC_TRACKS[storedMusicTrackId]
@@ -3516,49 +3903,136 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   const dailyLeaderboardCache = new Map();
-  const DAILY_LEADERBOARD_CACHE_MS = 15000;
+  const dailyLeaderboardInFlight = new Map();
+  const dailyLeaderboardRefreshAt = new Map();
+  const DAILY_LEADERBOARD_PAGE_SIZE = 30;
+  const DAILY_LEADERBOARD_MANUAL_REFRESH_MS = 30000;
   const DAILY_LEADERBOARD_SORT_KEY = "boxxy-daily-leaderboard-sort-v1";
   let dailyLeaderboardActivePuzzle = null;
   let dailyLeaderboardRequestSerial = 0;
   let dailyLeaderboardSort = "time";
+  let dailyLeaderboardViewerIdentity = "";
+  let dailyLeaderboardMoreLoading = false;
 
-  async function fetchDailyLeaderboard(dateKey, { force = false } = {}) {
-    const key = String(dateKey || "");
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) return [];
-    const cached = dailyLeaderboardCache.get(key);
-    if (!force && cached && Date.now() - cached.loadedAt < DAILY_LEADERBOARD_CACHE_MS) return cached.entries;
-    try {
-      const response = await fetch(`/api/daily-leaderboard?date=${encodeURIComponent(key)}`, {
-        method: "GET",
-        credentials: "same-origin",
-        cache: "no-store",
-        headers: { Accept: "application/json" }
-      });
-      if (!response.ok) throw new Error("Leaderboard unavailable");
-      const data = await response.json();
-      const entries = Array.isArray(data?.entries)
-        ? data.entries.map(entry => ({
-            username: String(entry?.username || "").trim(),
-            seconds: Math.max(0, Math.round((Number(entry?.seconds) || 0) * 100) / 100),
-            moves: entry?.moves !== null && entry?.moves !== undefined
-              && Number.isFinite(Number(entry.moves)) && Number(entry.moves) >= 0
-              ? Math.trunc(Number(entry.moves))
-              : null,
-            bestMoves: entry?.bestMoves !== null && entry?.bestMoves !== undefined
-              && Number.isInteger(Number(entry.bestMoves)) && Number(entry.bestMoves) >= 0
-              ? Number(entry.bestMoves) : null,
-            bestMovesSeconds: entry?.bestMovesSeconds !== null && entry?.bestMovesSeconds !== undefined
-              && Number.isFinite(Number(entry.bestMovesSeconds)) && Number(entry.bestMovesSeconds) > 0
-              ? Number(entry.bestMovesSeconds) : null,
-            bestMovesDevice: normaliseDailyLeaderboardDevice(entry?.bestMovesDevice),
-            device: normaliseDailyLeaderboardDevice(entry?.device)
-          })).filter(entry => entry.username)
-        : [];
-      dailyLeaderboardCache.set(key, { loadedAt: Date.now(), entries });
-      return entries;
-    } catch (_) {
-      return null;
+  function normaliseDailyLeaderboardSort(value) {
+    return value === "moves" ? "moves" : "time";
+  }
+
+  function dailyLeaderboardCacheKey(dateKey, sort = "time") {
+    const viewerIdentity = currentSignedInUsername().toLocaleLowerCase() || "guest";
+    return `${viewerIdentity}:${String(dateKey || "")}:${normaliseDailyLeaderboardSort(sort)}`;
+  }
+
+  function dailyLeaderboardCachedState(dateKey, sort = "time") {
+    return dailyLeaderboardCache.get(dailyLeaderboardCacheKey(dateKey, sort)) || null;
+  }
+
+  function normaliseDailyLeaderboardEntries(data) {
+    return Array.isArray(data?.entries)
+      ? data.entries.map(entry => ({
+          username: String(entry?.username || "").trim(),
+          seconds: Math.max(0, Math.round((Number(entry?.seconds) || 0) * 100) / 100),
+          moves: entry?.moves !== null && entry?.moves !== undefined
+            && Number.isFinite(Number(entry.moves)) && Number(entry.moves) >= 0
+            ? Math.trunc(Number(entry.moves))
+            : null,
+          bestMoves: entry?.bestMoves !== null && entry?.bestMoves !== undefined
+            && Number.isInteger(Number(entry.bestMoves)) && Number(entry.bestMoves) >= 0
+            ? Number(entry.bestMoves) : null,
+          bestMovesSeconds: entry?.bestMovesSeconds !== null && entry?.bestMovesSeconds !== undefined
+            && Number.isFinite(Number(entry.bestMovesSeconds)) && Number(entry.bestMovesSeconds) > 0
+            ? Number(entry.bestMovesSeconds) : null,
+          bestMovesDevice: normaliseDailyLeaderboardDevice(entry?.bestMovesDevice),
+          device: normaliseDailyLeaderboardDevice(entry?.device),
+          avatar: entry?.avatar && typeof entry.avatar === "object" ? entry.avatar : null
+        })).filter(entry => entry.username)
+      : [];
+  }
+
+  function sortDailyLeaderboardEntries(entries, sort = "time") {
+    const mode = normaliseDailyLeaderboardSort(sort);
+    const values = Array.isArray(entries) ? [...entries] : [];
+    if (mode === "moves") {
+      return values.sort((a,b) =>
+        (a.bestMoves ?? Infinity) - (b.bestMoves ?? Infinity)
+        || (a.bestMovesSeconds ?? Infinity) - (b.bestMovesSeconds ?? Infinity)
+        || a.username.localeCompare(b.username, undefined, {sensitivity:"base"})
+      );
     }
+    return values.sort((a,b) =>
+      (a.seconds || Infinity) - (b.seconds || Infinity)
+      || a.username.localeCompare(b.username, undefined, {sensitivity:"base"})
+    );
+  }
+
+  async function fetchDailyLeaderboard(dateKey, {
+    sort = "time",
+    offset = 0,
+    limit = DAILY_LEADERBOARD_PAGE_SIZE,
+    force = false
+  } = {}) {
+    const key = String(dateKey || "");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) return null;
+    const mode = normaliseDailyLeaderboardSort(sort);
+    const cacheKey = dailyLeaderboardCacheKey(key, mode);
+    const cached = dailyLeaderboardCache.get(cacheKey) || null;
+    const pageOffset = Math.max(0, Math.trunc(Number(offset) || 0));
+    const pageLimit = Math.max(1, Math.min(DAILY_LEADERBOARD_PAGE_SIZE, Math.trunc(Number(limit) || DAILY_LEADERBOARD_PAGE_SIZE)));
+
+    if (!force && pageOffset === 0 && cached) return cached;
+    if (!force && pageOffset > 0 && cached && (!cached.hasMore || pageOffset < Number(cached.nextOffset || 0))) return cached;
+
+    const requestKey = `${cacheKey}:${pageOffset}`;
+    if (dailyLeaderboardInFlight.has(requestKey)) return dailyLeaderboardInFlight.get(requestKey);
+
+    const request = (async () => {
+      try {
+        const params = new URLSearchParams({
+          date:key,
+          sort:mode,
+          offset:String(pageOffset),
+          limit:String(pageLimit)
+        });
+        const response = await fetch(`/api/daily-leaderboard?${params.toString()}`, {
+          method: "GET",
+          credentials: "same-origin",
+          cache: "no-store",
+          headers: { Accept: "application/json" }
+        });
+        if (!response.ok) throw new Error("Leaderboard unavailable");
+        const data = await response.json();
+        const pageEntries = normaliseDailyLeaderboardEntries(data);
+        const merged = pageOffset > 0 && cached
+          ? [...cached.entries, ...pageEntries]
+          : pageEntries;
+        const seen = new Set();
+        const entries = sortDailyLeaderboardEntries(merged.filter(entry => {
+          const username = String(entry.username || "").trim().toLocaleLowerCase();
+          if (!username || seen.has(username)) return false;
+          seen.add(username);
+          return true;
+        }), mode);
+        const state = {
+          entries,
+          hasMore: data?.hasMore === true,
+          nextOffset: Number.isFinite(Number(data?.nextOffset))
+            ? Math.max(0, Math.trunc(Number(data.nextOffset)))
+            : pageOffset + pageEntries.length,
+          viewerScoreVisibility: ["public", "owner", "hidden"].includes(String(data?.viewerScoreVisibility || ""))
+            ? String(data.viewerScoreVisibility)
+            : (cached?.viewerScoreVisibility || "public"),
+          loadedAt: Date.now()
+        };
+        dailyLeaderboardCache.set(cacheKey, state);
+        return state;
+      } catch (_) {
+        return cached;
+      } finally {
+        dailyLeaderboardInFlight.delete(requestKey);
+      }
+    })();
+    dailyLeaderboardInFlight.set(requestKey, request);
+    return request;
   }
 
   function signedInLeaderboardUsername() {
@@ -3588,7 +4062,523 @@ window.BOXXY_RELEASE = Object.freeze({
     if (dailyLeaderboardPlayerPushes) dailyLeaderboardPlayerPushes.textContent = String(Math.max(0, Number(result.pushes) || 0));
   }
 
-  function renderDailyLeaderboardRows(container, entries, limit = 0) {
+  let playerProfileRequestSerial = 0;
+  let playerProfileCurrentUsername = "";
+  let playerProfileCurrentBio = "";
+  let playerProfileBioSaving = false;
+  let playerProfileCurrentLocation = { countryCode:"", regionCode:"" };
+  let playerProfileLocationSaving = false;
+  let playerProfileLocationsPromise = null;
+  let playerProfileLocationsData = null;
+
+  function profileBioGraphemeLength(value) {
+    const text = String(value || "");
+    try {
+      if (typeof Intl?.Segmenter === "function") {
+        return [...new Intl.Segmenter(undefined, { granularity:"grapheme" }).segment(text)].length;
+      }
+    } catch (_) {}
+    return Array.from(text).length;
+  }
+
+  function currentSignedInUsername() {
+    const direct = String(window.BOXXYAccountIdentity?.username || "").trim();
+    return direct || signedInLeaderboardUsername();
+  }
+
+  function setPlayerProfileStatus(message = "", state = "") {
+    if (!playerProfileStatus) return;
+    const text = String(message || "");
+    playerProfileStatus.textContent = text;
+    playerProfileStatus.hidden = !text;
+    if (state) playerProfileStatus.dataset.state = state;
+    else delete playerProfileStatus.dataset.state;
+  }
+
+  function updatePlayerProfileBioCount() {
+    if (!playerProfileBioInput || !playerProfileBioCount) return;
+    const count = profileBioGraphemeLength(playerProfileBioInput.value.trim());
+    playerProfileBioCount.textContent = `${count} / 50`;
+    playerProfileBioCount.classList.toggle("is-over", count > 50);
+    const submit = playerProfileBioForm?.querySelector?.('button[type="submit"]');
+    if (submit) submit.disabled = playerProfileBioSaving || count > 50;
+  }
+
+  function playerCanEditProfile(username) {
+    const signedIn = currentSignedInUsername();
+    return Boolean(signedIn && username && signedIn.toLowerCase() === String(username).toLowerCase());
+  }
+
+  function playerCanEditProfileBio(username) {
+    return playerCanEditProfile(username);
+  }
+
+  function profileBioGraphemes(value) {
+    const text = String(value || "");
+    try {
+      if (typeof Intl?.Segmenter === "function") {
+        return [...new Intl.Segmenter(undefined, { granularity:"grapheme" }).segment(text)].map(item => item.segment);
+      }
+    } catch (_) {}
+    return Array.from(text);
+  }
+
+  function profileBioGraphemeIsEmoji(value) {
+    try {
+      return /\p{Extended_Pictographic}|\p{Emoji_Presentation}|\p{Regional_Indicator}/u.test(String(value || ""));
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function setPlayerProfileBioContent(bio, placeholder = "") {
+    if (!playerProfileBio) return;
+    if (!bio) {
+      playerProfileBio.textContent = placeholder;
+      return;
+    }
+    const fragment = document.createDocumentFragment();
+    fragment.append(document.createTextNode("“"));
+    for (const grapheme of profileBioGraphemes(bio)) {
+      if (profileBioGraphemeIsEmoji(grapheme)) {
+        const emoji = document.createElement("span");
+        emoji.className = "player-profile-bio-emoji";
+        emoji.textContent = grapheme;
+        fragment.append(emoji);
+      } else {
+        fragment.append(document.createTextNode(grapheme));
+      }
+    }
+    fragment.append(document.createTextNode("”"));
+    playerProfileBio.replaceChildren(fragment);
+  }
+
+  function renderPlayerProfileBio(bio, username) {
+    playerProfileCurrentBio = String(bio || "").trim();
+    const editable = playerCanEditProfile(username);
+    if (playerProfileBio) {
+      const emptyEditable = editable && !playerProfileCurrentBio;
+      setPlayerProfileBioContent(playerProfileCurrentBio, emptyEditable ? "Say something about yourself…" : "");
+      playerProfileBio.hidden = !playerProfileCurrentBio && !emptyEditable;
+      playerProfileBio.classList.toggle("is-placeholder", emptyEditable);
+      playerProfileBio.classList.toggle("is-editable", editable);
+      if (editable) {
+        playerProfileBio.setAttribute("role", "button");
+        playerProfileBio.setAttribute("tabindex", "0");
+        playerProfileBio.setAttribute("aria-label", playerProfileCurrentBio ? "Edit public comment" : "Add public comment");
+      } else {
+        playerProfileBio.removeAttribute("role");
+        playerProfileBio.removeAttribute("tabindex");
+        playerProfileBio.removeAttribute("aria-label");
+      }
+    }
+    if (playerProfileBioEditBtn) {
+      playerProfileBioEditBtn.hidden = !editable || !playerProfileCurrentBio;
+      playerProfileBioEditBtn.textContent = "EDIT";
+    }
+    if (playerProfileBioForm) playerProfileBioForm.hidden = true;
+  }
+
+  async function loadPlayerProfileLocations() {
+    if (playerProfileLocationsData) return playerProfileLocationsData;
+    if (!playerProfileLocationsPromise) {
+      playerProfileLocationsPromise = fetch("/assets/data/profile-locations-v1.json?v=415", {
+        method:"GET", credentials:"same-origin", cache:"force-cache", headers:{ Accept:"application/json" }
+      }).then(async response => {
+        if (!response.ok) throw new Error("Location list unavailable.");
+        const data = await response.json();
+        const countries = Array.isArray(data?.countries) ? data.countries : [];
+        const countryByCode = new Map();
+        const regionByCode = new Map();
+        for (const country of countries) {
+          const code = String(country?.code || "").toUpperCase();
+          if (!code) continue;
+          countryByCode.set(code, country);
+          for (const region of (Array.isArray(country?.regions) ? country.regions : [])) {
+            const regionCode = String(region?.code || "").toUpperCase();
+            if (regionCode) regionByCode.set(regionCode, region);
+          }
+        }
+        playerProfileLocationsData = { countries, countryByCode, regionByCode };
+        return playerProfileLocationsData;
+      }).catch(error => {
+        playerProfileLocationsPromise = null;
+        throw error;
+      });
+    }
+    return playerProfileLocationsPromise;
+  }
+
+  function normalisePlayerProfileLocation(value) {
+    const countryCode = String(value?.countryCode || "").trim().toUpperCase().slice(0, 2);
+    const regionCode = String(value?.regionCode || "").trim().toUpperCase().slice(0, 8);
+    return { countryCode, regionCode };
+  }
+
+  function samePlayerProfileLocation(a, b) {
+    return String(a?.countryCode || "") === String(b?.countryCode || "")
+      && String(a?.regionCode || "") === String(b?.regionCode || "");
+  }
+
+  function playerProfileLocationLabel(data, location) {
+    const country = data?.countryByCode?.get(location.countryCode);
+    if (!country) return "";
+    const region = location.regionCode ? data?.regionByCode?.get(location.regionCode) : null;
+    return region?.name ? `${region.name}, ${country.name}` : String(country.name || "");
+  }
+
+  function playerProfileCountryFlag(countryCode) {
+    const code = String(countryCode || "").trim().toUpperCase();
+    if (!/^[A-Z]{2}$/.test(code)) return "";
+    return String.fromCodePoint(...[...code].map(char => 0x1F1E6 + char.charCodeAt(0) - 65));
+  }
+
+  function configurePlayerProfileLocationButton(editable, hasLocation, label = "") {
+    if (!playerProfileLocation || !playerProfileLocationRow) return;
+    const emptyEditable = editable && !hasLocation;
+    playerProfileLocationRow.hidden = !hasLocation && !editable;
+    playerProfileLocation.hidden = !hasLocation && !editable;
+    if (hasLocation) {
+      const flag = playerProfileCountryFlag(playerProfileCurrentLocation.countryCode);
+      const parts = [];
+      if (flag) {
+        const flagSpan = document.createElement("span");
+        flagSpan.className = "player-profile-location-flag";
+        flagSpan.setAttribute("aria-hidden", "true");
+        flagSpan.textContent = flag;
+        parts.push(flagSpan);
+      }
+      const textSpan = document.createElement("span");
+      textSpan.textContent = label;
+      parts.push(textSpan);
+      playerProfileLocation.replaceChildren(...parts);
+    } else {
+      playerProfileLocation.textContent = emptyEditable ? "Add location…" : "";
+    }
+    playerProfileLocation.classList.toggle("is-placeholder", emptyEditable);
+    playerProfileLocation.classList.toggle("is-editable", editable);
+    playerProfileLocation.disabled = !editable;
+    if (editable) {
+      playerProfileLocation.setAttribute("aria-label", hasLocation ? "Edit public location" : "Add public location");
+    } else {
+      playerProfileLocation.removeAttribute("aria-label");
+    }
+    if (playerProfileLocationEditBtn) playerProfileLocationEditBtn.hidden = !editable || !hasLocation;
+  }
+
+  function renderPlayerProfileLocation(location, username) {
+    playerProfileCurrentLocation = normalisePlayerProfileLocation(location);
+    const expected = { ...playerProfileCurrentLocation };
+    const editable = playerCanEditProfile(username);
+    const hasLocation = Boolean(expected.countryCode);
+    if (playerProfileLocationForm) playerProfileLocationForm.hidden = true;
+    configurePlayerProfileLocationButton(editable, hasLocation, hasLocation ? "LOCATION" : "");
+    if (!hasLocation) return;
+    loadPlayerProfileLocations().then(data => {
+      if (!samePlayerProfileLocation(playerProfileCurrentLocation, expected)) return;
+      const label = playerProfileLocationLabel(data, expected);
+      if (label) configurePlayerProfileLocationButton(playerCanEditProfile(playerProfileCurrentUsername), true, label);
+      else if (!playerCanEditProfile(playerProfileCurrentUsername) && playerProfileLocationRow) playerProfileLocationRow.hidden = true;
+    }).catch(() => {
+      if (!playerCanEditProfile(playerProfileCurrentUsername) && playerProfileLocationRow) playerProfileLocationRow.hidden = true;
+    });
+  }
+
+  function populatePlayerProfileCountries(data, selectedCountry = "") {
+    if (!playerProfileCountry) return;
+    const fragment = document.createDocumentFragment();
+    const blank = document.createElement("option");
+    blank.value = "";
+    blank.textContent = "SELECT COUNTRY";
+    fragment.append(blank);
+    for (const country of data?.countries || []) {
+      const option = document.createElement("option");
+      option.value = String(country.code || "");
+      option.textContent = String(country.name || country.code || "");
+      fragment.append(option);
+    }
+    playerProfileCountry.replaceChildren(fragment);
+    playerProfileCountry.value = selectedCountry || "";
+  }
+
+  function populatePlayerProfileRegions(data, countryCode = "", selectedRegion = "") {
+    if (!playerProfileRegion) return;
+    const country = data?.countryByCode?.get(String(countryCode || "").toUpperCase());
+    const regions = Array.isArray(country?.regions) ? country.regions : [];
+    const fragment = document.createDocumentFragment();
+    const blank = document.createElement("option");
+    blank.value = "";
+    blank.textContent = regions.length ? "SELECT REGION" : "NO REGION LISTED";
+    fragment.append(blank);
+    for (const region of regions) {
+      const option = document.createElement("option");
+      option.value = String(region.code || "");
+      option.textContent = String(region.name || region.code || "");
+      fragment.append(option);
+    }
+    playerProfileRegion.replaceChildren(fragment);
+    playerProfileRegion.disabled = !countryCode || !regions.length;
+    playerProfileRegion.value = regions.some(region => String(region.code) === selectedRegion) ? selectedRegion : "";
+  }
+
+  async function openPlayerProfileLocationEditor() {
+    if (!playerProfileLocationForm || !playerCanEditProfile(playerProfileCurrentUsername)) return;
+    setPlayerProfileStatus("LOADING LOCATION LIST…");
+    try {
+      const data = await loadPlayerProfileLocations();
+      populatePlayerProfileCountries(data, playerProfileCurrentLocation.countryCode);
+      populatePlayerProfileRegions(data, playerProfileCurrentLocation.countryCode, playerProfileCurrentLocation.regionCode);
+      playerProfileLocationForm.hidden = false;
+      if (playerProfileLocation) playerProfileLocation.hidden = true;
+      if (playerProfileLocationEditBtn) playerProfileLocationEditBtn.hidden = true;
+      setPlayerProfileStatus("");
+      requestAnimationFrame(() => playerProfileCountry?.focus?.({ preventScroll:true }));
+    } catch (error) {
+      setPlayerProfileStatus(String(error?.message || "Location list unavailable.").toUpperCase(), "error");
+    }
+  }
+
+  function cancelPlayerProfileLocationEditor() {
+    if (playerProfileLocationForm) playerProfileLocationForm.hidden = true;
+    renderPlayerProfileLocation(playerProfileCurrentLocation, playerProfileCurrentUsername);
+    setPlayerProfileStatus("");
+  }
+
+  async function savePlayerProfileLocation(event) {
+    event?.preventDefault?.();
+    if (playerProfileLocationSaving || !playerCanEditProfile(playerProfileCurrentUsername) || !playerProfileCountry || !playerProfileRegion) return;
+    const data = await loadPlayerProfileLocations().catch(() => null);
+    if (!data) {
+      setPlayerProfileStatus("LOCATION LIST UNAVAILABLE", "error");
+      return;
+    }
+    const countryCode = String(playerProfileCountry.value || "").toUpperCase();
+    const country = data.countryByCode.get(countryCode);
+    const regions = Array.isArray(country?.regions) ? country.regions : [];
+    const regionCode = String(playerProfileRegion.value || "").toUpperCase();
+    if (countryCode && regions.length && !regionCode) {
+      setPlayerProfileStatus("CHOOSE A REGION, STATE OR PROVINCE", "error");
+      return;
+    }
+    playerProfileLocationSaving = true;
+    const submit = playerProfileLocationForm.querySelector('button[type="submit"]');
+    if (submit) submit.disabled = true;
+    setPlayerProfileStatus("SAVING LOCATION…");
+    try {
+      const response = await fetch("/api/account", {
+        method:"POST",
+        credentials:"same-origin",
+        cache:"no-store",
+        headers:{ "content-type":"application/json", Accept:"application/json" },
+        body:JSON.stringify({ action:"public_location", countryCode, regionCode })
+      });
+      const responseData = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(responseData?.error || "Location could not be saved.");
+      playerProfileCurrentLocation = normalisePlayerProfileLocation(responseData.location);
+      renderPlayerProfileLocation(playerProfileCurrentLocation, playerProfileCurrentUsername);
+      setPlayerProfileStatus(countryCode ? "LOCATION SAVED" : "LOCATION REMOVED", "success");
+    } catch (error) {
+      setPlayerProfileStatus(String(error?.message || "Location could not be saved.").toUpperCase(), "error");
+    } finally {
+      playerProfileLocationSaving = false;
+      if (submit) submit.disabled = false;
+    }
+  }
+
+  function fitPlayerProfileUsername() {
+    if (!playerProfileUsername) return;
+    playerProfileUsername.style.removeProperty("font-size");
+    if (window.innerWidth > 620 || playerProfileModal?.hidden) return;
+    const row = playerProfileUsername.parentElement;
+    if (!row) return;
+    const rowStyle = window.getComputedStyle(row);
+    const gap = parseFloat(rowStyle.columnGap || rowStyle.gap || "0") || 0;
+    const reserved = (playerProfileStreak?.offsetWidth || 0) + gap;
+    const available = Math.max(0, row.clientWidth - reserved);
+    if (!available) return;
+    let size = parseFloat(window.getComputedStyle(playerProfileUsername).fontSize) || 24;
+    const minimum = 15;
+    while (size > minimum && playerProfileUsername.scrollWidth > available + 0.5) {
+      size -= 0.5;
+      playerProfileUsername.style.fontSize = `${size}px`;
+    }
+  }
+
+  function renderPlayerProfileStreak(value) {
+    const streak = Math.max(0, Math.trunc(Number(value) || 0));
+    if (!playerProfileStreak || !playerProfileStreakNumber) return;
+    playerProfileStreak.dataset.tier = dailyStreakTier(streak);
+    playerProfileStreak.dataset.digits = String(Math.min(5, String(streak).length));
+    playerProfileStreakNumber.textContent = String(streak);
+    const label = `Daily Boxxy streak: ${streak} ${streak === 1 ? "day" : "days"}`;
+    playerProfileStreak.title = label;
+    playerProfileStreak.setAttribute("aria-label", label);
+    fitPlayerProfileUsername();
+  }
+
+  function closePlayerProfileTrophyTooltips(except = null) {
+    if (!playerProfileTrophies) return;
+    for (const trophy of playerProfileTrophies.querySelectorAll(".player-profile-trophy.is-tooltip-open")) {
+      if (trophy !== except) trophy.classList.remove("is-tooltip-open");
+    }
+  }
+
+  function renderPlayerProfileTrophies(packIds) {
+    if (!playerProfileTrophies) return;
+    playerProfileTrophies.replaceChildren();
+    const ids = [...new Set((Array.isArray(packIds) ? packIds : []).map(value => String(value || "")))];
+    let rendered = 0;
+    ids.forEach(packId => {
+      const pack = PACK_BY_ID.get(packId);
+      if (!pack) return;
+      const trophy = document.createElement("span");
+      const label = String(pack.displayName || pack.title || "Completed puzzle pack");
+      trophy.className = `player-profile-trophy completed-pack-reward-${packRewardKind(pack)}`;
+      trophy.style.setProperty("--pack-star-colour", packAccentColour(pack));
+      trophy.dataset.tooltip = label;
+      trophy.setAttribute("role", "button");
+      trophy.setAttribute("tabindex", "0");
+      trophy.setAttribute("aria-label", label);
+      trophy.innerHTML = packRewardSvg(pack);
+      const toggleTooltip = event => {
+        event?.preventDefault?.();
+        const opening = !trophy.classList.contains("is-tooltip-open");
+        closePlayerProfileTrophyTooltips(trophy);
+        trophy.classList.toggle("is-tooltip-open", opening);
+      };
+      trophy.addEventListener("click", toggleTooltip);
+      trophy.addEventListener("keydown", event => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        toggleTooltip(event);
+      });
+      trophy.addEventListener("blur", () => trophy.classList.remove("is-tooltip-open"));
+      playerProfileTrophies.appendChild(trophy);
+      rendered++;
+    });
+    if (!rendered) {
+      const empty = document.createElement("span");
+      empty.className = "player-profile-trophy-empty";
+      empty.textContent = "No trophies yet";
+      playerProfileTrophies.appendChild(empty);
+    }
+  }
+
+  function closePlayerProfile() {
+    if (!playerProfileModal) return;
+    playerProfileRequestSerial++;
+    closePlayerProfileTrophyTooltips();
+    playerProfileModal.hidden = true;
+    playerProfileCurrentUsername = "";
+    playerProfileCurrentBio = "";
+    playerProfileCurrentLocation = { countryCode:"", regionCode:"" };
+    if (playerProfileBioForm) playerProfileBioForm.hidden = true;
+    if (playerProfileLocationForm) playerProfileLocationForm.hidden = true;
+  }
+
+  async function openPlayerProfile(username) {
+    if (!playerProfileModal || !playerProfileUsername) return;
+    const name = String(username || "").trim();
+    if (!name) return;
+    const requestId = ++playerProfileRequestSerial;
+    playerProfileCurrentUsername = name;
+    playerProfileUsername.textContent = name;
+    renderPlayerProfileBio("", name);
+    renderPlayerProfileLocation({}, name);
+    renderPlayerProfileStreak(0);
+    renderPlayerProfileTrophies([]);
+    for (const element of [playerProfileLevels, playerProfileDailys, playerProfileMoves, playerProfilePushes]) {
+      if (element) element.textContent = "—";
+    }
+    if (playerProfileAvatar) {
+      const context = playerProfileAvatar.getContext?.("2d");
+      context?.clearRect(0, 0, playerProfileAvatar.width, playerProfileAvatar.height);
+    }
+    setPlayerProfileStatus("LOADING PLAYER PROFILE…");
+    playerProfileModal.hidden = false;
+    requestAnimationFrame(() => {
+      fitPlayerProfileUsername();
+      playerProfileCloseBtn?.focus?.({ preventScroll:true });
+    });
+    try {
+      const response = await fetch(`/api/player-profile?username=${encodeURIComponent(name)}`, {
+        method:"GET", credentials:"same-origin", cache:"no-store", headers:{ Accept:"application/json" }
+      });
+      const data = await response.json().catch(() => ({}));
+      if (requestId !== playerProfileRequestSerial || playerProfileModal.hidden) return;
+      if (!response.ok || !data?.profile) throw new Error(data?.error || "Player profile unavailable.");
+      const profile = data.profile;
+      const resolvedUsername = String(profile.username || name);
+      playerProfileCurrentUsername = resolvedUsername;
+      playerProfileUsername.textContent = resolvedUsername;
+      renderPlayerProfileBio(String(profile.bio || ""), resolvedUsername);
+      renderPlayerProfileLocation(profile.location, resolvedUsername);
+      renderPlayerProfileStreak(profile.dailyStreak);
+      renderPlayerProfileTrophies(profile.completedPackIds);
+      if (playerProfileLevels) playerProfileLevels.textContent = Math.max(0, Math.trunc(Number(profile.levelsCompleted) || 0)).toLocaleString("en-GB");
+      if (playerProfileDailys) playerProfileDailys.textContent = Math.max(0, Math.trunc(Number(profile.dailyCompleted) || 0)).toLocaleString("en-GB");
+      if (playerProfileMoves) playerProfileMoves.textContent = Math.max(0, Math.trunc(Number(profile.totalMoves) || 0)).toLocaleString("en-GB");
+      if (playerProfilePushes) playerProfilePushes.textContent = Math.max(0, Math.trunc(Number(profile.totalPushes) || 0)).toLocaleString("en-GB");
+      setPlayerProfileStatus("");
+      if (playerProfileAvatar && profile.avatar) {
+        Promise.resolve(window.CharacterStyler?.drawAvatarPreview?.(playerProfileAvatar, profile.avatar, "player-front", 300, 0.07))
+          .catch(() => {});
+      }
+    } catch (error) {
+      if (requestId !== playerProfileRequestSerial || playerProfileModal.hidden) return;
+      setPlayerProfileStatus(String(error?.message || "Player profile unavailable.").toUpperCase(), "error");
+    }
+  }
+
+  function openPlayerProfileBioEditor() {
+    if (!playerProfileBioForm || !playerProfileBioInput || !playerCanEditProfileBio(playerProfileCurrentUsername)) return;
+    playerProfileBioInput.value = playerProfileCurrentBio;
+    playerProfileBioForm.hidden = false;
+    if (playerProfileBio) playerProfileBio.hidden = true;
+    if (playerProfileBioEditBtn) playerProfileBioEditBtn.hidden = true;
+    updatePlayerProfileBioCount();
+    requestAnimationFrame(() => playerProfileBioInput.focus({ preventScroll:true }));
+  }
+
+  function cancelPlayerProfileBioEditor() {
+    if (playerProfileBioForm) playerProfileBioForm.hidden = true;
+    renderPlayerProfileBio(playerProfileCurrentBio, playerProfileCurrentUsername);
+    setPlayerProfileStatus("");
+  }
+
+  async function savePlayerProfileBio(event) {
+    event?.preventDefault?.();
+    if (playerProfileBioSaving || !playerProfileBioInput || !playerCanEditProfileBio(playerProfileCurrentUsername)) return;
+    const bio = playerProfileBioInput.value.trim();
+    if (profileBioGraphemeLength(bio) > 50) {
+      setPlayerProfileStatus("PUBLIC COMMENT MUST BE 50 CHARACTERS OR FEWER", "error");
+      return;
+    }
+    playerProfileBioSaving = true;
+    updatePlayerProfileBioCount();
+    setPlayerProfileStatus("SAVING PUBLIC COMMENT…");
+    try {
+      const response = await fetch("/api/account", {
+        method:"POST",
+        credentials:"same-origin",
+        cache:"no-store",
+        headers:{ "content-type":"application/json", Accept:"application/json" },
+        body:JSON.stringify({ action:"public_bio", bio })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data?.error || "Public comment could not be saved.");
+      playerProfileCurrentBio = String(data.bio || "");
+      renderPlayerProfileBio(playerProfileCurrentBio, playerProfileCurrentUsername);
+      window.dispatchEvent(new CustomEvent("boxxypublicbiochanged", { detail:{ bio:playerProfileCurrentBio } }));
+      setPlayerProfileStatus("PUBLIC COMMENT SAVED", "success");
+    } catch (error) {
+      setPlayerProfileStatus(String(error?.message || "Public comment could not be saved.").toUpperCase(), "error");
+    } finally {
+      playerProfileBioSaving = false;
+      updatePlayerProfileBioCount();
+    }
+  }
+
+  function renderDailyLeaderboardRows(container, entries, limit = 0, { hasMore = false } = {}) {
     if (!container) return;
     const previousScrollTop = container.scrollTop;
     const byMoves = container === dailyLeaderboardList && dailyLeaderboardSort === "moves";
@@ -3600,11 +4590,7 @@ window.BOXXY_RELEASE = Object.freeze({
       return;
     }
     const allEntries = Array.isArray(entries) ? entries : [];
-    const rankedEntries = byMoves ? [...allEntries].sort((a,b) =>
-      (a.bestMoves ?? Infinity) - (b.bestMoves ?? Infinity)
-      || (a.bestMovesSeconds ?? Infinity) - (b.bestMovesSeconds ?? Infinity)
-      || a.username.localeCompare(b.username, undefined, {sensitivity:"base"})
-    ) : allEntries;
+    const rankedEntries = sortDailyLeaderboardEntries(allEntries, byMoves ? "moves" : "time");
     const numericLimit = Number(limit) || 0;
     const visible = numericLimit > 0 ? rankedEntries.slice(0, numericLimit) : rankedEntries;
     if (!visible.length) {
@@ -3629,9 +4615,32 @@ window.BOXXY_RELEASE = Object.freeze({
       const ranked = !byMoves || entry.bestMoves !== null;
       rank.textContent = ranked ? medals[index] || String(index + 1) : "—";
       if (ranked && index < 3) rank.classList.add("medal");
+      const profileClickable = container === dailyLeaderboardList;
       const name = document.createElement("strong");
       name.className = "daily-leaderboard-name";
       name.textContent = String(entry.username || "");
+      let identity = name;
+      if (profileClickable) {
+        const profileLink = document.createElement("button");
+        profileLink.type = "button";
+        profileLink.className = "daily-leaderboard-profile-link";
+        profileLink.setAttribute("aria-label", `View ${String(entry.username || "player")} profile`);
+        profileLink.addEventListener("click", () => openPlayerProfile(entry.username));
+        if (entry.avatar) {
+          const avatarFrame = document.createElement("span");
+          avatarFrame.className = "daily-leaderboard-avatar-frame";
+          avatarFrame.setAttribute("aria-hidden", "true");
+          const avatar = document.createElement("canvas");
+          avatar.className = "daily-leaderboard-avatar";
+          avatarFrame.appendChild(avatar);
+          profileLink.append(avatarFrame, name);
+          Promise.resolve(window.CharacterStyler?.drawAvatarPreview?.(avatar, entry.avatar, "player-front", 90, 0.10))
+            .catch(() => avatarFrame.remove());
+        } else {
+          profileLink.append(name);
+        }
+        identity = profileLink;
+      }
       const moves = document.createElement("span");
       const moveScore = byMoves ? entry.bestMoves : entry.moves;
       moves.className = "daily-leaderboard-moves";
@@ -3653,7 +4662,7 @@ window.BOXXY_RELEASE = Object.freeze({
       }
       if (container === dailyLeaderboardList) {
         if (byMoves) row.classList.add("is-moves");
-        row.append(rank, name, time, device, moves);
+        row.append(rank, identity, time, device, moves);
       } else {
         // Compact Daily previews retain their original time/device grouping.
         if (deviceClass) time.appendChild(device);
@@ -3661,12 +4670,21 @@ window.BOXXY_RELEASE = Object.freeze({
       }
       rows.appendChild(row);
     });
+    if (container === dailyLeaderboardList && hasMore) {
+      const more = document.createElement("button");
+      more.type = "button";
+      more.className = "daily-leaderboard-more";
+      more.textContent = "MORE";
+      more.setAttribute("aria-label", "Load 30 more leaderboard scores");
+      more.addEventListener("click", loadMoreDailyLeaderboard);
+      rows.appendChild(more);
+    }
     container.replaceChildren(rows);
     container.scrollTop = previousScrollTop;
   }
 
   function selectDailyLeaderboardSort(sort, { persist = false } = {}) {
-    dailyLeaderboardSort = sort === "moves" ? "moves" : "time";
+    dailyLeaderboardSort = normaliseDailyLeaderboardSort(sort);
     if (persist) {
       try { localStorage.setItem(DAILY_LEADERBOARD_SORT_KEY, dailyLeaderboardSort); } catch (_) {}
     }
@@ -3676,8 +4694,12 @@ window.BOXXY_RELEASE = Object.freeze({
       button.classList.toggle("is-active",selected);
       button.setAttribute("aria-pressed",String(selected));
     }
-    const cached = dailyLeaderboardCache.get(dailyLeaderboardList?.dataset.dailyLeaderboardDate || "");
-    if (cached?.entries) renderDailyLeaderboardRows(dailyLeaderboardList,cached.entries);
+    const activeDate = dailyLeaderboardList?.dataset.dailyLeaderboardDate || "";
+    const cached = dailyLeaderboardCachedState(activeDate, dailyLeaderboardSort);
+    if (cached) renderDailyLeaderboardRows(dailyLeaderboardList, cached.entries, 0, { hasMore:cached.hasMore });
+    else if (dailyLeaderboardActivePuzzle?.date === activeDate && dailyLeaderboardModal?.hidden === false) {
+      void loadDailyLeaderboardInto(dailyLeaderboardList, dailyLeaderboardActivePuzzle);
+    }
     if (dailyLeaderboardList) dailyLeaderboardList.setAttribute("aria-label",
       dailyLeaderboardSort === "moves" ? "Fewest moves leaderboard" : "Fastest times leaderboard");
   }
@@ -3685,32 +4707,131 @@ window.BOXXY_RELEASE = Object.freeze({
   async function loadDailyLeaderboardInto(container, puzzle, limit = 0, { force = false } = {}) {
     if (!container || !puzzle?.date) return;
     const dateKey = String(puzzle.date);
+    const mode = container === dailyLeaderboardList ? dailyLeaderboardSort : "time";
     const requestId = String(++dailyLeaderboardRequestSerial);
     container.dataset.dailyLeaderboardDate = dateKey;
     container.dataset.dailyLeaderboardRequest = requestId;
-    const cached = dailyLeaderboardCache.get(dateKey);
-    if (cached?.entries) renderDailyLeaderboardRows(container, cached.entries, limit);
-    else container.innerHTML = '<p class="daily-leaderboard-empty">LOADING FASTEST TIMES…</p>';
-    const entries = await fetchDailyLeaderboard(dateKey, { force });
+    const cached = dailyLeaderboardCachedState(dateKey, mode);
+    if (cached) {
+      renderDailyLeaderboardRows(container, cached.entries, limit, {
+        hasMore: container === dailyLeaderboardList && cached.hasMore
+      });
+      if (!force) {
+        if (container === dailyLeaderboardList) updateDailyLeaderboardAccountNote();
+        return;
+      }
+    } else {
+      container.innerHTML = `<p class="daily-leaderboard-empty">LOADING ${mode === "moves" ? "FEWEST MOVES" : "FASTEST TIMES"}…</p>`;
+    }
+    const state = await fetchDailyLeaderboard(dateKey, {
+      sort:mode,
+      offset:0,
+      limit:DAILY_LEADERBOARD_PAGE_SIZE,
+      force
+    });
     if (container.dataset.dailyLeaderboardDate !== dateKey || container.dataset.dailyLeaderboardRequest !== requestId) return;
-    renderDailyLeaderboardRows(container, entries, limit);
+    renderDailyLeaderboardRows(container, state ? state.entries : null, limit, {
+      hasMore: container === dailyLeaderboardList && Boolean(state?.hasMore)
+    });
     if (container === dailyLeaderboardList) updateDailyLeaderboardAccountNote();
   }
 
-  async function refreshVisibleDailyLeaderboards(dateKey) {
+  async function loadMoreDailyLeaderboard() {
+    if (dailyLeaderboardMoreLoading || !dailyLeaderboardActivePuzzle?.date || !dailyLeaderboardList) return;
+    const dateKey = String(dailyLeaderboardActivePuzzle.date);
+    const mode = dailyLeaderboardSort;
+    const cached = dailyLeaderboardCachedState(dateKey, mode);
+    if (!cached?.hasMore) return;
+    dailyLeaderboardMoreLoading = true;
+    try {
+      const state = await fetchDailyLeaderboard(dateKey, {
+        sort:mode,
+        offset:Math.max(0, Number(cached.nextOffset) || 0),
+        limit:DAILY_LEADERBOARD_PAGE_SIZE
+      });
+      if (dailyLeaderboardModal?.hidden || String(dailyLeaderboardActivePuzzle?.date || "") !== dateKey || dailyLeaderboardSort !== mode) return;
+      renderDailyLeaderboardRows(dailyLeaderboardList, state ? state.entries : cached.entries, 0, {
+        hasMore:Boolean(state?.hasMore)
+      });
+    } finally {
+      dailyLeaderboardMoreLoading = false;
+    }
+  }
+
+  async function manualRefreshDailyLeaderboard() {
+    if (!dailyLeaderboardActivePuzzle?.date || !dailyLeaderboardList) return;
+    const dateKey = String(dailyLeaderboardActivePuzzle.date);
+    const viewerIdentity = currentSignedInUsername().toLocaleLowerCase() || "guest";
+    const refreshKey = `${viewerIdentity}:${dateKey}`;
+    const now = Date.now();
+    const lastRefresh = Number(dailyLeaderboardRefreshAt.get(refreshKey) || 0);
+    if (now - lastRefresh < DAILY_LEADERBOARD_MANUAL_REFRESH_MS) return;
+    dailyLeaderboardRefreshAt.set(refreshKey, now);
+    const otherMode = dailyLeaderboardSort === "moves" ? "time" : "moves";
+    dailyLeaderboardCache.delete(dailyLeaderboardCacheKey(dateKey, otherMode));
+    await loadDailyLeaderboardInto(dailyLeaderboardList, dailyLeaderboardActivePuzzle, 0, { force:true });
+  }
+
+  function localDailyLeaderboardEntry(dateKey) {
+    const username = currentSignedInUsername();
+    const result = dailyCompletion(dateKey);
+    if (!username || !result) return null;
+    const seconds = Number(result.leaderboardSeconds);
+    if (!Number.isFinite(seconds) || seconds <= 0) return null;
+    const moves = result.leaderboardMoves !== null && result.leaderboardMoves !== undefined
+      && Number.isFinite(Number(result.leaderboardMoves)) && Number(result.leaderboardMoves) >= 0
+      ? Math.trunc(Number(result.leaderboardMoves)) : null;
+    const bestMoves = result.moves !== null && result.moves !== undefined
+      && Number.isFinite(Number(result.moves)) && Number(result.moves) >= 0
+      ? Math.trunc(Number(result.moves)) : null;
+    const rawBestMovesSeconds = Number(result.bestMovesSeconds);
+    const mouseOrClickPushRun = result.bestMovesMouseOrClickPush === true;
+    const instantMoveRun = result.bestMovesInstantMove === true;
+    const movesPerSecond = Number.isFinite(rawBestMovesSeconds) && rawBestMovesSeconds > 0 && bestMoves !== null && bestMoves > 1
+      ? (bestMoves - 1) / rawBestMovesSeconds : 0;
+    const bestMovesSeconds = Number.isFinite(rawBestMovesSeconds) && rawBestMovesSeconds > 0
+      && !mouseOrClickPushRun && !instantMoveRun && movesPerSecond <= DAILY_MAX_PUBLIC_MOVES_PER_SECOND
+      ? Math.round(rawBestMovesSeconds * 100) / 100 : null;
+    return {
+      username,
+      seconds:Math.round(seconds * 100) / 100,
+      moves,
+      bestMoves,
+      bestMovesSeconds,
+      bestMovesDevice:bestMovesSeconds !== null ? normaliseDailyLeaderboardDevice(result.bestMovesDevice) : null,
+      device:normaliseDailyLeaderboardDevice(result.leaderboardDevice),
+      avatar:window.CharacterStyler?.style || null
+    };
+  }
+
+  function mergeSyncedDailyScoreIntoCachedLeaderboards(dateKey) {
     const key = String(dateKey || "");
     if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) return;
+    const entry = localDailyLeaderboardEntry(key);
+    if (!entry) return;
+    const usernameKey = entry.username.toLocaleLowerCase();
+    for (const mode of ["time", "moves"]) {
+      const cacheKey = dailyLeaderboardCacheKey(key, mode);
+      const cached = dailyLeaderboardCache.get(cacheKey);
+      if (!cached || cached.viewerScoreVisibility === "hidden") continue;
+      const hadExisting = cached.entries.some(item => String(item.username || "").trim().toLocaleLowerCase() === usernameKey);
+      const capacity = cached.entries.length;
+      let entries = cached.entries.filter(item => String(item.username || "").trim().toLocaleLowerCase() !== usernameKey);
+      entries.push(entry);
+      entries = sortDailyLeaderboardEntries(entries, mode);
+      if (cached.hasMore && !hadExisting && capacity > 0 && entries.length > capacity) entries = entries.slice(0, capacity);
+      dailyLeaderboardCache.set(cacheKey, { ...cached, entries, loadedAt:Date.now() });
+    }
     const targets = [...document.querySelectorAll('.daily-leaderboard-list[data-daily-leaderboard-date]')]
       .filter(container => container.dataset.dailyLeaderboardDate === key);
-    targets.forEach(container => {
-      container.dataset.dailyLeaderboardRequest = String(++dailyLeaderboardRequestSerial);
-    });
-    dailyLeaderboardCache.delete(key);
-    const entries = await fetchDailyLeaderboard(key, { force: true });
-    targets.forEach(container => {
-      if (container.dataset.dailyLeaderboardDate !== key) return;
-      renderDailyLeaderboardRows(container, entries, container === dailyLeaderboardList ? 0 : 3);
-    });
+    for (const container of targets) {
+      const mode = container === dailyLeaderboardList ? dailyLeaderboardSort : "time";
+      const cached = dailyLeaderboardCachedState(key, mode);
+      if (!cached) continue;
+      renderDailyLeaderboardRows(container, cached.entries, container === dailyLeaderboardList ? 0 : 3, {
+        hasMore:container === dailyLeaderboardList && cached.hasMore
+      });
+    }
     if (dailyLeaderboardList?.dataset.dailyLeaderboardDate === key) updateDailyLeaderboardAccountNote();
   }
 
@@ -3750,7 +4871,7 @@ window.BOXXY_RELEASE = Object.freeze({
     let preferredSort = "time";
     try { preferredSort = localStorage.getItem(DAILY_LEADERBOARD_SORT_KEY) || "time"; } catch (_) {}
     selectDailyLeaderboardSort(preferredSort);
-    if (dailyLeaderboardList) loadDailyLeaderboardInto(dailyLeaderboardList, puzzle, 0, { force: true });
+    if (dailyLeaderboardList) loadDailyLeaderboardInto(dailyLeaderboardList, puzzle);
     dailyLeaderboardModal.hidden = false;
     requestAnimationFrame(() => dailyLeaderboardPlayBtn?.focus?.({ preventScroll: true }));
   }
@@ -6074,6 +7195,60 @@ window.BOXXY_RELEASE = Object.freeze({
     if (playAfter && musicOn) startBackgroundMusic();
   }
 
+  const SPOOKY_MUSIC_AUTOSTART_KEY = "boxxy-spooky-music-autostarted-v1";
+
+  function updateSpookyMusicButton() {
+    const button = document.getElementById("styleSpookyMusicBtn");
+    if (!button) return;
+    const active = musicOn && selectedMusicTrackId === "spooky";
+    button.textContent = active ? "SPOOKY MUSIC ON" : "SPOOKY MUSIC OFF";
+    button.setAttribute("aria-pressed", String(active));
+  }
+
+  function setSpookyMusicEnabled(enabled) {
+    if (enabled) {
+      selectedMusicTrackId = "spooky";
+      musicPlayAllIndex = 0;
+      musicOn = true;
+      try {
+        localStorage.setItem("boxxy-music-track-v1", selectedMusicTrackId);
+        localStorage.setItem("push-bauhaus-music", "on");
+        localStorage.setItem(SPOOKY_MUSIC_AUTOSTART_KEY, "1");
+      } catch (_) {}
+      updateMusicButton();
+      applySelectedMusicTrack(true, true);
+    } else {
+      musicOn = false;
+      try {
+        localStorage.setItem("push-bauhaus-music", "off");
+        localStorage.setItem(SPOOKY_MUSIC_AUTOSTART_KEY, "1");
+      } catch (_) {}
+      updateMusicButton();
+      pauseBackgroundMusic();
+    }
+    updateSpookyMusicButton();
+  }
+
+  function applySpookyCharacterDefaults() {
+    BOARD_STYLE?.apply?.({ box: "orange", target: "green" });
+
+    let musicAlreadyStarted = false;
+    try { musicAlreadyStarted = localStorage.getItem(SPOOKY_MUSIC_AUTOSTART_KEY) === "1"; } catch (_) {}
+    if (musicAlreadyStarted) {
+      updateSpookyMusicButton();
+      return;
+    }
+
+    setSpookyMusicEnabled(true);
+  }
+
+  window.addEventListener("boxxyspookycharacterselected", applySpookyCharacterDefaults);
+  window.addEventListener("boxxyspookymusictoggle", () => {
+    const currentlyActive = musicOn && selectedMusicTrackId === "spooky";
+    setSpookyMusicEnabled(!currentlyActive);
+  });
+  window.addEventListener("boxxyspookymusicrequeststate", updateSpookyMusicButton);
+
   function boxxySpeedFactor() {
     return BOXXY_SPEED_FACTORS[boxxySpeed] || 1;
   }
@@ -6460,12 +7635,14 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   function updateMusicButton() {
-    if (!musicBtn) return;
-    const label = musicBtn.querySelector("b");
-    const icon = musicBtn.querySelector("span");
-    if (label) label.textContent = musicOn ? "MUSIC ON" : "MUSIC OFF";
-    if (icon) icon.textContent = musicOn ? "♫" : "♪";
-    musicBtn.setAttribute("aria-pressed", String(musicOn));
+    if (musicBtn) {
+      const label = musicBtn.querySelector("b");
+      const icon = musicBtn.querySelector("span");
+      if (label) label.textContent = musicOn ? "MUSIC ON" : "MUSIC OFF";
+      if (icon) icon.textContent = musicOn ? "♫" : "♪";
+      musicBtn.setAttribute("aria-pressed", String(musicOn));
+    }
+    updateSpookyMusicButton();
   }
 
   async function startBackgroundMusic() {
@@ -8251,7 +9428,6 @@ window.BOXXY_RELEASE = Object.freeze({
           mouseOrClickPushUsed: mouseOrClickPushUsedThisLevel,
           instantMoveUsed: instantMoveUsedThisLevel
         });
-        dailyLeaderboardCache.delete(String(dailyPuzzle.date));
         window.dispatchEvent(new CustomEvent("boxxydailycompletionrecorded", {
           detail: { date: String(dailyPuzzle.date) }
         }));
@@ -8304,7 +9480,7 @@ window.BOXXY_RELEASE = Object.freeze({
       if (dailyShareStatus) dailyShareStatus.textContent = "";
       if (dailyCompletionLeaderboard) dailyCompletionLeaderboard.hidden = !scoringDailySession;
       if (scoringDailySession && dailyCompletionLeaderboardList) {
-        loadDailyLeaderboardInto(dailyCompletionLeaderboardList, dailyPuzzle, 3, { force: true });
+        loadDailyLeaderboardInto(dailyCompletionLeaderboardList, dailyPuzzle, 3);
       }
       setCompletionActionMode("daily");
       updateDailyStreak();
@@ -9300,6 +10476,9 @@ window.BOXXY_RELEASE = Object.freeze({
     }
     if (levelMakerModal && !levelMakerModal.hidden) return;
     if (window.CharacterStyler?.isOpen) return;
+    const shortcutTarget = event.target instanceof Element
+      && event.target.closest("input, textarea, select, [contenteditable='true']");
+    if (shortcutTarget) return;
     if (mouseSupportModal && !mouseSupportModal.hidden) {
       if (event.key === "Escape") {
         event.preventDefault();
@@ -9346,21 +10525,19 @@ window.BOXXY_RELEASE = Object.freeze({
       return;
     }
     if (handleGuidedSolveSecret(event)) return;
-    const shortcutTarget = event.target instanceof Element
-      && event.target.closest("input, textarea, select, [contenteditable='true']");
     if (directionMap[event.key]) {
       event.preventDefault();
       /* Browser/OS key-repeat timing is deliberately ignored here. BOXXY runs
          its own repeat timer so the Settings speed applies to ordinary play. */
       if (event.repeat) return;
       startKeyboardMove(event.code || event.key, directionMap[event.key]);
-    } else if ((event.key === "z" || event.key === "Z" || event.key === "u" || event.key === "U") && !shortcutTarget) {
+    } else if (event.key === "z" || event.key === "Z" || event.key === "u" || event.key === "U") {
       event.preventDefault();
       if (!event.repeat) undo();
-    } else if (event.key === "Shift" && !shortcutTarget) {
+    } else if (event.key === "Shift") {
       event.preventDefault();
       if (!event.repeat) redo();
-    } else if ((event.key === "r" || event.key === "R") && !shortcutTarget) {
+    } else if (event.key === "r" || event.key === "R") {
       event.preventDefault();
       if (event.repeat) return;
       if (makerTesting || sharedPuzzleMode) restartMakerTest();
@@ -9775,6 +10952,7 @@ window.BOXXY_RELEASE = Object.freeze({
     if (selectedMusicTrackId === MUSIC_PLAY_ALL_ID) musicPlayAllIndex = 0;
     localStorage.setItem("boxxy-music-track-v1", selectedMusicTrackId);
     applySelectedMusicTrack(true, true);
+    updateSpookyMusicButton();
   });
   settingsSpeedSelect?.addEventListener("change", event => applyBoxxySpeed(String(event.currentTarget.value || "normal"), true));
   settingsArrowSpacingToggle?.addEventListener("click", () => applyArrowSpacing(!spacedArrowControls));
@@ -9810,17 +10988,55 @@ window.BOXXY_RELEASE = Object.freeze({
   dailyArchiveModal?.addEventListener("click", event => { if (event.target === dailyArchiveModal) closeDailyArchive(); });
   window.addEventListener("boxxyaccountfeatures", event => {
     applyInstantMoveEntitlement(event?.detail || {});
-    // Leaderboard visibility may depend on which account owns the active session.
-    // Never reuse an owner-scoped leaderboard response across an account change.
-    dailyLeaderboardCache.clear();
+    // Owner-only leaderboard visibility depends on WHO is signed in, not on
+    // routine progress/session synchronisation. Keep the loaded leaderboard
+    // sortable across ordinary syncs and invalidate it only when identity changes.
+    const nextViewerIdentity = currentSignedInUsername().toLocaleLowerCase();
+    if (nextViewerIdentity !== dailyLeaderboardViewerIdentity) {
+      dailyLeaderboardViewerIdentity = nextViewerIdentity;
+      dailyLeaderboardCache.clear();
+      if (dailyLeaderboardModal?.hidden === false && dailyLeaderboardActivePuzzle) {
+        void loadDailyLeaderboardInto(dailyLeaderboardList, dailyLeaderboardActivePuzzle, 0, { force:true });
+      }
+    }
   });
 
   window.addEventListener("boxxyaccountdailysynced", event => {
     const dateKey = String(event?.detail?.date || "");
-    if (dateKey) refreshVisibleDailyLeaderboards(dateKey);
+    if (dateKey) mergeSyncedDailyScoreIntoCachedLeaderboards(dateKey);
   });
 
+  dailyLeaderboardRefreshBtn?.addEventListener("click", manualRefreshDailyLeaderboard);
   dailyLeaderboardCloseBtn?.addEventListener("click", closeDailyLeaderboard);
+  playerProfileCloseBtn?.addEventListener("click", closePlayerProfile);
+  window.addEventListener("resize", () => { if (!playerProfileModal?.hidden) fitPlayerProfileUsername(); }, { passive:true });
+  playerProfileModal?.addEventListener("click", event => {
+    if (event.target === playerProfileModal) { closePlayerProfile(); return; }
+    if (!event.target?.closest?.(".player-profile-trophy")) closePlayerProfileTrophyTooltips();
+  });
+  playerProfileBioEditBtn?.addEventListener("click", openPlayerProfileBioEditor);
+  playerProfileBio?.addEventListener("click", () => {
+    if (playerCanEditProfileBio(playerProfileCurrentUsername)) openPlayerProfileBioEditor();
+  });
+  playerProfileBio?.addEventListener("keydown", event => {
+    if ((event.key === "Enter" || event.key === " ") && playerCanEditProfileBio(playerProfileCurrentUsername)) {
+      event.preventDefault();
+      openPlayerProfileBioEditor();
+    }
+  });
+  playerProfileBioCancelBtn?.addEventListener("click", cancelPlayerProfileBioEditor);
+  playerProfileBioInput?.addEventListener("input", updatePlayerProfileBioCount);
+  playerProfileBioForm?.addEventListener("submit", savePlayerProfileBio);
+  playerProfileLocation?.addEventListener("click", () => {
+    if (playerCanEditProfile(playerProfileCurrentUsername)) openPlayerProfileLocationEditor();
+  });
+  playerProfileLocationEditBtn?.addEventListener("click", openPlayerProfileLocationEditor);
+  playerProfileLocationCancelBtn?.addEventListener("click", cancelPlayerProfileLocationEditor);
+  playerProfileCountry?.addEventListener("change", async () => {
+    const data = await loadPlayerProfileLocations().catch(() => null);
+    if (data) populatePlayerProfileRegions(data, playerProfileCountry.value, "");
+  });
+  playerProfileLocationForm?.addEventListener("submit", savePlayerProfileLocation);
   dailyLeaderboardShareBtn?.addEventListener("click", () => {
     if (!dailyLeaderboardActivePuzzle) return;
     const result = dailyCompletion(dailyLeaderboardActivePuzzle.date);
@@ -10216,6 +11432,7 @@ window.BOXXY_RELEASE = Object.freeze({
   window.addEventListener("keydown", event => {
     if (event.key === "Escape" && phoneZenModeActive()) { setPhoneZenMode(false); return; }
     if (event.key === "Escape" && dailyInviteModal && !dailyInviteModal.hidden) { closeDailyInvite(); return; }
+    if (event.key === "Escape" && playerProfileModal && !playerProfileModal.hidden) { closePlayerProfile(); return; }
     if (event.key === "Escape" && dailyLeaderboardModal && !dailyLeaderboardModal.hidden) { closeDailyLeaderboard(); return; }
     if (event.key === "Escape" && dailyArchiveModal && !dailyArchiveModal.hidden) { closeDailyArchive(); return; }
     if (event.key === "Escape" && trophyCabinetModal && !trophyCabinetModal.hidden) { closeTrophyCabinet(); return; }

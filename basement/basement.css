@@ -60,3 +60,7 @@
 .daily-score-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .daily-score-head h3{margin:0}
 @media(max-width:850px){.daily-seed-grid{grid-template-columns:1fr}.daily-seed-form{grid-template-columns:1fr}.daily-score-row{grid-template-columns:32px minmax(100px,1fr) .7fr .8fr}.daily-score-row span:nth-of-type(4),.daily-score-row span:nth-of-type(5){display:none}.synthetic-user-row{grid-template-columns:minmax(130px,1fr) .7fr auto}.synthetic-user-row span:nth-of-type(2){display:none}}
+/* BOXXY v403 — artificial player avatars. */
+.synthetic-user-row label{min-width:0}.synthetic-avatar{width:42px;height:36px;display:block;flex:0 0 auto}.synthetic-user-actions{display:flex;gap:6px;justify-content:flex-end}.synthetic-user-actions button{white-space:nowrap}
+@media(max-width:850px){.synthetic-user-actions{grid-column:3;display:grid;gap:4px}.synthetic-user-row{grid-template-columns:minmax(160px,1fr) .6fr auto}.synthetic-avatar{width:36px;height:31px}}
+.synthetic-avatar-empty{width:42px;min-width:42px;height:30px;display:grid;place-items:center;border:1px dashed #777;font-size:7px;line-height:1;text-align:center;color:#666}

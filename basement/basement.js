@@ -1,3 +1,7 @@
+/* BOXXY v403: artificial players can be assigned persistent random avatars. */
+/* BOXXY v410 — Basement recognises the expanded eighteen-character PARTYGOERS roster. */
+/* BOXXY v401 — Basement recognises the expanded twelve-character PARTYGOERS roster. */
+/* BOXXY v400 — Basement recognises PARTYGOERS avatars and includes fixed-character artwork in private practice. */
 /* BOXXY v375 — varied, verified synthetic move counts and update-in-place for previous scores. */
 /* BOXXY v374 — Basement Daily seeding and leaderboard score administration. */
 /* BOXXY v363 — server-confirmed sessions, first recorded login and per-device sign-in history. */
@@ -210,6 +214,12 @@
   const JIGSAW_SVG = '<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M8 26H34C34 14 40 6 50 6S66 14 66 26H82V38C82 42 84 44 88 44C94 44 98 48 98 54S94 66 88 66C84 66 82 68 82 72V90H64C64 78 58 72 50 72S36 78 36 90H8V64C20 64 28 58 28 50S20 36 8 36Z"/></svg>';
   const AVATAR_DEFAULT = Object.freeze({ bodyType:"boy", tshirt:"#df3526", trousers:"#292829", hair:"#292727", skin:"#ee9a60", shoes:"#292829" });
   const AVATAR_CATEGORIES = Object.freeze(["tshirt", "trousers", "hair", "skin", "shoes"]);
+  const FIXED_AVATAR_CHARACTERS = Object.freeze({
+    lincoln:"LINCOLN", beverley:"BEVERLEY", harry:"HARRY", stuart:"STUART", davido:"DAVIDO", samantha:"SAMANTHA",
+    optimus:"OPTIMUS", pixella:"PIXELLA", bolderdash:"BOLDERDASH", sputnik:"SPUTNIK", vasquez:"VASQUEZ",
+    bacterium:"BACTERIUM", clara:"CLARA", jamil:"JAMIL", clickers:"CLICKERS", bertrand:"BERTRAND", angie:"ANGIE", "the-haining":"THE HAINING",
+    eric:"ERIC", marshall:"MARSHALL", catherine:"CATHERINE", "mr-pjkuylasg":"MR PJKUËYLASG", slippy:"SLIPPY", gobble:"GOBBLE"
+  });
   const BOARD_STYLE_SWATCHES = Object.freeze({
     red:{label:"Red",hex:"#ec2826"}, blue:{label:"Blue",hex:"#1553ca"}, green:{label:"Green",hex:"#328545"},
     purple:{label:"Purple",hex:"#7433ac"}, "light-blue":{label:"Light blue",hex:"#64c0e8"}, teal:{label:"Teal",hex:"#119f9a"},
@@ -225,14 +235,20 @@
   }
   function avatarStyle(summary) {
     const raw = summary?.avatar && typeof summary.avatar === "object" ? summary.avatar : {};
+    const bodyType = ["boy", "girl", ...Object.keys(FIXED_AVATAR_CHARACTERS)].includes(raw.bodyType) ? raw.bodyType : "boy";
     return {
-      bodyType: raw.bodyType === "girl" ? "girl" : "boy",
+      bodyType,
       tshirt: safeColour(raw.tshirt, AVATAR_DEFAULT.tshirt),
       trousers: safeColour(raw.trousers, AVATAR_DEFAULT.trousers),
       hair: safeColour(raw.hair, AVATAR_DEFAULT.hair),
       skin: safeColour(raw.skin, AVATAR_DEFAULT.skin),
       shoes: safeColour(raw.shoes, AVATAR_DEFAULT.shoes)
     };
+  }
+  function avatarCharacterLabel(bodyType) {
+    if (FIXED_AVATAR_CHARACTERS[bodyType]) return FIXED_AVATAR_CHARACTERS[bodyType];
+    if (bodyType === "girl") return "OLI";
+    return "INDI";
   }
   function loadAvatarImage(src) {
     if (avatarImageCache.has(src)) return avatarImageCache.get(src);
@@ -250,10 +266,11 @@
     if (!canvas) return;
     const style = avatarStyle(summary);
     const root = `/assets/characters/${style.bodyType}`;
+    const fixedCharacter = Boolean(FIXED_AVATAR_CHARACTERS[style.bodyType]);
     try {
       const [base, ...layers] = await Promise.all([
         loadAvatarImage(`${root}/base.png`),
-        ...AVATAR_CATEGORIES.map(category => loadAvatarImage(`${root}/${category}.png`))
+        ...(fixedCharacter ? [] : AVATAR_CATEGORIES.map(category => loadAvatarImage(`${root}/${category}.png`)))
       ]);
       if (!canvas.isConnected) return;
       const width = 90, height = 78, sourceWidth = 300, sourceHeight = 260;
@@ -261,24 +278,26 @@
       const context = canvas.getContext("2d");
       context.clearRect(0, 0, width, height);
       context.drawImage(base, 0, 0, sourceWidth, sourceHeight, 0, 0, width, height);
-      const scratch = document.createElement("canvas");
-      scratch.width = width; scratch.height = height;
-      const off = scratch.getContext("2d");
-      AVATAR_CATEGORIES.forEach((category, index) => {
-        const layer = layers[index];
-        off.globalCompositeOperation = "source-over";
-        off.clearRect(0, 0, width, height);
-        off.fillStyle = style[category];
-        off.fillRect(0, 0, width, height);
-        off.globalCompositeOperation = "multiply";
-        off.drawImage(layer, 0, 0, sourceWidth, sourceHeight, 0, 0, width, height);
-        off.globalCompositeOperation = "destination-in";
-        off.drawImage(layer, 0, 0, sourceWidth, sourceHeight, 0, 0, width, height);
-        context.globalCompositeOperation = "destination-out";
-        context.drawImage(layer, 0, 0, sourceWidth, sourceHeight, 0, 0, width, height);
-        context.globalCompositeOperation = "source-over";
-        context.drawImage(scratch, 0, 0);
-      });
+      if (!fixedCharacter) {
+        const scratch = document.createElement("canvas");
+        scratch.width = width; scratch.height = height;
+        const off = scratch.getContext("2d");
+        AVATAR_CATEGORIES.forEach((category, index) => {
+          const layer = layers[index];
+          off.globalCompositeOperation = "source-over";
+          off.clearRect(0, 0, width, height);
+          off.fillStyle = style[category];
+          off.fillRect(0, 0, width, height);
+          off.globalCompositeOperation = "multiply";
+          off.drawImage(layer, 0, 0, sourceWidth, sourceHeight, 0, 0, width, height);
+          off.globalCompositeOperation = "destination-in";
+          off.drawImage(layer, 0, 0, sourceWidth, sourceHeight, 0, 0, width, height);
+          context.globalCompositeOperation = "destination-out";
+          context.drawImage(layer, 0, 0, sourceWidth, sourceHeight, 0, 0, width, height);
+          context.globalCompositeOperation = "source-over";
+          context.drawImage(scratch, 0, 0);
+        });
+      }
       context.globalCompositeOperation = "source-over";
     } catch (_) {}
   }
@@ -291,7 +310,8 @@
   }
   function outfitMini(summary) {
     const style = avatarStyle(summary);
-    const character = style.bodyType === "girl" ? "OLIVE" : "INDI";
+    const character = avatarCharacterLabel(style.bodyType);
+    if (FIXED_AVATAR_CHARACTERS[style.bodyType]) return `<div class="outfit-mini" title="Current character"><span>${character}</span></div>`;
     return `<div class="outfit-mini" title="Current outfit"><span>${character}</span><i title="T-shirt" style="--swatch:${style.tshirt}"></i><i title="Trousers / skirt" style="--swatch:${style.trousers}"></i><i title="Shoes" style="--swatch:${style.shoes}"></i></div>`;
   }
   function boardStyle(summary) {
@@ -439,13 +459,17 @@
     }
     syntheticUsersEl.innerHTML = syntheticUsers.map(user => {
       const score = syntheticScores.find(item => item.userId === user.id);
+      const avatar = user.avatar
+        ? `<canvas class="synthetic-avatar" data-avatar-user="${escapeHtml(user.id)}" width="72" height="62" aria-hidden="true"></canvas>`
+        : `<span class="synthetic-avatar-empty">NO AVATAR</span>`;
       return `<div class="synthetic-user-row">
-        <label><input type="checkbox" data-synthetic-select value="${escapeHtml(user.id)}"> <strong>${escapeHtml(user.username)}</strong></label>
+        <label><input type="checkbox" data-synthetic-select value="${escapeHtml(user.id)}">${avatar}<strong>${escapeHtml(user.username)}</strong></label>
         <span>${escapeHtml((user.defaultDevice || "computer").toUpperCase())}</span>
         <span>${score ? `${score.seconds.toFixed(2)}s · ${score.moves} moves` : "NO SCORE"}</span>
-        <button type="button" data-synthetic-delete="${escapeHtml(user.id)}" data-synthetic-name="${escapeHtml(user.username)}">DELETE</button>
+        <div class="synthetic-user-actions"><button type="button" data-synthetic-avatar="${escapeHtml(user.id)}">RANDOM AVATAR</button><button type="button" data-synthetic-delete="${escapeHtml(user.id)}" data-synthetic-name="${escapeHtml(user.username)}">DELETE</button></div>
       </div>`;
     }).join("");
+    renderAvatarCanvases(syntheticUsers.filter(user => user.avatar).map(user => ({ id:user.id, summary:{ avatar:user.avatar } })));
   }
   async function loadDailyScores() {
     const date = syntheticDate?.value || dayKey(new Date());
@@ -684,8 +708,11 @@
   // must receive origin-clean spritesheets before it draws them to canvas.
   // Public image assets are fetched by the authenticated parent and reused
   // across practice sessions. No browser storage or account data is copied.
-  const PRIVATE_CHARACTER_ASSETS=["boy","girl"].flatMap(body=>
-    ["base","hair","shoes","skin","trousers","tshirt"].map(layer=>`assets/characters/${body}/${layer}.png`));
+  const PRIVATE_CHARACTER_ASSETS=[
+    ...["boy","girl"].flatMap(body=>
+      ["base","hair","shoes","skin","trousers","tshirt"].map(layer=>`assets/characters/${body}/${layer}.png`)),
+    ...Object.keys(FIXED_AVATAR_CHARACTERS).map(body=>`assets/characters/${body}/base.png`)
+  ];
   let privateImageAssetsPromise=null;
   function loadPrivateImageAssets() {
     if(privateImageAssetsPromise)return privateImageAssetsPromise;
@@ -882,13 +909,16 @@
   function detailOutfit(user) {
     const style = avatarStyle(user?.summary);
     const board = boardStyle(user?.summary);
-    const character = style.bodyType === "girl" ? "OLIVE" : "INDI";
+    const character = avatarCharacterLabel(style.bodyType);
     const row = (label, colour) => `<div><span>${label}</span><strong><i class="outfit-swatch" style="--swatch:${colour}"></i>${colour.toUpperCase()}</strong></div>`;
     const boardRow = (label, colour) => {
       const swatch = BOARD_STYLE_SWATCHES[colour];
       return `<div><span>${label}</span><strong><i class="outfit-swatch" style="--swatch:${swatch.hex}"></i>${escapeHtml(swatch.label.toUpperCase())}</strong></div>`;
     };
-    return `<div class="detail-outfit"><canvas class="basement-avatar basement-avatar-large" data-avatar-user="${escapeHtml(user.id)}" width="90" height="78" aria-label="Current BOXXY character and style"></canvas><div class="detail-outfit-grid"><div><span>CHARACTER</span><strong>${character}</strong></div>${row("T-SHIRT", style.tshirt)}${row("TROUSERS / SKIRT", style.trousers)}${row("SHOES", style.shoes)}${boardRow("BOX", board.box)}${boardRow("BOX ON TARGET", board.target)}</div></div>`;
+    const clothingRows = FIXED_AVATAR_CHARACTERS[style.bodyType]
+      ? ""
+      : `${row("T-SHIRT", style.tshirt)}${row("TROUSERS / SKIRT", style.trousers)}${row("SHOES", style.shoes)}`;
+    return `<div class="detail-outfit"><canvas class="basement-avatar basement-avatar-large" data-avatar-user="${escapeHtml(user.id)}" width="90" height="78" aria-label="Current BOXXY character and style"></canvas><div class="detail-outfit-grid"><div><span>CHARACTER</span><strong>${character}</strong></div>${clothingRows}${boardRow("BOX", board.box)}${boardRow("BOX ON TARGET", board.target)}</div></div>`;
   }
   function detailAttempts(summary) {
     const attempts = Array.isArray(summary?.attempts) ? summary.attempts : [];
@@ -1072,6 +1102,16 @@
     } catch (error) { setStatus(dailyScoresStatus, error.message || "Could not add artificial player.", "error"); }
   });
   syntheticUsersEl?.addEventListener("click", async event => {
+    const avatarButton = event.target.closest("[data-synthetic-avatar]");
+    if (avatarButton) {
+      try {
+        const {response,data} = await api("", {action:"synthetic_random_avatar", userId:avatarButton.dataset.syntheticAvatar});
+        if (!response.ok) throw new Error(data.error || "Could not create a random avatar.");
+        await loadDailyScores();
+        setStatus(dailyScoresStatus, `${String(data.username || "PLAYER").toUpperCase()} AVATAR UPDATED`, "success");
+      } catch (error) { setStatus(dailyScoresStatus, error.message || "Could not create a random avatar.", "error"); }
+      return;
+    }
     const button = event.target.closest("[data-synthetic-delete]");
     if (!button) return;
     const name = button.dataset.syntheticName || "this artificial player";

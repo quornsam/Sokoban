@@ -1,3 +1,18 @@
+/* BOXXY v415: refreshed Player Profile identity/location layout. */
+/* BOXXY v413: mobile Player Profile identity layout and refreshed app cache. */
+/* BOXXY v412: cached/paged Daily leaderboard controls and refreshed app cache. */
+/* BOXXY v411: Character Style typography correction and refreshed main app cache. */
+/* BOXXY v410: cache six additional PARTYGOERS characters and refreshed Character Style UI assets. */
+/* BOXXY v409: restore v396 leaderboard typography/alignment with additive centred full-leaderboard avatars. */
+/* BOXXY v407: stable profile bio geometry, corrected leaderboard avatar spacing and refreshed Clara asset. */
+/* BOXXY v405: profile avatar crop, trophy tooltips, inline bio placeholder and clean leaderboard profile links. */
+/* BOXXY v404: redesigned public player profiles and profile-modal bio editing. */
+/* BOXXY v403: public player profiles, safe bios and synthetic avatar administration. */
+/* BOXXY v402: leaderboard avatars use existing cached character assets; release references updated. */
+/* BOXXY v401: expanded PARTYGOERS character sheets are available offline. */
+/* BOXXY v400: PARTYGOERS character sheets are available offline with the expanded Attire selector. */
+/* BOXXY v399: spooky soundtrack uses the standard MP3 format and refreshed Samantha artwork is cached offline. */
+/* BOXXY v398: spooky character sheets and Dark Quiet Death are available offline. */
 /* BOXXY v375: varied synthetic score generation; gameplay unaffected. */
 /* BOXXY v374: private Daily seeding/admin leaderboard tools and 250×250 Level Maker. */
 /* BOXXY v372: copy and display-name updates; refresh cached HTML, levels and gameplay script. */
@@ -11,7 +26,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "396";
+const RELEASE_VERSION = "415";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [
@@ -25,7 +40,9 @@ const ASSETS = [
   "/assets/audio/Tetris-Piano-293KB.mp3",
   "/assets/audio/Velvet-Static-296KB.mp3",
   "/assets/audio/cracked-ivory-drift.mp3",
+  "/assets/audio/Dark-Quiet-Death-280KB.mp3",
   "/assets/audio/tetris-piano.m4a",
+  "/assets/data/profile-locations-v1.json",
   "/assets/board/board-atlas.png",
   "/assets/board/boxes/box-black.png",
   "/assets/board/boxes/box-blue.png",
@@ -70,6 +87,30 @@ const ASSETS = [
   "/assets/characters/girl/skin.png",
   "/assets/characters/girl/trousers.png",
   "/assets/characters/girl/tshirt.png",
+  "/assets/characters/lincoln/base.png",
+  "/assets/characters/beverley/base.png",
+  "/assets/characters/harry/base.png",
+  "/assets/characters/stuart/base.png",
+  "/assets/characters/davido/base.png",
+  "/assets/characters/samantha/base.png",
+  "/assets/characters/optimus/base.png",
+  "/assets/characters/pixella/base.png",
+  "/assets/characters/bolderdash/base.png",
+  "/assets/characters/sputnik/base.png",
+  "/assets/characters/vasquez/base.png",
+  "/assets/characters/bacterium/base.png",
+  "/assets/characters/clara/base.png",
+  "/assets/characters/jamil/base.png",
+  "/assets/characters/clickers/base.png",
+  "/assets/characters/bertrand/base.png",
+  "/assets/characters/angie/base.png",
+  "/assets/characters/the-haining/base.png",
+  "/assets/characters/eric/base.png",
+  "/assets/characters/marshall/base.png",
+  "/assets/characters/catherine/base.png",
+  "/assets/characters/mr-pjkuylasg/base.png",
+  "/assets/characters/slippy/base.png",
+  "/assets/characters/gobble/base.png",
   "/assets/characters-fallback/boy/player-back.png",
   "/assets/characters-fallback/boy/player-front.png",
   "/assets/characters-fallback/boy/player-left.png",
