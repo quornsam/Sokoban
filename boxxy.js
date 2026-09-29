@@ -1,3 +1,4 @@
+/* BOXXY v408: stable profile identity layout and canonical visually-centred UI avatar rendering. */
 /* BOXXY v407: keep profile bio editing geometrically stable and give full leaderboard avatars dedicated row space. */
 /* BOXXY v405: profile avatar crop, trophy tooltips, inline bio placeholder and clean clickable leaderboard names. */
 /* BOXXY v404: redesigned public profiles, full-resolution avatars, visual trophies, streak and in-place bio editing. */
@@ -931,6 +932,67 @@ window.BOXXY_RELEASE = Object.freeze({
     return loadFrame(frame, previewStyle.bodyType, theme).then(render);
   }
 
+  const avatarBoundsCache = new Map();
+
+  function opaqueCanvasBounds(canvas, cacheKey = "") {
+    if (cacheKey && avatarBoundsCache.has(cacheKey)) return avatarBoundsCache.get(cacheKey);
+    const width = Math.max(1, canvas.width || 1);
+    const height = Math.max(1, canvas.height || 1);
+    let bounds = { x:0, y:0, width, height };
+    try {
+      const pixels = canvas.getContext("2d", { willReadFrequently:true }).getImageData(0, 0, width, height).data;
+      let minX = width, minY = height, maxX = -1, maxY = -1;
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          if (pixels[((y * width + x) * 4) + 3] === 0) continue;
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+      }
+      if (maxX >= minX && maxY >= minY) {
+        bounds = { x:minX, y:minY, width:(maxX - minX + 1), height:(maxY - minY + 1) };
+      }
+    } catch (_) {}
+    if (cacheKey) avatarBoundsCache.set(cacheKey, bounds);
+    return bounds;
+  }
+
+  // UI avatars are visually centred from the opaque character artwork, not from
+  // the gameplay frame's transparent 300x260 canvas. This keeps heads and feet
+  // inside the viewport without per-location translateY/cropping adjustments.
+  function drawAvatarPreview(canvas, requestedStyle, frame = "player-front", pixelSize = 90, paddingRatio = 0.08) {
+    if (!canvas) return Promise.resolve();
+    const previewStyle = validStyle(requestedStyle);
+    const size = Math.max(24, Math.min(300, Math.round(Number(pixelSize) || 90)));
+    const padding = Math.max(1, Math.round(size * Math.max(0.02, Math.min(0.2, Number(paddingRatio) || 0.08))));
+    const source = document.createElement("canvas");
+    const boundsKey = `${activeTheme()}:${previewStyle.bodyType}:${frame}`;
+    return drawStylePreview(source, previewStyle, frame, 300).then(() => {
+      const bounds = opaqueCanvasBounds(source, boundsKey);
+      const available = Math.max(1, size - (padding * 2));
+      const scale = Math.min(available / bounds.width, available / bounds.height);
+      const drawWidth = Math.max(1, bounds.width * scale);
+      const drawHeight = Math.max(1, bounds.height * scale);
+      const dx = (size - drawWidth) / 2;
+      const dy = (size - drawHeight) / 2;
+      if (canvas.width !== size) canvas.width = size;
+      if (canvas.height !== size) canvas.height = size;
+      const context = canvas.getContext("2d");
+      context.clearRect(0, 0, size, size);
+      context.globalCompositeOperation = "source-over";
+      context.globalAlpha = 1;
+      context.imageSmoothingEnabled = true;
+      context.imageSmoothingQuality = "high";
+      context.drawImage(
+        source,
+        bounds.x, bounds.y, bounds.width, bounds.height,
+        dx, dy, drawWidth, drawHeight
+      );
+    });
+  }
+
   function renderedFrameKey(frame, requestedStyle = style) {
     const colours = FIXED_BODY_TYPES.has(requestedStyle.bodyType)
       ? []
@@ -1313,6 +1375,7 @@ window.BOXXY_RELEASE = Object.freeze({
     draw,
     drawImage,
     drawStylePreview,
+    drawAvatarPreview,
     redrawAll,
     set,
     reset,
@@ -4043,7 +4106,7 @@ window.BOXXY_RELEASE = Object.freeze({
       if (playerProfilePushes) playerProfilePushes.textContent = Math.max(0, Math.trunc(Number(profile.totalPushes) || 0)).toLocaleString("en-GB");
       setPlayerProfileStatus("");
       if (playerProfileAvatar && profile.avatar) {
-        Promise.resolve(window.CharacterStyler?.drawStylePreview?.(playerProfileAvatar, profile.avatar, "player-front", 300))
+        Promise.resolve(window.CharacterStyler?.drawAvatarPreview?.(playerProfileAvatar, profile.avatar, "player-front", 300, 0.07))
           .catch(() => {});
       }
     } catch (error) {
@@ -4162,7 +4225,7 @@ window.BOXXY_RELEASE = Object.freeze({
         avatarFrame.appendChild(avatar);
         name.append(avatarFrame, nameText);
         const avatarRenderWidth = profileClickable ? 90 : 60;
-        Promise.resolve(window.CharacterStyler?.drawStylePreview?.(avatar, entry.avatar, "player-front", avatarRenderWidth))
+        Promise.resolve(window.CharacterStyler?.drawAvatarPreview?.(avatar, entry.avatar, "player-front", avatarRenderWidth, profileClickable ? 0.08 : 0.10))
           .catch(() => avatarFrame.remove());
       } else {
         name.append(nameText);
