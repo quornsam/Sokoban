@@ -1,3 +1,4 @@
+/* BOXXY v406: protect text-entry keyboard focus, keep leaderboard sort stable across account sync, and refine leaderboard avatars. */
 /* BOXXY v405: profile avatar crop, trophy tooltips, inline bio placeholder and clean clickable leaderboard names. */
 /* BOXXY v404: redesigned public profiles, full-resolution avatars, visual trophies, streak and in-place bio editing. */
 /* BOXXY v403: clickable Daily leaderboard public profiles with current avatar and public stats. */
@@ -9,7 +10,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "405",
+  version: "406",
   lastUpdated: "2026-09-29"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
@@ -3794,6 +3795,7 @@ window.BOXXY_RELEASE = Object.freeze({
   let dailyLeaderboardActivePuzzle = null;
   let dailyLeaderboardRequestSerial = 0;
   let dailyLeaderboardSort = "time";
+  let dailyLeaderboardViewerIdentity = "";
 
   async function fetchDailyLeaderboard(dateKey, { force = false } = {}) {
     const key = String(dateKey || "");
@@ -4152,12 +4154,16 @@ window.BOXXY_RELEASE = Object.freeze({
       nameText.className = "daily-leaderboard-name-text";
       nameText.textContent = String(entry.username || "");
       if (entry.avatar) {
+        const avatarFrame = document.createElement("span");
+        avatarFrame.className = "daily-leaderboard-avatar-frame";
+        avatarFrame.setAttribute("aria-hidden", "true");
         const avatar = document.createElement("canvas");
         avatar.className = "daily-leaderboard-avatar";
-        avatar.setAttribute("aria-hidden", "true");
-        name.append(avatar, nameText);
-        Promise.resolve(window.CharacterStyler?.drawStylePreview?.(avatar, entry.avatar, "player-front", 60))
-          .catch(() => avatar.remove());
+        avatarFrame.appendChild(avatar);
+        name.append(avatarFrame, nameText);
+        const avatarRenderWidth = profileClickable ? 90 : 60;
+        Promise.resolve(window.CharacterStyler?.drawStylePreview?.(avatar, entry.avatar, "player-front", avatarRenderWidth))
+          .catch(() => avatarFrame.remove());
       } else {
         name.append(nameText);
       }
@@ -4205,8 +4211,12 @@ window.BOXXY_RELEASE = Object.freeze({
       button.classList.toggle("is-active",selected);
       button.setAttribute("aria-pressed",String(selected));
     }
-    const cached = dailyLeaderboardCache.get(dailyLeaderboardList?.dataset.dailyLeaderboardDate || "");
+    const activeDate = dailyLeaderboardList?.dataset.dailyLeaderboardDate || "";
+    const cached = dailyLeaderboardCache.get(activeDate);
     if (cached?.entries) renderDailyLeaderboardRows(dailyLeaderboardList,cached.entries);
+    else if (dailyLeaderboardActivePuzzle?.date === activeDate && dailyLeaderboardModal?.hidden === false) {
+      void loadDailyLeaderboardInto(dailyLeaderboardList, dailyLeaderboardActivePuzzle, 0, { force:true });
+    }
     if (dailyLeaderboardList) dailyLeaderboardList.setAttribute("aria-label",
       dailyLeaderboardSort === "moves" ? "Fewest moves leaderboard" : "Fastest times leaderboard");
   }
@@ -9885,6 +9895,9 @@ window.BOXXY_RELEASE = Object.freeze({
     }
     if (levelMakerModal && !levelMakerModal.hidden) return;
     if (window.CharacterStyler?.isOpen) return;
+    const shortcutTarget = event.target instanceof Element
+      && event.target.closest("input, textarea, select, [contenteditable='true']");
+    if (shortcutTarget) return;
     if (mouseSupportModal && !mouseSupportModal.hidden) {
       if (event.key === "Escape") {
         event.preventDefault();
@@ -9931,21 +9944,19 @@ window.BOXXY_RELEASE = Object.freeze({
       return;
     }
     if (handleGuidedSolveSecret(event)) return;
-    const shortcutTarget = event.target instanceof Element
-      && event.target.closest("input, textarea, select, [contenteditable='true']");
     if (directionMap[event.key]) {
       event.preventDefault();
       /* Browser/OS key-repeat timing is deliberately ignored here. BOXXY runs
          its own repeat timer so the Settings speed applies to ordinary play. */
       if (event.repeat) return;
       startKeyboardMove(event.code || event.key, directionMap[event.key]);
-    } else if ((event.key === "z" || event.key === "Z" || event.key === "u" || event.key === "U") && !shortcutTarget) {
+    } else if (event.key === "z" || event.key === "Z" || event.key === "u" || event.key === "U") {
       event.preventDefault();
       if (!event.repeat) undo();
-    } else if (event.key === "Shift" && !shortcutTarget) {
+    } else if (event.key === "Shift") {
       event.preventDefault();
       if (!event.repeat) redo();
-    } else if ((event.key === "r" || event.key === "R") && !shortcutTarget) {
+    } else if (event.key === "r" || event.key === "R") {
       event.preventDefault();
       if (event.repeat) return;
       if (makerTesting || sharedPuzzleMode) restartMakerTest();
@@ -10396,9 +10407,17 @@ window.BOXXY_RELEASE = Object.freeze({
   dailyArchiveModal?.addEventListener("click", event => { if (event.target === dailyArchiveModal) closeDailyArchive(); });
   window.addEventListener("boxxyaccountfeatures", event => {
     applyInstantMoveEntitlement(event?.detail || {});
-    // Leaderboard visibility may depend on which account owns the active session.
-    // Never reuse an owner-scoped leaderboard response across an account change.
-    dailyLeaderboardCache.clear();
+    // Owner-only leaderboard visibility depends on WHO is signed in, not on
+    // routine progress/session synchronisation. Keep the loaded leaderboard
+    // sortable across ordinary syncs and invalidate it only when identity changes.
+    const nextViewerIdentity = currentSignedInUsername().toLocaleLowerCase();
+    if (nextViewerIdentity !== dailyLeaderboardViewerIdentity) {
+      dailyLeaderboardViewerIdentity = nextViewerIdentity;
+      dailyLeaderboardCache.clear();
+      if (dailyLeaderboardModal?.hidden === false && dailyLeaderboardActivePuzzle) {
+        void loadDailyLeaderboardInto(dailyLeaderboardList, dailyLeaderboardActivePuzzle, 0, { force:true });
+      }
+    }
   });
 
   window.addEventListener("boxxyaccountdailysynced", event => {
