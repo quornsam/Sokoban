@@ -1,3 +1,4 @@
+/* BOXXY v413: mobile Player Profile identity layout uses full width and keeps long usernames on one fitted line. */
 /* BOXXY v412: Daily leaderboards cache per session, refresh manually, page 30 at a time and update the signed-in player locally after sync. */
 /* BOXXY v411: Character Style name typography restored without altering v410 selector behaviour. */
 /* BOXXY v410: character-family tabs browse without changing the selected character; six Partygoers added and profile/style controls refined. */
@@ -14,7 +15,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "412",
+  version: "413",
   lastUpdated: "2026-09-29"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
@@ -4124,6 +4125,25 @@ window.BOXXY_RELEASE = Object.freeze({
     if (playerProfileBioForm) playerProfileBioForm.hidden = true;
   }
 
+  function fitPlayerProfileUsername() {
+    if (!playerProfileUsername) return;
+    playerProfileUsername.style.removeProperty("font-size");
+    if (window.innerWidth > 620 || playerProfileModal?.hidden) return;
+    const row = playerProfileUsername.parentElement;
+    if (!row) return;
+    const rowStyle = window.getComputedStyle(row);
+    const gap = parseFloat(rowStyle.columnGap || rowStyle.gap || "0") || 0;
+    const reserved = (playerProfileStreak?.offsetWidth || 0) + gap;
+    const available = Math.max(0, row.clientWidth - reserved);
+    if (!available) return;
+    let size = parseFloat(window.getComputedStyle(playerProfileUsername).fontSize) || 24;
+    const minimum = 15;
+    while (size > minimum && playerProfileUsername.scrollWidth > available + 0.5) {
+      size -= 0.5;
+      playerProfileUsername.style.fontSize = `${size}px`;
+    }
+  }
+
   function renderPlayerProfileStreak(value) {
     const streak = Math.max(0, Math.trunc(Number(value) || 0));
     if (!playerProfileStreak || !playerProfileStreakNumber) return;
@@ -4133,6 +4153,7 @@ window.BOXXY_RELEASE = Object.freeze({
     const label = `Daily Boxxy streak: ${streak} ${streak === 1 ? "day" : "days"}`;
     playerProfileStreak.title = label;
     playerProfileStreak.setAttribute("aria-label", label);
+    fitPlayerProfileUsername();
   }
 
   function closePlayerProfileTrophyTooltips(except = null) {
@@ -4211,7 +4232,10 @@ window.BOXXY_RELEASE = Object.freeze({
     }
     setPlayerProfileStatus("LOADING PLAYER PROFILE…");
     playerProfileModal.hidden = false;
-    requestAnimationFrame(() => playerProfileCloseBtn?.focus?.({ preventScroll:true }));
+    requestAnimationFrame(() => {
+      fitPlayerProfileUsername();
+      playerProfileCloseBtn?.focus?.({ preventScroll:true });
+    });
     try {
       const response = await fetch(`/api/player-profile?username=${encodeURIComponent(name)}`, {
         method:"GET", credentials:"same-origin", cache:"no-store", headers:{ Accept:"application/json" }
@@ -10721,6 +10745,7 @@ window.BOXXY_RELEASE = Object.freeze({
   dailyLeaderboardRefreshBtn?.addEventListener("click", manualRefreshDailyLeaderboard);
   dailyLeaderboardCloseBtn?.addEventListener("click", closeDailyLeaderboard);
   playerProfileCloseBtn?.addEventListener("click", closePlayerProfile);
+  window.addEventListener("resize", () => { if (!playerProfileModal?.hidden) fitPlayerProfileUsername(); }, { passive:true });
   playerProfileModal?.addEventListener("click", event => {
     if (event.target === playerProfileModal) { closePlayerProfile(); return; }
     if (!event.target?.closest?.(".player-profile-trophy")) closePlayerProfileTrophyTooltips();

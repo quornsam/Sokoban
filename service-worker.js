@@ -1,3 +1,4 @@
+/* BOXXY v413: mobile Player Profile identity layout and refreshed app cache. */
 /* BOXXY v412: cached/paged Daily leaderboard controls and refreshed app cache. */
 /* BOXXY v411: Character Style typography correction and refreshed main app cache. */
 /* BOXXY v410: cache six additional PARTYGOERS characters and refreshed Character Style UI assets. */
@@ -24,7 +25,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "412";
+const RELEASE_VERSION = "413";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [
