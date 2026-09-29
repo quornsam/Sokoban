@@ -1,3 +1,4 @@
+/* BOXXY v404: profile-modal bio edits stay in sync with the account view. */
 /* BOXXY v403: public player bio editing and profile-safe account data. */
 /* BOXXY v388: account merges retain assistance metadata from the same independent Daily move-best run. */
 /* BOXXY v383: account merges retain the run-matched time and device for the independent Daily move best. */
@@ -155,7 +156,7 @@
   let account = null;
   // Read-only identity for first-completion records. Authentication remains
   // server-side; this is never used to authorise a request.
-  window.BOXXYAccountIdentity = { get id() { return account?.id || ""; } };
+  window.BOXXYAccountIdentity = { get id() { return account?.id || ""; }, get username() { return account?.username || ""; } };
   // Read-only display statistics for BOXXY's rotating footer facts. This exposes
   // no account credentials or identifiers and always reflects the live session.
   window.BOXXYPlayerStats = Object.freeze({
@@ -1530,6 +1531,14 @@
 
   bioInput?.addEventListener("input", () => {
     bioDirty = true;
+    updateBioCounter();
+  });
+
+  window.addEventListener("boxxypublicbiochanged", event => {
+    if (!account) return;
+    const bio = String(event?.detail?.bio || "");
+    account.bio = bio;
+    if (bioInput && !bioDirty) bioInput.value = bio;
     updateBioCounter();
   });
 

@@ -1,3 +1,4 @@
+/* BOXXY v404: redesigned public profiles, full-resolution avatars, visual trophies, streak and in-place bio editing. */
 /* BOXXY v403: clickable Daily leaderboard public profiles with current avatar and public stats. */
 /*
  * BOXXY — Pushbox Puzzle
@@ -7,7 +8,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "403",
+  version: "404",
   lastUpdated: "2026-09-29"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
@@ -897,7 +898,7 @@ window.BOXXY_RELEASE = Object.freeze({
   function drawStylePreview(canvas, requestedStyle, frame = "player-front", pixelWidth = 60) {
     if (!canvas) return Promise.resolve();
     const previewStyle = validStyle(requestedStyle);
-    const width = Math.max(12, Math.min(180, Math.round(Number(pixelWidth) || 60)));
+    const width = Math.max(12, Math.min(300, Math.round(Number(pixelWidth) || 60)));
     const height = Math.round(width * FRAME_HEIGHT / FRAME_WIDTH);
     const render = assets => {
       if (!assets) return;
@@ -2675,7 +2676,14 @@ window.BOXXY_RELEASE = Object.freeze({
   const playerProfileCloseBtn = document.getElementById("playerProfileCloseBtn");
   const playerProfileAvatar = document.getElementById("playerProfileAvatar");
   const playerProfileUsername = document.getElementById("playerProfileUsername");
+  const playerProfileStreak = document.getElementById("playerProfileStreak");
+  const playerProfileStreakNumber = document.getElementById("playerProfileStreakNumber");
   const playerProfileBio = document.getElementById("playerProfileBio");
+  const playerProfileBioEditBtn = document.getElementById("playerProfileBioEditBtn");
+  const playerProfileBioForm = document.getElementById("playerProfileBioForm");
+  const playerProfileBioInput = document.getElementById("playerProfileBioInput");
+  const playerProfileBioCount = document.getElementById("playerProfileBioCount");
+  const playerProfileBioCancelBtn = document.getElementById("playerProfileBioCancelBtn");
   const playerProfileLevels = document.getElementById("playerProfileLevels");
   const playerProfileDailys = document.getElementById("playerProfileDailys");
   const playerProfileTrophies = document.getElementById("playerProfileTrophies");
@@ -3854,11 +3862,105 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   let playerProfileRequestSerial = 0;
+  let playerProfileCurrentUsername = "";
+  let playerProfileCurrentBio = "";
+  let playerProfileBioSaving = false;
+
+  function profileBioGraphemeLength(value) {
+    const text = String(value || "");
+    try {
+      if (typeof Intl?.Segmenter === "function") {
+        return [...new Intl.Segmenter(undefined, { granularity:"grapheme" }).segment(text)].length;
+      }
+    } catch (_) {}
+    return Array.from(text).length;
+  }
+
+  function currentSignedInUsername() {
+    const direct = String(window.BOXXYAccountIdentity?.username || "").trim();
+    return direct || signedInLeaderboardUsername();
+  }
+
+  function setPlayerProfileStatus(message = "", state = "") {
+    if (!playerProfileStatus) return;
+    const text = String(message || "");
+    playerProfileStatus.textContent = text;
+    playerProfileStatus.hidden = !text;
+    if (state) playerProfileStatus.dataset.state = state;
+    else delete playerProfileStatus.dataset.state;
+  }
+
+  function updatePlayerProfileBioCount() {
+    if (!playerProfileBioInput || !playerProfileBioCount) return;
+    const count = profileBioGraphemeLength(playerProfileBioInput.value.trim());
+    playerProfileBioCount.textContent = `${count} / 50`;
+    playerProfileBioCount.classList.toggle("is-over", count > 50);
+    const submit = playerProfileBioForm?.querySelector?.('button[type="submit"]');
+    if (submit) submit.disabled = playerProfileBioSaving || count > 50;
+  }
+
+  function playerCanEditProfileBio(username) {
+    const signedIn = currentSignedInUsername();
+    return Boolean(signedIn && username && signedIn.toLowerCase() === String(username).toLowerCase());
+  }
+
+  function renderPlayerProfileBio(bio, username) {
+    playerProfileCurrentBio = String(bio || "").trim();
+    const editable = playerCanEditProfileBio(username);
+    if (playerProfileBio) {
+      playerProfileBio.textContent = playerProfileCurrentBio ? `“${playerProfileCurrentBio}”` : "";
+      playerProfileBio.hidden = !playerProfileCurrentBio;
+    }
+    if (playerProfileBioEditBtn) {
+      playerProfileBioEditBtn.hidden = !editable;
+      playerProfileBioEditBtn.textContent = playerProfileCurrentBio ? "EDIT" : "ADD COMMENT";
+    }
+    if (playerProfileBioForm) playerProfileBioForm.hidden = true;
+  }
+
+  function renderPlayerProfileStreak(value) {
+    const streak = Math.max(0, Math.trunc(Number(value) || 0));
+    if (!playerProfileStreak || !playerProfileStreakNumber) return;
+    playerProfileStreak.dataset.tier = dailyStreakTier(streak);
+    playerProfileStreak.dataset.digits = String(Math.min(5, String(streak).length));
+    playerProfileStreakNumber.textContent = String(streak);
+    const label = `Daily Boxxy streak: ${streak} ${streak === 1 ? "day" : "days"}`;
+    playerProfileStreak.title = label;
+    playerProfileStreak.setAttribute("aria-label", label);
+  }
+
+  function renderPlayerProfileTrophies(packIds) {
+    if (!playerProfileTrophies) return;
+    playerProfileTrophies.replaceChildren();
+    const ids = [...new Set((Array.isArray(packIds) ? packIds : []).map(value => String(value || "")))];
+    let rendered = 0;
+    ids.forEach(packId => {
+      const pack = PACK_BY_ID.get(packId);
+      if (!pack) return;
+      const trophy = document.createElement("span");
+      trophy.className = `player-profile-trophy completed-pack-reward-${packRewardKind(pack)}`;
+      trophy.style.setProperty("--pack-star-colour", packAccentColour(pack));
+      trophy.title = String(pack.displayName || pack.title || "Completed puzzle pack");
+      trophy.setAttribute("aria-label", trophy.title);
+      trophy.innerHTML = packRewardSvg(pack);
+      playerProfileTrophies.appendChild(trophy);
+      rendered++;
+    });
+    if (!rendered) {
+      const empty = document.createElement("span");
+      empty.className = "player-profile-trophy-empty";
+      empty.textContent = "No trophies yet";
+      playerProfileTrophies.appendChild(empty);
+    }
+  }
 
   function closePlayerProfile() {
     if (!playerProfileModal) return;
     playerProfileRequestSerial++;
     playerProfileModal.hidden = true;
+    playerProfileCurrentUsername = "";
+    playerProfileCurrentBio = "";
+    if (playerProfileBioForm) playerProfileBioForm.hidden = true;
   }
 
   async function openPlayerProfile(username) {
@@ -3866,16 +3968,19 @@ window.BOXXY_RELEASE = Object.freeze({
     const name = String(username || "").trim();
     if (!name) return;
     const requestId = ++playerProfileRequestSerial;
+    playerProfileCurrentUsername = name;
     playerProfileUsername.textContent = name;
-    if (playerProfileBio) { playerProfileBio.textContent = ""; playerProfileBio.hidden = true; }
-    for (const element of [playerProfileLevels, playerProfileDailys, playerProfileTrophies, playerProfileMoves, playerProfilePushes]) {
+    renderPlayerProfileBio("", name);
+    renderPlayerProfileStreak(0);
+    renderPlayerProfileTrophies([]);
+    for (const element of [playerProfileLevels, playerProfileDailys, playerProfileMoves, playerProfilePushes]) {
       if (element) element.textContent = "—";
     }
     if (playerProfileAvatar) {
       const context = playerProfileAvatar.getContext?.("2d");
       context?.clearRect(0, 0, playerProfileAvatar.width, playerProfileAvatar.height);
     }
-    if (playerProfileStatus) playerProfileStatus.textContent = "LOADING PLAYER PROFILE…";
+    setPlayerProfileStatus("LOADING PLAYER PROFILE…");
     playerProfileModal.hidden = false;
     requestAnimationFrame(() => playerProfileCloseBtn?.focus?.({ preventScroll:true }));
     try {
@@ -3886,22 +3991,73 @@ window.BOXXY_RELEASE = Object.freeze({
       if (requestId !== playerProfileRequestSerial || playerProfileModal.hidden) return;
       if (!response.ok || !data?.profile) throw new Error(data?.error || "Player profile unavailable.");
       const profile = data.profile;
-      playerProfileUsername.textContent = String(profile.username || name);
-      const bio = String(profile.bio || "").trim();
-      if (playerProfileBio) { playerProfileBio.textContent = bio; playerProfileBio.hidden = !bio; }
+      const resolvedUsername = String(profile.username || name);
+      playerProfileCurrentUsername = resolvedUsername;
+      playerProfileUsername.textContent = resolvedUsername;
+      renderPlayerProfileBio(String(profile.bio || ""), resolvedUsername);
+      renderPlayerProfileStreak(profile.dailyStreak);
+      renderPlayerProfileTrophies(profile.completedPackIds);
       if (playerProfileLevels) playerProfileLevels.textContent = Math.max(0, Math.trunc(Number(profile.levelsCompleted) || 0)).toLocaleString("en-GB");
       if (playerProfileDailys) playerProfileDailys.textContent = Math.max(0, Math.trunc(Number(profile.dailyCompleted) || 0)).toLocaleString("en-GB");
-      if (playerProfileTrophies) playerProfileTrophies.textContent = Math.max(0, Math.trunc(Number(profile.trophies) || 0)).toLocaleString("en-GB");
       if (playerProfileMoves) playerProfileMoves.textContent = Math.max(0, Math.trunc(Number(profile.totalMoves) || 0)).toLocaleString("en-GB");
       if (playerProfilePushes) playerProfilePushes.textContent = Math.max(0, Math.trunc(Number(profile.totalPushes) || 0)).toLocaleString("en-GB");
-      if (playerProfileStatus) playerProfileStatus.textContent = "";
+      setPlayerProfileStatus("");
       if (playerProfileAvatar && profile.avatar) {
-        Promise.resolve(window.CharacterStyler?.drawStylePreview?.(playerProfileAvatar, profile.avatar, "player-front", 180))
+        Promise.resolve(window.CharacterStyler?.drawStylePreview?.(playerProfileAvatar, profile.avatar, "player-front", 300))
           .catch(() => {});
       }
     } catch (error) {
       if (requestId !== playerProfileRequestSerial || playerProfileModal.hidden) return;
-      if (playerProfileStatus) playerProfileStatus.textContent = String(error?.message || "Player profile unavailable.").toUpperCase();
+      setPlayerProfileStatus(String(error?.message || "Player profile unavailable.").toUpperCase(), "error");
+    }
+  }
+
+  function openPlayerProfileBioEditor() {
+    if (!playerProfileBioForm || !playerProfileBioInput || !playerCanEditProfileBio(playerProfileCurrentUsername)) return;
+    playerProfileBioInput.value = playerProfileCurrentBio;
+    playerProfileBioForm.hidden = false;
+    if (playerProfileBio) playerProfileBio.hidden = true;
+    if (playerProfileBioEditBtn) playerProfileBioEditBtn.hidden = true;
+    updatePlayerProfileBioCount();
+    requestAnimationFrame(() => playerProfileBioInput.focus({ preventScroll:true }));
+  }
+
+  function cancelPlayerProfileBioEditor() {
+    if (playerProfileBioForm) playerProfileBioForm.hidden = true;
+    renderPlayerProfileBio(playerProfileCurrentBio, playerProfileCurrentUsername);
+    setPlayerProfileStatus("");
+  }
+
+  async function savePlayerProfileBio(event) {
+    event?.preventDefault?.();
+    if (playerProfileBioSaving || !playerProfileBioInput || !playerCanEditProfileBio(playerProfileCurrentUsername)) return;
+    const bio = playerProfileBioInput.value.trim();
+    if (profileBioGraphemeLength(bio) > 50) {
+      setPlayerProfileStatus("PUBLIC COMMENT MUST BE 50 CHARACTERS OR FEWER", "error");
+      return;
+    }
+    playerProfileBioSaving = true;
+    updatePlayerProfileBioCount();
+    setPlayerProfileStatus("SAVING PUBLIC COMMENT…");
+    try {
+      const response = await fetch("/api/account", {
+        method:"POST",
+        credentials:"same-origin",
+        cache:"no-store",
+        headers:{ "content-type":"application/json", Accept:"application/json" },
+        body:JSON.stringify({ action:"public_bio", bio })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data?.error || "Public comment could not be saved.");
+      playerProfileCurrentBio = String(data.bio || "");
+      renderPlayerProfileBio(playerProfileCurrentBio, playerProfileCurrentUsername);
+      window.dispatchEvent(new CustomEvent("boxxypublicbiochanged", { detail:{ bio:playerProfileCurrentBio } }));
+      setPlayerProfileStatus("PUBLIC COMMENT SAVED", "success");
+    } catch (error) {
+      setPlayerProfileStatus(String(error?.message || "Public comment could not be saved.").toUpperCase(), "error");
+    } finally {
+      playerProfileBioSaving = false;
+      updatePlayerProfileBioCount();
     }
   }
 
@@ -10215,6 +10371,10 @@ window.BOXXY_RELEASE = Object.freeze({
   dailyLeaderboardCloseBtn?.addEventListener("click", closeDailyLeaderboard);
   playerProfileCloseBtn?.addEventListener("click", closePlayerProfile);
   playerProfileModal?.addEventListener("click", event => { if (event.target === playerProfileModal) closePlayerProfile(); });
+  playerProfileBioEditBtn?.addEventListener("click", openPlayerProfileBioEditor);
+  playerProfileBioCancelBtn?.addEventListener("click", cancelPlayerProfileBioEditor);
+  playerProfileBioInput?.addEventListener("input", updatePlayerProfileBioCount);
+  playerProfileBioForm?.addEventListener("submit", savePlayerProfileBio);
   dailyLeaderboardShareBtn?.addEventListener("click", () => {
     if (!dailyLeaderboardActivePuzzle) return;
     const result = dailyCompletion(dailyLeaderboardActivePuzzle.date);

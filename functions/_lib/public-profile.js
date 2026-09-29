@@ -17,7 +17,7 @@ const RANDOM_COLOURS = Object.freeze({
   skin: ["#f3cfb2","#f0b88f","#ee9a60","#d89b69","#cf7d45","#bb7045","#a65f37","#8e5033","#76422b","#633827","#4c2e24","#39231f","#e1b735","#e9d45a","#4277ad","#6ca5cb","#4c8a61","#79ad83"],
   shoes: ["#292829","#444246","#eee8df","#aaa08f","#c8382d","#d96855","#c86a2d","#d6a126","#304f81","#668fb7","#3f6a50","#78a98e","#684737","#9b7656","#65353b","#685177","#ba657f","#d9ccb5"]
 });
-const AVATAR_BODY_TYPE_LIST = Object.freeze([...AVATAR_BODY_TYPES]);
+const AVATAR_BODY_TYPE_LIST = Object.freeze(["boy", "girl"]);
 const PROFILE_BIO_MAX_GRAPHEMES = 50;
 
 function randomItem(values) {
@@ -59,12 +59,54 @@ export function avatarFromProgress(progressValue) {
   return cleanPublicAvatarStyle(progress["push-bauhaus-character-style-v51"]);
 }
 
+const PUBLIC_PACK_LEVEL_COUNTS = Object.freeze({
+  "boxxy-original-puzzle-pack-of-50-levels": 50,
+  microban: 50,
+  jigsaw: 25,
+  exponentially: 11,
+  "alphabet-soup": 27,
+  "starry-night": 25
+});
+
+function parsedProgressValue(value, fallback) {
+  try {
+    const parsed = typeof value === "string" ? JSON.parse(value) : value;
+    return parsed ?? fallback;
+  } catch (_) {
+    return fallback;
+  }
+}
+
+function completedPublicPackIds(progress) {
+  const catalog = parsedProgressValue(progress["boxxy-pack-catalog-v1"], {});
+  const completed = [];
+  for (const [packId, fallbackLevelCount] of Object.entries(PUBLIC_PACK_LEVEL_COUNTS)) {
+    const catalogLevelCount = Math.max(0, Math.trunc(Number(catalog?.[packId]?.levels) || 0));
+    const levelCount = catalogLevelCount || fallbackLevelCount;
+    let indexes = parsedProgressValue(progress[`boxxy-pack-${packId}-completed-v1`], []);
+    if ((!Array.isArray(indexes) || !indexes.length) && packId === "microban") {
+      indexes = parsedProgressValue(progress["boxxy-completed-levels-v1"], []);
+    }
+    const completedIndexes = Array.isArray(indexes)
+      ? new Set(indexes.map(Number).filter(Number.isInteger))
+      : new Set();
+    const firstCompletion = parsedProgressValue(progress[`boxxy-pack-${packId}-first-completion-v1`], null);
+    const hasCompletionMarker = Boolean(firstCompletion && typeof firstCompletion === "object" && Number(firstCompletion.completedAt) > 0);
+    const finalLevelCompleted = levelCount > 0 && completedIndexes.has(levelCount - 1);
+    if (hasCompletionMarker || finalLevelCompleted) completed.push(packId);
+  }
+  return completed;
+}
+
 export function publicStatsFromProgress(progressValue) {
-  const summary = progressSummary(progressValue);
+  const progress = parseProgress(progressValue);
+  const summary = progressSummary(progress);
+  const completedPackIds = completedPublicPackIds(progress);
   return {
     levelsCompleted: Math.max(0, Math.trunc(Number(summary.levelsCompleted) || 0) - Math.max(0, Math.trunc(Number(summary.dailyCompleted) || 0))),
     dailyCompleted: Math.max(0, Math.trunc(Number(summary.dailyCompleted) || 0)),
-    trophies: Math.max(0, Math.trunc(Number(summary.packsCompleted) || 0)) + (Number(summary.dailyStreak) > 0 ? 1 : 0),
+    trophies: completedPackIds.length,
+    completedPackIds,
     totalMoves: Math.max(0, Math.trunc(Number(summary.totalSteps) || 0)),
     totalPushes: Math.max(0, Math.trunc(Number(summary.totalPushes) || 0)),
     dailyStreak: Math.max(0, Math.trunc(Number(summary.dailyStreak) || 0))

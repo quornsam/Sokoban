@@ -86,7 +86,8 @@ export async function onRequestGet(context) {
             avatar:cleanPublicAvatarStyle(synthetic.avatar_json, { allowEmpty:true }),
             levelsCompleted:0,
             dailyCompleted,
-            trophies:dailyStreak > 0 ? 1 : 0,
+            trophies:0,
+            completedPackIds:[],
             totalMoves,
             totalPushes,
             dailyStreak
