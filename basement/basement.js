@@ -1,3 +1,4 @@
+/* BOXXY v401 — Basement recognises the expanded twelve-character PARTYGOERS roster. */
 /* BOXXY v400 — Basement recognises PARTYGOERS avatars and includes fixed-character artwork in private practice. */
 /* BOXXY v375 — varied, verified synthetic move counts and update-in-place for previous scores. */
 /* BOXXY v374 — Basement Daily seeding and leaderboard score administration. */
@@ -213,7 +214,8 @@
   const AVATAR_CATEGORIES = Object.freeze(["tshirt", "trousers", "hair", "skin", "shoes"]);
   const FIXED_AVATAR_CHARACTERS = Object.freeze({
     lincoln:"LINCOLN", beverley:"BEVERLEY", harry:"HARRY", stuart:"STUART", davido:"DAVIDO", samantha:"SAMANTHA",
-    optimus:"OPTIMUS", pixella:"PIXELLA", bolderdash:"BOLDERDASH", sputnik:"SPUTNIK", vasquez:"VASQUEZ"
+    optimus:"OPTIMUS", pixella:"PIXELLA", bolderdash:"BOLDERDASH", sputnik:"SPUTNIK", vasquez:"VASQUEZ",
+    bacterium:"BACTERIUM", clara:"CLARA", jamil:"JAMIL", clickers:"CLICKERS", bertrand:"BERTRAND", angie:"ANGIE", "the-haining":"THE HAINING"
   });
   const BOARD_STYLE_SWATCHES = Object.freeze({
     red:{label:"Red",hex:"#ec2826"}, blue:{label:"Blue",hex:"#1553ca"}, green:{label:"Green",hex:"#328545"},

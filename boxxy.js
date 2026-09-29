@@ -6,9 +6,10 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "400",
-  lastUpdated: "2026-09-28"
+  version: "401",
+  lastUpdated: "2026-09-29"
 });
+/* BOXXY v401: PARTYGOERS expands to twelve characters, its Easter egg toggles visibility, and Attire character previews are centred/clickable. */
 /* BOXXY v400: Attire adds the hidden PARTYGOERS family, visual character grids, and an in-modal Spooky Music control. */
 /* BOXXY v399: spooky music autostarts once per browser profile; Samantha artwork and the soundtrack format are corrected. */
 /* BOXXY v398: Attire adds the SPOOKY character family, its soundtrack, and one-time spooky board defaults. */
@@ -603,7 +604,10 @@ window.BOXXY_RELEASE = Object.freeze({
   ];
   const CATEGORIES = ["tshirt", "trousers", "hair", "skin", "shoes"];
   const SPOOKY_BODY_TYPES = Object.freeze(["lincoln", "beverley", "harry", "stuart", "davido", "samantha"]);
-  const PARTYGOER_BODY_TYPES = Object.freeze(["optimus", "pixella", "bolderdash", "sputnik", "vasquez"]);
+  const PARTYGOER_BODY_TYPES = Object.freeze([
+    "optimus", "pixella", "bolderdash", "sputnik", "vasquez",
+    "bacterium", "clara", "jamil", "clickers", "bertrand", "angie", "the-haining"
+  ]);
   const BODY_TYPES = ["boy", "girl", ...SPOOKY_BODY_TYPES, ...PARTYGOER_BODY_TYPES];
   const FIXED_BODY_TYPES = new Set([...SPOOKY_BODY_TYPES, ...PARTYGOER_BODY_TYPES]);
   const SPOOKY_CHARACTER_LABELS = Object.freeze({
@@ -619,7 +623,14 @@ window.BOXXY_RELEASE = Object.freeze({
     pixella: "PIXELLA",
     bolderdash: "BOLDERDASH",
     sputnik: "SPUTNIK",
-    vasquez: "VASQUEZ"
+    vasquez: "VASQUEZ",
+    bacterium: "BACTERIUM",
+    clara: "CLARA",
+    jamil: "JAMIL",
+    clickers: "CLICKERS",
+    bertrand: "BERTRAND",
+    angie: "ANGIE",
+    "the-haining": "THE HAINING"
   });
   const SPOOKY_STORAGE_KEY = "boxxy-spooky-character-v1";
   const PARTYGOER_STORAGE_KEY = "boxxy-partygoer-character-v1";
@@ -1017,18 +1028,25 @@ window.BOXXY_RELEASE = Object.freeze({
   let spookyUnlockClicks = 0;
   let spookyUnlockArmed = false;
 
-  function revealPartygoers() {
-    if (partygoersUnlocked) return;
-    partygoersUnlocked = true;
+  function setPartygoersUnlocked(nextUnlocked) {
+    partygoersUnlocked = Boolean(nextUnlocked);
+    spookyUnlockClicks = 0;
     spookyUnlockArmed = false;
-    try { localStorage.setItem(PARTYGOERS_UNLOCK_KEY, "1"); } catch (_) {}
+    try {
+      if (partygoersUnlocked) localStorage.setItem(PARTYGOERS_UNLOCK_KEY, "1");
+      else localStorage.removeItem(PARTYGOERS_UNLOCK_KEY);
+    } catch (_) {}
     const button = document.getElementById("stylePartygoersFamilyBtn");
-    if (button) button.hidden = false;
-    styleControls?.querySelector(".style-family-choices")?.classList.add("has-partygoers");
+    if (button) button.hidden = !partygoersUnlocked;
+    styleControls?.querySelector(".style-family-choices")?.classList.toggle("has-partygoers", partygoersUnlocked);
+    updateSelectedSwatches();
+  }
+
+  function togglePartygoers() {
+    setPartygoersUnlocked(!partygoersUnlocked);
   }
 
   function noteSpookyUnlockClick() {
-    if (partygoersUnlocked) return;
     spookyUnlockClicks += 1;
     if (spookyUnlockClicks >= 5) spookyUnlockArmed = true;
   }
@@ -1045,10 +1063,12 @@ window.BOXXY_RELEASE = Object.freeze({
         const card = document.createElement("div");
         card.className = "style-character-choice";
 
-        const thumb = document.createElement("div");
+        const thumb = document.createElement("button");
+        thumb.type = "button";
         thumb.className = "style-character-thumb";
-        thumb.setAttribute("aria-hidden", "true");
         thumb.style.backgroundImage = `url("${CHARACTER_ASSET_ROOT}/${value}/base.png")`;
+        thumb.setAttribute("aria-label", `${familyName} character: ${label}`);
+        thumb.addEventListener("click", () => set("bodyType", value));
 
         const button = document.createElement("button");
         button.type = "button";
@@ -1200,7 +1220,7 @@ window.BOXXY_RELEASE = Object.freeze({
         return;
       }
       if (category === "partygoers") {
-        group.hidden = !partySelected;
+        group.hidden = !partygoersUnlocked || !partySelected;
         return;
       }
       group.hidden = fixedCharacter;
@@ -1234,9 +1254,9 @@ window.BOXXY_RELEASE = Object.freeze({
   });
   document.addEventListener("keydown", event => {
     if (styleModal?.hidden) return;
-    if (!partygoersUnlocked && spookyUnlockArmed && String(event.key || "").toLowerCase() === "k") {
+    if (spookyUnlockArmed && String(event.key || "").toLowerCase() === "k") {
       event.preventDefault();
-      revealPartygoers();
+      togglePartygoers();
       return;
     }
     if (event.key === "Escape") {
