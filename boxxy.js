@@ -1,4 +1,4 @@
-/* BOXXY v414: public profile location selector, mobile identity divider/streak placement and upright emoji in italic bios. */
+/* BOXXY v415: profile location sits under the name with a country flag; bio follows with clearer spacing. */
 /* BOXXY v413: mobile Player Profile identity layout uses full width and keeps long usernames on one fitted line. */
 /* BOXXY v412: Daily leaderboards cache per session, refresh manually, page 30 at a time and update the signed-in player locally after sync. */
 /* BOXXY v411: Character Style name typography restored without altering v410 selector behaviour. */
@@ -16,7 +16,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "414",
+  version: "415",
   lastUpdated: "2026-09-29"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
@@ -4182,7 +4182,7 @@ window.BOXXY_RELEASE = Object.freeze({
   async function loadPlayerProfileLocations() {
     if (playerProfileLocationsData) return playerProfileLocationsData;
     if (!playerProfileLocationsPromise) {
-      playerProfileLocationsPromise = fetch("/assets/data/profile-locations-v1.json?v=414", {
+      playerProfileLocationsPromise = fetch("/assets/data/profile-locations-v1.json?v=415", {
         method:"GET", credentials:"same-origin", cache:"force-cache", headers:{ Accept:"application/json" }
       }).then(async response => {
         if (!response.ok) throw new Error("Location list unavailable.");
@@ -4227,12 +4227,34 @@ window.BOXXY_RELEASE = Object.freeze({
     return region?.name ? `${region.name}, ${country.name}` : String(country.name || "");
   }
 
+  function playerProfileCountryFlag(countryCode) {
+    const code = String(countryCode || "").trim().toUpperCase();
+    if (!/^[A-Z]{2}$/.test(code)) return "";
+    return String.fromCodePoint(...[...code].map(char => 0x1F1E6 + char.charCodeAt(0) - 65));
+  }
+
   function configurePlayerProfileLocationButton(editable, hasLocation, label = "") {
     if (!playerProfileLocation || !playerProfileLocationRow) return;
     const emptyEditable = editable && !hasLocation;
     playerProfileLocationRow.hidden = !hasLocation && !editable;
     playerProfileLocation.hidden = !hasLocation && !editable;
-    playerProfileLocation.textContent = hasLocation ? label : (emptyEditable ? "Add location…" : "");
+    if (hasLocation) {
+      const flag = playerProfileCountryFlag(playerProfileCurrentLocation.countryCode);
+      const parts = [];
+      if (flag) {
+        const flagSpan = document.createElement("span");
+        flagSpan.className = "player-profile-location-flag";
+        flagSpan.setAttribute("aria-hidden", "true");
+        flagSpan.textContent = flag;
+        parts.push(flagSpan);
+      }
+      const textSpan = document.createElement("span");
+      textSpan.textContent = label;
+      parts.push(textSpan);
+      playerProfileLocation.replaceChildren(...parts);
+    } else {
+      playerProfileLocation.textContent = emptyEditable ? "Add location…" : "";
+    }
     playerProfileLocation.classList.toggle("is-placeholder", emptyEditable);
     playerProfileLocation.classList.toggle("is-editable", editable);
     playerProfileLocation.disabled = !editable;

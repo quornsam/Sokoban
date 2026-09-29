@@ -7893,9 +7893,9 @@ html.touch-ui .dpad button {
 .player-profile-avatar-stage{width:166px;height:166px;border-radius:50%;background:var(--yellow);display:grid;place-items:center;overflow:hidden;justify-self:center;align-self:start;box-shadow:inset 0 0 0 2px rgba(0,0,0,.1)}
 .player-profile-hero canvas{display:block;width:100%;height:100%;max-width:100%;transform:none;image-rendering:auto}
 .player-profile-copy{min-width:0;align-self:start}
-.player-profile-name-row{display:flex;align-items:center;gap:10px;min-width:0}
+.player-profile-name-row{display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:nowrap}
 .player-profile-copy h2{min-width:0;margin:0;font-size:clamp(27px,5vw,38px);line-height:.94;letter-spacing:-.045em;overflow-wrap:anywhere}
-.player-profile-bio-row{display:grid;grid-template-columns:minmax(0,1fr);align-items:center;gap:5px;margin-top:11px;min-height:40px;position:relative}
+.player-profile-bio-row{display:grid;grid-template-columns:minmax(0,1fr);align-items:center;gap:5px;margin-top:15px;min-height:40px;position:relative}
 .player-profile-bio{width:fit-content;max-width:100%;min-width:0;margin:0;font-size:14px;line-height:1.38;font-weight:800;font-style:italic;color:#4d4842;overflow-wrap:anywhere}
 .player-profile-bio-emoji{font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;font-style:normal;font-weight:400}
 .player-profile-bio.is-placeholder{color:#8a8177;font-weight:750}
@@ -7914,9 +7914,10 @@ html.touch-ui .dpad button {
 .player-profile-bio-form-actions button{border:1px solid var(--ink);border-radius:7px;background:#ece4d7;color:var(--ink);padding:6px;font:1000 7px/1 inherit;letter-spacing:.05em;cursor:pointer}
 .player-profile-bio-form-actions button[type="submit"]{background:var(--yellow)}
 .player-profile-bio-form-actions button:disabled{opacity:.45;cursor:default}
-.player-profile-location-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:5px;margin-top:7px;min-height:24px;position:relative}
+.player-profile-location-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:5px;margin-top:6px;min-height:24px;position:relative}
 .player-profile-location-row[hidden]{display:none}
-.player-profile-location{justify-self:start;max-width:100%;margin:0;padding:1px 0;border:0!important;background:transparent!important;box-shadow:none!important;color:#655e56;font-family:inherit;font-size:10px;font-weight:850;line-height:1.25;text-align:left;cursor:default}
+.player-profile-location{justify-self:start;max-width:100%;margin:0;padding:1px 0;border:0!important;background:transparent!important;box-shadow:none!important;color:#655e56;font-family:inherit;font-size:10px;font-weight:850;line-height:1.25;text-align:left;cursor:default;display:inline-flex;align-items:center;gap:5px}
+.player-profile-location-flag{font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;font-size:1.18em;font-weight:400;line-height:1;flex:none}
 .player-profile-location.is-placeholder{color:#8a8177}
 .player-profile-location.is-editable{cursor:pointer}
 .player-profile-location:disabled{opacity:1;-webkit-text-fill-color:currentColor}
@@ -7933,7 +7934,7 @@ html.touch-ui .dpad button {
 .player-profile-location-form-actions button{border:1px solid var(--ink);border-radius:7px;background:#ece4d7;color:var(--ink);padding:6px 8px;font:1000 7px/1 inherit;letter-spacing:.05em;cursor:pointer}
 .player-profile-location-form-actions button[type="submit"]{background:var(--yellow)}
 .player-profile-location-form-actions button:disabled{opacity:.45;cursor:default}
-.player-profile-streak{position:relative;flex:none;--profile-streak-size:50px;width:calc(var(--profile-streak-size) * 163 / 208);height:var(--profile-streak-size);filter:drop-shadow(2px 2px 0 rgba(23,23,25,.24))}
+.player-profile-streak{position:relative;flex:none;align-self:center;--profile-streak-size:50px;width:calc(var(--profile-streak-size) * 163 / 208);height:var(--profile-streak-size);filter:drop-shadow(2px 2px 0 rgba(23,23,25,.24))}
 .player-profile-streak-flame{position:absolute;inset:0;background-position:center;background-repeat:no-repeat;background-size:100% 100%}
 .player-profile-streak-number{position:absolute;z-index:1;left:50%;top:67%;transform:translate(-50%,-50%);color:#fff;font-family:"Arial Black",Arial,sans-serif;font-weight:1000;line-height:1;letter-spacing:-.06em;text-align:center;text-shadow:-1px 0 0 rgba(10,17,20,.82),1px 0 0 rgba(10,17,20,.82),0 -1px 0 rgba(10,17,20,.82),0 1px 0 rgba(10,17,20,.82)}
 .player-profile-streak[data-digits="1"] .player-profile-streak-number{font-size:calc(var(--profile-streak-size) * .36)}
@@ -7980,17 +7981,17 @@ html.touch-ui .dpad button {
   .player-profile-avatar-stage{width:108px;height:108px}
   .player-profile-hero canvas{width:100%;height:100%;transform:none}
   .player-profile-copy{width:100%;min-width:0;padding:10px 2px 0;border-top:1px solid rgba(23,23,25,.22)}
-  .player-profile-name-row{width:100%;justify-content:flex-start;gap:8px}
+  .player-profile-name-row{width:100%;justify-content:flex-start;align-items:center;gap:6px}
   .player-profile-copy h2{font-size:clamp(18px,6vw,24px);line-height:1;letter-spacing:-.035em;white-space:nowrap;overflow-wrap:normal;word-break:normal}
-  .player-profile-streak{--profile-streak-size:38px}
-  .player-profile-bio-row{margin-top:8px}
+  .player-profile-streak{--profile-streak-size:31px}
+  .player-profile-bio-row{margin-top:13px}
   .player-profile-bio{font-size:12.5px}
   .player-profile-bio-form{grid-template-columns:minmax(0,1fr) auto;gap:4px}
   .player-profile-bio-form input{padding:6px 7px;font-size:11px}
   .player-profile-bio-form-actions{gap:3px}
   .player-profile-bio-form-actions span{font-size:6.5px}
   .player-profile-bio-form-actions button{padding:5px;font-size:6.5px}
-  .player-profile-location-row{margin-top:6px}
+  .player-profile-location-row{margin-top:5px}
   .player-profile-location{font-size:9.5px}
   .player-profile-location-form{grid-template-columns:1fr;gap:6px}
   .player-profile-location-form-actions{grid-column:1}
@@ -8009,7 +8010,7 @@ html.touch-ui .dpad button {
   .player-profile-hero canvas{width:100%;height:100%;transform:none}
   .player-profile-copy h2{font-size:clamp(17px,5.8vw,21px)}
   .player-profile-name-row{align-items:center}
-  .player-profile-streak{--profile-streak-size:34px}
+  .player-profile-streak{--profile-streak-size:31px}
   .player-profile-bio-form-actions span{display:none}
   .player-profile-stats{grid-template-columns:1fr 1fr;gap:7px;padding:9px}
   .player-profile-stat{padding:9px;min-height:70px}

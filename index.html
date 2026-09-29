@@ -159,7 +159,7 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=414">
+<link rel="stylesheet" href="styles.css?v=415">
 <link rel="stylesheet" href="how-to-play.css?v=225">
 <link rel="preload" as="image" href="assets/board/boxes/box-default-yellow.png?v=226">
 <link rel="preload" as="image" href="assets/board/goals/goal-red.png?v=226">
@@ -771,19 +771,6 @@
             <span id="playerProfileStreakNumber" class="player-profile-streak-number" aria-hidden="true">0</span>
           </div>
         </div>
-        <div class="player-profile-bio-row">
-          <p id="playerProfileBio" class="player-profile-bio" hidden></p>
-          <button id="playerProfileBioEditBtn" class="player-profile-bio-edit" type="button" hidden>EDIT</button>
-          <form id="playerProfileBioForm" class="player-profile-bio-form" hidden>
-            <label for="playerProfileBioInput">PUBLIC COMMENT</label>
-            <input id="playerProfileBioInput" type="text" autocomplete="off" inputmode="text" aria-describedby="playerProfileBioCount" />
-            <div class="player-profile-bio-form-actions">
-              <span id="playerProfileBioCount">0 / 50</span>
-              <button id="playerProfileBioCancelBtn" type="button">CANCEL</button>
-              <button type="submit">SAVE</button>
-            </div>
-          </form>
-        </div>
         <div id="playerProfileLocationRow" class="player-profile-location-row" hidden>
           <button id="playerProfileLocation" class="player-profile-location" type="button" hidden></button>
           <button id="playerProfileLocationEditBtn" class="player-profile-location-edit" type="button" hidden>EDIT</button>
@@ -802,6 +789,19 @@
             </label>
             <div class="player-profile-location-form-actions">
               <button id="playerProfileLocationCancelBtn" type="button">CANCEL</button>
+              <button type="submit">SAVE</button>
+            </div>
+          </form>
+        </div>
+        <div class="player-profile-bio-row">
+          <p id="playerProfileBio" class="player-profile-bio" hidden></p>
+          <button id="playerProfileBioEditBtn" class="player-profile-bio-edit" type="button" hidden>EDIT</button>
+          <form id="playerProfileBioForm" class="player-profile-bio-form" hidden>
+            <label for="playerProfileBioInput">PUBLIC COMMENT</label>
+            <input id="playerProfileBioInput" type="text" autocomplete="off" inputmode="text" aria-describedby="playerProfileBioCount" />
+            <div class="player-profile-bio-form-actions">
+              <span id="playerProfileBioCount">0 / 50</span>
+              <button id="playerProfileBioCancelBtn" type="button">CANCEL</button>
               <button type="submit">SAVE</button>
             </div>
           </form>
@@ -1525,7 +1525,7 @@
 <script src="daily-puzzles/boxxy-daily-loader.js?v=357"></script>
 <script src="levels.js?v=372"></script>
 <script src="starry-night.js?v=302"></script>
-<script src="boxxy.js?v=414"></script>
+<script src="boxxy.js?v=415"></script>
 <script src="attempt-history.js?v=394"></script>
 <script src="attempt-history-ui.js?v=395"></script>
 <script src="account.js?v=404"></script>
