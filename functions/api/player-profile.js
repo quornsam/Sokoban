@@ -6,7 +6,8 @@ import {
   ensurePublicProfileSchema,
   ensureSyntheticAvatarColumn,
   publicStatsFromProgress,
-  readPublicBio
+  readPublicBio,
+  readPublicLocation
 } from "../_lib/public-profile.js";
 
 function cleanUsername(value) {
@@ -46,11 +47,16 @@ export async function onRequestGet(context) {
     `).bind(username).first();
 
     if (real) {
+      const [bio, location] = await Promise.all([
+        readPublicBio(db, real.id),
+        readPublicLocation(db, real.id)
+      ]);
       return json({
         ok:true,
         profile:{
           username:String(real.username),
-          bio:await readPublicBio(db, real.id),
+          bio,
+          location,
           avatar:avatarFromProgress(real.progress_json),
           ...publicStatsFromProgress(real.progress_json)
         }
@@ -83,6 +89,7 @@ export async function onRequestGet(context) {
           profile:{
             username:String(synthetic.username),
             bio:"",
+            location:{ countryCode:"", regionCode:"" },
             avatar:cleanPublicAvatarStyle(synthetic.avatar_json, { allowEmpty:true }),
             levelsCompleted:0,
             dailyCompleted,

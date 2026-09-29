@@ -1,3 +1,4 @@
+/* BOXXY v414: cache profile location data and refreshed Player Profile assets. */
 /* BOXXY v413: mobile Player Profile identity layout and refreshed app cache. */
 /* BOXXY v412: cached/paged Daily leaderboard controls and refreshed app cache. */
 /* BOXXY v411: Character Style typography correction and refreshed main app cache. */
@@ -25,7 +26,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "413";
+const RELEASE_VERSION = "414";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [
@@ -41,6 +42,7 @@ const ASSETS = [
   "/assets/audio/cracked-ivory-drift.mp3",
   "/assets/audio/Dark-Quiet-Death-280KB.mp3",
   "/assets/audio/tetris-piano.m4a",
+  "/assets/data/profile-locations-v1.json",
   "/assets/board/board-atlas.png",
   "/assets/board/boxes/box-black.png",
   "/assets/board/boxes/box-blue.png",

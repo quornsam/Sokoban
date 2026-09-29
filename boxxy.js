@@ -1,3 +1,4 @@
+/* BOXXY v414: public profile location selector, mobile identity divider/streak placement and upright emoji in italic bios. */
 /* BOXXY v413: mobile Player Profile identity layout uses full width and keeps long usernames on one fitted line. */
 /* BOXXY v412: Daily leaderboards cache per session, refresh manually, page 30 at a time and update the signed-in player locally after sync. */
 /* BOXXY v411: Character Style name typography restored without altering v410 selector behaviour. */
@@ -15,7 +16,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "413",
+  version: "414",
   lastUpdated: "2026-09-29"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
@@ -2791,6 +2792,13 @@ window.BOXXY_RELEASE = Object.freeze({
   const playerProfileBioInput = document.getElementById("playerProfileBioInput");
   const playerProfileBioCount = document.getElementById("playerProfileBioCount");
   const playerProfileBioCancelBtn = document.getElementById("playerProfileBioCancelBtn");
+  const playerProfileLocationRow = document.getElementById("playerProfileLocationRow");
+  const playerProfileLocation = document.getElementById("playerProfileLocation");
+  const playerProfileLocationEditBtn = document.getElementById("playerProfileLocationEditBtn");
+  const playerProfileLocationForm = document.getElementById("playerProfileLocationForm");
+  const playerProfileCountry = document.getElementById("playerProfileCountry");
+  const playerProfileRegion = document.getElementById("playerProfileRegion");
+  const playerProfileLocationCancelBtn = document.getElementById("playerProfileLocationCancelBtn");
   const playerProfileLevels = document.getElementById("playerProfileLevels");
   const playerProfileDailys = document.getElementById("playerProfileDailys");
   const playerProfileTrophies = document.getElementById("playerProfileTrophies");
@@ -4058,6 +4066,10 @@ window.BOXXY_RELEASE = Object.freeze({
   let playerProfileCurrentUsername = "";
   let playerProfileCurrentBio = "";
   let playerProfileBioSaving = false;
+  let playerProfileCurrentLocation = { countryCode:"", regionCode:"" };
+  let playerProfileLocationSaving = false;
+  let playerProfileLocationsPromise = null;
+  let playerProfileLocationsData = null;
 
   function profileBioGraphemeLength(value) {
     const text = String(value || "");
@@ -4092,19 +4104,61 @@ window.BOXXY_RELEASE = Object.freeze({
     if (submit) submit.disabled = playerProfileBioSaving || count > 50;
   }
 
-  function playerCanEditProfileBio(username) {
+  function playerCanEditProfile(username) {
     const signedIn = currentSignedInUsername();
     return Boolean(signedIn && username && signedIn.toLowerCase() === String(username).toLowerCase());
   }
 
+  function playerCanEditProfileBio(username) {
+    return playerCanEditProfile(username);
+  }
+
+  function profileBioGraphemes(value) {
+    const text = String(value || "");
+    try {
+      if (typeof Intl?.Segmenter === "function") {
+        return [...new Intl.Segmenter(undefined, { granularity:"grapheme" }).segment(text)].map(item => item.segment);
+      }
+    } catch (_) {}
+    return Array.from(text);
+  }
+
+  function profileBioGraphemeIsEmoji(value) {
+    try {
+      return /\p{Extended_Pictographic}|\p{Emoji_Presentation}|\p{Regional_Indicator}/u.test(String(value || ""));
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function setPlayerProfileBioContent(bio, placeholder = "") {
+    if (!playerProfileBio) return;
+    if (!bio) {
+      playerProfileBio.textContent = placeholder;
+      return;
+    }
+    const fragment = document.createDocumentFragment();
+    fragment.append(document.createTextNode("“"));
+    for (const grapheme of profileBioGraphemes(bio)) {
+      if (profileBioGraphemeIsEmoji(grapheme)) {
+        const emoji = document.createElement("span");
+        emoji.className = "player-profile-bio-emoji";
+        emoji.textContent = grapheme;
+        fragment.append(emoji);
+      } else {
+        fragment.append(document.createTextNode(grapheme));
+      }
+    }
+    fragment.append(document.createTextNode("”"));
+    playerProfileBio.replaceChildren(fragment);
+  }
+
   function renderPlayerProfileBio(bio, username) {
     playerProfileCurrentBio = String(bio || "").trim();
-    const editable = playerCanEditProfileBio(username);
+    const editable = playerCanEditProfile(username);
     if (playerProfileBio) {
       const emptyEditable = editable && !playerProfileCurrentBio;
-      playerProfileBio.textContent = playerProfileCurrentBio
-        ? `“${playerProfileCurrentBio}”`
-        : (emptyEditable ? "Say something about yourself…" : "");
+      setPlayerProfileBioContent(playerProfileCurrentBio, emptyEditable ? "Say something about yourself…" : "");
       playerProfileBio.hidden = !playerProfileCurrentBio && !emptyEditable;
       playerProfileBio.classList.toggle("is-placeholder", emptyEditable);
       playerProfileBio.classList.toggle("is-editable", editable);
@@ -4123,6 +4177,190 @@ window.BOXXY_RELEASE = Object.freeze({
       playerProfileBioEditBtn.textContent = "EDIT";
     }
     if (playerProfileBioForm) playerProfileBioForm.hidden = true;
+  }
+
+  async function loadPlayerProfileLocations() {
+    if (playerProfileLocationsData) return playerProfileLocationsData;
+    if (!playerProfileLocationsPromise) {
+      playerProfileLocationsPromise = fetch("/assets/data/profile-locations-v1.json?v=414", {
+        method:"GET", credentials:"same-origin", cache:"force-cache", headers:{ Accept:"application/json" }
+      }).then(async response => {
+        if (!response.ok) throw new Error("Location list unavailable.");
+        const data = await response.json();
+        const countries = Array.isArray(data?.countries) ? data.countries : [];
+        const countryByCode = new Map();
+        const regionByCode = new Map();
+        for (const country of countries) {
+          const code = String(country?.code || "").toUpperCase();
+          if (!code) continue;
+          countryByCode.set(code, country);
+          for (const region of (Array.isArray(country?.regions) ? country.regions : [])) {
+            const regionCode = String(region?.code || "").toUpperCase();
+            if (regionCode) regionByCode.set(regionCode, region);
+          }
+        }
+        playerProfileLocationsData = { countries, countryByCode, regionByCode };
+        return playerProfileLocationsData;
+      }).catch(error => {
+        playerProfileLocationsPromise = null;
+        throw error;
+      });
+    }
+    return playerProfileLocationsPromise;
+  }
+
+  function normalisePlayerProfileLocation(value) {
+    const countryCode = String(value?.countryCode || "").trim().toUpperCase().slice(0, 2);
+    const regionCode = String(value?.regionCode || "").trim().toUpperCase().slice(0, 8);
+    return { countryCode, regionCode };
+  }
+
+  function samePlayerProfileLocation(a, b) {
+    return String(a?.countryCode || "") === String(b?.countryCode || "")
+      && String(a?.regionCode || "") === String(b?.regionCode || "");
+  }
+
+  function playerProfileLocationLabel(data, location) {
+    const country = data?.countryByCode?.get(location.countryCode);
+    if (!country) return "";
+    const region = location.regionCode ? data?.regionByCode?.get(location.regionCode) : null;
+    return region?.name ? `${region.name}, ${country.name}` : String(country.name || "");
+  }
+
+  function configurePlayerProfileLocationButton(editable, hasLocation, label = "") {
+    if (!playerProfileLocation || !playerProfileLocationRow) return;
+    const emptyEditable = editable && !hasLocation;
+    playerProfileLocationRow.hidden = !hasLocation && !editable;
+    playerProfileLocation.hidden = !hasLocation && !editable;
+    playerProfileLocation.textContent = hasLocation ? label : (emptyEditable ? "Add location…" : "");
+    playerProfileLocation.classList.toggle("is-placeholder", emptyEditable);
+    playerProfileLocation.classList.toggle("is-editable", editable);
+    playerProfileLocation.disabled = !editable;
+    if (editable) {
+      playerProfileLocation.setAttribute("aria-label", hasLocation ? "Edit public location" : "Add public location");
+    } else {
+      playerProfileLocation.removeAttribute("aria-label");
+    }
+    if (playerProfileLocationEditBtn) playerProfileLocationEditBtn.hidden = !editable || !hasLocation;
+  }
+
+  function renderPlayerProfileLocation(location, username) {
+    playerProfileCurrentLocation = normalisePlayerProfileLocation(location);
+    const expected = { ...playerProfileCurrentLocation };
+    const editable = playerCanEditProfile(username);
+    const hasLocation = Boolean(expected.countryCode);
+    if (playerProfileLocationForm) playerProfileLocationForm.hidden = true;
+    configurePlayerProfileLocationButton(editable, hasLocation, hasLocation ? "LOCATION" : "");
+    if (!hasLocation) return;
+    loadPlayerProfileLocations().then(data => {
+      if (!samePlayerProfileLocation(playerProfileCurrentLocation, expected)) return;
+      const label = playerProfileLocationLabel(data, expected);
+      if (label) configurePlayerProfileLocationButton(playerCanEditProfile(playerProfileCurrentUsername), true, label);
+      else if (!playerCanEditProfile(playerProfileCurrentUsername) && playerProfileLocationRow) playerProfileLocationRow.hidden = true;
+    }).catch(() => {
+      if (!playerCanEditProfile(playerProfileCurrentUsername) && playerProfileLocationRow) playerProfileLocationRow.hidden = true;
+    });
+  }
+
+  function populatePlayerProfileCountries(data, selectedCountry = "") {
+    if (!playerProfileCountry) return;
+    const fragment = document.createDocumentFragment();
+    const blank = document.createElement("option");
+    blank.value = "";
+    blank.textContent = "SELECT COUNTRY";
+    fragment.append(blank);
+    for (const country of data?.countries || []) {
+      const option = document.createElement("option");
+      option.value = String(country.code || "");
+      option.textContent = String(country.name || country.code || "");
+      fragment.append(option);
+    }
+    playerProfileCountry.replaceChildren(fragment);
+    playerProfileCountry.value = selectedCountry || "";
+  }
+
+  function populatePlayerProfileRegions(data, countryCode = "", selectedRegion = "") {
+    if (!playerProfileRegion) return;
+    const country = data?.countryByCode?.get(String(countryCode || "").toUpperCase());
+    const regions = Array.isArray(country?.regions) ? country.regions : [];
+    const fragment = document.createDocumentFragment();
+    const blank = document.createElement("option");
+    blank.value = "";
+    blank.textContent = regions.length ? "SELECT REGION" : "NO REGION LISTED";
+    fragment.append(blank);
+    for (const region of regions) {
+      const option = document.createElement("option");
+      option.value = String(region.code || "");
+      option.textContent = String(region.name || region.code || "");
+      fragment.append(option);
+    }
+    playerProfileRegion.replaceChildren(fragment);
+    playerProfileRegion.disabled = !countryCode || !regions.length;
+    playerProfileRegion.value = regions.some(region => String(region.code) === selectedRegion) ? selectedRegion : "";
+  }
+
+  async function openPlayerProfileLocationEditor() {
+    if (!playerProfileLocationForm || !playerCanEditProfile(playerProfileCurrentUsername)) return;
+    setPlayerProfileStatus("LOADING LOCATION LIST…");
+    try {
+      const data = await loadPlayerProfileLocations();
+      populatePlayerProfileCountries(data, playerProfileCurrentLocation.countryCode);
+      populatePlayerProfileRegions(data, playerProfileCurrentLocation.countryCode, playerProfileCurrentLocation.regionCode);
+      playerProfileLocationForm.hidden = false;
+      if (playerProfileLocation) playerProfileLocation.hidden = true;
+      if (playerProfileLocationEditBtn) playerProfileLocationEditBtn.hidden = true;
+      setPlayerProfileStatus("");
+      requestAnimationFrame(() => playerProfileCountry?.focus?.({ preventScroll:true }));
+    } catch (error) {
+      setPlayerProfileStatus(String(error?.message || "Location list unavailable.").toUpperCase(), "error");
+    }
+  }
+
+  function cancelPlayerProfileLocationEditor() {
+    if (playerProfileLocationForm) playerProfileLocationForm.hidden = true;
+    renderPlayerProfileLocation(playerProfileCurrentLocation, playerProfileCurrentUsername);
+    setPlayerProfileStatus("");
+  }
+
+  async function savePlayerProfileLocation(event) {
+    event?.preventDefault?.();
+    if (playerProfileLocationSaving || !playerCanEditProfile(playerProfileCurrentUsername) || !playerProfileCountry || !playerProfileRegion) return;
+    const data = await loadPlayerProfileLocations().catch(() => null);
+    if (!data) {
+      setPlayerProfileStatus("LOCATION LIST UNAVAILABLE", "error");
+      return;
+    }
+    const countryCode = String(playerProfileCountry.value || "").toUpperCase();
+    const country = data.countryByCode.get(countryCode);
+    const regions = Array.isArray(country?.regions) ? country.regions : [];
+    const regionCode = String(playerProfileRegion.value || "").toUpperCase();
+    if (countryCode && regions.length && !regionCode) {
+      setPlayerProfileStatus("CHOOSE A REGION, STATE OR PROVINCE", "error");
+      return;
+    }
+    playerProfileLocationSaving = true;
+    const submit = playerProfileLocationForm.querySelector('button[type="submit"]');
+    if (submit) submit.disabled = true;
+    setPlayerProfileStatus("SAVING LOCATION…");
+    try {
+      const response = await fetch("/api/account", {
+        method:"POST",
+        credentials:"same-origin",
+        cache:"no-store",
+        headers:{ "content-type":"application/json", Accept:"application/json" },
+        body:JSON.stringify({ action:"public_location", countryCode, regionCode })
+      });
+      const responseData = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(responseData?.error || "Location could not be saved.");
+      playerProfileCurrentLocation = normalisePlayerProfileLocation(responseData.location);
+      renderPlayerProfileLocation(playerProfileCurrentLocation, playerProfileCurrentUsername);
+      setPlayerProfileStatus(countryCode ? "LOCATION SAVED" : "LOCATION REMOVED", "success");
+    } catch (error) {
+      setPlayerProfileStatus(String(error?.message || "Location could not be saved.").toUpperCase(), "error");
+    } finally {
+      playerProfileLocationSaving = false;
+      if (submit) submit.disabled = false;
+    }
   }
 
   function fitPlayerProfileUsername() {
@@ -4210,7 +4448,9 @@ window.BOXXY_RELEASE = Object.freeze({
     playerProfileModal.hidden = true;
     playerProfileCurrentUsername = "";
     playerProfileCurrentBio = "";
+    playerProfileCurrentLocation = { countryCode:"", regionCode:"" };
     if (playerProfileBioForm) playerProfileBioForm.hidden = true;
+    if (playerProfileLocationForm) playerProfileLocationForm.hidden = true;
   }
 
   async function openPlayerProfile(username) {
@@ -4221,6 +4461,7 @@ window.BOXXY_RELEASE = Object.freeze({
     playerProfileCurrentUsername = name;
     playerProfileUsername.textContent = name;
     renderPlayerProfileBio("", name);
+    renderPlayerProfileLocation({}, name);
     renderPlayerProfileStreak(0);
     renderPlayerProfileTrophies([]);
     for (const element of [playerProfileLevels, playerProfileDailys, playerProfileMoves, playerProfilePushes]) {
@@ -4248,6 +4489,7 @@ window.BOXXY_RELEASE = Object.freeze({
       playerProfileCurrentUsername = resolvedUsername;
       playerProfileUsername.textContent = resolvedUsername;
       renderPlayerProfileBio(String(profile.bio || ""), resolvedUsername);
+      renderPlayerProfileLocation(profile.location, resolvedUsername);
       renderPlayerProfileStreak(profile.dailyStreak);
       renderPlayerProfileTrophies(profile.completedPackIds);
       if (playerProfileLevels) playerProfileLevels.textContent = Math.max(0, Math.trunc(Number(profile.levelsCompleted) || 0)).toLocaleString("en-GB");
@@ -10763,6 +11005,16 @@ window.BOXXY_RELEASE = Object.freeze({
   playerProfileBioCancelBtn?.addEventListener("click", cancelPlayerProfileBioEditor);
   playerProfileBioInput?.addEventListener("input", updatePlayerProfileBioCount);
   playerProfileBioForm?.addEventListener("submit", savePlayerProfileBio);
+  playerProfileLocation?.addEventListener("click", () => {
+    if (playerCanEditProfile(playerProfileCurrentUsername)) openPlayerProfileLocationEditor();
+  });
+  playerProfileLocationEditBtn?.addEventListener("click", openPlayerProfileLocationEditor);
+  playerProfileLocationCancelBtn?.addEventListener("click", cancelPlayerProfileLocationEditor);
+  playerProfileCountry?.addEventListener("change", async () => {
+    const data = await loadPlayerProfileLocations().catch(() => null);
+    if (data) populatePlayerProfileRegions(data, playerProfileCountry.value, "");
+  });
+  playerProfileLocationForm?.addEventListener("submit", savePlayerProfileLocation);
   dailyLeaderboardShareBtn?.addEventListener("click", () => {
     if (!dailyLeaderboardActivePuzzle) return;
     const result = dailyCompletion(dailyLeaderboardActivePuzzle.date);

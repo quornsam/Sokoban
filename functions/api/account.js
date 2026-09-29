@@ -24,7 +24,13 @@ import {
   expireCookie
 } from "../_lib/auth.js";
 import { mergeFirstCompletionMarkers, recordPackCompletions } from "../_lib/pack-completions.js";
-import { ensurePublicProfileSchema, readPublicBio, validatePublicBio } from "../_lib/public-profile.js";
+import {
+  ensurePublicProfileSchema,
+  readPublicBio,
+  readPublicLocation,
+  validatePublicBio,
+  validatePublicLocation
+} from "../_lib/public-profile.js";
 import {
   verifyGoogleCredential,
   ensureGoogleAuthSchema,
@@ -55,9 +61,14 @@ async function accountFeatureState(db, userId) {
 async function accountPublicData(db, user, authInfo = null) {
   const resolvedAuthInfo = authInfo || await userAuthInfo(db, user.id);
   const features = await accountFeatureState(db, user.id);
+  const [bio, location] = await Promise.all([
+    readPublicBio(db, user.id),
+    readPublicLocation(db, user.id)
+  ]);
   return {
     ...publicAccount(user, resolvedAuthInfo),
-    bio: await readPublicBio(db, user.id),
+    bio,
+    location,
     features
   };
 }
@@ -527,6 +538,29 @@ async function handlePublicBio(context, body) {
   return json({ ok:true, bio:result.bio, updatedAt:now });
 }
 
+async function handlePublicLocation(context, body) {
+  const { env, request } = context;
+  const db = requireDatabase(env);
+  const user = await authenticatedUser(env, request);
+  if (!user) return json({ ok:false, authenticated:false, error:"Please sign in again." }, 401);
+  if (!await consumeRateLimit(env, `public-location:${user.id}`, 30, 60 * 60)) {
+    return json({ ok:false, error:"Too many location updates. Please try again later." }, 429);
+  }
+  const result = validatePublicLocation(body.countryCode, body.regionCode);
+  if (!result.ok) return json({ ok:false, error:result.error }, 400);
+  const now = Date.now();
+  await ensurePublicProfileSchema(db);
+  await db.prepare(`
+    INSERT INTO user_public_profiles (user_id, country_code, region_code, updated_at)
+    VALUES (?, ?, ?, ?)
+    ON CONFLICT(user_id) DO UPDATE SET
+      country_code=excluded.country_code,
+      region_code=excluded.region_code,
+      updated_at=excluded.updated_at
+  `).bind(user.id, result.countryCode, result.regionCode, now).run();
+  return json({ ok:true, location:{ countryCode:result.countryCode, regionCode:result.regionCode }, updatedAt:now });
+}
+
 async function handleSync(context, body) {
   const { env, request } = context;
   const db = requireDatabase(env);
@@ -602,6 +636,7 @@ export async function onRequest(context) {
     if (action === "link_google") return await handleLinkGoogle(context, body);
     if (action === "disconnect_google") return await handleDisconnectGoogle(context);
     if (action === "public_bio") return await handlePublicBio(context, body);
+    if (action === "public_location") return await handlePublicLocation(context, body);
     if (action === "sync") return await handleSync(context, body);
     if (action === "logout") return await handleLogout(context);
     if (action === "delete") return await handleDelete(context, body);

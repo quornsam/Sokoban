@@ -184,6 +184,8 @@ CREATE INDEX IF NOT EXISTS daily_leaderboard_visibility_date_idx
 CREATE TABLE IF NOT EXISTS user_public_profiles (
   user_id TEXT PRIMARY KEY,
   bio TEXT NOT NULL DEFAULT '',
+  country_code TEXT NOT NULL DEFAULT '',
+  region_code TEXT NOT NULL DEFAULT '',
   updated_at INTEGER NOT NULL DEFAULT 0,
   FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
 );

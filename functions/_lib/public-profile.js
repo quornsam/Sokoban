@@ -1,4 +1,5 @@
 import { parseProgress, progressSummary } from "./auth.js";
+import { PROFILE_COUNTRY_CODES, PROFILE_REGION_CODES } from "./profile-location-codes.js";
 
 const AVATAR_BODY_TYPES = new Set([
   "boy", "girl",
@@ -20,6 +21,7 @@ const RANDOM_COLOURS = Object.freeze({
 });
 const AVATAR_BODY_TYPE_LIST = Object.freeze(["boy", "girl"]);
 const PROFILE_BIO_MAX_GRAPHEMES = 50;
+const PROFILE_LOCATION_CODE_MAX = 8;
 
 function randomItem(values) {
   return values[Math.floor(Math.random() * values.length)] || values[0];
@@ -144,21 +146,54 @@ export function validatePublicBio(value) {
   return { ok: true, bio, length };
 }
 
+export function validatePublicLocation(countryValue, regionValue) {
+  const countryCode = String(countryValue || "").trim().toUpperCase().slice(0, 2);
+  const regionCode = String(regionValue || "").trim().toUpperCase().slice(0, PROFILE_LOCATION_CODE_MAX);
+  if (!countryCode && !regionCode) return { ok:true, countryCode:"", regionCode:"" };
+  if (!PROFILE_COUNTRY_CODES.has(countryCode)) return { ok:false, error:"Choose a valid country." };
+  if (!regionCode) return { ok:true, countryCode, regionCode:"" };
+  if (!PROFILE_REGION_CODES.has(regionCode) || !regionCode.startsWith(`${countryCode}-`)) {
+    return { ok:false, error:"Choose a valid region, state or province." };
+  }
+  return { ok:true, countryCode, regionCode };
+}
+
+async function addPublicProfileColumn(db, name, definition) {
+  try {
+    await db.prepare(`ALTER TABLE user_public_profiles ADD COLUMN ${name} ${definition}`).run();
+  } catch (error) {
+    if (!/duplicate column name/i.test(String(error?.message || error))) throw error;
+  }
+}
+
 export async function ensurePublicProfileSchema(db) {
   await db.prepare(`
     CREATE TABLE IF NOT EXISTS user_public_profiles (
       user_id TEXT PRIMARY KEY,
       bio TEXT NOT NULL DEFAULT '',
+      country_code TEXT NOT NULL DEFAULT '',
+      region_code TEXT NOT NULL DEFAULT '',
       updated_at INTEGER NOT NULL DEFAULT 0,
       FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     )
   `).run();
+  const columns = await db.prepare("PRAGMA table_info(user_public_profiles)").all();
+  const names = new Set((columns.results || []).map(column => String(column.name || "")));
+  if (!names.has("country_code")) await addPublicProfileColumn(db, "country_code", "TEXT NOT NULL DEFAULT ''");
+  if (!names.has("region_code")) await addPublicProfileColumn(db, "region_code", "TEXT NOT NULL DEFAULT ''");
 }
 
 export async function readPublicBio(db, userId) {
   await ensurePublicProfileSchema(db);
   const row = await db.prepare("SELECT bio FROM user_public_profiles WHERE user_id = ? LIMIT 1").bind(userId).first();
   return normaliseBioText(row?.bio || "");
+}
+
+export async function readPublicLocation(db, userId) {
+  await ensurePublicProfileSchema(db);
+  const row = await db.prepare("SELECT country_code, region_code FROM user_public_profiles WHERE user_id = ? LIMIT 1").bind(userId).first();
+  const checked = validatePublicLocation(row?.country_code || "", row?.region_code || "");
+  return checked.ok ? { countryCode:checked.countryCode, regionCode:checked.regionCode } : { countryCode:"", regionCode:"" };
 }
 
 export async function ensureSyntheticAvatarColumn(db) {
