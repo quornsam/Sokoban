@@ -1,3 +1,4 @@
+/* BOXXY v412: public Daily leaderboards are server-paged in 30-score chunks with sort-aware ordering. */
 /* BOXXY v403: synthetic leaderboard players can carry Basement-assigned avatars. */
 import { json, requireDatabase, authenticatedUser, adminAuthenticated } from "../_lib/auth.js";
 import { ensureAttemptHistoryDeviceColumn } from "../_lib/attempt-history.js";
@@ -7,6 +8,7 @@ import { ensureSyntheticAvatarColumn } from "../_lib/public-profile.js";
 const DAILY_LAUNCH_DATE = "2026-08-30";
 const MAX_PUBLIC_MOVES_PER_SECOND = 15;
 const MAX_TIMING_DRIFT_SECONDS = 0.15;
+const MAX_PUBLIC_PAGE_SIZE = 30;
 const DAILY_LEADERBOARD_DEVICE_CLASSES = new Set(["phone", "tablet", "computer"]);
 
 const DAILY_LEADERBOARD_AVATAR_BODY_TYPES = new Set([
@@ -80,6 +82,42 @@ export async function onRequestGet(context) {
     const adminView = url.searchParams.has("admin") && await adminAuthenticated(context.env, context.request);
     const viewer = adminView ? null : await authenticatedUser(context.env, context.request);
     const viewerUserId = viewer ? String(viewer.id || "") : "";
+    const requestedSort = url.searchParams.get("sort") === "moves" ? "moves" : "time";
+    const requestedLimit = Math.max(1, Math.min(MAX_PUBLIC_PAGE_SIZE, Math.trunc(Number(url.searchParams.get("limit")) || MAX_PUBLIC_PAGE_SIZE)));
+    const requestedOffset = Math.max(0, Math.min(10000, Math.trunc(Number(url.searchParams.get("offset")) || 0)));
+    const queryLimit = requestedLimit + 1;
+
+    let viewerScoreVisibility = null;
+    if (viewerUserId) {
+      const visibilityRow = await db.prepare(`SELECT visibility FROM daily_leaderboard_visibility
+        WHERE date_key = ? AND player_kind = 'real' AND player_id = ? LIMIT 1`)
+        .bind(dateKey, viewerUserId).first();
+      viewerScoreVisibility = visibilityRow
+        ? cleanDailyLeaderboardVisibility(visibilityRow.visibility)
+        : "public";
+    }
+
+    const publicOrderSql = requestedSort === "moves" ? `
+      CASE WHEN best_moves IS NULL THEN 1 ELSE 0 END ASC,
+      best_moves ASC,
+      CASE WHEN best_moves_run_seconds IS NULL OR best_moves_run_seconds <= 0
+        OR best_moves_run_mouse_or_click_push = 1
+        OR best_moves_run_instant_move = 1
+        OR (best_moves > 1 AND ((best_moves - 1.0) / best_moves_run_seconds) > ${MAX_PUBLIC_MOVES_PER_SECOND})
+        THEN 1 ELSE 0 END ASC,
+      CASE WHEN best_moves_run_seconds > 0
+        AND best_moves_run_mouse_or_click_push = 0
+        AND best_moves_run_instant_move = 0
+        AND (best_moves <= 1 OR ((best_moves - 1.0) / best_moves_run_seconds) <= ${MAX_PUBLIC_MOVES_PER_SECOND})
+        THEN best_moves_run_seconds ELSE NULL END ASC,
+      username COLLATE NOCASE ASC
+    ` : `seconds ASC, username COLLATE NOCASE ASC`;
+    const finalPageSql = adminView
+      ? `ORDER BY seconds ASC, username COLLATE NOCASE ASC`
+      : `WHERE (visibility = 'public'
+          OR (visibility = 'owner' AND player_kind = 'real' AND player_id = ?))
+        ORDER BY ${publicOrderSql}
+        LIMIT ? OFFSET ?`;
 
     const secondsPath = `$."${dateKey}".seconds`;
     const movesPath = `$."${dateKey}".moves`;
@@ -94,7 +132,7 @@ export async function onRequestGet(context) {
     const leaderboardStartedAtPath = `$."${dateKey}".leaderboardStartedAt`;
     const leaderboardCompletedAtPath = `$."${dateKey}".leaderboardCompletedAt`;
     const leaderboardDevicePath = `$."${dateKey}".leaderboardDevice`;
-    const result = await db.prepare(`
+    const statement = db.prepare(`
       WITH daily_records AS (
         SELECT
           id AS user_id, username,
@@ -228,8 +266,9 @@ export async function onRequestGet(context) {
         best_moves_run_seconds, best_moves_run_device,
         best_moves_run_mouse_or_click_push, best_moves_run_instant_move, visibility
       FROM scored_with_visibility
-      ORDER BY seconds ASC, username COLLATE NOCASE ASC
-    `).bind(
+      ${finalPageSql}
+    `);
+    const bindings = [
       leaderboardTrackedPath, leaderboardSecondsPath, secondsPath,
       leaderboardTrackedPath, leaderboardMovesPath, movesPath,
       bestMovesPath, leaderboardMovesPath, bestMovesSecondsPath, bestMovesDevicePath,
@@ -238,7 +277,9 @@ export async function onRequestGet(context) {
       leaderboardTrackedPath, leaderboardCompletedAtPath,
       leaderboardTrackedPath, leaderboardDevicePath,
       dateKey, MAX_PUBLIC_MOVES_PER_SECOND, MAX_TIMING_DRIFT_SECONDS, dateKey, dateKey
-    ).all();
+    ];
+    if (!adminView) bindings.push(viewerUserId, queryLimit, requestedOffset);
+    const result = await statement.bind(...bindings).all();
 
     const mappedEntries = (result.results || []).map(row => {
       const bestMoves = row.best_moves !== null && row.best_moves !== undefined
@@ -278,11 +319,9 @@ export async function onRequestGet(context) {
       };
     });
 
-    const visibleEntries = adminView
-      ? mappedEntries
-      : mappedEntries.filter(entry => entry.visibility === "public"
-        || (entry.visibility === "owner" && entry.kind === "real" && entry.playerId === viewerUserId));
-    const entries = visibleEntries.map(entry => adminView ? entry : ({
+    const hasMore = !adminView && mappedEntries.length > requestedLimit;
+    const pageEntries = hasMore ? mappedEntries.slice(0, requestedLimit) : mappedEntries;
+    const entries = pageEntries.map(entry => adminView ? entry : ({
       username: entry.username,
       avatar: entry.avatar,
       seconds: entry.seconds,
@@ -293,7 +332,17 @@ export async function onRequestGet(context) {
       device: entry.device
     }));
 
-    return json({ ok: true, date: dateKey, entries }, 200, {
+    return json({
+      ok: true,
+      date: dateKey,
+      sort: requestedSort,
+      offset: adminView ? 0 : requestedOffset,
+      limit: adminView ? entries.length : requestedLimit,
+      nextOffset: adminView ? entries.length : requestedOffset + entries.length,
+      hasMore,
+      viewerScoreVisibility,
+      entries
+    }, 200, {
       "cache-control": "no-store"
     });
   } catch (error) {

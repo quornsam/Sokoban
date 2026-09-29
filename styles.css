@@ -1,3 +1,4 @@
+/* BOXXY v412 — cached/paged Daily leaderboard controls and 30-score pagination. */
 /* BOXXY v411 — restores established Character Style name typography and prevents arbitrary mid-word wrapping. */
 /* BOXXY v325 — board-style default choices sit in a dedicated aligned column; palette wrapping no longer breaks row continuity. */
 /* BOXXY v324 — compact crate-art board-style choices with explicit default separation and responsive wrapping. */
@@ -7125,6 +7126,9 @@ body.large-level-performance .instruction .thought-text{
 .daily-leaderboard-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:16px 17px 13px;border-bottom:3px solid var(--ink);background:linear-gradient(135deg,#fff7ee,#ead9c8)}
 .daily-leaderboard-head h2{margin:4px 0 0;font-size:clamp(28px,7vw,45px);line-height:.9;letter-spacing:-.045em}
 .daily-leaderboard-head p{margin:7px 0 0;color:#675e53;font-size:9px;font-weight:900;text-transform:uppercase}
+.daily-leaderboard-head-actions{display:flex;align-items:flex-start;gap:8px}
+.daily-leaderboard-refresh{flex:0 0 32px;width:32px;height:32px;margin-top:3px;padding:0;border:2px solid var(--ink);border-radius:50%;background:#fffaf2;color:var(--ink);font:950 20px/1 Arial,sans-serif;cursor:pointer}
+.daily-leaderboard-refresh:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
 .daily-leaderboard-close{flex:0 0 38px;width:38px;height:38px;padding:0;border:2px solid var(--ink);background:var(--red);color:#fff;font:950 27px/1 Arial,sans-serif;cursor:pointer}
 .daily-detail-summary{display:grid;grid-template-columns:160px minmax(0,1fr);gap:14px;align-items:stretch;padding:14px;border-bottom:2px solid var(--ink);background:#f4eadc}
 .daily-detail-preview{width:160px;align-self:center;margin:0;border:2px solid var(--ink);background:#d8cdbd}
@@ -7161,6 +7165,9 @@ body.large-level-performance .instruction .thought-text{
 @media(max-width:620px){.daily-leaderboard-sort-buttons button{min-height:34px;padding:7px 7px;font-size:9px}}
 
 .daily-leaderboard-card>.daily-leaderboard-list{min-height:0;overflow-y:auto;scrollbar-gutter:stable;background:#fffaf2;-webkit-overflow-scrolling:touch}
+.daily-leaderboard-more{display:block;width:calc(100% - 24px);min-height:34px;margin:10px 12px;padding:7px 12px;border:2px solid var(--ink);border-radius:17px;background:#f0e5d5;color:var(--ink);font-family:inherit;font-size:9px;font-weight:1000;line-height:1;letter-spacing:.07em;cursor:pointer}
+.daily-leaderboard-more:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.daily-leaderboard-more:active{transform:translateY(1px)}
 .daily-leaderboard-card>.daily-leaderboard-note{padding:11px 14px;border-top:2px solid var(--ink);font-size:8px;background:#f0e5d5}
 @media(max-width:1100px){.daily-archive-today-feature{grid-template-columns:repeat(6,minmax(0,1fr))}.daily-archive-today-leaders{grid-column:span 5}}
 @media(max-width:820px){
@@ -7189,7 +7196,7 @@ body.large-level-performance .instruction .thought-text{
   .daily-leaderboard-avatar-frame{flex-basis:26px;width:26px;height:26px}
   .daily-leaderboard-avatar{width:26px;height:26px}
 }
-@media(max-width:620px){.daily-archive-today-feature{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin-bottom:10px}.daily-archive-today-leaders{grid-column:span 2;grid-template-rows:auto 1fr auto}.daily-archive-today-card .daily-archive-date-head{padding-right:42px}.daily-archive-today-label{font-size:7px;padding:3px 4px}.daily-archive-today-leaders-head{padding:5px 6px 4px}.daily-archive-today-leaders-head span{font-size:7px}.daily-archive-today-leaders-head strong{font-size:10px}.daily-archive-today-list .daily-leaderboard-row{min-height:25px;padding:2px 5px}.daily-archive-today-list .daily-leaderboard-rank{width:18px;height:18px}.daily-archive-today-list .daily-leaderboard-rank.medal{font-size:15px}.daily-archive-today-list .daily-leaderboard-name{font-size:10.5px}.daily-archive-today-list .daily-leaderboard-time{font-size:13px}.daily-archive-today-list .daily-leaderboard-moves{font-size:7.5px}.daily-archive-today-note{padding:4px 6px;font-size:7px;line-height:1.3}.daily-archive-leaderboard{font-size:14px!important}.daily-leaderboard-modal{padding:7px}.daily-leaderboard-card{width:100%;max-height:92dvh;box-shadow:5px 5px 0 rgba(219,59,39,.62)}.daily-leaderboard-head{padding:11px 11px 9px}.daily-leaderboard-head h2{font-size:28px}.daily-leaderboard-head p{font-size:9px}.daily-leaderboard-close{width:32px;height:32px;flex-basis:32px;font-size:23px}.daily-leaderboard-row{min-height:38px;padding:6px 8px}.daily-leaderboard-name{font-size:12px}.daily-leaderboard-time{font-size:16px}.daily-leaderboard-moves{font-size:8.5px}.daily-leaderboard-card>.daily-leaderboard-note{padding:8px 9px;font-size:8.5px}}
+@media(max-width:620px){.daily-archive-today-feature{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin-bottom:10px}.daily-archive-today-leaders{grid-column:span 2;grid-template-rows:auto 1fr auto}.daily-archive-today-card .daily-archive-date-head{padding-right:42px}.daily-archive-today-label{font-size:7px;padding:3px 4px}.daily-archive-today-leaders-head{padding:5px 6px 4px}.daily-archive-today-leaders-head span{font-size:7px}.daily-archive-today-leaders-head strong{font-size:10px}.daily-archive-today-list .daily-leaderboard-row{min-height:25px;padding:2px 5px}.daily-archive-today-list .daily-leaderboard-rank{width:18px;height:18px}.daily-archive-today-list .daily-leaderboard-rank.medal{font-size:15px}.daily-archive-today-list .daily-leaderboard-name{font-size:10.5px}.daily-archive-today-list .daily-leaderboard-time{font-size:13px}.daily-archive-today-list .daily-leaderboard-moves{font-size:7.5px}.daily-archive-today-note{padding:4px 6px;font-size:7px;line-height:1.3}.daily-archive-leaderboard{font-size:14px!important}.daily-leaderboard-modal{padding:7px}.daily-leaderboard-card{width:100%;max-height:92dvh;box-shadow:5px 5px 0 rgba(219,59,39,.62)}.daily-leaderboard-head{padding:11px 11px 9px}.daily-leaderboard-head h2{font-size:28px}.daily-leaderboard-head p{font-size:9px}.daily-leaderboard-refresh{width:28px;height:28px;flex-basis:28px;margin-top:2px;font-size:18px}.daily-leaderboard-close{width:32px;height:32px;flex-basis:32px;font-size:23px}.daily-leaderboard-row{min-height:38px;padding:6px 8px}.daily-leaderboard-name{font-size:12px}.daily-leaderboard-time{font-size:16px}.daily-leaderboard-moves{font-size:8.5px}.daily-leaderboard-card>.daily-leaderboard-note{padding:8px 9px;font-size:8.5px}}
 
 /* BOXXY v320 — phone Daily cards prioritise the whole-second clock; details live in the roomy puzzle modal. */
 @media(max-width:620px){
