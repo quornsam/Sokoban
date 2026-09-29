@@ -1,3 +1,4 @@
+/* BOXXY v410: cache six additional PARTYGOERS characters and refreshed Character Style UI assets. */
 /* BOXXY v409: restore v396 leaderboard typography/alignment with additive centred full-leaderboard avatars. */
 /* BOXXY v407: stable profile bio geometry, corrected leaderboard avatar spacing and refreshed Clara asset. */
 /* BOXXY v405: profile avatar crop, trophy tooltips, inline bio placeholder and clean leaderboard profile links. */
@@ -21,7 +22,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "409";
+const RELEASE_VERSION = "410";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [
@@ -99,6 +100,12 @@ const ASSETS = [
   "/assets/characters/bertrand/base.png",
   "/assets/characters/angie/base.png",
   "/assets/characters/the-haining/base.png",
+  "/assets/characters/eric/base.png",
+  "/assets/characters/marshall/base.png",
+  "/assets/characters/catherine/base.png",
+  "/assets/characters/mr-pjkuylasg/base.png",
+  "/assets/characters/slippy/base.png",
+  "/assets/characters/gobble/base.png",
   "/assets/characters-fallback/boy/player-back.png",
   "/assets/characters-fallback/boy/player-front.png",
   "/assets/characters-fallback/boy/player-left.png",

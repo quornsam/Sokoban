@@ -1,3 +1,4 @@
+/* BOXXY v410: character-family tabs browse without changing the selected character; six Partygoers added and profile/style controls refined. */
 /* BOXXY v409: restore v396 leaderboard typography/alignment while adding centred clickable avatars only to the full leaderboard. */
 /* BOXXY v407: keep profile bio editing geometrically stable and give full leaderboard avatars dedicated row space. */
 /* BOXXY v405: profile avatar crop, trophy tooltips, inline bio placeholder and clean clickable leaderboard names. */
@@ -11,7 +12,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "407",
+  version: "410",
   lastUpdated: "2026-09-29"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
@@ -612,7 +613,8 @@ window.BOXXY_RELEASE = Object.freeze({
   const SPOOKY_BODY_TYPES = Object.freeze(["lincoln", "beverley", "harry", "stuart", "davido", "samantha"]);
   const PARTYGOER_BODY_TYPES = Object.freeze([
     "optimus", "pixella", "bolderdash", "sputnik", "vasquez",
-    "bacterium", "clara", "jamil", "clickers", "bertrand", "angie", "the-haining"
+    "bacterium", "clara", "jamil", "clickers", "bertrand", "angie", "the-haining",
+    "eric", "marshall", "catherine", "mr-pjkuylasg", "slippy", "gobble"
   ]);
   const BODY_TYPES = ["boy", "girl", ...SPOOKY_BODY_TYPES, ...PARTYGOER_BODY_TYPES];
   const FIXED_BODY_TYPES = new Set([...SPOOKY_BODY_TYPES, ...PARTYGOER_BODY_TYPES]);
@@ -636,7 +638,13 @@ window.BOXXY_RELEASE = Object.freeze({
     clickers: "CLICKERS",
     bertrand: "BERTRAND",
     angie: "ANGIE",
-    "the-haining": "THE HAINING"
+    "the-haining": "THE HAINING",
+    eric: "ERIC",
+    marshall: "MARSHALL",
+    catherine: "CATHERINE",
+    "mr-pjkuylasg": "MR PJKUËYLASG",
+    slippy: "SLIPPY",
+    gobble: "GOBBLE"
   });
   const SPOOKY_STORAGE_KEY = "boxxy-spooky-character-v1";
   const PARTYGOER_STORAGE_KEY = "boxxy-partygoer-character-v1";
@@ -1083,6 +1091,7 @@ window.BOXXY_RELEASE = Object.freeze({
     if (category === "bodyType") {
       if (!BODY_TYPES.includes(colour) || style.bodyType === colour) return;
       style.bodyType = colour;
+      activeStyleFamily = familyForBodyType(style.bodyType);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(style));
       if (SPOOKY_BODY_TYPES.includes(style.bodyType)) {
         try { localStorage.setItem(SPOOKY_STORAGE_KEY, style.bodyType); } catch (_) {}
@@ -1111,6 +1120,7 @@ window.BOXXY_RELEASE = Object.freeze({
 
   function reset() {
     style = { ...DEFAULT_STYLE };
+    activeStyleFamily = "indi";
     localStorage.setItem(STORAGE_KEY, JSON.stringify(style));
     updateSelectedSwatches();
     redrawAll();
@@ -1140,6 +1150,7 @@ window.BOXXY_RELEASE = Object.freeze({
     const button = document.getElementById("stylePartygoersFamilyBtn");
     if (button) button.hidden = !partygoersUnlocked;
     styleControls?.querySelector(".style-family-choices")?.classList.toggle("has-partygoers", partygoersUnlocked);
+    if (!partygoersUnlocked && activeStyleFamily === "partygoers") activeStyleFamily = "spooky";
     updateSelectedSwatches();
   }
 
@@ -1152,17 +1163,48 @@ window.BOXXY_RELEASE = Object.freeze({
     if (spookyUnlockClicks >= 5) spookyUnlockArmed = true;
   }
 
+  function familyForBodyType(bodyType) {
+    if (bodyType === "girl") return "oli";
+    if (SPOOKY_BODY_TYPES.includes(bodyType)) return "spooky";
+    if (PARTYGOER_BODY_TYPES.includes(bodyType)) return "partygoers";
+    return "indi";
+  }
+
+  let activeStyleFamily = familyForBodyType(style.bodyType);
+
+  function animateVisibleStyleGroups() {
+    if (!styleControls || window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches) return;
+    styleControls.querySelectorAll(".style-group:not([hidden])").forEach(group => {
+      if (group.dataset.styleCategory === "bodyType") return;
+      group.animate?.([
+        { opacity: 0.72, transform: "translateY(3px)" },
+        { opacity: 1, transform: "translateY(0)" }
+      ], { duration: 170, easing: "cubic-bezier(.2,.7,.3,1)" });
+    });
+  }
+
+  function setActiveStyleFamily(nextFamily, { animate = true } = {}) {
+    const allowed = ["indi", "oli", "spooky", "partygoers"];
+    if (!allowed.includes(nextFamily)) return;
+    if (nextFamily === "partygoers" && !partygoersUnlocked) return;
+    if (activeStyleFamily === nextFamily) return;
+    activeStyleFamily = nextFamily;
+    updateSelectedSwatches();
+    if (animate) requestAnimationFrame(animateVisibleStyleGroups);
+  }
+
   function buildControls() {
     if (!styleControls) return;
     styleControls.innerHTML = "";
 
-    function characterGrid(bodyTypes, labels, familyName) {
+    function characterGrid(bodyTypes, labels, familyName, extraClass = "") {
       const grid = document.createElement("div");
-      grid.className = "style-character-grid";
+      grid.className = `style-character-grid${extraClass ? ` ${extraClass}` : ""}`;
       bodyTypes.forEach(value => {
         const label = labels[value];
         const card = document.createElement("div");
         card.className = "style-character-choice";
+        card.dataset.bodyType = value;
 
         const thumb = document.createElement("button");
         thumb.type = "button";
@@ -1173,9 +1215,7 @@ window.BOXXY_RELEASE = Object.freeze({
 
         const button = document.createElement("button");
         button.type = "button";
-        button.className = "style-type-btn style-character-name";
-        button.dataset.category = "bodyType";
-        button.dataset.colour = value;
+        button.className = "style-character-name";
         button.textContent = label;
         button.setAttribute("aria-label", `${familyName} character: ${label}`);
         button.addEventListener("click", () => set("bodyType", value));
@@ -1193,58 +1233,50 @@ window.BOXXY_RELEASE = Object.freeze({
     typeLegend.textContent = LABELS.bodyType;
     const typeChoices = document.createElement("div");
     typeChoices.className = `style-type-choices style-family-choices${partygoersUnlocked ? " has-partygoers" : ""}`;
+    typeChoices.setAttribute("role", "group");
+    typeChoices.setAttribute("aria-label", "Character families");
 
-    [["INDI", "boy"], ["OLI", "girl"]].forEach(([label, value]) => {
+    function familyTab(label, family, className = "") {
       const button = document.createElement("button");
       button.type = "button";
-      button.className = "style-type-btn";
-      button.dataset.category = "bodyType";
-      button.dataset.colour = value;
+      button.className = `style-type-btn style-family-tab${className ? ` ${className}` : ""}`;
+      button.dataset.styleFamily = family;
       button.textContent = label;
-      button.setAttribute("aria-label", `Character: ${label}`);
-      button.addEventListener("click", () => set("bodyType", value));
-      typeChoices.appendChild(button);
-    });
+      button.setAttribute("aria-label", `Character family: ${label}`);
+      button.addEventListener("click", () => setActiveStyleFamily(family));
+      return button;
+    }
 
-    const spookyButton = document.createElement("button");
-    spookyButton.type = "button";
-    spookyButton.className = "style-type-btn style-family-spooky";
-    spookyButton.dataset.styleFamily = "spooky";
-    spookyButton.textContent = "SPOOKY";
-    spookyButton.setAttribute("aria-label", "Character family: Spooky");
-    spookyButton.addEventListener("click", () => {
-      noteSpookyUnlockClick();
-      if (SPOOKY_BODY_TYPES.includes(style.bodyType)) return;
-      let preferred = "lincoln";
-      try {
-        const saved = String(localStorage.getItem(SPOOKY_STORAGE_KEY) || "");
-        if (SPOOKY_BODY_TYPES.includes(saved)) preferred = saved;
-      } catch (_) {}
-      set("bodyType", preferred);
-    });
+    typeChoices.appendChild(familyTab("INDI", "indi"));
+    typeChoices.appendChild(familyTab("OLI", "oli"));
+
+    const spookyButton = familyTab("SPOOKY", "spooky", "style-family-spooky");
+    spookyButton.addEventListener("click", noteSpookyUnlockClick);
     typeChoices.appendChild(spookyButton);
 
-    const partyButton = document.createElement("button");
-    partyButton.type = "button";
+    const partyButton = familyTab("PARTYGOERS", "partygoers", "style-family-partygoers");
     partyButton.id = "stylePartygoersFamilyBtn";
-    partyButton.className = "style-type-btn style-family-partygoers";
-    partyButton.dataset.styleFamily = "partygoers";
-    partyButton.textContent = "PARTYGOERS";
     partyButton.hidden = !partygoersUnlocked;
-    partyButton.setAttribute("aria-label", "Character family: Partygoers");
-    partyButton.addEventListener("click", () => {
-      if (PARTYGOER_BODY_TYPES.includes(style.bodyType)) return;
-      let preferred = "optimus";
-      try {
-        const saved = String(localStorage.getItem(PARTYGOER_STORAGE_KEY) || "");
-        if (PARTYGOER_BODY_TYPES.includes(saved)) preferred = saved;
-      } catch (_) {}
-      set("bodyType", preferred);
-    });
     typeChoices.appendChild(partyButton);
 
     typeGroup.append(typeLegend, typeChoices);
     styleControls.appendChild(typeGroup);
+
+    const indiGroup = document.createElement("fieldset");
+    indiGroup.className = "style-group style-standard-character-group";
+    indiGroup.dataset.styleCategory = "indi";
+    const indiLegend = document.createElement("legend");
+    indiLegend.textContent = "INDI";
+    indiGroup.append(indiLegend, characterGrid(["boy"], { boy: "INDI" }, "Indi", "style-single-character-grid"));
+    styleControls.appendChild(indiGroup);
+
+    const oliGroup = document.createElement("fieldset");
+    oliGroup.className = "style-group style-standard-character-group";
+    oliGroup.dataset.styleCategory = "oli";
+    const oliLegend = document.createElement("legend");
+    oliLegend.textContent = "OLI";
+    oliGroup.append(oliLegend, characterGrid(["girl"], { girl: "OLI" }, "Oli", "style-single-character-grid"));
+    styleControls.appendChild(oliGroup);
 
     const spookyGroup = document.createElement("fieldset");
     spookyGroup.className = "style-group style-spooky-group";
@@ -1277,7 +1309,7 @@ window.BOXXY_RELEASE = Object.freeze({
 
     for (const category of CATEGORIES) {
       const group = document.createElement("fieldset");
-      group.className = "style-group";
+      group.className = "style-group style-standard-option-group";
       group.dataset.styleCategory = category;
       const legend = document.createElement("legend");
       legend.textContent = LABELS[category];
@@ -1302,29 +1334,32 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   function updateSelectedSwatches() {
-    const spookySelected = SPOOKY_BODY_TYPES.includes(style.bodyType);
-    const partySelected = PARTYGOER_BODY_TYPES.includes(style.bodyType);
-    document.querySelectorAll(".style-swatch, .style-type-btn").forEach(button => {
-      let selected = false;
-      if (button.dataset.styleFamily === "spooky") selected = spookySelected;
-      else if (button.dataset.styleFamily === "partygoers") selected = partySelected;
-      else selected = style[button.dataset.category] === button.dataset.colour;
+    styleControls?.querySelectorAll(".style-family-tab").forEach(button => {
+      const active = button.dataset.styleFamily === activeStyleFamily;
+      button.classList.toggle("is-active-tab", active);
+      button.setAttribute("aria-pressed", String(active));
+    });
+
+    styleControls?.querySelectorAll(".style-swatch").forEach(button => {
+      const selected = style[button.dataset.category] === button.dataset.colour;
       button.classList.toggle("selected", selected);
       button.setAttribute("aria-pressed", String(selected));
     });
-    const fixedCharacter = FIXED_BODY_TYPES.has(style.bodyType);
+
+    styleControls?.querySelectorAll(".style-character-choice").forEach(card => {
+      const selected = card.dataset.bodyType === style.bodyType;
+      card.classList.toggle("selected", selected);
+      card.querySelectorAll("button").forEach(button => button.setAttribute("aria-pressed", String(selected)));
+    });
+
     styleControls?.querySelectorAll(".style-group[data-style-category]").forEach(group => {
       const category = group.dataset.styleCategory;
       if (category === "bodyType") return;
-      if (category === "spooky") {
-        group.hidden = !spookySelected;
+      if (category === "indi" || category === "oli" || category === "spooky" || category === "partygoers") {
+        group.hidden = category !== activeStyleFamily || (category === "partygoers" && !partygoersUnlocked);
         return;
       }
-      if (category === "partygoers") {
-        group.hidden = !partygoersUnlocked || !partySelected;
-        return;
-      }
-      group.hidden = fixedCharacter;
+      group.hidden = activeStyleFamily !== "indi" && activeStyleFamily !== "oli";
     });
   }
 
@@ -1333,6 +1368,9 @@ window.BOXXY_RELEASE = Object.freeze({
     previousFocus = document.activeElement;
     spookyUnlockClicks = 0;
     spookyUnlockArmed = false;
+    activeStyleFamily = familyForBodyType(style.bodyType);
+    if (activeStyleFamily === "partygoers" && !partygoersUnlocked) activeStyleFamily = "indi";
+    updateSelectedSwatches();
     styleModal.hidden = false;
     document.body.classList.add("style-open");
     window.dispatchEvent(new CustomEvent("boxxyspookymusicrequeststate"));

@@ -4,7 +4,8 @@ const AVATAR_BODY_TYPES = new Set([
   "boy", "girl",
   "lincoln", "beverley", "harry", "stuart", "davido", "samantha",
   "optimus", "pixella", "bolderdash", "sputnik", "vasquez",
-  "bacterium", "clara", "jamil", "clickers", "bertrand", "angie", "the-haining"
+  "bacterium", "clara", "jamil", "clickers", "bertrand", "angie", "the-haining",
+  "eric", "marshall", "catherine", "mr-pjkuylasg", "slippy", "gobble"
 ]);
 const AVATAR_DEFAULT = Object.freeze({
   bodyType: "boy", tshirt: "#df3526", trousers: "#292829", hair: "#292727", skin: "#ee9a60", shoes: "#292829"
