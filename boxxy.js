@@ -1,3 +1,4 @@
+/* BOXXY v419: Daily leaderboard loading preserves its score area to prevent modal layout jump. */
 /* BOXXY v418: search-focused metadata and standalone Sokoban information pages; gameplay unchanged. */
 /* BOXXY v417: completed Daily scores update any loaded local leaderboard immediately, before cloud sync finishes. */
 /* BOXXY v416: six more PARTYGOERS characters, centred Partygoers family control and single-line long character labels. */
@@ -19,7 +20,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "418",
+  version: "419",
   lastUpdated: "2026-09-30"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
@@ -4192,7 +4193,7 @@ window.BOXXY_RELEASE = Object.freeze({
   async function loadPlayerProfileLocations() {
     if (playerProfileLocationsData) return playerProfileLocationsData;
     if (!playerProfileLocationsPromise) {
-      playerProfileLocationsPromise = fetch("/assets/data/profile-locations-v1.json?v=418", {
+      playerProfileLocationsPromise = fetch("/assets/data/profile-locations-v1.json?v=419", {
         method:"GET", credentials:"same-origin", cache:"force-cache", headers:{ Accept:"application/json" }
       }).then(async response => {
         if (!response.ok) throw new Error("Location list unavailable.");
@@ -4588,9 +4589,42 @@ window.BOXXY_RELEASE = Object.freeze({
     }
   }
 
+  function clearDailyLeaderboardLoading(container) {
+    if (!container) return;
+    container.classList.remove("is-loading");
+    container.removeAttribute("aria-busy");
+    container.style.removeProperty("--daily-leaderboard-loading-height");
+  }
+
+  function showDailyLeaderboardLoading(container, mode) {
+    if (!container) return;
+    // Preserve an already-visible score area's height while a fresh request replaces it.
+    // On a first load the CSS fallback reserves a stable responsive score area.
+    const currentHeight = Math.round(container.getBoundingClientRect().height || 0);
+    if (currentHeight >= 80) {
+      container.style.setProperty("--daily-leaderboard-loading-height", `${currentHeight}px`);
+    } else {
+      container.style.removeProperty("--daily-leaderboard-loading-height");
+    }
+    container.classList.add("is-loading");
+    container.setAttribute("aria-busy", "true");
+
+    const loading = document.createElement("div");
+    loading.className = "daily-leaderboard-loading";
+    loading.setAttribute("role", "status");
+    const spinner = document.createElement("span");
+    spinner.className = "daily-leaderboard-loading-spinner";
+    spinner.setAttribute("aria-hidden", "true");
+    const label = document.createElement("span");
+    label.textContent = `LOADING ${mode === "moves" ? "FEWEST MOVES" : "FASTEST TIMES"}…`;
+    loading.append(spinner, label);
+    container.replaceChildren(loading);
+  }
+
   function renderDailyLeaderboardRows(container, entries, limit = 0, { hasMore = false } = {}) {
     if (!container) return;
     const previousScrollTop = container.scrollTop;
+    clearDailyLeaderboardLoading(container);
     const byMoves = container === dailyLeaderboardList && dailyLeaderboardSort === "moves";
     if (entries === null) {
       const unavailable = document.createElement("p");
@@ -4731,7 +4765,7 @@ window.BOXXY_RELEASE = Object.freeze({
         return;
       }
     } else {
-      container.innerHTML = `<p class="daily-leaderboard-empty">LOADING ${mode === "moves" ? "FEWEST MOVES" : "FASTEST TIMES"}…</p>`;
+      showDailyLeaderboardLoading(container, mode);
     }
     const state = await fetchDailyLeaderboard(dateKey, {
       sort:mode,

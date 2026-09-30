@@ -7165,6 +7165,17 @@ body.large-level-performance .instruction .thought-text{
 @media(max-width:620px){.daily-leaderboard-sort-buttons button{min-height:34px;padding:7px 7px;font-size:9px}}
 
 .daily-leaderboard-card>.daily-leaderboard-list{min-height:0;overflow-y:auto;scrollbar-gutter:stable;background:#fffaf2;-webkit-overflow-scrolling:touch}
+/* v419: reserve the score area while Cloudflare results are loading so the centred modal does not jump. */
+.daily-leaderboard-card>.daily-leaderboard-list.is-loading{
+  min-height:max(var(--daily-leaderboard-loading-height,0px),clamp(180px,34dvh,330px));
+  display:grid;
+  place-items:center;
+  align-content:center;
+}
+.daily-leaderboard-loading{display:flex;align-items:center;justify-content:center;gap:8px;padding:18px;color:#71675c;font-size:8px;font-weight:1000;letter-spacing:.07em;text-align:center}
+.daily-leaderboard-loading-spinner{width:14px;height:14px;flex:0 0 14px;border:2px solid rgba(113,103,92,.28);border-top-color:#71675c;border-radius:50%;animation:dailyLeaderboardLoadingSpin .75s linear infinite}
+@keyframes dailyLeaderboardLoadingSpin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.daily-leaderboard-loading-spinner{animation-duration:1.8s}}
 .daily-leaderboard-more{display:block;width:calc(100% - 24px);min-height:34px;margin:10px 12px;padding:7px 12px;border:2px solid var(--ink);border-radius:17px;background:#f0e5d5;color:var(--ink);font-family:inherit;font-size:9px;font-weight:1000;line-height:1;letter-spacing:.07em;cursor:pointer}
 .daily-leaderboard-more:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
 .daily-leaderboard-more:active{transform:translateY(1px)}
