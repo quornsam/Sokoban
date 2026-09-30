@@ -1,3 +1,4 @@
+/* BOXXY v416: six more PARTYGOERS characters, centred Partygoers family control and single-line long character labels. */
 /* BOXXY v415: profile location sits under the name with a country flag; bio follows with clearer spacing. */
 /* BOXXY v413: mobile Player Profile identity layout uses full width and keeps long usernames on one fitted line. */
 /* BOXXY v412: Daily leaderboards cache per session, refresh manually, page 30 at a time and update the signed-in player locally after sync. */
@@ -16,7 +17,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "415",
+  version: "416",
   lastUpdated: "2026-09-29"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
@@ -618,7 +619,8 @@ window.BOXXY_RELEASE = Object.freeze({
   const PARTYGOER_BODY_TYPES = Object.freeze([
     "optimus", "pixella", "bolderdash", "sputnik", "vasquez",
     "bacterium", "clara", "jamil", "clickers", "bertrand", "angie", "the-haining",
-    "eric", "marshall", "catherine", "mr-pjkuylasg", "slippy", "gobble"
+    "eric", "marshall", "catherine", "mr-pjkuylasg", "slippy", "gobble",
+    "sandra", "blaze", "frederick", "charlize", "amy-annie", "bobbyburp"
   ]);
   const BODY_TYPES = ["boy", "girl", ...SPOOKY_BODY_TYPES, ...PARTYGOER_BODY_TYPES];
   const FIXED_BODY_TYPES = new Set([...SPOOKY_BODY_TYPES, ...PARTYGOER_BODY_TYPES]);
@@ -648,7 +650,13 @@ window.BOXXY_RELEASE = Object.freeze({
     catherine: "CATHERINE",
     "mr-pjkuylasg": "MR PJKUËYLASG",
     slippy: "SLIPPY",
-    gobble: "GOBBLE"
+    gobble: "GOBBLE",
+    sandra: "SANDRA",
+    blaze: "BLAZE",
+    frederick: "FREDERICK",
+    charlize: "CHARLIZE",
+    "amy-annie": "AMY & ANNIE",
+    bobbyburp: "BOBBYBURP"
   });
   const SPOOKY_STORAGE_KEY = "boxxy-spooky-character-v1";
   const PARTYGOER_STORAGE_KEY = "boxxy-partygoer-character-v1";
@@ -4182,7 +4190,7 @@ window.BOXXY_RELEASE = Object.freeze({
   async function loadPlayerProfileLocations() {
     if (playerProfileLocationsData) return playerProfileLocationsData;
     if (!playerProfileLocationsPromise) {
-      playerProfileLocationsPromise = fetch("/assets/data/profile-locations-v1.json?v=415", {
+      playerProfileLocationsPromise = fetch("/assets/data/profile-locations-v1.json?v=416", {
         method:"GET", credentials:"same-origin", cache:"force-cache", headers:{ Accept:"application/json" }
       }).then(async response => {
         if (!response.ok) throw new Error("Location list unavailable.");

@@ -1,4 +1,5 @@
 /* BOXXY v403: artificial players can be assigned persistent random avatars. */
+/* BOXXY v416 — Basement recognises the expanded twenty-four-character PARTYGOERS roster. */
 /* BOXXY v410 — Basement recognises the expanded eighteen-character PARTYGOERS roster. */
 /* BOXXY v401 — Basement recognises the expanded twelve-character PARTYGOERS roster. */
 /* BOXXY v400 — Basement recognises PARTYGOERS avatars and includes fixed-character artwork in private practice. */
@@ -218,7 +219,8 @@
     lincoln:"LINCOLN", beverley:"BEVERLEY", harry:"HARRY", stuart:"STUART", davido:"DAVIDO", samantha:"SAMANTHA",
     optimus:"OPTIMUS", pixella:"PIXELLA", bolderdash:"BOLDERDASH", sputnik:"SPUTNIK", vasquez:"VASQUEZ",
     bacterium:"BACTERIUM", clara:"CLARA", jamil:"JAMIL", clickers:"CLICKERS", bertrand:"BERTRAND", angie:"ANGIE", "the-haining":"THE HAINING",
-    eric:"ERIC", marshall:"MARSHALL", catherine:"CATHERINE", "mr-pjkuylasg":"MR PJKUËYLASG", slippy:"SLIPPY", gobble:"GOBBLE"
+    eric:"ERIC", marshall:"MARSHALL", catherine:"CATHERINE", "mr-pjkuylasg":"MR PJKUËYLASG", slippy:"SLIPPY", gobble:"GOBBLE",
+    sandra:"SANDRA", blaze:"BLAZE", frederick:"FREDERICK", charlize:"CHARLIZE", "amy-annie":"AMY & ANNIE", bobbyburp:"BOBBYBURP"
   });
   const BOARD_STYLE_SWATCHES = Object.freeze({
     red:{label:"Red",hex:"#ec2826"}, blue:{label:"Blue",hex:"#1553ca"}, green:{label:"Green",hex:"#328545"},

@@ -1,3 +1,4 @@
+/* BOXXY v416: cache six additional PARTYGOERS character sheets and refreshed selector assets. */
 /* BOXXY v415: refreshed Player Profile identity/location layout. */
 /* BOXXY v413: mobile Player Profile identity layout and refreshed app cache. */
 /* BOXXY v412: cached/paged Daily leaderboard controls and refreshed app cache. */
@@ -26,7 +27,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "415";
+const RELEASE_VERSION = "416";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [
@@ -111,6 +112,12 @@ const ASSETS = [
   "/assets/characters/mr-pjkuylasg/base.png",
   "/assets/characters/slippy/base.png",
   "/assets/characters/gobble/base.png",
+  "/assets/characters/sandra/base.png",
+  "/assets/characters/blaze/base.png",
+  "/assets/characters/frederick/base.png",
+  "/assets/characters/charlize/base.png",
+  "/assets/characters/amy-annie/base.png",
+  "/assets/characters/bobbyburp/base.png",
   "/assets/characters-fallback/boy/player-back.png",
   "/assets/characters-fallback/boy/player-front.png",
   "/assets/characters-fallback/boy/player-left.png",
