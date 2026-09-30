@@ -1,3 +1,5 @@
+/* BOXXY v421: refresh leaderboard client assets for immediate local-score overlay. */
+/* BOXXY v420: refresh cached leaderboard UI assets for stable first-open loading layout. */
 /* BOXXY v419: refresh cached leaderboard UI assets for stable loading layout. */
 /* BOXXY v418: release refresh for search metadata/pages; offline gameplay package unchanged. */
 /* BOXXY v417: refresh offline cache for immediate local Daily leaderboard score updates. */
@@ -30,7 +32,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "419";
+const RELEASE_VERSION = "421";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [

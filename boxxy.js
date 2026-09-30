@@ -1,3 +1,5 @@
+/* BOXXY v421: a newly completed Daily score is overlaid locally on leaderboard data even before cloud sync completes. */
+/* BOXXY v420: Daily leaderboard loading state is staged before the modal is shown, preventing the first-open collapse. */
 /* BOXXY v419: Daily leaderboard loading preserves its score area to prevent modal layout jump. */
 /* BOXXY v418: search-focused metadata and standalone Sokoban information pages; gameplay unchanged. */
 /* BOXXY v417: completed Daily scores update any loaded local leaderboard immediately, before cloud sync finishes. */
@@ -20,8 +22,8 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "419",
-  lastUpdated: "2026-09-30"
+  version: "421",
+  lastUpdated: "2026-10-01"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
 /* BOXXY v401: PARTYGOERS expands to twelve characters, its Easter egg toggles visibility, and Attire character previews are centred/clickable. */
@@ -3990,8 +3992,9 @@ window.BOXXY_RELEASE = Object.freeze({
     const pageOffset = Math.max(0, Math.trunc(Number(offset) || 0));
     const pageLimit = Math.max(1, Math.min(DAILY_LEADERBOARD_PAGE_SIZE, Math.trunc(Number(limit) || DAILY_LEADERBOARD_PAGE_SIZE)));
 
-    if (!force && pageOffset === 0 && cached) return cached;
-    if (!force && pageOffset > 0 && cached && (!cached.hasMore || pageOffset < Number(cached.nextOffset || 0))) return cached;
+    if (!force && pageOffset === 0 && cached && cached.serverLoaded !== false) return cached;
+    if (!force && pageOffset > 0 && cached && cached.serverLoaded !== false
+      && (!cached.hasMore || pageOffset < Number(cached.nextOffset || 0))) return cached;
 
     const requestKey = `${cacheKey}:${pageOffset}`;
     if (dailyLeaderboardInFlight.has(requestKey)) return dailyLeaderboardInFlight.get(requestKey);
@@ -4017,21 +4020,27 @@ window.BOXXY_RELEASE = Object.freeze({
           ? [...cached.entries, ...pageEntries]
           : pageEntries;
         const seen = new Set();
-        const entries = sortDailyLeaderboardEntries(merged.filter(entry => {
+        let entries = sortDailyLeaderboardEntries(merged.filter(entry => {
           const username = String(entry.username || "").trim().toLocaleLowerCase();
           if (!username || seen.has(username)) return false;
           seen.add(username);
           return true;
         }), mode);
+        const viewerScoreVisibility = ["public", "owner", "hidden"].includes(String(data?.viewerScoreVisibility || ""))
+          ? String(data.viewerScoreVisibility)
+          : (cached?.viewerScoreVisibility || "public");
+        // The server can legitimately be a few moments behind a just-finished local run.
+        // Overlay that signed-in player's local best onto the response, while still letting
+        // the server's authoritative HIDDEN state suppress it.
+        entries = mergeLocalDailyLeaderboardEntry(key, mode, entries, viewerScoreVisibility);
         const state = {
           entries,
           hasMore: data?.hasMore === true,
           nextOffset: Number.isFinite(Number(data?.nextOffset))
             ? Math.max(0, Math.trunc(Number(data.nextOffset)))
             : pageOffset + pageEntries.length,
-          viewerScoreVisibility: ["public", "owner", "hidden"].includes(String(data?.viewerScoreVisibility || ""))
-            ? String(data.viewerScoreVisibility)
-            : (cached?.viewerScoreVisibility || "public"),
+          viewerScoreVisibility,
+          serverLoaded: true,
           loadedAt: Date.now()
         };
         dailyLeaderboardCache.set(cacheKey, state);
@@ -4193,7 +4202,7 @@ window.BOXXY_RELEASE = Object.freeze({
   async function loadPlayerProfileLocations() {
     if (playerProfileLocationsData) return playerProfileLocationsData;
     if (!playerProfileLocationsPromise) {
-      playerProfileLocationsPromise = fetch("/assets/data/profile-locations-v1.json?v=419", {
+      playerProfileLocationsPromise = fetch("/assets/data/profile-locations-v1.json?v=421", {
         method:"GET", credentials:"same-origin", cache:"force-cache", headers:{ Accept:"application/json" }
       }).then(async response => {
         if (!response.ok) throw new Error("Location list unavailable.");
@@ -4727,6 +4736,45 @@ window.BOXXY_RELEASE = Object.freeze({
     container.scrollTop = previousScrollTop;
   }
 
+  function dailyLeaderboardEntryQualifiesForMode(entry, sort = "time") {
+    const mode = normaliseDailyLeaderboardSort(sort);
+    if (mode === "moves") {
+      return entry?.bestMoves !== null && entry?.bestMoves !== undefined
+        && Number.isFinite(Number(entry.bestMoves)) && Number(entry.bestMoves) >= 0;
+    }
+    return Number.isFinite(Number(entry?.seconds)) && Number(entry.seconds) > 0;
+  }
+
+  function mergeLocalDailyLeaderboardEntry(dateKey, sort, entries, viewerScoreVisibility = "public") {
+    const mode = normaliseDailyLeaderboardSort(sort);
+    const values = Array.isArray(entries) ? [...entries] : [];
+    const localEntry = localDailyLeaderboardEntry(dateKey);
+    if (!localEntry || viewerScoreVisibility === "hidden" || !dailyLeaderboardEntryQualifiesForMode(localEntry, mode)) {
+      return sortDailyLeaderboardEntries(values, mode);
+    }
+    const usernameKey = String(localEntry.username || "").trim().toLocaleLowerCase();
+    if (!usernameKey) return sortDailyLeaderboardEntries(values, mode);
+    const merged = values.filter(item => String(item?.username || "").trim().toLocaleLowerCase() !== usernameKey);
+    merged.push(localEntry);
+    return sortDailyLeaderboardEntries(merged, mode);
+  }
+
+  function renderDailyLeaderboardState(container, state, fallbackLimit = 0) {
+    if (!state) {
+      renderDailyLeaderboardRows(container, null, fallbackLimit);
+      return;
+    }
+    // When a local score is overlaid before the server has stored it, the merged
+    // array can temporarily contain one more row than the downloaded page. Keep
+    // the visible page at 30 until MORE is requested, without dropping that row.
+    const mainPageLimit = container === dailyLeaderboardList && state.hasMore && Number(state.nextOffset) > 0
+      ? Math.max(1, Math.trunc(Number(state.nextOffset)))
+      : fallbackLimit;
+    renderDailyLeaderboardRows(container, state.entries, mainPageLimit, {
+      hasMore: container === dailyLeaderboardList && Boolean(state.hasMore)
+    });
+  }
+
   function selectDailyLeaderboardSort(sort, { persist = false } = {}) {
     dailyLeaderboardSort = normaliseDailyLeaderboardSort(sort);
     if (persist) {
@@ -4740,8 +4788,12 @@ window.BOXXY_RELEASE = Object.freeze({
     }
     const activeDate = dailyLeaderboardList?.dataset.dailyLeaderboardDate || "";
     const cached = dailyLeaderboardCachedState(activeDate, dailyLeaderboardSort);
-    if (cached) renderDailyLeaderboardRows(dailyLeaderboardList, cached.entries, 0, { hasMore:cached.hasMore });
-    else if (dailyLeaderboardActivePuzzle?.date === activeDate && dailyLeaderboardModal?.hidden === false) {
+    if (cached) {
+      renderDailyLeaderboardState(dailyLeaderboardList, cached, 0);
+      if (cached.serverLoaded === false && dailyLeaderboardActivePuzzle?.date === activeDate && dailyLeaderboardModal?.hidden === false) {
+        void loadDailyLeaderboardInto(dailyLeaderboardList, dailyLeaderboardActivePuzzle);
+      }
+    } else if (dailyLeaderboardActivePuzzle?.date === activeDate && dailyLeaderboardModal?.hidden === false) {
       void loadDailyLeaderboardInto(dailyLeaderboardList, dailyLeaderboardActivePuzzle);
     }
     if (dailyLeaderboardList) dailyLeaderboardList.setAttribute("aria-label",
@@ -4757,10 +4809,8 @@ window.BOXXY_RELEASE = Object.freeze({
     container.dataset.dailyLeaderboardRequest = requestId;
     const cached = dailyLeaderboardCachedState(dateKey, mode);
     if (cached) {
-      renderDailyLeaderboardRows(container, cached.entries, limit, {
-        hasMore: container === dailyLeaderboardList && cached.hasMore
-      });
-      if (!force) {
+      renderDailyLeaderboardState(container, cached, limit);
+      if (!force && cached.serverLoaded !== false) {
         if (container === dailyLeaderboardList) updateDailyLeaderboardAccountNote();
         return;
       }
@@ -4774,9 +4824,7 @@ window.BOXXY_RELEASE = Object.freeze({
       force
     });
     if (container.dataset.dailyLeaderboardDate !== dateKey || container.dataset.dailyLeaderboardRequest !== requestId) return;
-    renderDailyLeaderboardRows(container, state ? state.entries : null, limit, {
-      hasMore: container === dailyLeaderboardList && Boolean(state?.hasMore)
-    });
+    renderDailyLeaderboardState(container, state, limit);
     if (container === dailyLeaderboardList) updateDailyLeaderboardAccountNote();
   }
 
@@ -4794,9 +4842,7 @@ window.BOXXY_RELEASE = Object.freeze({
         limit:DAILY_LEADERBOARD_PAGE_SIZE
       });
       if (dailyLeaderboardModal?.hidden || String(dailyLeaderboardActivePuzzle?.date || "") !== dateKey || dailyLeaderboardSort !== mode) return;
-      renderDailyLeaderboardRows(dailyLeaderboardList, state ? state.entries : cached.entries, 0, {
-        hasMore:Boolean(state?.hasMore)
-      });
+      renderDailyLeaderboardState(dailyLeaderboardList, state || cached, 0);
     } finally {
       dailyLeaderboardMoreLoading = false;
     }
@@ -4820,8 +4866,9 @@ window.BOXXY_RELEASE = Object.freeze({
     const username = currentSignedInUsername();
     const result = dailyCompletion(dateKey);
     if (!username || !result) return null;
-    const seconds = Number(result.leaderboardSeconds);
-    if (!Number.isFinite(seconds) || seconds <= 0) return null;
+    const rawSeconds = Number(result.leaderboardSeconds);
+    const seconds = Number.isFinite(rawSeconds) && rawSeconds > 0
+      ? Math.round(rawSeconds * 100) / 100 : null;
     const moves = result.leaderboardMoves !== null && result.leaderboardMoves !== undefined
       && Number.isFinite(Number(result.leaderboardMoves)) && Number(result.leaderboardMoves) >= 0
       ? Math.trunc(Number(result.leaderboardMoves)) : null;
@@ -4836,9 +4883,10 @@ window.BOXXY_RELEASE = Object.freeze({
     const bestMovesSeconds = Number.isFinite(rawBestMovesSeconds) && rawBestMovesSeconds > 0
       && !mouseOrClickPushRun && !instantMoveRun && movesPerSecond <= DAILY_MAX_PUBLIC_MOVES_PER_SECOND
       ? Math.round(rawBestMovesSeconds * 100) / 100 : null;
+    if (seconds === null && bestMoves === null) return null;
     return {
       username,
-      seconds:Math.round(seconds * 100) / 100,
+      seconds,
       moves,
       bestMoves,
       bestMovesSeconds,
@@ -4854,16 +4902,30 @@ window.BOXXY_RELEASE = Object.freeze({
     const entry = localDailyLeaderboardEntry(key);
     if (!entry) return;
     const usernameKey = entry.username.toLocaleLowerCase();
+    const knownVisibility = ["time", "moves"]
+      .map(mode => dailyLeaderboardCachedState(key, mode)?.viewerScoreVisibility)
+      .find(value => ["public", "owner", "hidden"].includes(String(value || ""))) || "public";
     for (const mode of ["time", "moves"]) {
+      if (!dailyLeaderboardEntryQualifiesForMode(entry, mode)) continue;
       const cacheKey = dailyLeaderboardCacheKey(key, mode);
       const cached = dailyLeaderboardCache.get(cacheKey);
-      if (!cached || cached.viewerScoreVisibility === "hidden") continue;
-      const hadExisting = cached.entries.some(item => String(item.username || "").trim().toLocaleLowerCase() === usernameKey);
-      const capacity = cached.entries.length;
-      let entries = cached.entries.filter(item => String(item.username || "").trim().toLocaleLowerCase() !== usernameKey);
-      entries.push(entry);
-      entries = sortDailyLeaderboardEntries(entries, mode);
-      if (cached.hasMore && !hadExisting && capacity > 0 && entries.length > capacity) entries = entries.slice(0, capacity);
+      if (!cached) {
+        if (knownVisibility === "hidden") continue;
+        // Seed a local-only state so a just-finished score is visible immediately.
+        // fetchDailyLeaderboard deliberately does not treat serverLoaded:false as
+        // authoritative, so opening the table still downloads everyone else's scores.
+        dailyLeaderboardCache.set(cacheKey, {
+          entries:[entry],
+          hasMore:false,
+          nextOffset:0,
+          viewerScoreVisibility:knownVisibility,
+          serverLoaded:false,
+          loadedAt:Date.now()
+        });
+        continue;
+      }
+      if (cached.viewerScoreVisibility === "hidden") continue;
+      const entries = mergeLocalDailyLeaderboardEntry(key, mode, cached.entries, cached.viewerScoreVisibility);
       dailyLeaderboardCache.set(cacheKey, { ...cached, entries, loadedAt:Date.now() });
     }
     const targets = [...document.querySelectorAll('.daily-leaderboard-list[data-daily-leaderboard-date]')]
@@ -4872,9 +4934,7 @@ window.BOXXY_RELEASE = Object.freeze({
       const mode = container === dailyLeaderboardList ? dailyLeaderboardSort : "time";
       const cached = dailyLeaderboardCachedState(key, mode);
       if (!cached) continue;
-      renderDailyLeaderboardRows(container, cached.entries, container === dailyLeaderboardList ? 0 : 3, {
-        hasMore:container === dailyLeaderboardList && cached.hasMore
-      });
+      renderDailyLeaderboardState(container, cached, container === dailyLeaderboardList ? 0 : 3);
     }
     if (dailyLeaderboardList?.dataset.dailyLeaderboardDate === key) updateDailyLeaderboardAccountNote();
   }
@@ -4894,6 +4954,8 @@ window.BOXXY_RELEASE = Object.freeze({
       modal.hidden = true;
     }
     dailyLeaderboardActivePuzzle = puzzle;
+    const dateKey = String(puzzle.date);
+    if (dailyLeaderboardList) dailyLeaderboardList.dataset.dailyLeaderboardDate = dateKey;
     const result = dailyCompletion(puzzle.date);
     if (dailyLeaderboardTitle) dailyLeaderboardTitle.textContent = `DAILY #${Number(puzzle.sequence) || ""}`;
     if (dailyLeaderboardDate) dailyLeaderboardDate.textContent = formatDailyDate(puzzle.date, { weekday: true, long: true, year: true });
@@ -4915,8 +4977,20 @@ window.BOXXY_RELEASE = Object.freeze({
     let preferredSort = "time";
     try { preferredSort = localStorage.getItem(DAILY_LEADERBOARD_SORT_KEY) || "time"; } catch (_) {}
     selectDailyLeaderboardSort(preferredSort);
-    if (dailyLeaderboardList) loadDailyLeaderboardInto(dailyLeaderboardList, puzzle);
+
+    // Stage the score area before the modal becomes visible. This prevents a first-open
+    // frame where the centred card can render at its empty/collapsed height.
+    if (dailyLeaderboardList) {
+      const cached = dailyLeaderboardCachedState(dateKey, dailyLeaderboardSort);
+      if (cached) {
+        renderDailyLeaderboardState(dailyLeaderboardList, cached, 0);
+      } else {
+        showDailyLeaderboardLoading(dailyLeaderboardList, dailyLeaderboardSort);
+      }
+    }
+
     dailyLeaderboardModal.hidden = false;
+    if (dailyLeaderboardList) void loadDailyLeaderboardInto(dailyLeaderboardList, puzzle);
     requestAnimationFrame(() => dailyLeaderboardPlayBtn?.focus?.({ preventScroll: true }));
   }
 
