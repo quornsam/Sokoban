@@ -1,3 +1,4 @@
+/* BOXXY v417: completed Daily scores update any loaded local leaderboard immediately, before cloud sync finishes. */
 /* BOXXY v416: six more PARTYGOERS characters, centred Partygoers family control and single-line long character labels. */
 /* BOXXY v415: profile location sits under the name with a country flag; bio follows with clearer spacing. */
 /* BOXXY v413: mobile Player Profile identity layout uses full width and keeps long usernames on one fitted line. */
@@ -17,8 +18,8 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "416",
-  lastUpdated: "2026-09-29"
+  version: "417",
+  lastUpdated: "2026-09-30"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
 /* BOXXY v401: PARTYGOERS expands to twelve characters, its Easter egg toggles visibility, and Attire character previews are centred/clickable. */
@@ -4190,7 +4191,7 @@ window.BOXXY_RELEASE = Object.freeze({
   async function loadPlayerProfileLocations() {
     if (playerProfileLocationsData) return playerProfileLocationsData;
     if (!playerProfileLocationsPromise) {
-      playerProfileLocationsPromise = fetch("/assets/data/profile-locations-v1.json?v=416", {
+      playerProfileLocationsPromise = fetch("/assets/data/profile-locations-v1.json?v=417", {
         method:"GET", credentials:"same-origin", cache:"force-cache", headers:{ Accept:"application/json" }
       }).then(async response => {
         if (!response.ok) throw new Error("Location list unavailable.");
@@ -4812,7 +4813,7 @@ window.BOXXY_RELEASE = Object.freeze({
     };
   }
 
-  function mergeSyncedDailyScoreIntoCachedLeaderboards(dateKey) {
+  function mergeLocalDailyScoreIntoCachedLeaderboards(dateKey) {
     const key = String(dateKey || "");
     if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) return;
     const entry = localDailyLeaderboardEntry(key);
@@ -11009,9 +11010,14 @@ window.BOXXY_RELEASE = Object.freeze({
     }
   });
 
+  window.addEventListener("boxxydailycompletionrecorded", event => {
+    const dateKey = String(event?.detail?.date || "");
+    if (dateKey) mergeLocalDailyScoreIntoCachedLeaderboards(dateKey);
+  });
+
   window.addEventListener("boxxyaccountdailysynced", event => {
     const dateKey = String(event?.detail?.date || "");
-    if (dateKey) mergeSyncedDailyScoreIntoCachedLeaderboards(dateKey);
+    if (dateKey) mergeLocalDailyScoreIntoCachedLeaderboards(dateKey);
   });
 
   dailyLeaderboardRefreshBtn?.addEventListener("click", manualRefreshDailyLeaderboard);
