@@ -1,3 +1,4 @@
+/* BOXXY v418: release refresh for search metadata/pages; offline gameplay package unchanged. */
 /* BOXXY v417: refresh offline cache for immediate local Daily leaderboard score updates. */
 /* BOXXY v416: cache six additional PARTYGOERS character sheets and refreshed selector assets. */
 /* BOXXY v415: refreshed Player Profile identity/location layout. */
@@ -28,7 +29,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "417";
+const RELEASE_VERSION = "418";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [
