@@ -2,6 +2,22 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://boxxy.io/</loc>
-    <lastmod>2026-08-05</lastmod>
+    <lastmod>2026-09-30</lastmod>
+  </url>
+  <url>
+    <loc>https://boxxy.io/play-sokoban-online/</loc>
+    <lastmod>2026-09-30</lastmod>
+  </url>
+  <url>
+    <loc>https://boxxy.io/sokoban/</loc>
+    <lastmod>2026-09-30</lastmod>
+  </url>
+  <url>
+    <loc>https://boxxy.io/how-to-play-sokoban/</loc>
+    <lastmod>2026-09-30</lastmod>
+  </url>
+  <url>
+    <loc>https://boxxy.io/daily-sokoban/</loc>
+    <lastmod>2026-09-30</lastmod>
   </url>
 </urlset>
