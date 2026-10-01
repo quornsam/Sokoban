@@ -190,3 +190,16 @@ CREATE TABLE IF NOT EXISTS user_public_profiles (
   updated_at INTEGER NOT NULL DEFAULT 0,
   FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+-- v425: date-specific public message-bar announcements controlled from Basement.
+CREATE TABLE IF NOT EXISTS site_announcements (
+  message_date TEXT PRIMARY KEY,
+  message_text TEXT NOT NULL,
+  background_color TEXT NOT NULL DEFAULT '#f2b51d',
+  text_color TEXT NOT NULL DEFAULT '#171719',
+  button_label TEXT NOT NULL DEFAULT '',
+  action_key TEXT NOT NULL DEFAULT '',
+  action_value TEXT NOT NULL DEFAULT '',
+  enabled INTEGER NOT NULL DEFAULT 1 CHECK(enabled IN (0,1)),
+  updated_at INTEGER NOT NULL DEFAULT 0
+);

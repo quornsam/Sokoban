@@ -7,8 +7,8 @@
 <meta name="theme-color" content="#efe5d4">
 <title>BOXXY Basement</title>
 <link rel="icon" href="../assets/ui/icons/boxxy-yellow-crate-v150.ico" sizes="any">
-<link rel="stylesheet" href="basement.css?v=424">
-<link rel="stylesheet" href="/attempt-history.css?v=424">
+<link rel="stylesheet" href="basement.css?v=425">
+<link rel="stylesheet" href="/attempt-history.css?v=425">
 </head>
 <body>
 <main class="basement-shell">
@@ -44,6 +44,7 @@
       <button id="completionsTab" type="button" aria-pressed="false">PACK COMPLETIONS</button>
       <button id="dailyPracticeTab" type="button" aria-pressed="false">DAILY PRACTICE</button>
       <button id="dailyScoresTab" type="button" aria-pressed="false">DAILY SCORES</button>
+      <button id="messageBarTab" type="button" aria-pressed="false">MESSAGE BAR</button>
     </nav>
     <div class="toolbar">
       <input id="searchInput" type="search" placeholder="Search username, email or IP…" aria-label="Search account holders" hidden>
@@ -128,6 +129,89 @@
       </section>
       <p id="dailyScoresStatus" class="status" aria-live="polite"></p>
     </section>
+    <section id="messageBarPanel" class="basement-message-bar" aria-label="Public message bar administration" hidden>
+      <div class="practice-intro"><div><h2>MESSAGE BAR</h2><p>Schedule one public message for a specific local calendar date. It appears for signed-in and signed-out players and takes priority over the Daily notice.</p></div></div>
+      <section class="daily-seed-card message-editor-card">
+        <form id="siteMessageForm" class="site-message-form">
+          <label>DATE <input id="siteMessageDate" type="date" required></label>
+          <label class="site-message-wide">MESSAGE <input id="siteMessageText" type="text" maxlength="120" placeholder="HEY THIS IS A CUSTOM MESSAGE" required></label>
+          <label>BAR COLOUR <input id="siteMessageBackground" type="color" value="#f2b51d"></label>
+          <label>TEXT COLOUR <input id="siteMessageTextColour" type="color" value="#171719"></label>
+          <label>BUTTON TEXT <input id="siteMessageButtonLabel" type="text" maxlength="28" placeholder="Optional"></label>
+          <label class="site-message-wide">BUTTON ACTION
+            <select id="siteMessageAction">
+              <option value="">NO BUTTON / NO ACTION</option>
+              <optgroup label="Open BOXXY">
+                <option value="open_menu">OPEN MENU</option>
+                <option value="open_style">OPEN STYLE</option>
+                <option value="open_level_picker">OPEN LEVEL CHOOSER</option>
+                <option value="open_packs">OPEN PUZZLE PACKS</option>
+                <option value="open_daily_archive">OPEN DAILY ARCHIVE</option>
+                <option value="play_daily">PLAY TODAY'S DAILY</option>
+                <option value="open_daily_leaderboard">OPEN TODAY'S DAILY LEADERBOARD</option>
+                <option value="open_level_maker">OPEN LEVEL MAKER</option>
+                <option value="open_how_to">OPEN HOW TO PLAY</option>
+                <option value="open_account">OPEN ACCOUNT / PLAYER PROFILE</option>
+                <option value="open_keyboard">OPEN KEYBOARD CONTROLS</option>
+                <option value="open_contact">OPEN CONTACT BOXXY</option>
+                <option value="open_legal">OPEN LEGAL / ABOUT</option>
+                <option value="open_trophies">OPEN TROPHY CABINET</option>
+                <option value="open_theme">OPEN THEME</option>
+              </optgroup>
+              <optgroup label="Actions">
+                <option value="toggle_fullscreen">TOGGLE FULL SCREEN</option>
+                <option value="restart_level">RESTART CURRENT LEVEL</option>
+                <option value="show_tetris">SHOW TETRIS / KONAMI EASTER EGG</option>
+                <option value="open_url">OPEN WEB LINK</option>
+              </optgroup>
+              <optgroup label="Change character">
+                <option value="character:boy">INDI</option>
+                <option value="character:girl">OLI</option>
+                <option value="character:lincoln">LINCOLN</option>
+                <option value="character:beverley">BEVERLEY</option>
+                <option value="character:harry">HARRY</option>
+                <option value="character:stuart">STUART</option>
+                <option value="character:davido">DAVIDO</option>
+                <option value="character:samantha">SAMANTHA</option>
+                <option value="character:optimus">OPTIMUS</option>
+                <option value="character:pixella">PIXELLA</option>
+                <option value="character:bolderdash">BOLDERDASH</option>
+                <option value="character:sputnik">SPUTNIK</option>
+                <option value="character:vasquez">VASQUEZ</option>
+                <option value="character:bacterium">BACTERIUM</option>
+                <option value="character:clara">CLARA</option>
+                <option value="character:jamil">JAMIL</option>
+                <option value="character:clickers">CLICKERS</option>
+                <option value="character:bertrand">BERTRAND</option>
+                <option value="character:angie">ANGIE</option>
+                <option value="character:the-haining">THE HAINING</option>
+                <option value="character:eric">ERIC</option>
+                <option value="character:marshall">MARSHALL</option>
+                <option value="character:catherine">CATHERINE</option>
+                <option value="character:mr-pjkuylasg">MR PJKUËYLASG</option>
+                <option value="character:slippy">SLIPPY</option>
+                <option value="character:gobble">GOBBLE</option>
+                <option value="character:sandra">SANDRA</option>
+                <option value="character:blaze">BLAZE</option>
+                <option value="character:frederick">FREDERICK</option>
+                <option value="character:charlize">CHARLIZE</option>
+                <option value="character:amy-annie">AMY &amp; ANNIE</option>
+                <option value="character:bobbyburp">BOBBYBURP</option>
+              </optgroup>
+            </select>
+          </label>
+          <label id="siteMessageActionValueRow" class="site-message-wide" hidden>WEB LINK <input id="siteMessageActionValue" type="url" maxlength="500" placeholder="https://example.com/"></label>
+          <label class="site-message-enabled"><input id="siteMessageEnabled" type="checkbox" checked> ENABLED</label>
+          <div class="site-message-buttons"><button type="submit">SAVE MESSAGE</button><button id="siteMessageClear" type="button">CLEAR FORM</button></div>
+        </form>
+        <div id="siteMessagePreview" class="site-message-preview"><strong>MESSAGE PREVIEW</strong></div>
+        <p id="siteMessageStatus" class="status" aria-live="polite"></p>
+      </section>
+      <section class="daily-seed-card">
+        <div class="daily-score-head"><h3>SCHEDULED MESSAGES</h3><button id="siteMessageRefresh" type="button">REFRESH</button></div>
+        <div id="siteMessageList" class="site-message-list"></div>
+      </section>
+    </section>
     <p id="dashboardStatus" class="status" aria-live="polite"></p>
   </section>
 </main>
@@ -152,7 +236,7 @@
     <iframe id="practiceFrame" title="BOXXY private Daily practice" sandbox="allow-scripts" referrerpolicy="no-referrer" allow="fullscreen" allowfullscreen></iframe>
   </section>
 </div>
-<script src="/attempt-history-ui.js?v=424"></script>
-<script src="basement.js?v=424"></script>
+<script src="/attempt-history-ui.js?v=425"></script>
+<script src="basement.js?v=425"></script>
 </body>
 </html>

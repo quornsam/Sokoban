@@ -1,3 +1,4 @@
+/* BOXXY v425: refresh message-bar announcement client and admin assets. */
 /* BOXXY v424: cache admin-attempt telemetry client updates. */
 /* BOXXY v423: refresh client assets for phone/tablet large-board snap movement. */
 /* BOXXY v422: refresh client assets for the 50-cell large-level performance threshold. */
@@ -34,7 +35,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "424";
+const RELEASE_VERSION = "425";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [

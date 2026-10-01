@@ -1,3 +1,4 @@
+/* BOXXY v425: Basement schedules date-specific public message-bar announcements and actions. */
 /* BOXXY v403: synthetic players receive/manage persistent random avatars for public profiles. */
 /* BOXXY v375: varied, route-verified synthetic move counts and update-in-place for existing seeds. */
 /* BOXXY v392: Basement Daily score visibility is server-authoritative and never mutates player progress. */
@@ -29,6 +30,7 @@ import { analyseDailySolution, generateDailySyntheticRoute } from "../_lib/synth
 import { ensureAttemptHistorySchema, readAttemptOverview, readLevelAttemptHistory } from '../_lib/attempt-history.js';
 import { ensureDailyLeaderboardVisibilitySchema, setDailyLeaderboardVisibility, cleanDailyLeaderboardVisibility } from '../_lib/daily-leaderboard-visibility.js';
 import { cleanPublicAvatarStyle, ensureSyntheticAvatarColumn, randomPublicAvatarStyle } from '../_lib/public-profile.js';
+import { ensureSiteAnnouncementsSchema, cleanSiteAnnouncementDate, cleanSiteAnnouncementColour, cleanSiteAnnouncementAction, cleanSiteAnnouncementValue, mappedSiteAnnouncement } from '../_lib/site-announcements.js';
 
 const INSTANT_MOVE_FEATURE_KEY = "instant_move";
 
@@ -128,6 +130,79 @@ async function setInstantMoveAccess(context, body) {
     ok: true, userId: String(user.id), username: String(user.username),
     instantMoveEnabled: enabled, instantMoveUpdatedAt: now
   });
+}
+
+
+async function siteMessageState(context) {
+  const db = requireDatabase(context.env);
+  await ensureSiteAnnouncementsSchema(db);
+  const result = await db.prepare(`
+    SELECT message_date, message_text, background_color, text_color,
+           button_label, action_key, action_value, enabled, updated_at
+    FROM site_announcements
+    ORDER BY message_date DESC
+    LIMIT 120
+  `).all();
+  return json({
+    ok:true,
+    authenticated:true,
+    messages:(result.results || []).map(mappedSiteAnnouncement)
+  });
+}
+
+async function saveSiteMessage(context, body) {
+  const db = requireDatabase(context.env);
+  await ensureSiteAnnouncementsSchema(db);
+  const date = cleanSiteAnnouncementDate(body.date);
+  const text = String(body.text || '').trim().slice(0, 120);
+  if (!date) return json({ ok:false, error:'Choose a valid message date.' }, 400);
+  if (!text) return json({ ok:false, error:'Message text is required.' }, 400);
+  const backgroundColor = cleanSiteAnnouncementColour(body.backgroundColor, '#f2b51d');
+  const textColor = cleanSiteAnnouncementColour(body.textColor, '#171719');
+  const buttonLabel = String(body.buttonLabel || '').trim().slice(0, 28);
+  const actionKey = cleanSiteAnnouncementAction(body.actionKey);
+  let actionValue = cleanSiteAnnouncementValue(body.actionValue);
+  if (actionKey === 'open_url' && actionValue) {
+    try {
+      const url = new URL(actionValue, 'https://boxxy.io/');
+      if (!['http:','https:'].includes(url.protocol)) throw new Error('protocol');
+      actionValue = url.href.slice(0, 500);
+    } catch (_) {
+      return json({ ok:false, error:'The web link is not a valid HTTP/HTTPS URL.' }, 400);
+    }
+  }
+  const enabled = body.enabled !== false;
+  const updatedAt = Date.now();
+  await db.prepare(`
+    INSERT INTO site_announcements (
+      message_date, message_text, background_color, text_color,
+      button_label, action_key, action_value, enabled, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(message_date) DO UPDATE SET
+      message_text = excluded.message_text,
+      background_color = excluded.background_color,
+      text_color = excluded.text_color,
+      button_label = excluded.button_label,
+      action_key = excluded.action_key,
+      action_value = excluded.action_value,
+      enabled = excluded.enabled,
+      updated_at = excluded.updated_at
+  `).bind(date, text, backgroundColor, textColor, buttonLabel, actionKey, actionValue, enabled ? 1 : 0, updatedAt).run();
+  const row = await db.prepare(`
+    SELECT message_date, message_text, background_color, text_color,
+           button_label, action_key, action_value, enabled, updated_at
+    FROM site_announcements WHERE message_date = ? LIMIT 1
+  `).bind(date).first();
+  return json({ ok:true, authenticated:true, message:mappedSiteAnnouncement(row) });
+}
+
+async function deleteSiteMessage(context, body) {
+  const db = requireDatabase(context.env);
+  await ensureSiteAnnouncementsSchema(db);
+  const date = cleanSiteAnnouncementDate(body.date);
+  if (!date) return json({ ok:false, error:'Choose a valid message date.' }, 400);
+  await db.prepare('DELETE FROM site_announcements WHERE message_date = ?').bind(date).run();
+  return json({ ok:true, authenticated:true, deleted:true, date });
 }
 
 
@@ -563,6 +638,9 @@ export async function onRequest(context) {
       }
       if (action === "reset_password") return await resetUserPassword(context, body);
       if (action === "set_instant_move") return await setInstantMoveAccess(context, body);
+      if (action === "site_message_state") return await siteMessageState(context);
+      if (action === "site_message_save") return await saveSiteMessage(context, body);
+      if (action === "site_message_delete") return await deleteSiteMessage(context, body);
       if (action === "synthetic_add_user") return await addSyntheticUser(context, body);
       if (action === "synthetic_random_avatar") return await randomiseSyntheticAvatar(context, body);
       if (action === "synthetic_delete_user") return await deleteSyntheticUser(context, body);
