@@ -1,4 +1,4 @@
-/* BOXXY v421: a newly completed Daily score is overlaid locally on leaderboard data even before cloud sync completes. */
+/* BOXXY v422: 50-cell-wide or 50-cell-high boards now use the existing large-level performance mode. */
 /* BOXXY v420: Daily leaderboard loading state is staged before the modal is shown, preventing the first-open collapse. */
 /* BOXXY v419: Daily leaderboard loading preserves its score area to prevent modal layout jump. */
 /* BOXXY v418: search-focused metadata and standalone Sokoban information pages; gameplay unchanged. */
@@ -22,7 +22,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "421",
+  version: "422",
   lastUpdated: "2026-10-01"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
@@ -4202,7 +4202,7 @@ window.BOXXY_RELEASE = Object.freeze({
   async function loadPlayerProfileLocations() {
     if (playerProfileLocationsData) return playerProfileLocationsData;
     if (!playerProfileLocationsPromise) {
-      playerProfileLocationsPromise = fetch("/assets/data/profile-locations-v1.json?v=421", {
+      playerProfileLocationsPromise = fetch("/assets/data/profile-locations-v1.json?v=422", {
         method:"GET", credentials:"same-origin", cache:"force-cache", headers:{ Accept:"application/json" }
       }).then(async response => {
         if (!response.ok) throw new Error("Location list unavailable.");
@@ -8548,7 +8548,7 @@ window.BOXXY_RELEASE = Object.freeze({
        same per-move cost, particularly on phones. Reuse the same proven renderer
        rather than creating a second mobile-only optimisation path. */
     const denseBoxLevel = boxes.length > 80;
-    largeLevelPerformanceMode = width > 50 || height > 50 || denseBoxLevel;
+    largeLevelPerformanceMode = width >= 50 || height >= 50 || denseBoxLevel;
     document.body.classList.toggle("large-level-performance", largeLevelPerformanceMode);
     board?.classList.toggle("large-level-performance", largeLevelPerformanceMode);
     rebuildGoalLookup();
