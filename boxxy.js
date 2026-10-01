@@ -1,3 +1,4 @@
+/* BOXXY v423: phone/tablet boards over 25 cells in either dimension skip forced-reflow board-step movement animation. */
 /* BOXXY v422: 50-cell-wide or 50-cell-high boards now use the existing large-level performance mode. */
 /* BOXXY v420: Daily leaderboard loading state is staged before the modal is shown, preventing the first-open collapse. */
 /* BOXXY v419: Daily leaderboard loading preserves its score area to prevent modal layout jump. */
@@ -22,7 +23,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "422",
+  version: "423",
   lastUpdated: "2026-10-01"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
@@ -3007,6 +3008,7 @@ window.BOXXY_RELEASE = Object.freeze({
   let animTimer = null;
   let boardStepMotion = null;
   let largeLevelPerformanceMode = false;
+  let mobileLargeBoardSnapMovement = false;
   let goalLookup = new Map();
   let boxLookup = new Map();
   let persistentBoxPieces = [];
@@ -4202,7 +4204,7 @@ window.BOXXY_RELEASE = Object.freeze({
   async function loadPlayerProfileLocations() {
     if (playerProfileLocationsData) return playerProfileLocationsData;
     if (!playerProfileLocationsPromise) {
-      playerProfileLocationsPromise = fetch("/assets/data/profile-locations-v1.json?v=422", {
+      playerProfileLocationsPromise = fetch("/assets/data/profile-locations-v1.json?v=423", {
         method:"GET", credentials:"same-origin", cache:"force-cache", headers:{ Accept:"application/json" }
       }).then(async response => {
         if (!response.ok) throw new Error("Location list unavailable.");
@@ -8549,6 +8551,7 @@ window.BOXXY_RELEASE = Object.freeze({
        rather than creating a second mobile-only optimisation path. */
     const denseBoxLevel = boxes.length > 80;
     largeLevelPerformanceMode = width >= 50 || height >= 50 || denseBoxLevel;
+    mobileLargeBoardSnapMovement = dailyLeaderboardDeviceClass() !== "computer" && (width > 25 || height > 25);
     document.body.classList.toggle("large-level-performance", largeLevelPerformanceMode);
     board?.classList.toggle("large-level-performance", largeLevelPerformanceMode);
     rebuildGoalLookup();
@@ -8642,7 +8645,7 @@ window.BOXXY_RELEASE = Object.freeze({
     }
 
     piece.classList.remove("pushing", "board-step");
-    if (animate && motion?.type === "push") {
+    if (animate && motion?.type === "push" && !mobileLargeBoardSnapMovement) {
       piece.style.setProperty("--from-x", motion.boxFromX);
       piece.style.setProperty("--from-y", motion.boxFromY);
       void piece.offsetWidth;
@@ -8661,7 +8664,7 @@ window.BOXXY_RELEASE = Object.freeze({
       window.CharacterStyler?.drawImage?.(persistentPlayerImage, frameName);
     }
 
-    if (motion) {
+    if (motion && !mobileLargeBoardSnapMovement) {
       persistentPlayerPiece.style.setProperty("--from-x", motion.fromX);
       persistentPlayerPiece.style.setProperty("--from-y", motion.fromY);
       void persistentPlayerPiece.offsetWidth;
@@ -8749,6 +8752,7 @@ window.BOXXY_RELEASE = Object.freeze({
         anim === "pushing"
         && box.moving
         && activeBoardMotion?.type === "push"
+        && !mobileLargeBoardSnapMovement
         && box.x === activeBoardMotion.boxToX
         && box.y === activeBoardMotion.boxToY
       );
@@ -8769,7 +8773,7 @@ window.BOXXY_RELEASE = Object.freeze({
     });
 
     const playerPiece = document.createElement("div");
-    const playerMoving = Boolean(activeBoardMotion);
+    const playerMoving = Boolean(activeBoardMotion) && !mobileLargeBoardSnapMovement;
     playerPiece.className = `piece player facing-${facing}${anim && anim !== "idle" ? " " + anim : ""}${playerMoving ? " board-step" : ""}`;
     playerPiece.style.cssText = posStyle(player[0], player[1], depth(player[1], "player"));
     if (playerMoving) {
