@@ -1,3 +1,4 @@
+/* BOXXY v424: admin Daily scores surface navigator.webdriver evidence without affecting ranking. */
 /* BOXXY v412: public Daily leaderboards are server-paged in 30-score chunks with sort-aware ordering. */
 /* BOXXY v403: synthetic leaderboard players can carry Basement-assigned avatars. */
 import { json, requireDatabase, authenticatedUser, adminAuthenticated } from "../_lib/auth.js";
@@ -129,6 +130,8 @@ export async function onRequestGet(context) {
     const bestMovesDevicePath = `$."${dateKey}".bestMovesDevice`;
     const bestMovesMouseOrClickPushPath = `$."${dateKey}".bestMovesMouseOrClickPush`;
     const bestMovesInstantMovePath = `$."${dateKey}".bestMovesInstantMove`;
+    const bestMovesWebDriverPath = `$."${dateKey}".bestMovesWebDriverDetected`;
+    const leaderboardWebDriverPath = `$."${dateKey}".leaderboardWebDriverDetected`;
     const leaderboardTrackedPath = `$."${dateKey}".leaderboardTracked`;
     const leaderboardStartedAtPath = `$."${dateKey}".leaderboardStartedAt`;
     const leaderboardCompletedAtPath = `$."${dateKey}".leaderboardCompletedAt`;
@@ -165,6 +168,8 @@ export async function onRequestGet(context) {
           CAST(json_extract(daily_json, ?) AS TEXT) AS best_moves_device,
           CAST(json_extract(daily_json, ?) AS INTEGER) AS best_moves_mouse_or_click_push,
           CAST(json_extract(daily_json, ?) AS INTEGER) AS best_moves_instant_move,
+          CAST(json_extract(daily_json, ?) AS INTEGER) AS best_moves_webdriver_detected,
+          CAST(json_extract(daily_json, ?) AS INTEGER) AS leaderboard_webdriver_detected,
           CASE
             WHEN json_extract(daily_json, ?) = 1 THEN
               CAST(json_extract(daily_json, ?) AS INTEGER)
@@ -185,6 +190,8 @@ export async function onRequestGet(context) {
       , real_scores AS (
         SELECT d.user_id AS player_id, 'real' AS player_kind,
           d.username, d.avatar_json, d.seconds, d.moves, d.best_moves, d.leaderboard_device,
+          CASE WHEN d.leaderboard_webdriver_detected = 1 THEN 1 ELSE 0 END AS webdriver_detected,
+          CASE WHEN d.best_moves_webdriver_detected = 1 THEN 1 ELSE 0 END AS best_moves_run_webdriver_detected,
           CASE WHEN d.best_moves_seconds > 0 AND d.best_moves_mouse_or_click_push = 1 THEN 1 ELSE 0 END
             AS best_moves_run_mouse_or_click_push,
           CASE WHEN d.best_moves_seconds > 0 AND d.best_moves_instant_move = 1 THEN 1 ELSE 0 END
@@ -232,6 +239,7 @@ export async function onRequestGet(context) {
           )
       ), real_paired AS (
         SELECT player_id, player_kind, username, avatar_json, seconds, moves, best_moves, leaderboard_device,
+          webdriver_detected, best_moves_run_webdriver_detected,
           best_moves_run_seconds, best_moves_run_mouse_or_click_push, best_moves_run_instant_move,
           COALESCE(saved_moves_device,
             CASE WHEN history_seconds > 0
@@ -242,6 +250,7 @@ export async function onRequestGet(context) {
         SELECT s.user_id AS player_id, 'synthetic' AS player_kind,
           u.username AS username, NULLIF(u.avatar_json,'') AS avatar_json, s.seconds AS seconds, s.moves AS moves,
           s.moves AS best_moves, s.device AS leaderboard_device,
+          0 AS webdriver_detected, 0 AS best_moves_run_webdriver_detected,
           s.seconds AS best_moves_run_seconds, s.device AS best_moves_run_device,
           0 AS best_moves_run_mouse_or_click_push, 0 AS best_moves_run_instant_move
         FROM synthetic_daily_scores s
@@ -250,10 +259,12 @@ export async function onRequestGet(context) {
           AND NOT EXISTS (SELECT 1 FROM users r WHERE lower(r.username) = lower(u.username))
       ), all_scores AS (
         SELECT player_id, player_kind, username, avatar_json, seconds, moves, best_moves, leaderboard_device,
+          webdriver_detected, best_moves_run_webdriver_detected,
           best_moves_run_seconds, best_moves_run_device,
           best_moves_run_mouse_or_click_push, best_moves_run_instant_move FROM real_paired
         UNION ALL
         SELECT player_id, player_kind, username, avatar_json, seconds, moves, best_moves, leaderboard_device,
+          webdriver_detected, best_moves_run_webdriver_detected,
           best_moves_run_seconds, best_moves_run_device,
           best_moves_run_mouse_or_click_push, best_moves_run_instant_move FROM synthetic_scores
       ), scored_with_visibility AS (
@@ -264,6 +275,7 @@ export async function onRequestGet(context) {
           ON v.date_key = ? AND v.player_kind = a.player_kind AND v.player_id = a.player_id
       )
       SELECT player_id, player_kind, username, avatar_json, seconds, moves, best_moves, leaderboard_device,
+        webdriver_detected, best_moves_run_webdriver_detected,
         best_moves_run_seconds, best_moves_run_device,
         best_moves_run_mouse_or_click_push, best_moves_run_instant_move, visibility
       FROM scored_with_visibility
@@ -273,7 +285,7 @@ export async function onRequestGet(context) {
       leaderboardTrackedPath, leaderboardSecondsPath, secondsPath,
       leaderboardTrackedPath, leaderboardMovesPath, movesPath,
       bestMovesPath, leaderboardMovesPath, bestMovesSecondsPath, bestMovesDevicePath,
-      bestMovesMouseOrClickPushPath, bestMovesInstantMovePath,
+      bestMovesMouseOrClickPushPath, bestMovesInstantMovePath, bestMovesWebDriverPath, leaderboardWebDriverPath,
       leaderboardTrackedPath, leaderboardStartedAtPath,
       leaderboardTrackedPath, leaderboardCompletedAtPath,
       leaderboardTrackedPath, leaderboardDevicePath,
@@ -316,7 +328,9 @@ export async function onRequestGet(context) {
           ? Math.round(publicBestMovesSeconds * 100) / 100
           : null,
         bestMovesDevice: cleanDeviceClass(row.best_moves_run_device) || null,
-        device: cleanDeviceClass(row.leaderboard_device) || null
+        device: cleanDeviceClass(row.leaderboard_device) || null,
+        webdriverDetected: Number(row.webdriver_detected) === 1,
+        bestMovesWebdriverDetected: Number(row.best_moves_run_webdriver_detected) === 1
       };
     });
 

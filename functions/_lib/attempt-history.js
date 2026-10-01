@@ -1,3 +1,4 @@
+/* BOXXY v424 — navigator.webdriver is retained as admin-only evidence and never alters eligibility. */
 /* BOXXY v395 — independent, idempotent, account-scoped per-run history.
    History starts with v376; control metadata is explicit on new runs and recovered only where older Daily data identifies the exact saved fewest-moves run. */
 export async function ensureAttemptHistorySchema(db) {
@@ -19,6 +20,7 @@ export async function ensureAttemptHistorySchema(db) {
       assisted INTEGER NOT NULL DEFAULT 0 CHECK(assisted IN (0,1)),
       mouse_or_click_push INTEGER NOT NULL DEFAULT 0 CHECK(mouse_or_click_push IN (0,1)),
       instant_move INTEGER NOT NULL DEFAULT 0 CHECK(instant_move IN (0,1)),
+      webdriver_detected INTEGER NOT NULL DEFAULT 0 CHECK(webdriver_detected IN (0,1)),
       end_reason TEXT NOT NULL DEFAULT '',
       device TEXT NOT NULL DEFAULT '',
       FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -43,7 +45,8 @@ export async function ensureAttemptHistoryDeviceColumn(db) {
   const additions = [
     ['device', "TEXT NOT NULL DEFAULT ''"],
     ['mouse_or_click_push', 'INTEGER NOT NULL DEFAULT 0 CHECK(mouse_or_click_push IN (0,1))'],
-    ['instant_move', 'INTEGER NOT NULL DEFAULT 0 CHECK(instant_move IN (0,1))']
+    ['instant_move', 'INTEGER NOT NULL DEFAULT 0 CHECK(instant_move IN (0,1))'],
+    ['webdriver_detected', 'INTEGER NOT NULL DEFAULT 0 CHECK(webdriver_detected IN (0,1))']
   ];
   for (const [name,definition] of additions) {
     if (names.has(name)) continue;
@@ -88,7 +91,8 @@ function validateAttempt(raw) {
     endedAt: endedAt === null ? null : Math.trunc(endedAt), completed,
     seconds, moves, pushes, assisted: raw.assisted === true ? 1 : 0,
     mouseOrClickPushUsed: raw.mouseOrClickPushUsed === true ? 1 : 0,
-    instantMoveUsed: raw.instantMoveUsed === true ? 1 : 0, endReason,
+    instantMoveUsed: raw.instantMoveUsed === true ? 1 : 0,
+    webdriverDetected: raw.webdriverDetected === true ? 1 : 0, endReason,
     device: ['phone','tablet','computer'].includes(raw.device) ? raw.device : ''
   };
 }
@@ -102,8 +106,8 @@ export async function writeAttemptHistory(db, userId, raws) {
   // Owner and puzzle identity never change; repeated start requests cannot undo a completion.
   const stmt = db.prepare(`INSERT INTO level_attempt_history
     (id,user_id,pack_id,pack_name,level_token,level_number,level_name,started_at,ended_at,
-     completed,seconds,moves,pushes,assisted,mouse_or_click_push,instant_move,end_reason,device)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+     completed,seconds,moves,pushes,assisted,mouse_or_click_push,instant_move,webdriver_detected,end_reason,device)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     ON CONFLICT(id) DO UPDATE SET
       ended_at = CASE WHEN level_attempt_history.completed = 1 THEN level_attempt_history.ended_at
         ELSE COALESCE(excluded.ended_at, level_attempt_history.ended_at) END,
@@ -120,6 +124,7 @@ export async function writeAttemptHistory(db, userId, raws) {
         WHEN excluded.completed = 1 THEN excluded.mouse_or_click_push ELSE level_attempt_history.mouse_or_click_push END,
       instant_move = CASE WHEN level_attempt_history.completed = 1 THEN level_attempt_history.instant_move
         WHEN excluded.completed = 1 THEN excluded.instant_move ELSE level_attempt_history.instant_move END,
+      webdriver_detected = MAX(level_attempt_history.webdriver_detected, excluded.webdriver_detected),
       end_reason = CASE WHEN level_attempt_history.completed = 1 THEN level_attempt_history.end_reason
         ELSE CASE WHEN excluded.end_reason != '' THEN excluded.end_reason ELSE level_attempt_history.end_reason END END,
       device = COALESCE(NULLIF(level_attempt_history.device,''),excluded.device)
@@ -129,7 +134,7 @@ export async function writeAttemptHistory(db, userId, raws) {
   await db.batch(attempts.map(a => stmt.bind(
     a.id,userId,a.packId,a.packName,a.levelToken,a.levelNumber,a.levelName,
     a.startedAt,a.endedAt,a.completed ? 1 : 0,a.seconds,a.moves,a.pushes,a.assisted,
-    a.mouseOrClickPushUsed,a.instantMoveUsed,a.endReason,a.device
+    a.mouseOrClickPushUsed,a.instantMoveUsed,a.webdriverDetected,a.endReason,a.device
   )));
   return attempts.map(a => a.id);
 }
@@ -316,9 +321,9 @@ export async function readLevelAttemptHistory(db, userId, options={}, progressVa
   const rowsResult = await db.prepare(`SELECT attempt_number AS attemptNumber,
       id, started_at AS startedAt, ended_at AS endedAt, completed,
       seconds, moves, pushes, assisted, mouse_or_click_push AS mouseOrClickPushUsed,
-      instant_move AS instantMoveUsed, end_reason AS endReason
+      instant_move AS instantMoveUsed, webdriver_detected AS webdriverDetected, end_reason AS endReason
     FROM (SELECT id, started_at, ended_at, completed, seconds, moves, pushes, assisted,
-      mouse_or_click_push, instant_move, end_reason,
+      mouse_or_click_push, instant_move, webdriver_detected, end_reason,
       ROW_NUMBER() OVER (ORDER BY started_at, id) AS attempt_number
       FROM level_attempt_history WHERE user_id=? AND pack_id=? AND level_token=?)
     ORDER BY ${orderBy}
@@ -367,9 +372,12 @@ export async function readLevelAttemptHistory(db, userId, options={}, progressVa
       mouseOrClickPushUsed=olderDailyControlRun.mouseOrClickPushUsed;
       instantMoveUsed=olderDailyControlRun.instantMoveUsed;
     }
-    return {...row,
+    const publicRow = {...row,
       completed:Boolean(row.completed), assisted:Boolean(row.assisted),
       mouseOrClickPushUsed, instantMoveUsed};
+    if (options.includeAdminFlags === true) publicRow.webdriverDetected = Boolean(row.webdriverDetected);
+    else delete publicRow.webdriverDetected;
+    return publicRow;
   });
   return { rows,
     legacy, nextOffset: all.length > limit ? offset+limit : null,sort,

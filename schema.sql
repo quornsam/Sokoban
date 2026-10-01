@@ -157,6 +157,7 @@ CREATE TABLE IF NOT EXISTS level_attempt_history (
   assisted INTEGER NOT NULL DEFAULT 0 CHECK(assisted IN (0,1)),
   mouse_or_click_push INTEGER NOT NULL DEFAULT 0 CHECK(mouse_or_click_push IN (0,1)),
   instant_move INTEGER NOT NULL DEFAULT 0 CHECK(instant_move IN (0,1)),
+  webdriver_detected INTEGER NOT NULL DEFAULT 0 CHECK(webdriver_detected IN (0,1)),
   end_reason TEXT NOT NULL DEFAULT '',
   device TEXT NOT NULL DEFAULT '',
   FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE

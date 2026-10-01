@@ -1,3 +1,4 @@
+/* BOXXY v424: record navigator.webdriver as admin-only automation evidence; it never changes score eligibility. */
 /* BOXXY v423: phone/tablet boards over 25 cells in either dimension skip forced-reflow board-step movement animation. */
 /* BOXXY v422: 50-cell-wide or 50-cell-high boards now use the existing large-level performance mode. */
 /* BOXXY v420: Daily leaderboard loading state is staged before the modal is shown, preventing the first-open collapse. */
@@ -23,7 +24,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "423",
+  version: "424",
   lastUpdated: "2026-10-01"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
@@ -1747,6 +1748,8 @@ window.BOXXY_RELEASE = Object.freeze({
       else delete completions[key].bestMovesMouseOrClickPush;
       if (result.instantMoveUsed === true) completions[key].bestMovesInstantMove = true;
       else delete completions[key].bestMovesInstantMove;
+      if (result.webdriverDetected === true) completions[key].bestMovesWebDriverDetected = true;
+      else delete completions[key].bestMovesWebDriverDetected;
     }
 
     let leaderboardSeconds = previousLeaderboardSeconds;
@@ -1764,6 +1767,8 @@ window.BOXXY_RELEASE = Object.freeze({
         leaderboardStartedAt = attemptStartedAt > 0 ? attemptStartedAt : null;
         leaderboardCompletedAt = attemptCompletedAt > 0 ? attemptCompletedAt : null;
         leaderboardDevice = attemptLeaderboardDevice;
+        if (result.webdriverDetected === true) completions[key].leaderboardWebDriverDetected = true;
+        else delete completions[key].leaderboardWebDriverDetected;
         leaderboardTimezoneOffsetMinutes = attemptStartedAt > 0
           ? new Date(attemptStartedAt).getTimezoneOffset() : null;
       }
@@ -9518,6 +9523,7 @@ window.BOXXY_RELEASE = Object.freeze({
         assisted:Boolean(autoplayRunning || guidedSolveUsed || instantMoveUsedThisLevel),
         mouseOrClickPushUsed: mouseOrClickPushUsedThisLevel,
         instantMoveUsed: instantMoveUsedThisLevel,
+        webdriverDetected: navigator.webdriver === true,
         device: dailyMode ? dailyLeaderboardDeviceClass() : ""
       });
     }
@@ -9548,7 +9554,8 @@ window.BOXXY_RELEASE = Object.freeze({
           completedAt,
           leaderboardEligible,
           mouseOrClickPushUsed: mouseOrClickPushUsedThisLevel,
-          instantMoveUsed: instantMoveUsedThisLevel
+          instantMoveUsed: instantMoveUsedThisLevel,
+          webdriverDetected: navigator.webdriver === true
         });
         window.dispatchEvent(new CustomEvent("boxxydailycompletionrecorded", {
           detail: { date: String(dailyPuzzle.date) }

@@ -1,3 +1,4 @@
+/* BOXXY v424: admin-only WebDriver evidence badge. */
 /* BOXXY v395: compact, paged Play History with fixed sort buttons and playable level links. */
 .history-browser {font:inherit;color:inherit;max-width:100%;}
 .history-browser details {border:1px solid #989083;border-radius:5px;margin:.45rem 0;padding:.55rem;}
@@ -40,3 +41,5 @@
 }
 .history-browser .history-more-levels[hidden]{display:none;}
 .history-browser .history-play-status{font-size:.85em;color:#992d2d;margin:.4rem 0;}
+
+.history-browser .history-webdriver-flag{display:inline-block;margin-left:.35rem;padding:.08rem .28rem;border:1px solid #b01818;border-radius:3px;color:#b01818;background:#fff4f4;font-size:.72em;font-weight:900;line-height:1.2;vertical-align:middle;white-space:nowrap}

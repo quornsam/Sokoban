@@ -589,7 +589,7 @@ export async function onRequest(context) {
       const history = await readLevelAttemptHistory(db,id,{
         packId:url.searchParams.get('packId'),levelToken:url.searchParams.get('levelToken'),
         sort:url.searchParams.get('sort'),direction:url.searchParams.get('direction'),
-        offset:url.searchParams.get('offset')
+        offset:url.searchParams.get('offset'), includeAdminFlags:true
       },progressRow.progress_json);
       return json({ok:true,authenticated:true,...history});
     }

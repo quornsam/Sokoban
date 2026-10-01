@@ -1,3 +1,4 @@
+/* BOXXY v424 — Basement-only WebDriver evidence marker in per-run history. */
 /* BOXXY v395 — compact fixed Play History sort buttons and control-mode markers. */
 (() => {
   'use strict';
@@ -141,6 +142,7 @@
     if(missing||value==null) td.classList.add('history-missing');
     if(best) {td.classList.add('history-best');td.title=title;}
     tr.appendChild(td);
+    return td;
   }
   function mount(root,urlFor,overview=null,options={}) {
     if (!root) return null;
@@ -257,10 +259,15 @@
                   (i===3&&level.bestTime!=null&&run.seconds!=null&&Number(run.seconds)===Number(level.bestTime))||
                   (i===4&&level.bestMoves!=null&&run.moves!=null&&Number(run.moves)===Number(level.bestMoves))
                 );
-                appendCell(tr,value,{
+                const cell=appendCell(tr,value,{
                   best:isBest,
                   title:i===3?[isBest?'Best time':'',controlTitle].filter(Boolean).join(' · '):(i===4&&isBest?'Best moves':'')
                 });
+                if (i===3 && options.adminFlags === true && run.webdriverDetected === true) {
+                  const flag=el('span','WEBDRIVER','history-webdriver-flag');
+                  flag.title='navigator.webdriver was true for this attempt';
+                  cell.appendChild(flag);
+                }
               });body.appendChild(tr);
             }
             offset=result.nextOffset;more.hidden=offset==null;

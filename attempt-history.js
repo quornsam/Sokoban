@@ -1,3 +1,4 @@
+/* BOXXY v424 — record navigator.webdriver as admin-only attempt evidence. */
 /* BOXXY v394 — local-first player history with independent Mouse/Click Push and Instant Move metadata. */
 (() => {
   'use strict';
@@ -125,7 +126,8 @@
       levelNumber:Number(details.levelNumber) || 0,
       levelName:String(details.levelName || ''), startedAt:Number(details.startedAt) || Date.now(),
       endedAt:null, completed:false, seconds:null, moves:null, pushes:null,
-      assisted:false, mouseOrClickPushUsed:false, instantMoveUsed:false, endReason:'', ownerId:userId
+      assisted:false, mouseOrClickPushUsed:false, instantMoveUsed:false,
+      webdriverDetected:navigator.webdriver === true, endReason:'', ownerId:userId
     };
     stash(active, userId);
     lastProgressSave = Date.now();
@@ -138,6 +140,7 @@
     }
     if (result.mouseOrClickPushUsed === true) active.mouseOrClickPushUsed = true;
     if (result.instantMoveUsed === true) active.instantMoveUsed = true;
+    if (navigator.webdriver === true || result.webdriverDetected === true) active.webdriverDetected = true;
     // No network calls on movement. Persist at most every 15 seconds so a crash
     // loses at most a short interval; always persist when ending a run.
     if (Date.now() - lastProgressSave >= 15000) {
@@ -166,6 +169,7 @@
     active.assisted = Boolean(result.assisted);
     active.mouseOrClickPushUsed = Boolean(result.mouseOrClickPushUsed);
     active.instantMoveUsed = Boolean(result.instantMoveUsed);
+    active.webdriverDetected = Boolean(active.webdriverDetected || result.webdriverDetected || navigator.webdriver === true);
     // The device belongs to this completed run, not the browser that later views it.
     active.device = ['phone','tablet','computer'].includes(result.device) ? result.device : '';
     active.endedAt = Date.now();

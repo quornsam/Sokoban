@@ -1,3 +1,4 @@
+/* BOXXY v424: admin-only WebDriver evidence styling. */
 /* BOXXY v356 — account detail adds a compact secure password-reset panel. */
 /* BOXXY v345 — compact Basement UI with Click-Push beta reporting; numeric graphics never wrap. */
 :root{--ink:#171719;--paper:#fffaf1;--cream:#efe5d4;--yellow:#e5b32a;--blue:#20539a;--green:#2f8f5b;--red:#db3b27;--line:#c8bdaf;--admin-font-size:10px;font-size:16px}
@@ -64,3 +65,5 @@
 .synthetic-user-row label{min-width:0}.synthetic-avatar{width:42px;height:36px;display:block;flex:0 0 auto}.synthetic-user-actions{display:flex;gap:6px;justify-content:flex-end}.synthetic-user-actions button{white-space:nowrap}
 @media(max-width:850px){.synthetic-user-actions{grid-column:3;display:grid;gap:4px}.synthetic-user-row{grid-template-columns:minmax(160px,1fr) .6fr auto}.synthetic-avatar{width:36px;height:31px}}
 .synthetic-avatar-empty{width:42px;min-width:42px;height:30px;display:grid;place-items:center;border:1px dashed #777;font-size:7px;line-height:1;text-align:center;color:#666}
+
+.daily-score-player{display:flex;align-items:center;gap:6px;min-width:0;flex-wrap:wrap}.webdriver-badge{display:inline-flex;align-items:center;padding:2px 5px;border:1px solid #b01818;border-radius:3px;background:#fff0f0;color:#b01818;font-size:.68em;font-weight:900;letter-spacing:.03em;white-space:nowrap}

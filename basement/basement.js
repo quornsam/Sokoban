@@ -1,3 +1,4 @@
+/* BOXXY v424: show navigator.webdriver evidence in red in admin Daily scores and Player History only. */
 /* BOXXY v403: artificial players can be assigned persistent random avatars. */
 /* BOXXY v416 — Basement recognises the expanded twenty-four-character PARTYGOERS roster. */
 /* BOXXY v410 — Basement recognises the expanded eighteen-character PARTYGOERS roster. */
@@ -497,7 +498,7 @@
               ? `<option value="owner"${visibility === "owner" ? " selected" : ""}>OWNER ONLY</option>`
               : "";
             return `<div class="daily-score-row">
-              <span>${index + 1}</span><strong>${escapeHtml(entry.username)}</strong>
+              <span>${index + 1}</span><strong class="daily-score-player">${escapeHtml(entry.username)}${entry.webdriverDetected === true ? '<b class="webdriver-badge" title="navigator.webdriver was true for this saved fastest-time run">WEBDRIVER</b>' : ''}</strong>
               <span>${Number(entry.seconds).toFixed(2)}s</span><span>${entry.moves == null ? "—" : `${Number(entry.moves)} moves`}</span>
               <span>${escapeHtml(String(entry.device || "—").toUpperCase())}</span>
               <span>${kind === "synthetic" ? "ARTIFICIAL" : "REAL"}</span>
@@ -1008,7 +1009,7 @@
       window.BOXXYHistoryUI?.mount?.(document.getElementById('basementPlayerHistory'), query => {
         const params = new URLSearchParams({user:String(user.id), ...query});
         return '/api/basement?' + params;
-      }, data.history || {levels:[],recent:[]});
+      }, data.history || {levels:[],recent:[]}, {adminFlags:true});
       renderAvatarCanvases([user]);
       requestAnimationFrame(() => detailClose?.focus());
     } catch (_) { setStatus(dashboardStatus, "Could not load that account.", "error"); }
