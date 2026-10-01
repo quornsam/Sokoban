@@ -1,3 +1,4 @@
+/* BOXXY v426: reliable message-bar character actions and selected-user announcement testing. */
 /* BOXXY v425: admin-scheduled public message-bar announcements with optional in-game actions. */
 /* BOXXY v424: record navigator.webdriver as admin-only automation evidence; it never changes score eligibility. */
 /* BOXXY v423: phone/tablet boards over 25 cells in either dimension skip forced-reflow board-step movement animation. */
@@ -25,7 +26,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "425",
+  version: "426",
   lastUpdated: "2026-10-01"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
@@ -1107,10 +1108,13 @@ window.BOXXY_RELEASE = Object.freeze({
     window.dispatchEvent(new CustomEvent("characterstylechange", { detail: { ...style } }));
   }
 
-  function set(category, colour) {
-    if (category === "bodyType") {
-      if (!BODY_TYPES.includes(colour) || style.bodyType === colour) return;
-      style.bodyType = colour;
+  async function selectCharacter(bodyType) {
+    const nextBodyType = String(bodyType || '').trim().toLowerCase();
+    if (!BODY_TYPES.includes(nextBodyType)) return false;
+    if (PARTYGOER_BODY_TYPES.includes(nextBodyType) && !partygoersUnlocked) setPartygoersUnlocked(true);
+    const changed = style.bodyType !== nextBodyType;
+    if (changed) {
+      style.bodyType = nextBodyType;
       activeStyleFamily = familyForBodyType(style.bodyType);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(style));
       if (SPOOKY_BODY_TYPES.includes(style.bodyType)) {
@@ -1118,14 +1122,27 @@ window.BOXXY_RELEASE = Object.freeze({
       } else if (PARTYGOER_BODY_TYPES.includes(style.bodyType)) {
         try { localStorage.setItem(PARTYGOER_STORAGE_KEY, style.bodyType); } catch (_) {}
       }
-      updateSelectedSwatches();
-      redrawAll();
-      loadSheetBundle(style.bodyType, activeTheme())
-        .then(() => redrawAll())
-        .catch(error => console.error("Selected character assets could not be loaded.", error));
       if (SPOOKY_BODY_TYPES.includes(style.bodyType)) {
         window.dispatchEvent(new CustomEvent("boxxyspookycharacterselected", { detail: { bodyType: style.bodyType } }));
       }
+    }
+    updateSelectedSwatches();
+    clearRenderedFrames();
+    redrawAll();
+    try {
+      await loadSheetBundle(style.bodyType, activeTheme());
+      clearRenderedFrames();
+      redrawAll();
+      return true;
+    } catch (error) {
+      console.error("Selected character assets could not be loaded.", error);
+      return false;
+    }
+  }
+
+  function set(category, colour) {
+    if (category === "bodyType") {
+      void selectCharacter(colour);
       return;
     }
     if (!CATEGORIES.includes(category)) return;
@@ -1436,6 +1453,7 @@ window.BOXXY_RELEASE = Object.freeze({
     drawAvatarPreview,
     redrawAll,
     set,
+    selectCharacter,
     reset,
     unlockPartygoers: () => setPartygoersUnlocked(true),
     get style() { return { ...style }; },
@@ -3887,8 +3905,14 @@ window.BOXXY_RELEASE = Object.freeze({
     if (!action) return;
     if (action.startsWith('character:')) {
       const bodyType = action.slice('character:'.length);
-      if (PARTYGOER_BODY_TYPES.includes(bodyType)) window.CharacterStyler?.unlockPartygoers?.();
-      window.CharacterStyler?.set?.('bodyType', bodyType);
+      const selected = window.CharacterStyler?.selectCharacter
+        ? await window.CharacterStyler.selectCharacter(bodyType)
+        : (window.CharacterStyler?.set?.('bodyType', bodyType), true);
+      if (selected !== false) {
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        window.CharacterStyler?.redrawAll?.();
+        refreshPlayerVisual();
+      }
       return;
     }
     if (action === 'open_menu') { await openSettings(); return; }

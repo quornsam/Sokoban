@@ -11,10 +11,28 @@ export async function ensureSiteAnnouncementsSchema(db) {
       button_label TEXT NOT NULL DEFAULT '',
       action_key TEXT NOT NULL DEFAULT '',
       action_value TEXT NOT NULL DEFAULT '',
+      audience_mode TEXT NOT NULL DEFAULT 'all',
       enabled INTEGER NOT NULL DEFAULT 1 CHECK(enabled IN (0,1)),
       updated_at INTEGER NOT NULL DEFAULT 0
     )
   `).run();
+  const columns = await db.prepare('PRAGMA table_info(site_announcements)').all();
+  const names = new Set((columns.results || []).map(row => String(row.name || '')));
+  if (!names.has('audience_mode')) {
+    await db.prepare("ALTER TABLE site_announcements ADD COLUMN audience_mode TEXT NOT NULL DEFAULT 'all'").run();
+  }
+  await db.batch([
+    db.prepare(`
+      CREATE TABLE IF NOT EXISTS site_announcement_targets (
+        message_date TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        PRIMARY KEY(message_date, user_id),
+        FOREIGN KEY(message_date) REFERENCES site_announcements(message_date) ON DELETE CASCADE,
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `),
+    db.prepare('CREATE INDEX IF NOT EXISTS site_announcement_targets_user_idx ON site_announcement_targets(user_id, message_date)')
+  ]);
 }
 
 export function cleanSiteAnnouncementDate(value) {
@@ -36,6 +54,10 @@ export function cleanSiteAnnouncementValue(value) {
   return String(value || '').trim().slice(0, 500);
 }
 
+export function cleanSiteAnnouncementAudience(value) {
+  return String(value || '').trim().toLowerCase() === 'selected' ? 'selected' : 'all';
+}
+
 export function mappedSiteAnnouncement(row) {
   if (!row) return null;
   return {
@@ -46,6 +68,7 @@ export function mappedSiteAnnouncement(row) {
     buttonLabel: String(row.button_label || ''),
     actionKey: cleanSiteAnnouncementAction(row.action_key),
     actionValue: String(row.action_value || ''),
+    audienceMode: cleanSiteAnnouncementAudience(row.audience_mode),
     enabled: Number(row.enabled) === 1,
     updatedAt: Number(row.updated_at) || 0
   };

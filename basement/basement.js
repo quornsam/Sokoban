@@ -1,3 +1,4 @@
+/* BOXXY v426: selected-user message testing and reliable character-action administration. */
 /* BOXXY v425: administer date-specific public message-bar announcements and actions. */
 /* BOXXY v424: show navigator.webdriver evidence in red in admin Daily scores and Player History only. */
 /* BOXXY v403: artificial players can be assigned persistent random avatars. */
@@ -77,6 +78,9 @@
   const siteMessageBackground = document.getElementById("siteMessageBackground");
   const siteMessageTextColour = document.getElementById("siteMessageTextColour");
   const siteMessageButtonLabel = document.getElementById("siteMessageButtonLabel");
+  const siteMessageAudience = document.getElementById("siteMessageAudience");
+  const siteMessageTargetsRow = document.getElementById("siteMessageTargetsRow");
+  const siteMessageTargets = document.getElementById("siteMessageTargets");
   const siteMessageAction = document.getElementById("siteMessageAction");
   const siteMessageActionValueRow = document.getElementById("siteMessageActionValueRow");
   const siteMessageActionValue = document.getElementById("siteMessageActionValue");
@@ -194,10 +198,17 @@
     if (siteMessageBackground) siteMessageBackground.value = '#f2b51d';
     if (siteMessageTextColour) siteMessageTextColour.value = '#171719';
     if (siteMessageEnabled) siteMessageEnabled.checked = true;
+    if (siteMessageAudience) siteMessageAudience.value = 'all';
+    if (siteMessageTargets) siteMessageTargets.value = '';
     if (siteMessageActionValue) siteMessageActionValue.value = '';
+    updateSiteMessageAudienceVisibility();
     updateSiteMessageActionValueVisibility();
     updateSiteMessagePreview();
     setStatus(siteMessageStatus, '');
+  }
+
+  function updateSiteMessageAudienceVisibility() {
+    if (siteMessageTargetsRow) siteMessageTargetsRow.hidden = siteMessageAudience?.value !== 'selected';
   }
 
   function updateSiteMessageActionValueVisibility() {
@@ -221,9 +232,12 @@
     if (siteMessageBackground) siteMessageBackground.value = String(message.backgroundColor || '#f2b51d');
     if (siteMessageTextColour) siteMessageTextColour.value = String(message.textColor || '#171719');
     if (siteMessageButtonLabel) siteMessageButtonLabel.value = String(message.buttonLabel || '');
+    if (siteMessageAudience) siteMessageAudience.value = message.audienceMode === 'selected' ? 'selected' : 'all';
+    if (siteMessageTargets) siteMessageTargets.value = Array.isArray(message.targetUsernames) ? message.targetUsernames.join(', ') : '';
     if (siteMessageAction) siteMessageAction.value = String(message.actionKey || '');
     if (siteMessageActionValue) siteMessageActionValue.value = String(message.actionValue || '');
     if (siteMessageEnabled) siteMessageEnabled.checked = message.enabled !== false;
+    updateSiteMessageAudienceVisibility();
     updateSiteMessageActionValueVisibility();
     updateSiteMessagePreview();
     siteMessageText?.focus?.();
@@ -243,7 +257,7 @@
     }
     siteMessageList.innerHTML = siteMessages.map(message => `<div class="site-message-row${message.enabled === false ? ' is-disabled' : ''}">
       <strong>${escapeHtml(message.date)}</strong>
-      <span>${escapeHtml(message.text)}<small>${escapeHtml(message.enabled === false ? 'DISABLED' : 'ENABLED')}</small></span>
+      <span>${escapeHtml(message.text)}<small>${escapeHtml(message.enabled === false ? 'DISABLED' : 'ENABLED')} · ${escapeHtml(message.audienceMode === 'selected' ? `TEST: ${(message.targetUsernames || []).join(', ')}` : 'EVERYONE')}</small></span>
       <span>${escapeHtml(message.buttonLabel ? `${message.buttonLabel} · ${siteMessageActionLabel(message.actionKey)}` : 'NO BUTTON')}</span>
       <div class="site-message-row-actions"><button type="button" data-message-edit="${escapeHtml(message.date)}">EDIT</button><button type="button" data-message-delete="${escapeHtml(message.date)}">DELETE</button></div>
     </div>`).join('');
@@ -1288,6 +1302,7 @@
     }
   });
 
+  siteMessageAudience?.addEventListener('change', updateSiteMessageAudienceVisibility);
   siteMessageAction?.addEventListener('change', () => { updateSiteMessageActionValueVisibility(); updateSiteMessagePreview(); });
   [siteMessageText,siteMessageBackground,siteMessageTextColour,siteMessageButtonLabel].forEach(element => element?.addEventListener('input', updateSiteMessagePreview));
   siteMessageClear?.addEventListener('click', resetSiteMessageForm);
@@ -1302,6 +1317,8 @@
         text:siteMessageText?.value,
         backgroundColor:siteMessageBackground?.value,
         textColor:siteMessageTextColour?.value,
+        audienceMode:siteMessageAudience?.value,
+        targetUsernames:String(siteMessageTargets?.value || '').split(/[,;\n]+/).map(name => name.trim()).filter(Boolean),
         buttonLabel:siteMessageButtonLabel?.value,
         actionKey:siteMessageAction?.value,
         actionValue:siteMessageActionValue?.value,

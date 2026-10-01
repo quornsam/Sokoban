@@ -68,6 +68,7 @@
 
 .daily-score-player{display:flex;align-items:center;gap:6px;min-width:0;flex-wrap:wrap}.webdriver-badge{display:inline-flex;align-items:center;padding:2px 5px;border:1px solid #b01818;border-radius:3px;background:#fff0f0;color:#b01818;font-size:.68em;font-weight:900;letter-spacing:.03em;white-space:nowrap}
 
+/* v426: selected-user message testing. */
 /* v425: public message-bar scheduler. */
 .site-message-form{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:end}
 .site-message-form label{display:grid;gap:5px;font-size:.86em;font-weight:800;letter-spacing:.03em;min-width:0}
@@ -89,3 +90,5 @@
 .site-message-row-actions button[data-message-delete]{background:#a92921;color:#fff}
 @media(max-width:850px){.site-message-form{grid-template-columns:1fr 1fr}.site-message-form .site-message-wide{grid-column:1/-1}.site-message-row{grid-template-columns:100px minmax(120px,1fr) auto}.site-message-row>span:nth-child(3){display:none}}
 @media(max-width:600px){.site-message-form{grid-template-columns:1fr}.site-message-form .site-message-wide{grid-column:auto}.site-message-row{grid-template-columns:1fr}.site-message-row-actions{justify-content:flex-start}}
+
+.site-message-audience-hint{margin:0;align-self:end}.site-message-form #siteMessageTargetsRow[hidden]{display:none}

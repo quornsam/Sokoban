@@ -7,8 +7,8 @@
 <meta name="theme-color" content="#efe5d4">
 <title>BOXXY Basement</title>
 <link rel="icon" href="../assets/ui/icons/boxxy-yellow-crate-v150.ico" sizes="any">
-<link rel="stylesheet" href="basement.css?v=425">
-<link rel="stylesheet" href="/attempt-history.css?v=425">
+<link rel="stylesheet" href="basement.css?v=426">
+<link rel="stylesheet" href="/attempt-history.css?v=426">
 </head>
 <body>
 <main class="basement-shell">
@@ -137,6 +137,9 @@
           <label class="site-message-wide">MESSAGE <input id="siteMessageText" type="text" maxlength="120" placeholder="HEY THIS IS A CUSTOM MESSAGE" required></label>
           <label>BAR COLOUR <input id="siteMessageBackground" type="color" value="#f2b51d"></label>
           <label>TEXT COLOUR <input id="siteMessageTextColour" type="color" value="#171719"></label>
+          <label>AUDIENCE <select id="siteMessageAudience"><option value="all">EVERYONE</option><option value="selected">SELECTED USERS · TEST</option></select></label>
+          <label id="siteMessageTargetsRow" class="site-message-wide" hidden>TARGET USERNAMES <input id="siteMessageTargets" type="text" maxlength="600" placeholder="username1, username2"></label>
+          <p class="site-message-wide table-hint site-message-audience-hint">Use SELECTED USERS to test the real message and button safely on chosen signed-in accounts before switching it to EVERYONE.</p>
           <label>BUTTON TEXT <input id="siteMessageButtonLabel" type="text" maxlength="28" placeholder="Optional"></label>
           <label class="site-message-wide">BUTTON ACTION
             <select id="siteMessageAction">
@@ -236,7 +239,7 @@
     <iframe id="practiceFrame" title="BOXXY private Daily practice" sandbox="allow-scripts" referrerpolicy="no-referrer" allow="fullscreen" allowfullscreen></iframe>
   </section>
 </div>
-<script src="/attempt-history-ui.js?v=425"></script>
-<script src="basement.js?v=425"></script>
+<script src="/attempt-history-ui.js?v=426"></script>
+<script src="basement.js?v=426"></script>
 </body>
 </html>
