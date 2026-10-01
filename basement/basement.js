@@ -1,3 +1,5 @@
+/* BOXXY v426: selected-user message testing and reliable character-action administration. */
+/* BOXXY v425: administer date-specific public message-bar announcements and actions. */
 /* BOXXY v424: show navigator.webdriver evidence in red in admin Daily scores and Player History only. */
 /* BOXXY v403: artificial players can be assigned persistent random avatars. */
 /* BOXXY v416 — Basement recognises the expanded twenty-four-character PARTYGOERS roster. */
@@ -68,6 +70,26 @@
   const dailyScoresRefresh = document.getElementById("dailyScoresRefresh");
   const dailyScoresList = document.getElementById("dailyScoresList");
   const dailyScoresStatus = document.getElementById("dailyScoresStatus");
+  const messageBarTab = document.getElementById("messageBarTab");
+  const messageBarPanel = document.getElementById("messageBarPanel");
+  const siteMessageForm = document.getElementById("siteMessageForm");
+  const siteMessageDate = document.getElementById("siteMessageDate");
+  const siteMessageText = document.getElementById("siteMessageText");
+  const siteMessageBackground = document.getElementById("siteMessageBackground");
+  const siteMessageTextColour = document.getElementById("siteMessageTextColour");
+  const siteMessageButtonLabel = document.getElementById("siteMessageButtonLabel");
+  const siteMessageAudience = document.getElementById("siteMessageAudience");
+  const siteMessageTargetsRow = document.getElementById("siteMessageTargetsRow");
+  const siteMessageTargets = document.getElementById("siteMessageTargets");
+  const siteMessageAction = document.getElementById("siteMessageAction");
+  const siteMessageActionValueRow = document.getElementById("siteMessageActionValueRow");
+  const siteMessageActionValue = document.getElementById("siteMessageActionValue");
+  const siteMessageEnabled = document.getElementById("siteMessageEnabled");
+  const siteMessageClear = document.getElementById("siteMessageClear");
+  const siteMessagePreview = document.getElementById("siteMessagePreview");
+  const siteMessageStatus = document.getElementById("siteMessageStatus");
+  const siteMessageRefresh = document.getElementById("siteMessageRefresh");
+  const siteMessageList = document.getElementById("siteMessageList");
   const practiceSearch = document.getElementById("practiceSearch");
   const practiceFilter = document.getElementById("practiceFilter");
   const practiceCards = document.getElementById("practiceCards");
@@ -91,6 +113,7 @@
   let completions = [];
   let syntheticUsers = [];
   let syntheticScores = [];
+  let siteMessages = [];
   let sortColumn = "lastSeenAt";
   let sortDirection = -1;
   let selectedView = "players";
@@ -168,6 +191,92 @@
     const d = String(date.getDate()).padStart(2, "0");
     return `${y}-${m}-${d}`;
   }
+  function resetSiteMessageForm() {
+    if (!siteMessageForm) return;
+    siteMessageForm.reset();
+    if (siteMessageDate) siteMessageDate.value = dayKey(new Date());
+    if (siteMessageBackground) siteMessageBackground.value = '#f2b51d';
+    if (siteMessageTextColour) siteMessageTextColour.value = '#171719';
+    if (siteMessageEnabled) siteMessageEnabled.checked = true;
+    if (siteMessageAudience) siteMessageAudience.value = 'all';
+    if (siteMessageTargets) siteMessageTargets.value = '';
+    if (siteMessageActionValue) siteMessageActionValue.value = '';
+    updateSiteMessageAudienceVisibility();
+    updateSiteMessageActionValueVisibility();
+    updateSiteMessagePreview();
+    setStatus(siteMessageStatus, '');
+  }
+
+  function updateSiteMessageAudienceVisibility() {
+    if (siteMessageTargetsRow) siteMessageTargetsRow.hidden = siteMessageAudience?.value !== 'selected';
+  }
+
+  function updateSiteMessageActionValueVisibility() {
+    if (siteMessageActionValueRow) siteMessageActionValueRow.hidden = siteMessageAction?.value !== 'open_url';
+  }
+
+  function updateSiteMessagePreview() {
+    if (!siteMessagePreview) return;
+    const text = String(siteMessageText?.value || '').trim() || 'MESSAGE PREVIEW';
+    const button = String(siteMessageButtonLabel?.value || '').trim();
+    const hasAction = Boolean(button && siteMessageAction?.value);
+    siteMessagePreview.style.background = siteMessageBackground?.value || '#f2b51d';
+    siteMessagePreview.style.color = siteMessageTextColour?.value || '#171719';
+    siteMessagePreview.innerHTML = `<strong>${escapeHtml(text)}</strong>${hasAction ? `<button type="button" tabindex="-1">${escapeHtml(button)}</button>` : ''}`;
+  }
+
+  function fillSiteMessageForm(message) {
+    if (!message) return;
+    if (siteMessageDate) siteMessageDate.value = String(message.date || '');
+    if (siteMessageText) siteMessageText.value = String(message.text || '');
+    if (siteMessageBackground) siteMessageBackground.value = String(message.backgroundColor || '#f2b51d');
+    if (siteMessageTextColour) siteMessageTextColour.value = String(message.textColor || '#171719');
+    if (siteMessageButtonLabel) siteMessageButtonLabel.value = String(message.buttonLabel || '');
+    if (siteMessageAudience) siteMessageAudience.value = message.audienceMode === 'selected' ? 'selected' : 'all';
+    if (siteMessageTargets) siteMessageTargets.value = Array.isArray(message.targetUsernames) ? message.targetUsernames.join(', ') : '';
+    if (siteMessageAction) siteMessageAction.value = String(message.actionKey || '');
+    if (siteMessageActionValue) siteMessageActionValue.value = String(message.actionValue || '');
+    if (siteMessageEnabled) siteMessageEnabled.checked = message.enabled !== false;
+    updateSiteMessageAudienceVisibility();
+    updateSiteMessageActionValueVisibility();
+    updateSiteMessagePreview();
+    siteMessageText?.focus?.();
+  }
+
+  function siteMessageActionLabel(key) {
+    if (!key) return 'NO ACTION';
+    const option = [...(siteMessageAction?.options || [])].find(item => item.value === key);
+    return option ? option.textContent : key.toUpperCase();
+  }
+
+  function renderSiteMessages() {
+    if (!siteMessageList) return;
+    if (!siteMessages.length) {
+      siteMessageList.innerHTML = '<p class="muted">No scheduled messages yet.</p>';
+      return;
+    }
+    siteMessageList.innerHTML = siteMessages.map(message => `<div class="site-message-row${message.enabled === false ? ' is-disabled' : ''}">
+      <strong>${escapeHtml(message.date)}</strong>
+      <span>${escapeHtml(message.text)}<small>${escapeHtml(message.enabled === false ? 'DISABLED' : 'ENABLED')} · ${escapeHtml(message.audienceMode === 'selected' ? `TEST: ${(message.targetUsernames || []).join(', ')}` : 'EVERYONE')}</small></span>
+      <span>${escapeHtml(message.buttonLabel ? `${message.buttonLabel} · ${siteMessageActionLabel(message.actionKey)}` : 'NO BUTTON')}</span>
+      <div class="site-message-row-actions"><button type="button" data-message-edit="${escapeHtml(message.date)}">EDIT</button><button type="button" data-message-delete="${escapeHtml(message.date)}">DELETE</button></div>
+    </div>`).join('');
+  }
+
+  async function loadSiteMessages() {
+    setStatus(siteMessageStatus, 'LOADING MESSAGES…');
+    try {
+      const { response, data } = await api('', { action:'site_message_state' });
+      if (response.status === 401 || data.authenticated === false) { showLogin(); return; }
+      if (!response.ok) throw new Error(data.error || 'Could not load message schedule.');
+      siteMessages = Array.isArray(data.messages) ? data.messages : [];
+      renderSiteMessages();
+      setStatus(siteMessageStatus, `${siteMessages.length} SCHEDULED MESSAGE${siteMessages.length === 1 ? '' : 'S'}`, 'success');
+    } catch (error) {
+      setStatus(siteMessageStatus, error.message || 'Could not load message schedule.', 'error');
+    }
+  }
+
   function weekActivity(summary) {
     const entries = Array.isArray(summary?.activityDays) ? summary.activityDays : [];
     const byDate = new Map(entries.map(item => [String(item?.date || ""), item]));
@@ -517,19 +626,22 @@
   }
 
   function setView(view) {
-    selectedView = ["players","completions","daily","scores"].includes(view) ? view : "players";
+    selectedView = ["players","completions","daily","scores","messages"].includes(view) ? view : "players";
     if (playersPanel) playersPanel.hidden = selectedView !== "players";
     if (completionsPanel) completionsPanel.hidden = selectedView !== "completions";
     if (dailyPracticePanel) dailyPracticePanel.hidden = selectedView !== "daily";
     if (dailyScoresPanel) dailyScoresPanel.hidden = selectedView !== "scores";
+    if (messageBarPanel) messageBarPanel.hidden = selectedView !== "messages";
     if (searchInput) searchInput.hidden = selectedView !== "players";
     playersTab?.setAttribute("aria-pressed", String(selectedView === "players"));
     completionsTab?.setAttribute("aria-pressed", String(selectedView === "completions"));
     dailyPracticeTab?.setAttribute("aria-pressed", String(selectedView === "daily"));
     dailyScoresTab?.setAttribute("aria-pressed", String(selectedView === "scores"));
+    messageBarTab?.setAttribute("aria-pressed", String(selectedView === "messages"));
     if (selectedView === "completions") renderCompletions();
     if (selectedView === "daily") loadPreparedDailies();
     if (selectedView === "scores") loadDailyScores();
+    if (selectedView === "messages") loadSiteMessages();
   }
   function ukCompletionDate(timestamp) {
     if (!Number(timestamp)) return "Original date unavailable";
@@ -1190,6 +1302,60 @@
     }
   });
 
+  siteMessageAudience?.addEventListener('change', updateSiteMessageAudienceVisibility);
+  siteMessageAction?.addEventListener('change', () => { updateSiteMessageActionValueVisibility(); updateSiteMessagePreview(); });
+  [siteMessageText,siteMessageBackground,siteMessageTextColour,siteMessageButtonLabel].forEach(element => element?.addEventListener('input', updateSiteMessagePreview));
+  siteMessageClear?.addEventListener('click', resetSiteMessageForm);
+  siteMessageRefresh?.addEventListener('click', loadSiteMessages);
+  siteMessageForm?.addEventListener('submit', async event => {
+    event.preventDefault();
+    setStatus(siteMessageStatus, 'SAVING MESSAGE…');
+    try {
+      const { response, data } = await api('', {
+        action:'site_message_save',
+        date:siteMessageDate?.value,
+        text:siteMessageText?.value,
+        backgroundColor:siteMessageBackground?.value,
+        textColor:siteMessageTextColour?.value,
+        audienceMode:siteMessageAudience?.value,
+        targetUsernames:String(siteMessageTargets?.value || '').split(/[,;\n]+/).map(name => name.trim()).filter(Boolean),
+        buttonLabel:siteMessageButtonLabel?.value,
+        actionKey:siteMessageAction?.value,
+        actionValue:siteMessageActionValue?.value,
+        enabled:siteMessageEnabled?.checked !== false
+      });
+      if (!response.ok) throw new Error(data.error || 'Could not save message.');
+      await loadSiteMessages();
+      fillSiteMessageForm(data.message);
+      setStatus(siteMessageStatus, `${String(data.message?.date || '').toUpperCase()} SAVED`, 'success');
+    } catch (error) {
+      setStatus(siteMessageStatus, error.message || 'Could not save message.', 'error');
+    }
+  });
+  siteMessageList?.addEventListener('click', async event => {
+    const edit = event.target.closest('[data-message-edit]');
+    if (edit) {
+      const message = siteMessages.find(item => item.date === edit.dataset.messageEdit);
+      if (message) fillSiteMessageForm(message);
+      return;
+    }
+    const remove = event.target.closest('[data-message-delete]');
+    if (!remove) return;
+    const date = remove.dataset.messageDelete;
+    if (!window.confirm(`Delete the public message scheduled for ${date}?`)) return;
+    setStatus(siteMessageStatus, 'DELETING MESSAGE…');
+    try {
+      const { response, data } = await api('', { action:'site_message_delete', date });
+      if (!response.ok) throw new Error(data.error || 'Could not delete message.');
+      await loadSiteMessages();
+      if (siteMessageDate?.value === date) resetSiteMessageForm();
+      setStatus(siteMessageStatus, `${String(date).toUpperCase()} DELETED`, 'success');
+    } catch (error) {
+      setStatus(siteMessageStatus, error.message || 'Could not delete message.', 'error');
+    }
+  });
+  resetSiteMessageForm();
+
   loginForm?.addEventListener("submit", async event => {
     event.preventDefault(); const form = new FormData(loginForm); setStatus(loginStatus, "CHECKING…");
     try {
@@ -1198,7 +1364,7 @@
       loginForm.reset(); setStatus(loginStatus, ""); await loadUsers();
     } catch (_) { setStatus(loginStatus, "Could not reach the Basement API.", "error"); }
   });
-  logoutBtn?.addEventListener("click", async () => { closePractice(); try { await api("", { action:"logout" }); } catch (_) {} users=[]; completions=[]; syntheticUsers=[]; syntheticScores=[]; preparedDailies=[];practiceLoaded=false;showLogin(); });
+  logoutBtn?.addEventListener("click", async () => { closePractice(); try { await api("", { action:"logout" }); } catch (_) {} users=[]; completions=[]; syntheticUsers=[]; syntheticScores=[]; siteMessages=[]; preparedDailies=[];practiceLoaded=false;showLogin(); });
   refreshBtn?.addEventListener("click", loadUsers);
   if (playerSortSelect) {
     playerSortSelect.innerHTML = SORT_COLUMNS.map(([key,label]) => `<option value="${key}">${label}</option>`).join("");
@@ -1211,6 +1377,7 @@
   completionsTab?.addEventListener("click", () => setView("completions"));
   dailyPracticeTab?.addEventListener("click", () => setView("daily"));
   dailyScoresTab?.addEventListener("click", () => setView("scores"));
+  messageBarTab?.addEventListener("click", () => setView("messages"));
   if (completionPackSelect) {
     completionPackSelect.innerHTML = '<option value="">ALL LEVEL PACKS</option>' + COMPLETION_PACKS.map(([id,name]) => `<option value="${id}">${name}</option>`).join("");
     completionPackSelect.addEventListener("change", renderCompletions);

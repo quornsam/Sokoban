@@ -1,3 +1,5 @@
+/* BOXXY v426: reliable message-bar character actions and selected-user announcement testing. */
+/* BOXXY v425: admin-scheduled public message-bar announcements with optional in-game actions. */
 /* BOXXY v424: record navigator.webdriver as admin-only automation evidence; it never changes score eligibility. */
 /* BOXXY v423: phone/tablet boards over 25 cells in either dimension skip forced-reflow board-step movement animation. */
 /* BOXXY v422: 50-cell-wide or 50-cell-high boards now use the existing large-level performance mode. */
@@ -24,7 +26,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "424",
+  version: "426",
   lastUpdated: "2026-10-01"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
@@ -1106,10 +1108,13 @@ window.BOXXY_RELEASE = Object.freeze({
     window.dispatchEvent(new CustomEvent("characterstylechange", { detail: { ...style } }));
   }
 
-  function set(category, colour) {
-    if (category === "bodyType") {
-      if (!BODY_TYPES.includes(colour) || style.bodyType === colour) return;
-      style.bodyType = colour;
+  async function selectCharacter(bodyType) {
+    const nextBodyType = String(bodyType || '').trim().toLowerCase();
+    if (!BODY_TYPES.includes(nextBodyType)) return false;
+    if (PARTYGOER_BODY_TYPES.includes(nextBodyType) && !partygoersUnlocked) setPartygoersUnlocked(true);
+    const changed = style.bodyType !== nextBodyType;
+    if (changed) {
+      style.bodyType = nextBodyType;
       activeStyleFamily = familyForBodyType(style.bodyType);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(style));
       if (SPOOKY_BODY_TYPES.includes(style.bodyType)) {
@@ -1117,14 +1122,27 @@ window.BOXXY_RELEASE = Object.freeze({
       } else if (PARTYGOER_BODY_TYPES.includes(style.bodyType)) {
         try { localStorage.setItem(PARTYGOER_STORAGE_KEY, style.bodyType); } catch (_) {}
       }
-      updateSelectedSwatches();
-      redrawAll();
-      loadSheetBundle(style.bodyType, activeTheme())
-        .then(() => redrawAll())
-        .catch(error => console.error("Selected character assets could not be loaded.", error));
       if (SPOOKY_BODY_TYPES.includes(style.bodyType)) {
         window.dispatchEvent(new CustomEvent("boxxyspookycharacterselected", { detail: { bodyType: style.bodyType } }));
       }
+    }
+    updateSelectedSwatches();
+    clearRenderedFrames();
+    redrawAll();
+    try {
+      await loadSheetBundle(style.bodyType, activeTheme());
+      clearRenderedFrames();
+      redrawAll();
+      return true;
+    } catch (error) {
+      console.error("Selected character assets could not be loaded.", error);
+      return false;
+    }
+  }
+
+  function set(category, colour) {
+    if (category === "bodyType") {
+      void selectCharacter(colour);
       return;
     }
     if (!CATEGORIES.includes(category)) return;
@@ -1435,7 +1453,9 @@ window.BOXXY_RELEASE = Object.freeze({
     drawAvatarPreview,
     redrawAll,
     set,
+    selectCharacter,
     reset,
+    unlockPartygoers: () => setPartygoersUnlocked(true),
     get style() { return { ...style }; },
     get compactAssets() { return true; },
     get isOpen() { return Boolean(styleModal && !styleModal.hidden); }
@@ -1595,6 +1615,7 @@ window.BOXXY_RELEASE = Object.freeze({
   const DAILY_STREAK_KEY = "boxxy-daily-streak-v1";
   const DAILY_INVITE_SEEN_PREFIX = "boxxy-daily-invite-seen-";
   const DAILY_QUOTE_DISMISSED_PREFIX = "boxxy-daily-quote-dismissed-";
+  const SITE_ANNOUNCEMENT_DISMISSED_PREFIX = "boxxy-site-announcement-dismissed-";
   const DAILY_MAX_PUBLIC_MOVES_PER_SECOND = 15;
   const DAILY_DATE_OVERRIDE = (() => {
     try {
@@ -2767,6 +2788,10 @@ window.BOXXY_RELEASE = Object.freeze({
   const dailyQuotePlay = document.getElementById("dailyQuotePlay");
   const dailyQuoteDismiss = document.getElementById("dailyQuoteDismiss");
   const dailyQuoteMeta = document.getElementById("dailyQuoteMeta");
+  const siteAnnouncement = document.getElementById("siteAnnouncement");
+  const siteAnnouncementText = document.getElementById("siteAnnouncementText");
+  const siteAnnouncementAction = document.getElementById("siteAnnouncementAction");
+  const siteAnnouncementDismiss = document.getElementById("siteAnnouncementDismiss");
   const dailyInviteModal = document.getElementById("dailyInviteModal");
   const dailyInviteClose = document.getElementById("dailyInviteClose");
   const dailyInviteLater = document.getElementById("dailyInviteLater");
@@ -3788,11 +3813,147 @@ window.BOXXY_RELEASE = Object.freeze({
     return "UNAVAILABLE";
   }
 
+  let siteAnnouncementCurrent = null;
+  let siteAnnouncementActive = false;
+  let siteAnnouncementPollTimer = 0;
+
+  function siteAnnouncementDismissKey(message) {
+    return `${SITE_ANNOUNCEMENT_DISMISSED_PREFIX}${String(message?.date || '')}-${Math.max(0, Number(message?.updatedAt) || 0)}`;
+  }
+
+  function siteAnnouncementWasDismissed(message) {
+    if (!message?.date) return false;
+    try { return localStorage.getItem(siteAnnouncementDismissKey(message)) === '1'; }
+    catch (_) { return false; }
+  }
+
+  function clearSiteAnnouncement({ restoreDaily = true } = {}) {
+    siteAnnouncementCurrent = null;
+    siteAnnouncementActive = false;
+    if (siteAnnouncement) {
+      siteAnnouncement.hidden = true;
+      siteAnnouncement.classList.remove('is-entering');
+    }
+    instruction?.classList.remove('site-announcement-active');
+    if (restoreDaily) updateDailyQuotePrompt();
+  }
+
+  function displaySiteAnnouncement(message, { animate = true } = {}) {
+    if (!siteAnnouncement || !siteAnnouncementText || !message?.text || siteAnnouncementWasDismissed(message)) {
+      clearSiteAnnouncement();
+      return false;
+    }
+    const identity = `${message.date}:${Number(message.updatedAt) || 0}`;
+    const previousIdentity = siteAnnouncementCurrent
+      ? `${siteAnnouncementCurrent.date}:${Number(siteAnnouncementCurrent.updatedAt) || 0}`
+      : '';
+    siteAnnouncementCurrent = message;
+    siteAnnouncementActive = true;
+    siteAnnouncementText.textContent = String(message.text || '');
+    siteAnnouncement.style.setProperty('--site-message-bg', String(message.backgroundColor || '#f2b51d'));
+    siteAnnouncement.style.setProperty('--site-message-text', String(message.textColor || '#171719'));
+    if (siteAnnouncementAction) {
+      const hasAction = Boolean(String(message.buttonLabel || '').trim() && String(message.actionKey || '').trim());
+      siteAnnouncementAction.hidden = !hasAction;
+      siteAnnouncementAction.textContent = hasAction ? String(message.buttonLabel || '') : '';
+    }
+    dailyQuotePrompt && (dailyQuotePrompt.hidden = true);
+    instruction?.classList.remove('daily-prompt-active');
+    instruction?.classList.add('site-announcement-active');
+    siteAnnouncement.hidden = false;
+    if (animate && identity !== previousIdentity && !window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches) {
+      siteAnnouncement.classList.remove('is-entering');
+      void siteAnnouncement.offsetWidth;
+      siteAnnouncement.classList.add('is-entering');
+    } else {
+      siteAnnouncement.classList.remove('is-entering');
+    }
+    if (dailyInviteModal && !dailyInviteModal.hidden) closeDailyInvite();
+    return true;
+  }
+
+  async function refreshSiteAnnouncement(animate = false) {
+    const date = localDateKey();
+    try {
+      const response = await fetch(`/api/site-message?date=${encodeURIComponent(date)}`, { credentials:'same-origin' });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || payload?.ok === false) throw new Error(payload?.error || 'Message unavailable.');
+      const message = payload?.message;
+      if (!message || String(message.date || '') !== date || message.enabled === false || siteAnnouncementWasDismissed(message)) {
+        clearSiteAnnouncement();
+        return null;
+      }
+      displaySiteAnnouncement(message, { animate });
+      return message;
+    } catch (_) {
+      // Announcements are optional. A network failure must never disturb gameplay or the normal Daily prompt.
+      if (!siteAnnouncementActive) updateDailyQuotePrompt();
+      return null;
+    }
+  }
+
+  function startSiteAnnouncementPolling() {
+    window.clearInterval(siteAnnouncementPollTimer);
+    siteAnnouncementPollTimer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') refreshSiteAnnouncement(true);
+    }, 60000);
+  }
+
+  async function performSiteAnnouncementAction(message = siteAnnouncementCurrent) {
+    const action = String(message?.actionKey || '').toLowerCase();
+    const value = String(message?.actionValue || '');
+    if (!action) return;
+    if (action.startsWith('character:')) {
+      const bodyType = action.slice('character:'.length);
+      const selected = window.CharacterStyler?.selectCharacter
+        ? await window.CharacterStyler.selectCharacter(bodyType)
+        : (window.CharacterStyler?.set?.('bodyType', bodyType), true);
+      if (selected !== false) {
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        window.CharacterStyler?.redrawAll?.();
+        refreshPlayerVisual();
+      }
+      return;
+    }
+    if (action === 'open_menu') { await openSettings(); return; }
+    if (action === 'open_style') { document.getElementById('styleBtn')?.click(); return; }
+    if (action === 'open_level_picker') { levelBtn?.click(); return; }
+    if (action === 'open_packs') { openPackModal(); return; }
+    if (action === 'open_daily_archive') { openDailyArchive(); return; }
+    if (action === 'play_daily') { const puzzle = dailyPuzzleForToday(); if (puzzle) loadDailyPuzzle(puzzle); return; }
+    if (action === 'open_daily_leaderboard') { const puzzle = dailyPuzzleForToday(); if (puzzle) openDailyLeaderboard(puzzle); return; }
+    if (action === 'open_level_maker') { window.dispatchEvent(new CustomEvent('boxxy-maker-return')); return; }
+    if (action === 'open_how_to') { document.getElementById('howToPlayBtn')?.click(); return; }
+    if (action === 'open_account') {
+      await openSettings();
+      window.setTimeout(() => document.getElementById('accountEntryBtn')?.click(), 0);
+      return;
+    }
+    if (action === 'open_keyboard') {
+      await openSettings();
+      window.setTimeout(() => settingsKeyboardBtn?.click(), 0);
+      return;
+    }
+    if (action === 'open_contact') { settingsContactBtn?.click(); return; }
+    if (action === 'open_legal') { openLegalModal(); return; }
+    if (action === 'open_trophies') { openTrophyCabinet(); return; }
+    if (action === 'open_theme') { openThemeModal(); return; }
+    if (action === 'toggle_fullscreen') { fullscreenBtn?.click(); return; }
+    if (action === 'show_tetris') { startKonamiShowcase(true); return; }
+    if (action === 'restart_level') { restartBtn?.click(); return; }
+    if (action === 'open_url' && value) {
+      try {
+        const url = new URL(value, window.location.href);
+        if (url.protocol === 'http:' || url.protocol === 'https:') window.open(url.href, '_blank', 'noopener,noreferrer');
+      } catch (_) {}
+    }
+  }
+
   function updateDailyQuotePrompt() {
     if (!instruction || !dailyQuotePrompt) return;
     const puzzle = dailyPuzzleForToday();
     const dismissed = puzzle ? localStorage.getItem(`${DAILY_QUOTE_DISMISSED_PREFIX}${puzzle.date}`) === "1" : true;
-    const show = Boolean(puzzle && !dailyMode && !dailyCompletion(puzzle.date) && !dismissed && !makerTesting && !sharedPuzzleMode);
+    const show = Boolean(!siteAnnouncementActive && puzzle && !dailyMode && !dailyCompletion(puzzle.date) && !dismissed && !makerTesting && !sharedPuzzleMode);
     dailyQuotePrompt.hidden = !show;
     instruction.classList.toggle("daily-prompt-active", show);
     if (dailyQuoteMeta && puzzle) {
@@ -3857,7 +4018,7 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   function showDailyInvite(force = false) {
-    if (!dailyInviteModal || sharedPuzzleMode || makerTesting || dailyMode) return;
+    if (!dailyInviteModal || sharedPuzzleMode || makerTesting || dailyMode || (siteAnnouncementActive && !force)) return;
     const puzzle = dailyPuzzleForToday();
     if (!force) {
       if (!puzzle || dailyCompletion(puzzle.date)) return;
@@ -5296,6 +5457,7 @@ window.BOXXY_RELEASE = Object.freeze({
       updateDailyStreak();
       buildLevelButtons();
       updateDailyQuotePrompt();
+      refreshSiteAnnouncement(true);
       if (dailyMode) {
         if (nextPuzzle) loadDailyPuzzle(nextPuzzle);
         else loadLevel(levelIndex);
@@ -6677,8 +6839,8 @@ window.BOXXY_RELEASE = Object.freeze({
     });
   }
 
-  function startKonamiShowcase() {
-    if (!desktopEasterEggAvailable()) return false;
+  function startKonamiShowcase(force = false) {
+    if (!force && !desktopEasterEggAvailable()) return false;
     const decoded = decodeKonamiShowcaseLayout();
     konamiShowcaseActive = true;
     document.body.classList.add("konami-background");
@@ -11201,6 +11363,19 @@ window.BOXXY_RELEASE = Object.freeze({
     if (puzzle) { try { localStorage.setItem(`${DAILY_QUOTE_DISMISSED_PREFIX}${puzzle.date}`, "1"); } catch (_) {} }
     updateDailyQuotePrompt();
   });
+  siteAnnouncementDismiss?.addEventListener('click', () => {
+    if (siteAnnouncementCurrent) {
+      try { localStorage.setItem(siteAnnouncementDismissKey(siteAnnouncementCurrent), '1'); } catch (_) {}
+    }
+    clearSiteAnnouncement();
+  });
+  siteAnnouncementAction?.addEventListener('click', async () => {
+    const message = siteAnnouncementCurrent;
+    if (!message) return;
+    try { localStorage.setItem(siteAnnouncementDismissKey(message), '1'); } catch (_) {}
+    clearSiteAnnouncement();
+    await performSiteAnnouncementAction(message);
+  });
   dailyInvitePlay?.addEventListener("click", () => {
     markDailyInviteSeen();
     loadDailyPuzzle(dailyPuzzleForToday());
@@ -11606,6 +11781,8 @@ window.BOXXY_RELEASE = Object.freeze({
   };
 
   renderReleaseMetadata();
+  refreshSiteAnnouncement(true);
+  startSiteAnnouncementPolling();
   applyTheme(currentTheme, false);
   loadLevelProgress();
   updateDailyStreak();
