@@ -1,4 +1,4 @@
-/* BOXXY v434 — independent desktop slide-over utility tray above the map. */
+/* BOXXY v435 — paired desktop utility tray layout with standard line weight and message-bar gradient. */
 /* BOXXY v412 — cached/paged Daily leaderboard controls and 30-score pagination. */
 /* BOXXY v411 — restores established Character Style name typography and prevents arbitrary mid-word wrapping. */
 /* BOXXY v325 — board-style default choices sit in a dedicated aligned column; palette wrapping no longer breaks row continuity. */
@@ -8126,7 +8126,7 @@ html.touch-ui .dpad button {
   .daily-gold-medal-badge .daily-gold-medal-count{right:-5px;bottom:-4px;min-width:13px;height:13px;font-size:6px}
 }
 
-/* BOXXY v434 — desktop tools are an independent slide-over tray above the map; fixed header/footer chrome never participates. */
+/* BOXXY v435 — desktop tools are an independent slide-over tray above the map; fixed header/footer chrome never participates. */
 .desktop-utility-toggle,
 .desktop-board-actions,
 .desktop-rail-nav,
@@ -8254,16 +8254,16 @@ html.touch-ui .dpad button {
     bottom:calc(var(--desktop-footer-height) + var(--desktop-utility-edge-gap));
     width:var(--desktop-utility-expanded);
     padding:11px 8px;
-    border:2px solid var(--ink);
+    border:1px solid var(--line);
     border-right:0;
-    border-radius:11px 0 0 11px;
-    background:rgba(249,244,235,.94);
+    border-radius:10px 0 0 10px;
+    background:linear-gradient(90deg,rgba(229,179,42,.20),rgba(247,240,229,.82) 24%,rgba(247,240,229,.96));
     box-shadow:-4px 4px 12px rgba(55,38,20,.08);
     display:grid;
     grid-template-columns:repeat(2,58px);
-    grid-auto-rows:58px;
+    grid-template-rows:repeat(6,58px) minmax(0,1fr) 58px;
     justify-content:center;
-    align-content:start;
+    align-content:stretch;
     gap:8px;
     overflow:visible;
     pointer-events:auto;
@@ -8313,12 +8313,21 @@ html.touch-ui .dpad button {
   html:not(.touch-ui) .desktop-utility-tray .top-actions #restartBtn,
   html:not(.touch-ui) .desktop-utility-tray .move-zone .dpad{display:none!important}
 
-  /* Grid order follows the existing DOM: Save, Style, Menu, Level, Full Screen, level navigation, then utilities. */
-  html:not(.touch-ui) .desktop-utility-tray .top-actions #savePositionBtn,
-  html:not(.touch-ui) .desktop-utility-tray .move-zone #styleBtn,
-  html:not(.touch-ui) .desktop-utility-tray .bottom-actions .action,
-  html:not(.touch-ui) .desktop-utility-tray .desktop-rail-nav .action,
-  html:not(.touch-ui) .desktop-utility-tray .desktop-rail-extra .action{grid-column:auto;grid-row:auto}
+  /* Fixed two-column order: Save/Style, Levels/Packs, Prev/Next, Music/Audio, Profile/History, Daily/Trophies; Menu/Full Screen anchored at the bottom. */
+  html:not(.touch-ui) #savePositionBtn{grid-column:1;grid-row:1}
+  html:not(.touch-ui) #styleBtn{grid-column:2;grid-row:1}
+  html:not(.touch-ui) #levelBtn{grid-column:1;grid-row:2}
+  html:not(.touch-ui) #desktopPacksBtn{grid-column:2;grid-row:2}
+  html:not(.touch-ui) #desktopPrevLevelBtn{grid-column:1;grid-row:3}
+  html:not(.touch-ui) #desktopNextLevelBtn{grid-column:2;grid-row:3}
+  html:not(.touch-ui) #desktopMusicBtn{grid-column:1;grid-row:4}
+  html:not(.touch-ui) #desktopAudioBtn{grid-column:2;grid-row:4}
+  html:not(.touch-ui) #desktopProfileBtn{grid-column:1;grid-row:5}
+  html:not(.touch-ui) #desktopHistoryBtn{grid-column:2;grid-row:5}
+  html:not(.touch-ui) #desktopDailyBtn{grid-column:1;grid-row:6}
+  html:not(.touch-ui) #desktopTrophiesBtn{grid-column:2;grid-row:6}
+  html:not(.touch-ui) #settingsBtn{grid-column:1;grid-row:8}
+  html:not(.touch-ui) #fullscreenBtn{grid-column:2;grid-row:8}
 
   html:not(.touch-ui) .desktop-utility-tray .bottom-actions .action.small,
   html:not(.touch-ui) .desktop-utility-tray .desktop-rail-nav .action.small,
@@ -8456,6 +8465,7 @@ html.touch-ui .dpad button {
 
 @media (min-width:821px) and (pointer:fine) and (max-height:520px) and (orientation:landscape){
   html:not(.touch-ui){--desktop-footer-height:28px;--desktop-head-height:52px}
+  html:not(.touch-ui) .desktop-utility-tray{gap:2px;padding-top:3px;padding-bottom:3px}
   html:not(.touch-ui) .play-area{grid-template-rows:var(--desktop-head-height) minmax(0,1fr) var(--desktop-footer-height)}
   html:not(.touch-ui) .side-panel-head{height:var(--desktop-head-height);grid-template-rows:1fr}
   html:not(.touch-ui) .side-panel-head .credit{display:none}

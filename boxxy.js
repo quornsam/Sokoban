@@ -16,6 +16,7 @@
 /* BOXXY v410: character-family tabs browse without changing the selected character; six Partygoers added and profile/style controls refined. */
 /* BOXXY v409: restore v396 leaderboard typography/alignment while adding centred clickable avatars only to the full leaderboard. */
 /* BOXXY v407: keep profile bio editing geometrically stable and give full leaderboard avatars dedicated row space. */
+/* BOXXY v435: desktop utility tray uses paired square controls, fixed bottom Menu/Full Screen row and message-bar gradient. */
 /* BOXXY v434: desktop utility tray overlays the map, defaults open each load and adds audio/profile/history/trophy/Daily tools. */
 /* BOXXY v429: desktop-only collapsible utility rail, floating Undo/Restart and board colours in Style. */
 /* BOXXY v428: permanent Daily fastest-time gold medals appear in the header, trophy cabinet and public profiles. */
@@ -30,7 +31,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "434",
+  version: "435",
   lastUpdated: "2026-10-02"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
