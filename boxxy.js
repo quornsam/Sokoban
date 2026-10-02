@@ -16,6 +16,12 @@
 /* BOXXY v410: character-family tabs browse without changing the selected character; six Partygoers added and profile/style controls refined. */
 /* BOXXY v409: restore v396 leaderboard typography/alignment while adding centred clickable avatars only to the full leaderboard. */
 /* BOXXY v407: keep profile bio editing geometrically stable and give full leaderboard avatars dedicated row space. */
+/* BOXXY v439: constrain desktop board fitting to the live Undo/Restart boundary as the utility tray opens and closes. */
+/* BOXXY v438: restore the established desktop Full Screen/Zen geometry and controls after the desktop utility-tray restructure. */
+/* BOXXY v437: square desktop Undo/Restart controls, visible collapsed tray edge, Daily archive streak badge, and refreshed Partygoer sprites. */
+/* BOXXY v434: desktop utility tray overlays the map, defaults open each load and adds audio/profile/history/trophy/Daily tools. */
+/* BOXXY v429: desktop-only collapsible utility rail, floating Undo/Restart and board colours in Style. */
+/* BOXXY v428: permanent Daily fastest-time gold medals appear in the header, trophy cabinet and public profiles. */
 /* BOXXY v405: profile avatar crop, trophy tooltips, inline bio placeholder and clean clickable leaderboard names. */
 /* BOXXY v404: redesigned public profiles, full-resolution avatars, visual trophies, streak and in-place bio editing. */
 /* BOXXY v403: clickable Daily leaderboard public profiles with current avatar and public stats. */
@@ -27,8 +33,8 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "427",
-  lastUpdated: "2026-10-01"
+  version: "439",
+  lastUpdated: "2026-10-02"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
 /* BOXXY v401: PARTYGOERS expands to twelve characters, its Easter egg toggles visibility, and Attire character previews are centred/clickable. */
@@ -630,7 +636,8 @@ window.BOXXY_RELEASE = Object.freeze({
     "optimus", "pixella", "bolderdash", "sputnik", "vasquez",
     "bacterium", "clara", "jamil", "clickers", "bertrand", "angie", "the-haining",
     "eric", "marshall", "catherine", "mr-pjkuylasg", "slippy", "gobble",
-    "sandra", "blaze", "frederick", "charlize", "amy-annie", "bobbyburp"
+    "sandra", "blaze", "frederick", "charlize", "amy-annie", "bobbyburp",
+    "mr-whack", "elrick", "ms-thompson", "sid-the-big", "quock", "bernard"
   ]);
   const BODY_TYPES = ["boy", "girl", ...SPOOKY_BODY_TYPES, ...PARTYGOER_BODY_TYPES];
   const FIXED_BODY_TYPES = new Set([...SPOOKY_BODY_TYPES, ...PARTYGOER_BODY_TYPES]);
@@ -666,7 +673,13 @@ window.BOXXY_RELEASE = Object.freeze({
     frederick: "FREDERICK",
     charlize: "CHARLIZE",
     "amy-annie": "AMY & ANNIE",
-    bobbyburp: "BOBBYBURP"
+    bobbyburp: "BOBBYBURP",
+    "mr-whack": "MR WHACK",
+    elrick: "ELRICK",
+    "ms-thompson": "MS THOMPSON",
+    "sid-the-big": "SID THE BIG",
+    quock: "QUOCK",
+    bernard: "BERNARD"
   });
   const SPOOKY_STORAGE_KEY = "boxxy-spooky-character-v1";
   const PARTYGOER_STORAGE_KEY = "boxxy-partygoer-character-v1";
@@ -2737,6 +2750,21 @@ window.BOXXY_RELEASE = Object.freeze({
   const undoBtn = document.getElementById("undoBtn");
   const restartBtn = document.getElementById("restartBtn");
   const savePositionBtn = document.getElementById("savePositionBtn");
+  const desktopUndoBtn = document.getElementById("desktopUndoBtn");
+  const desktopRestartBtn = document.getElementById("desktopRestartBtn");
+  const desktopUtilityToggle = document.getElementById("desktopUtilityToggle");
+  const desktopPrevLevelBtn = document.getElementById("desktopPrevLevelBtn");
+  const desktopNextLevelBtn = document.getElementById("desktopNextLevelBtn");
+  const desktopPacksBtn = document.getElementById("desktopPacksBtn");
+  const desktopMusicBtn = document.getElementById("desktopMusicBtn");
+  const desktopAudioBtn = document.getElementById("desktopAudioBtn");
+  const desktopProfileBtn = document.getElementById("desktopProfileBtn");
+  const desktopHistoryBtn = document.getElementById("desktopHistoryBtn");
+  const desktopTrophiesBtn = document.getElementById("desktopTrophiesBtn");
+  const desktopDailyBtn = document.getElementById("desktopDailyBtn");
+  const desktopDailyStreak = document.getElementById("desktopDailyStreak");
+  const desktopDailyStreakNumber = document.getElementById("desktopDailyStreakNumber");
+  const appRoot = document.querySelector(".app");
   const soundBtn = document.getElementById("soundBtn");
   const musicBtn = document.getElementById("musicBtn");
   const bgMusic = document.getElementById("bgMusic");
@@ -2769,6 +2797,10 @@ window.BOXXY_RELEASE = Object.freeze({
   const settingsTargetColourChoices = document.getElementById("settingsTargetColourChoices");
   const settingsBoxColourName = document.getElementById("settingsBoxColourName");
   const settingsTargetColourName = document.getElementById("settingsTargetColourName");
+  const styleBoxColourChoices = document.getElementById("styleBoxColourChoices");
+  const styleTargetColourChoices = document.getElementById("styleTargetColourChoices");
+  const styleBoxColourName = document.getElementById("styleBoxColourName");
+  const styleTargetColourName = document.getElementById("styleTargetColourName");
   const settingsControlsPanel = document.getElementById("settingsControlsPanel");
   const settingsContactBtn = document.getElementById("settingsContactBtn");
   const levelBtn = document.getElementById("levelBtn");
@@ -2787,6 +2819,8 @@ window.BOXXY_RELEASE = Object.freeze({
   const trophyCabinetGrid = document.getElementById("trophyCabinetGrid");
   const dailyStreak = document.getElementById("dailyStreak");
   const dailyStreakNumber = document.getElementById("dailyStreakNumber");
+  const dailyGoldMedal = document.getElementById("dailyGoldMedal");
+  const dailyGoldMedalCount = document.getElementById("dailyGoldMedalCount");
   const dailyQuotePrompt = document.getElementById("dailyQuotePrompt");
   const dailyQuotePlay = document.getElementById("dailyQuotePlay");
   const dailyQuoteDismiss = document.getElementById("dailyQuoteDismiss");
@@ -2803,6 +2837,8 @@ window.BOXXY_RELEASE = Object.freeze({
   const dailyInviteStatus = document.getElementById("dailyInviteStatus");
   const dailyArchiveModal = document.getElementById("dailyArchiveModal");
   const dailyArchiveCloseBtn = document.getElementById("dailyArchiveCloseBtn");
+  const dailyArchiveStreak = document.getElementById("dailyArchiveStreak");
+  const dailyArchiveStreakNumber = document.getElementById("dailyArchiveStreakNumber");
   const dailyArchiveMonths = document.getElementById("dailyArchiveMonths");
   const dailyArchiveSummary = document.getElementById("dailyArchiveSummary");
   const dailyArchiveCountdownLabel = document.getElementById("dailyArchiveCountdownLabel");
@@ -3011,6 +3047,7 @@ window.BOXXY_RELEASE = Object.freeze({
     document.body?.classList.toggle("daily-mode", isDaily);
     document.body?.classList.toggle("maker-testing", isMaker);
     document.body?.classList.toggle("shared-puzzle", isShared);
+    syncDesktopLevelNavigation();
   }
 
   function dailyScoringAllowedFor(puzzle = dailyPuzzle) {
@@ -3787,10 +3824,23 @@ window.BOXXY_RELEASE = Object.freeze({
     const tier = dailyStreakTier(streak);
     const todayPuzzle = dailyPuzzleForToday();
     const qualifiedToday = Boolean(todayPuzzle && dailyCompletion(todayPuzzle.date));
+    const digits = String(Math.min(5, String(streak).length));
     dailyStreak.dataset.tier = tier;
-    dailyStreak.dataset.digits = String(Math.min(5, String(streak).length));
+    dailyStreak.dataset.digits = digits;
     dailyStreak.dataset.qualifiedToday = qualifiedToday ? "true" : "false";
     if (dailyStreakNumber) dailyStreakNumber.textContent = String(streak);
+    if (desktopDailyStreak) {
+      desktopDailyStreak.dataset.tier = tier;
+      desktopDailyStreak.dataset.digits = digits;
+      desktopDailyStreak.dataset.qualifiedToday = qualifiedToday ? "true" : "false";
+    }
+    if (desktopDailyStreakNumber) desktopDailyStreakNumber.textContent = String(streak);
+    if (dailyArchiveStreak) {
+      dailyArchiveStreak.dataset.tier = tier;
+      dailyArchiveStreak.dataset.digits = digits;
+      dailyArchiveStreak.dataset.qualifiedToday = qualifiedToday ? "true" : "false";
+    }
+    if (dailyArchiveStreakNumber) dailyArchiveStreakNumber.textContent = String(streak);
     const streakLabel = `Daily Boxxy streak: ${streak} ${streak === 1 ? "day" : "days"}`;
     const todayLabel = todayPuzzle
       ? (qualifiedToday ? "Today’s Daily is complete." : "Today’s Daily is not yet complete.")
@@ -3798,6 +3848,10 @@ window.BOXXY_RELEASE = Object.freeze({
     const label = `${streakLabel}. ${todayLabel}`;
     dailyStreak.setAttribute("aria-label", label);
     dailyStreak.title = label;
+    if (dailyArchiveStreak) {
+      dailyArchiveStreak.setAttribute("aria-label", label);
+      dailyArchiveStreak.title = label;
+    }
   }
 
   function dailyAvailabilityLabel(puzzle = dailyPuzzleForToday()) {
@@ -4614,7 +4668,7 @@ window.BOXXY_RELEASE = Object.freeze({
     }
   }
 
-  function renderPlayerProfileTrophies(packIds) {
+  function renderPlayerProfileTrophies(packIds, dailyGoldCount = 0) {
     if (!playerProfileTrophies) return;
     playerProfileTrophies.replaceChildren();
     const ids = [...new Set((Array.isArray(packIds) ? packIds : []).map(value => String(value || "")))];
@@ -4646,6 +4700,30 @@ window.BOXXY_RELEASE = Object.freeze({
       playerProfileTrophies.appendChild(trophy);
       rendered++;
     });
+    const goldCount = Math.max(0, Math.trunc(Number(dailyGoldCount) || 0));
+    if (goldCount > 0) {
+      const medal = document.createElement("span");
+      medal.className = "player-profile-trophy player-profile-daily-gold";
+      medal.dataset.tooltip = `Daily Fastest Times gold${goldCount === 1 ? "" : ` ×${goldCount}`}`;
+      medal.setAttribute("role", "button");
+      medal.setAttribute("tabindex", "0");
+      medal.setAttribute("aria-label", medal.dataset.tooltip);
+      medal.innerHTML = `<span class="daily-gold-medal-emoji" aria-hidden="true">🥇</span>${goldCount > 1 ? `<span class="daily-gold-medal-count" aria-hidden="true">×${goldCount}</span>` : ""}`;
+      const toggleTooltip = event => {
+        event?.preventDefault?.();
+        const opening = !medal.classList.contains("is-tooltip-open");
+        closePlayerProfileTrophyTooltips(medal);
+        medal.classList.toggle("is-tooltip-open", opening);
+      };
+      medal.addEventListener("click", toggleTooltip);
+      medal.addEventListener("keydown", event => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        toggleTooltip(event);
+      });
+      medal.addEventListener("blur", () => medal.classList.remove("is-tooltip-open"));
+      playerProfileTrophies.appendChild(medal);
+      rendered++;
+    }
     if (!rendered) {
       const empty = document.createElement("span");
       empty.className = "player-profile-trophy-empty";
@@ -4676,7 +4754,7 @@ window.BOXXY_RELEASE = Object.freeze({
     renderPlayerProfileBio("", name);
     renderPlayerProfileLocation({}, name);
     renderPlayerProfileStreak(0);
-    renderPlayerProfileTrophies([]);
+    renderPlayerProfileTrophies([], 0);
     for (const element of [playerProfileLevels, playerProfileDailys, playerProfileMoves, playerProfilePushes]) {
       if (element) element.textContent = "—";
     }
@@ -4704,7 +4782,7 @@ window.BOXXY_RELEASE = Object.freeze({
       renderPlayerProfileBio(String(profile.bio || ""), resolvedUsername);
       renderPlayerProfileLocation(profile.location, resolvedUsername);
       renderPlayerProfileStreak(profile.dailyStreak);
-      renderPlayerProfileTrophies(profile.completedPackIds);
+      renderPlayerProfileTrophies(profile.completedPackIds, profile.dailyGoldMedals);
       if (playerProfileLevels) playerProfileLevels.textContent = Math.max(0, Math.trunc(Number(profile.levelsCompleted) || 0)).toLocaleString("en-GB");
       if (playerProfileDailys) playerProfileDailys.textContent = Math.max(0, Math.trunc(Number(profile.dailyCompleted) || 0)).toLocaleString("en-GB");
       if (playerProfileMoves) playerProfileMoves.textContent = Math.max(0, Math.trunc(Number(profile.totalMoves) || 0)).toLocaleString("en-GB");
@@ -5472,12 +5550,30 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   let headerAwardsLayoutFrame = 0;
+  let dailyGoldMedalsEarned = 0;
+  let dailyGoldAccountId = "";
+
+  function updateDailyGoldMedal(count) {
+    dailyGoldMedalsEarned = Math.max(0, Math.trunc(Number(count) || 0));
+    if (!dailyGoldMedal) return;
+    dailyGoldMedal.hidden = dailyGoldMedalsEarned < 1;
+    if (dailyGoldMedalCount) dailyGoldMedalCount.textContent = dailyGoldMedalsEarned > 1 ? `×${dailyGoldMedalsEarned}` : "";
+    const label = dailyGoldMedalsEarned > 0
+      ? `${dailyGoldMedalsEarned} Daily Fastest Times gold ${dailyGoldMedalsEarned === 1 ? "medal" : "medals"}. View trophy cabinet.`
+      : "No Daily Fastest Times gold medals yet.";
+    dailyGoldMedal.setAttribute("aria-label", label);
+    dailyGoldMedal.title = label;
+    buildTrophyCabinet();
+    scheduleHeaderAwardsLayout();
+  }
 
   function buildTrophyCabinet() {
     if (!trophyCabinetGrid) return;
     trophyCabinetGrid.innerHTML = "";
     const earnedCount = PACKS.reduce((total, pack) => total + (packIsComplete(pack.id) ? 1 : 0), 0);
-    if (trophyCabinetSummary) trophyCabinetSummary.textContent = `${earnedCount} OF ${PACKS.length} AWARDS EARNED`;
+    if (trophyCabinetSummary) trophyCabinetSummary.textContent = dailyGoldMedalsEarned > 0
+      ? `${earnedCount} OF ${PACKS.length} PACK AWARDS · ${dailyGoldMedalsEarned} DAILY GOLD`
+      : `${earnedCount} OF ${PACKS.length} PACK AWARDS EARNED`;
 
     const fragment = document.createDocumentFragment();
     PACKS.forEach(pack => {
@@ -5515,6 +5611,24 @@ window.BOXXY_RELEASE = Object.freeze({
       slot.append(award, status);
       fragment.appendChild(slot);
     });
+    if (dailyGoldMedalsEarned > 0) {
+      const slot = document.createElement("div");
+      slot.className = "trophy-cabinet-slot is-earned daily-gold-cabinet-slot";
+      const award = document.createElement("div");
+      award.className = "trophy-cabinet-award";
+      const icon = document.createElement("span");
+      icon.className = "trophy-cabinet-award-icon daily-gold-medal-visual";
+      icon.innerHTML = `<span class="daily-gold-medal-emoji" aria-hidden="true">🥇</span>${dailyGoldMedalsEarned > 1 ? `<span class="daily-gold-medal-count" aria-hidden="true">×${dailyGoldMedalsEarned}</span>` : ""}`;
+      const name = document.createElement("strong");
+      name.className = "trophy-cabinet-slot-name";
+      name.textContent = "Daily Gold";
+      const status = document.createElement("span");
+      status.className = "trophy-cabinet-slot-status";
+      status.textContent = `${dailyGoldMedalsEarned} FASTEST-TIME ${dailyGoldMedalsEarned === 1 ? "FIRST PLACE" : "FIRST PLACES"}`;
+      award.append(icon, name);
+      slot.append(award, status);
+      fragment.appendChild(slot);
+    }
     trophyCabinetGrid.appendChild(fragment);
   }
 
@@ -5538,7 +5652,6 @@ window.BOXXY_RELEASE = Object.freeze({
     packButtons.forEach(button => { button.hidden = false; });
     trophyCabinetBtn.hidden = true;
     if (trophyCabinetMoreCount) trophyCabinetMoreCount.textContent = "";
-    if (!packButtons.length) return;
 
     const row = completedPackStars.closest(".title-word-row");
     const brand = row?.querySelector(":scope > strong");
@@ -5553,15 +5666,17 @@ window.BOXXY_RELEASE = Object.freeze({
     const packGap = parseFloat(packStyle.columnGap || packStyle.gap) || 0;
     const available = Math.max(0, row.clientWidth - brand.getBoundingClientRect().width - rowGap);
     const streakWidth = dailyStreak.getBoundingClientRect().width;
+    const goldWidth = dailyGoldMedal && !dailyGoldMedal.hidden ? dailyGoldMedal.getBoundingClientRect().width : 0;
+    const baseAwardsWidth = streakWidth + (goldWidth > 0 ? railGap + goldWidth : 0);
     const packWidths = packButtons.map(button => button.getBoundingClientRect().width);
     const allPackWidth = packWidths.reduce((sum, width) => sum + width, 0) + packGap * Math.max(0, packButtons.length - 1);
-    const fullWidth = streakWidth + railGap + allPackWidth;
+    const fullWidth = baseAwardsWidth + (packButtons.length ? railGap + allPackWidth : 0);
 
-    if (fullWidth <= available + 0.5) return;
+    if (!packButtons.length || fullWidth <= available + 0.5) return;
 
     trophyCabinetBtn.hidden = false;
     const cabinetWidth = trophyCabinetBtn.getBoundingClientRect().width;
-    let used = streakWidth + railGap + cabinetWidth + railGap;
+    let used = baseAwardsWidth + railGap + cabinetWidth + railGap;
     let visibleCount = 0;
 
     for (let index = 0; index < packButtons.length; index++) {
@@ -7446,12 +7561,14 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   function updateSoundButton() {
-    if (!soundBtn) return;
-    const label = soundBtn.querySelector("b");
-    const icon = soundBtn.querySelector("span");
-    if (label) label.textContent = soundOn ? "SOUND ON" : "SOUND OFF";
-    if (icon) icon.textContent = soundOn ? "◖))" : "◖";
-    soundBtn.setAttribute("aria-pressed", String(soundOn));
+    if (soundBtn) {
+      const label = soundBtn.querySelector("b");
+      const icon = soundBtn.querySelector("span");
+      if (label) label.textContent = soundOn ? "SOUND ON" : "SOUND OFF";
+      if (icon) icon.textContent = soundOn ? "◖))" : "◖";
+      soundBtn.setAttribute("aria-pressed", String(soundOn));
+    }
+    syncDesktopUtilityToggles();
   }
 
   function musicTrackIds() {
@@ -7697,6 +7814,8 @@ window.BOXXY_RELEASE = Object.freeze({
     const style = standardBoardStyle();
     if (settingsBoxColourName) settingsBoxColourName.textContent = boardStyleColourLabel(style.box);
     if (settingsTargetColourName) settingsTargetColourName.textContent = boardStyleColourLabel(style.target);
+    if (styleBoxColourName) styleBoxColourName.textContent = boardStyleColourLabel(style.box);
+    if (styleTargetColourName) styleTargetColourName.textContent = boardStyleColourLabel(style.target);
     document.querySelectorAll("[data-board-style-colour]").forEach(button => {
       const category = button.dataset.boardStyleCategory;
       const selected = style[category] === button.dataset.boardStyleColour;
@@ -7747,6 +7866,8 @@ window.BOXXY_RELEASE = Object.freeze({
     };
     build(settingsBoxColourChoices, "box");
     build(settingsTargetColourChoices, "target");
+    build(styleBoxColourChoices, "box");
+    build(styleTargetColourChoices, "target");
     updateBoardStyleControls();
   }
 
@@ -7886,6 +8007,120 @@ window.BOXXY_RELEASE = Object.freeze({
     updateSettingsTouchPushButton();
   }
 
+  // The desktop utility tray always starts open on a fresh page load. Its state is deliberately not persisted.
+  let desktopUtilityCollapsed = false;
+
+  function desktopUtilityAvailable() {
+    return !document.documentElement.classList.contains("touch-ui")
+      && window.matchMedia?.("(min-width: 821px) and (pointer: fine)")?.matches;
+  }
+
+  function syncDesktopUtilityState() {
+    const active = desktopUtilityAvailable();
+    const collapsed = active && desktopUtilityCollapsed;
+    document.body.classList.toggle("desktop-utility-collapsed", collapsed);
+    if (desktopUtilityToggle) {
+      desktopUtilityToggle.hidden = !active;
+      desktopUtilityToggle.setAttribute("aria-expanded", String(!collapsed));
+      desktopUtilityToggle.setAttribute("aria-label", collapsed ? "Expand desktop tools" : "Collapse desktop tools");
+      desktopUtilityToggle.title = collapsed ? "Expand tools" : "Collapse tools";
+      const icon = desktopUtilityToggle.querySelector(".desktop-utility-toggle-icon");
+      if (icon) icon.textContent = collapsed ? "‹" : "›";
+    }
+    syncDesktopLevelNavigation();
+    requestAnimationFrame(() => {
+      scheduleBoardResize();
+    });
+  }
+
+  function syncDesktopLevelNavigation() {
+    const ordinaryLevel = !dailyMode && !makerTesting && !sharedPuzzleMode && Array.isArray(LEVELS) && LEVELS.length > 0;
+    const current = Math.max(0, Math.min(Math.max(0, LEVELS.length - 1), Number(levelIndex) || 0));
+    if (desktopPrevLevelBtn) desktopPrevLevelBtn.disabled = !ordinaryLevel || current <= 0;
+    if (desktopNextLevelBtn) {
+      const next = current + 1;
+      desktopNextLevelBtn.disabled = !ordinaryLevel || next >= LEVELS.length || next > highestUnlockedLevel;
+    }
+    if (desktopPacksBtn) desktopPacksBtn.disabled = !desktopUtilityAvailable();
+  }
+
+  function setDesktopUtilityCollapsed(collapsed) {
+    desktopUtilityCollapsed = Boolean(collapsed);
+    if (desktopUtilityCollapsed && levelPicker && !levelPicker.hidden) closeLevelPicker();
+    syncDesktopUtilityState();
+  }
+
+  function syncDesktopUtilityToggles() {
+    if (desktopMusicBtn) {
+      desktopMusicBtn.setAttribute("aria-pressed", String(musicOn));
+      const label = desktopMusicBtn.querySelector("b");
+      const icon = desktopMusicBtn.querySelector("span");
+      if (label) label.textContent = musicOn ? "MUSIC ON" : "MUSIC OFF";
+      if (icon) icon.textContent = musicOn ? "♫" : "♪";
+    }
+    if (desktopAudioBtn) {
+      desktopAudioBtn.setAttribute("aria-pressed", String(soundOn));
+      const label = desktopAudioBtn.querySelector("b");
+      const icon = desktopAudioBtn.querySelector("span");
+      if (label) label.textContent = soundOn ? "AUDIO ON" : "AUDIO OFF";
+      if (icon) icon.textContent = soundOn ? "◖))" : "◖";
+    }
+  }
+
+  async function openDesktopOwnProfile() {
+    const username = currentSignedInUsername();
+    if (username) { await openPlayerProfile(username); return; }
+    await openSettings();
+    window.setTimeout(() => document.getElementById("accountEntryBtn")?.click(), 0);
+  }
+
+  async function openDesktopGameHistory() {
+    const history = document.getElementById("accountPlayHistory");
+    if (history) history.open = true;
+    await openSettings();
+    window.setTimeout(() => {
+      document.getElementById("accountEntryBtn")?.click();
+      window.setTimeout(() => {
+        const target = document.getElementById("accountPlayHistory");
+        if (target) {
+          target.open = true;
+          target.scrollIntoView?.({ block:"start", behavior:"smooth" });
+        }
+      }, 80);
+    }, 0);
+  }
+
+  desktopUtilityToggle?.addEventListener("click", () => setDesktopUtilityCollapsed(!desktopUtilityCollapsed));
+  desktopUndoBtn?.addEventListener("click", () => undoBtn?.click());
+  desktopRestartBtn?.addEventListener("click", () => restartBtn?.click());
+  desktopPrevLevelBtn?.addEventListener("click", () => {
+    if (desktopPrevLevelBtn.disabled) return;
+    loadLevel(levelIndex - 1);
+  });
+  desktopNextLevelBtn?.addEventListener("click", () => {
+    if (desktopNextLevelBtn.disabled) return;
+    loadLevel(levelIndex + 1);
+  });
+  desktopPacksBtn?.addEventListener("click", () => openPackModal());
+  desktopMusicBtn?.addEventListener("click", () => musicBtn?.click());
+  desktopAudioBtn?.addEventListener("click", () => soundBtn?.click());
+  desktopProfileBtn?.addEventListener("click", openDesktopOwnProfile);
+  desktopHistoryBtn?.addEventListener("click", openDesktopGameHistory);
+  desktopTrophiesBtn?.addEventListener("click", openTrophyCabinet);
+  desktopDailyBtn?.addEventListener("click", openDailyArchive);
+  syncDesktopUtilityToggles();
+  function syncDesktopBoardActionState() {
+    if (desktopUndoBtn && undoBtn) desktopUndoBtn.disabled = Boolean(undoBtn.disabled);
+    if (desktopRestartBtn && restartBtn) desktopRestartBtn.disabled = Boolean(restartBtn.disabled);
+  }
+  syncDesktopBoardActionState();
+  if (window.MutationObserver) {
+    const desktopActionStateObserver = new MutationObserver(syncDesktopBoardActionState);
+    if (undoBtn) desktopActionStateObserver.observe(undoBtn, { attributes: true, attributeFilter: ["disabled"] });
+    if (restartBtn) desktopActionStateObserver.observe(restartBtn, { attributes: true, attributeFilter: ["disabled"] });
+  }
+  window.addEventListener("resize", syncDesktopUtilityState, { passive: true });
+
   function pointControlMode() {
     if (instantMoveModeActive()) return "instant";
     if (settingsTouchDevice()) return touchClickPushEnabled && hasTouchClickPushAccess() ? "touch" : "";
@@ -7932,6 +8167,7 @@ window.BOXXY_RELEASE = Object.freeze({
       if (icon) icon.textContent = musicOn ? "♫" : "♪";
       musicBtn.setAttribute("aria-pressed", String(musicOn));
     }
+    syncDesktopUtilityToggles();
     updateSpookyMusicButton();
   }
 
@@ -9344,6 +9580,7 @@ window.BOXXY_RELEASE = Object.freeze({
     if (!quietReturn) captureBoxxyAnalytics("level_started", currentLevelAnalytics({
       guided_solve_start: Boolean(preserveAutoplay)
     }));
+    syncDesktopLevelNavigation();
   }
 
   function loadMakerTest(layoutRows, attachedSolution = "", options = {}) {
@@ -9873,6 +10110,7 @@ window.BOXXY_RELEASE = Object.freeze({
       if (solvedWithWalkthrough) assistedLevels.add(levelIndex);
       else assistedLevels.delete(levelIndex);
       highestUnlockedLevel = Math.max(highestUnlockedLevel, Math.min(levelIndex + 1, LEVELS.length - 1));
+      syncDesktopLevelNavigation();
       saveLevelProgress();
       persistActivePackResumeLevel();
       if (!packWasFullyCompleted && completedLevels.size === LEVELS.length) {
@@ -11221,6 +11459,7 @@ window.BOXXY_RELEASE = Object.freeze({
     else pauseBackgroundMusic();
   });
   settingsBtn?.addEventListener("pointerdown", prepareBoardStylePaletteAssets, { passive: true });
+  document.querySelectorAll("[data-style-trigger]").forEach(button => button.addEventListener("pointerdown", prepareBoardStylePaletteAssets, { passive: true }));
   settingsBtn?.addEventListener("click", openSettings);
   settingsCloseBtn?.addEventListener("click", closeSettings);
   settingsModal?.addEventListener("click", event => { if (event.target === settingsModal) closeSettings(); });
@@ -11276,10 +11515,30 @@ window.BOXXY_RELEASE = Object.freeze({
   packCloseBtn?.addEventListener("click", closePackModal);
   packModal?.addEventListener("click", event => { if (event.target === packModal) closePackModal(); });
   trophyCabinetBtn?.addEventListener("click", openTrophyCabinet);
+  dailyGoldMedal?.addEventListener("click", openTrophyCabinet);
   trophyCabinetCloseBtn?.addEventListener("click", closeTrophyCabinet);
   trophyCabinetModal?.addEventListener("click", event => { if (event.target === trophyCabinetModal) closeTrophyCabinet(); });
   dailyArchiveCloseBtn?.addEventListener("click", closeDailyArchive);
   dailyArchiveModal?.addEventListener("click", event => { if (event.target === dailyArchiveModal) closeDailyArchive(); });
+  window.addEventListener("boxxyaccountawards", event => {
+    const detail = event?.detail || {};
+    if (!detail.loggedIn) {
+      dailyGoldAccountId = "";
+      updateDailyGoldMedal(0);
+      return;
+    }
+    const nextId = String(detail.userId || "");
+    const nextCount = Math.max(0, Math.trunc(Number(detail.dailyGoldMedals) || 0));
+    if (nextId && nextId === dailyGoldAccountId) updateDailyGoldMedal(Math.max(dailyGoldMedalsEarned, nextCount));
+    else {
+      dailyGoldAccountId = nextId;
+      updateDailyGoldMedal(nextCount);
+    }
+  });
+  window.addEventListener("boxxydailygoldmedals", event => {
+    updateDailyGoldMedal(Math.max(dailyGoldMedalsEarned, Math.max(0, Math.trunc(Number(event?.detail?.count) || 0))));
+  });
+
   window.addEventListener("boxxyaccountfeatures", event => {
     applyInstantMoveEntitlement(event?.detail || {});
     // Owner-only leaderboard visibility depends on WHO is signed in, not on
@@ -11722,6 +11981,7 @@ window.BOXXY_RELEASE = Object.freeze({
     window.addEventListener("resize", scheduleHeaderAwardsLayout, { passive: true });
   }
   updateFullscreenButton();
+  syncDesktopUtilityState();
   buildBoardStyleControls();
   updateSettingsDeviceAvailability();
   updateSoundButton();

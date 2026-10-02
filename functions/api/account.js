@@ -1,3 +1,4 @@
+/* BOXXY v428: authenticated account payloads include permanent Daily gold medal totals. */
 /* BOXXY v365: include server-controlled account feature flags in authenticated responses. */
 import {
   json,
@@ -24,6 +25,7 @@ import {
   expireCookie
 } from "../_lib/auth.js";
 import { mergeFirstCompletionMarkers, recordPackCompletions } from "../_lib/pack-completions.js";
+import { dailyGoldMedalCount } from "../_lib/daily-gold-medals.js";
 import {
   ensurePublicProfileSchema,
   readPublicBio,
@@ -61,15 +63,17 @@ async function accountFeatureState(db, userId) {
 async function accountPublicData(db, user, authInfo = null) {
   const resolvedAuthInfo = authInfo || await userAuthInfo(db, user.id);
   const features = await accountFeatureState(db, user.id);
-  const [bio, location] = await Promise.all([
+  const [bio, location, dailyGoldMedals] = await Promise.all([
     readPublicBio(db, user.id),
-    readPublicLocation(db, user.id)
+    readPublicLocation(db, user.id),
+    dailyGoldMedalCount(db, user.id)
   ]);
   return {
     ...publicAccount(user, resolvedAuthInfo),
     bio,
     location,
-    features
+    features,
+    dailyGoldMedals
   };
 }
 

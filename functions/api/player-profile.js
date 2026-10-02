@@ -1,5 +1,7 @@
+/* BOXXY v428: public profiles include permanent Daily fastest-time gold medals. */
 import { json, requireDatabase } from "../_lib/auth.js";
 import { DAILY_PRACTICE_CATALOG } from "../_lib/daily-practice-catalog.js";
+import { dailyGoldMedalCount } from "../_lib/daily-gold-medals.js";
 import {
   avatarFromProgress,
   cleanPublicAvatarStyle,
@@ -47,9 +49,10 @@ export async function onRequestGet(context) {
     `).bind(username).first();
 
     if (real) {
-      const [bio, location] = await Promise.all([
+      const [bio, location, dailyGoldMedals] = await Promise.all([
         readPublicBio(db, real.id),
-        readPublicLocation(db, real.id)
+        readPublicLocation(db, real.id),
+        dailyGoldMedalCount(db, real.id)
       ]);
       return json({
         ok:true,
@@ -57,6 +60,7 @@ export async function onRequestGet(context) {
           username:String(real.username),
           bio,
           location,
+          dailyGoldMedals,
           avatar:avatarFromProgress(real.progress_json),
           ...publicStatsFromProgress(real.progress_json)
         }
@@ -97,7 +101,8 @@ export async function onRequestGet(context) {
             completedPackIds:[],
             totalMoves,
             totalPushes,
-            dailyStreak
+            dailyStreak,
+            dailyGoldMedals:0
           }
         });
       }

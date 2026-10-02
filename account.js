@@ -1,3 +1,4 @@
+/* BOXXY v428: account responses broadcast the player's permanent Daily gold-medal total. */
 /* BOXXY v404: profile-modal bio edits stay in sync with the account view. */
 /* BOXXY v403: public player bio editing and profile-safe account data. */
 /* BOXXY v388: account merges retain assistance metadata from the same independent Daily move-best run. */
@@ -182,6 +183,13 @@
         loggedIn: Boolean(account),
         instantMoveAllowed: Boolean(account && features.instantMove),
         instantMoveUpdatedAt: Math.max(0, Number(features.instantMoveUpdatedAt) || 0)
+      }
+    }));
+    window.dispatchEvent(new CustomEvent("boxxyaccountawards", {
+      detail: {
+        loggedIn: Boolean(account),
+        userId: account ? String(account.id || "") : "",
+        dailyGoldMedals: account ? Math.max(0, Math.trunc(Number(account.dailyGoldMedals) || 0)) : 0
       }
     }));
   }

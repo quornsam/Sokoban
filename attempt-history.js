@@ -1,3 +1,4 @@
+/* BOXXY v428 — Daily attempts carry timezone evidence and permanent gold-medal awards. */
 /* BOXXY v424 — record navigator.webdriver as admin-only attempt evidence. */
 /* BOXXY v394 — local-first player history with independent Mouse/Click Push and Instant Move metadata. */
 (() => {
@@ -127,7 +128,9 @@
       levelName:String(details.levelName || ''), startedAt:Number(details.startedAt) || Date.now(),
       endedAt:null, completed:false, seconds:null, moves:null, pushes:null,
       assisted:false, mouseOrClickPushUsed:false, instantMoveUsed:false,
-      webdriverDetected:navigator.webdriver === true, endReason:'', ownerId:userId
+      webdriverDetected:navigator.webdriver === true,
+      dailyTimezoneOffsetMinutes:String(packId)==='daily-boxxy' ? new Date(Number(details.startedAt)||Date.now()).getTimezoneOffset() : null,
+      dailyGoldAwarded:false, endReason:'', ownerId:userId
     };
     stash(active, userId);
     lastProgressSave = Date.now();
@@ -195,6 +198,25 @@
       const result = await response.json();
       if (!result.ok) return;
       const confirmed = new Set(result.ids || []);
+      const goldRunIds = new Set(Array.isArray(result.awardedGoldRunIds) ? result.awardedGoldRunIds : []);
+      if (goldRunIds.size) {
+        try {
+          const stored = json(localKeyFor(userId));
+          let changed = false;
+          for (const run of stored) {
+            if (goldRunIds.has(run.id) && run.dailyGoldAwarded !== true) {
+              run.dailyGoldAwarded = true;
+              changed = true;
+            }
+          }
+          if (changed) localStorage.setItem(localKeyFor(userId), JSON.stringify(stored));
+        } catch (_) {}
+      }
+      if (Number.isFinite(Number(result.dailyGoldMedals))) {
+        window.dispatchEvent(new CustomEvent('boxxydailygoldmedals', {
+          detail:{ count:Math.max(0,Math.trunc(Number(result.dailyGoldMedals)||0)), awardedRunIds:[...goldRunIds] }
+        }));
+      }
       // Never remove a locally updated record merely because its earlier start was acknowledged.
       const current = json(keyFor(userId));
       const sent = new Map(batch.map(entry => [entry.id, JSON.stringify(entry)]));

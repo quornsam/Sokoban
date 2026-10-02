@@ -161,12 +161,12 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=427">
+<link rel="stylesheet" href="styles.css?v=439">
 <link rel="stylesheet" href="how-to-play.css?v=225">
 <link rel="preload" as="image" href="assets/board/boxes/box-default-yellow.png?v=226">
 <link rel="preload" as="image" href="assets/board/goals/goal-red.png?v=226">
 <link rel="preload" as="image" href="assets/board/boxes/box-red.png?v=226">
-<link rel="stylesheet" href="attempt-history.css?v=427">
+<link rel="stylesheet" href="attempt-history.css?v=428">
 </head>
 <body>
 <div id="splashScreen" class="splash-screen" aria-hidden="false">
@@ -194,6 +194,10 @@
             <button id="dailyStreak" class="daily-streak-badge" type="button" data-tier="zero" data-digits="1" aria-label="Daily Boxxy streak: 0 days" title="Daily Boxxy streak: 0 days">
               <span class="daily-streak-flame" aria-hidden="true"></span>
               <span id="dailyStreakNumber" class="daily-streak-number" aria-hidden="true">0</span>
+            </button>
+            <button id="dailyGoldMedal" class="daily-gold-medal-badge" type="button" hidden aria-haspopup="dialog" aria-controls="trophyCabinetModal" aria-label="Daily fastest-time gold medals" title="Daily fastest-time gold medals">
+              <span class="daily-gold-medal-emoji" aria-hidden="true">🥇</span>
+              <span id="dailyGoldMedalCount" class="daily-gold-medal-count" aria-hidden="true"></span>
             </button>
             <div id="completedPackStars" class="completed-pack-stars" hidden aria-label="Completed puzzle packs"></div>
             <button id="trophyCabinetBtn" class="trophy-cabinet-btn" type="button" hidden aria-haspopup="dialog" aria-controls="trophyCabinetModal" aria-label="View trophy cabinet" title="View trophy cabinet">
@@ -224,6 +228,10 @@
         <div id="mouseSupportLayer" class="layer mouse-support-layer" hidden aria-hidden="true"></div>
         <div id="pieceLayer" class="layer"></div>
         <div id="celebration" class="celebration" aria-hidden="true"></div>
+      </div>
+      <div class="desktop-board-actions" aria-label="Desktop puzzle actions">
+        <button id="desktopRestartBtn" class="desktop-board-action desktop-board-restart" type="button" aria-label="Restart level" title="Restart (R)"><span aria-hidden="true">↻</span><b>RESTART</b></button>
+        <button id="desktopUndoBtn" class="desktop-board-action desktop-board-undo" type="button" aria-label="Undo last move" title="Undo (U / Z)"><span aria-hidden="true">↶</span><b>UNDO</b></button>
       </div>
       <button id="zenZoomBtn" class="zen-zoom-btn" type="button" hidden aria-label="Increase board zoom" aria-pressed="false">
         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="10.5" cy="10.5" r="5.8"/><path d="m15 15 5 5"/></svg>
@@ -265,14 +273,19 @@
   </section>
 
   <aside class="side-panel">
-    <section class="credit"><strong id="creditTitle">MICROBAN COLLECTION</strong><span id="creditSub">DAVID W. SKINNER · 50 LEVELS</span></section>
+    <div class="side-panel-head">
+      <section class="credit"><strong id="creditTitle">MICROBAN COLLECTION</strong><span id="creditSub">DAVID W. SKINNER · 50 LEVELS</span></section>
 
-    <section class="stats">
-      <div><span>MOVES</span><strong id="moves">0</strong></div>
-      <div><span>PUSHES</span><strong id="pushes">0</strong></div>
-      <div><span>BEST</span><strong id="best">—</strong></div>
-      <div class="time"><span>TIME</span><strong id="time">00:00</strong></div>
-    </section>
+      <section class="stats">
+        <div><span>MOVES</span><strong id="moves">0</strong></div>
+        <div><span>PUSHES</span><strong id="pushes">0</strong></div>
+        <div><span>BEST</span><strong id="best">—</strong></div>
+        <div class="time"><span>TIME</span><strong id="time">00:00</strong></div>
+      </section>
+    </div>
+
+    <div class="desktop-utility-tray">
+      <button id="desktopUtilityToggle" class="desktop-utility-toggle" type="button" aria-expanded="true" aria-label="Collapse desktop tools" title="Collapse tools"><span class="desktop-utility-toggle-icon" aria-hidden="true">›</span><b class="sr-only">TOOLS</b></button>
 
     <section class="top-actions">
       <button id="undoBtn" class="action undo"><span>↶</span><b>UNDO</b></button>
@@ -287,22 +300,38 @@
         <button data-dir="down" aria-label="Move down"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2 7h20L12 21Z"/></svg></button>
         <button data-dir="right" aria-label="Move right"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m21 12-14 10V2Z"/></svg></button>
       </section>
-      <button id="styleBtn" class="attire-action" data-style-trigger type="button" aria-label="Change character attire" title="Change character attire">
+      <button id="styleBtn" class="attire-action" data-style-trigger type="button" aria-label="Change character style" title="Change character style">
         <svg class="style-outfit-icon" viewBox="0 0 100 100" aria-hidden="true" focusable="false" shape-rendering="geometricPrecision">
           <path class="style-hanger-hook" d="M50 27c0-7 10-8 12-2 2 5-3 8-7 10"/>
           <path class="style-hanger-bar" d="M50 35 19 58h62L50 35Z"/>
           <path class="style-shirt-body" d="M31 48 42 43c2 5 5 7 8 7s6-2 8-7l11 5 9 11-9 8-6-5v21H37V62l-6 5-9-8 9-11Z"/>
           <path class="style-shirt-seam" d="M37 62h26M50 50v33"/>
         </svg>
-        <b>ATTIRE</b>
+        <b>STYLE</b>
       </button>
     </section>
 
     <section class="bottom-actions">
       <button id="settingsBtn" class="action small settings-action" type="button" aria-haspopup="dialog" aria-controls="settingsModal" aria-expanded="false"><span class="menu-lines" aria-hidden="true"><i></i><i></i><i></i></span><b>MENU</b></button>
-      <button id="levelBtn" class="action small level-action"><span aria-hidden="true">☆</span><b>LEVEL</b></button>
+      <button id="levelBtn" class="action small level-action"><span aria-hidden="true">☆</span><b>LEVELS</b></button>
       <button id="fullscreenBtn" class="action small fullscreen-action"><span>⛶</span><b>FULL SCREEN</b></button>
     </section>
+
+    <section class="desktop-rail-nav" aria-label="Desktop level navigation">
+      <button id="desktopPrevLevelBtn" class="action small desktop-prev-level" type="button" aria-label="Previous level" title="Previous level"><span aria-hidden="true">←</span><b>PREV LEVEL</b></button>
+      <button id="desktopNextLevelBtn" class="action small desktop-next-level" type="button" aria-label="Next level" title="Next level"><span aria-hidden="true">→</span><b>NEXT LEVEL</b></button>
+      <button id="desktopPacksBtn" class="action small desktop-packs" type="button" aria-label="Open level packs" title="Level packs"><span aria-hidden="true">▦</span><b>LEVEL PACKS</b></button>
+    </section>
+
+    <section class="desktop-rail-extra" aria-label="Desktop utilities">
+      <button id="desktopMusicBtn" class="action small desktop-music" type="button" aria-pressed="true" aria-label="Toggle music"><span aria-hidden="true">♫</span><b>MUSIC ON</b></button>
+      <button id="desktopAudioBtn" class="action small desktop-audio" type="button" aria-pressed="true" aria-label="Toggle audio"><span aria-hidden="true">◖))</span><b>AUDIO ON</b></button>
+      <button id="desktopProfileBtn" class="action small desktop-profile" type="button" aria-label="Open player profile"><span class="desktop-profile-indi" aria-hidden="true"></span><b>PROFILE</b></button>
+      <button id="desktopHistoryBtn" class="action small desktop-history" type="button" aria-label="Open game history"><span aria-hidden="true">↺</span><b>HISTORY</b></button>
+      <button id="desktopTrophiesBtn" class="action small desktop-trophies" type="button" aria-label="Open trophy cabinet"><span class="desktop-trophy-star" aria-hidden="true"><svg viewBox="0 0 100 100" focusable="false"><path d="M50 6 62.7 34.2 93.5 37.5 70.5 58.3 77 88.5 50 73 23 88.5 29.5 58.3 6.5 37.5 37.3 34.2Z"/></svg></span><b>TROPHIES</b></button>
+      <button id="desktopDailyBtn" class="action small desktop-daily" type="button" aria-label="Open Daily Boxxy"><span id="desktopDailyStreak" class="desktop-daily-streak-icon" data-tier="zero" data-digits="1" data-qualified-today="false" aria-hidden="true"><i class="desktop-daily-streak-flame"></i><em id="desktopDailyStreakNumber">0</em></span><b>DAILY</b></button>
+    </section>
+    </div>
 
     <section id="levelPicker" class="level-picker" hidden role="dialog" aria-modal="true" aria-labelledby="levelPickerTitle">
       <div class="level-picker-head">
@@ -352,10 +381,26 @@
       <div>
         <span class="style-kicker">BAUHAUS WARDROBE</span>
         <h2 id="styleTitle">CHARACTER STYLE</h2>
-        <p>Choose character, clothing, skin, hair and shoe colours.</p>
+        <p>Choose character, clothing, skin, hair, shoe, box and target colours.</p>
       </div>
     </div>
     <div id="styleControls" class="style-controls"></div>
+    <section class="style-board-colours" aria-labelledby="styleBoardColoursTitle">
+      <div class="style-board-colours-head">
+        <span class="style-kicker">BOARD STYLE</span>
+        <h3 id="styleBoardColoursTitle">BOX & TARGET COLOURS</h3>
+      </div>
+      <div class="settings-board-style style-board-style">
+        <div class="settings-board-style-row">
+          <div class="settings-board-style-label"><strong>BOX</strong><span id="styleBoxColourName">YELLOW</span></div>
+          <div id="styleBoxColourChoices" class="settings-board-style-swatches" role="group" aria-label="Box colour"></div>
+        </div>
+        <div class="settings-board-style-row">
+          <div class="settings-board-style-label"><strong>BOX ON TARGET</strong><span id="styleTargetColourName">RED</span></div>
+          <div id="styleTargetColourChoices" class="settings-board-style-swatches" role="group" aria-label="Target and box-on-target colour"></div>
+        </div>
+      </div>
+    </section>
     <footer class="style-footer">
       <button id="styleResetBtn" class="style-reset" type="button">RESET</button>
       <button id="styleDoneBtn" class="style-done" type="button">DONE</button>
@@ -489,11 +534,11 @@
 
         <section class="settings-panel settings-style-panel">
           <h3>STYLE</h3>
-          <button id="settingsAttireBtn" class="settings-link-button settings-attire-link" data-style-trigger type="button" aria-label="Change character attire">
+          <button id="settingsAttireBtn" class="settings-link-button settings-attire-link" data-style-trigger type="button" aria-label="Change character style">
             <span class="settings-attire-preview" aria-hidden="true">
               <canvas width="600" height="520" data-character-preview="player-front"></canvas>
             </span>
-            <b>ATTIRE</b><i aria-hidden="true">→</i>
+            <b>STYLE</b><i aria-hidden="true">→</i>
           </button>
           <div class="settings-board-style">
             <div class="settings-board-style-row">
@@ -696,7 +741,13 @@
     <header class="daily-archive-head">
       <div>
         <span class="complete-kicker">BOXXY DAILYS</span>
-        <h2 id="dailyArchiveTitle">DAILY PUZZLES</h2>
+        <div class="daily-archive-title-row">
+          <h2 id="dailyArchiveTitle">DAILY PUZZLES</h2>
+          <div id="dailyArchiveStreak" class="daily-streak-badge daily-archive-streak-badge" data-tier="zero" data-digits="1" data-qualified-today="false" role="img" aria-label="Daily Boxxy streak: 0 days" title="Daily Boxxy streak: 0 days">
+            <span class="daily-streak-flame" aria-hidden="true"></span>
+            <span id="dailyArchiveStreakNumber" class="daily-streak-number" aria-hidden="true">0</span>
+          </div>
+        </div>
       </div>
       <button id="dailyArchiveCloseBtn" class="daily-archive-close" type="button" aria-label="Close Daily Puzzles">×</button>
     </header>
@@ -1532,10 +1583,10 @@
 <script src="daily-puzzles/boxxy-daily-loader.js?v=357"></script>
 <script src="levels.js?v=372"></script>
 <script src="starry-night.js?v=302"></script>
-<script src="boxxy.js?v=427"></script>
-<script src="attempt-history.js?v=427"></script>
-<script src="attempt-history-ui.js?v=427"></script>
-<script src="account.js?v=404"></script>
+<script src="boxxy.js?v=439"></script>
+<script src="attempt-history.js?v=428"></script>
+<script src="attempt-history-ui.js?v=428"></script>
+<script src="account.js?v=428"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="pack-builder.js?v=354"></script>
 <script src="how-to-play.js?v=153"></script>

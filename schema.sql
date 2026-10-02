@@ -158,6 +158,8 @@ CREATE TABLE IF NOT EXISTS level_attempt_history (
   mouse_or_click_push INTEGER NOT NULL DEFAULT 0 CHECK(mouse_or_click_push IN (0,1)),
   instant_move INTEGER NOT NULL DEFAULT 0 CHECK(instant_move IN (0,1)),
   webdriver_detected INTEGER NOT NULL DEFAULT 0 CHECK(webdriver_detected IN (0,1)),
+  daily_timezone_offset_minutes INTEGER,
+  daily_gold_awarded INTEGER NOT NULL DEFAULT 0 CHECK(daily_gold_awarded IN (0,1)),
   end_reason TEXT NOT NULL DEFAULT '',
   device TEXT NOT NULL DEFAULT '',
   FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -215,3 +217,26 @@ CREATE TABLE IF NOT EXISTS site_announcement_targets (
 );
 CREATE INDEX IF NOT EXISTS site_announcement_targets_user_idx
   ON site_announcement_targets(user_id, message_date);
+
+
+-- v428: permanent Daily Fastest Times gold medals.
+CREATE TABLE IF NOT EXISTS daily_gold_medals (
+  user_id TEXT NOT NULL,
+  date_key TEXT NOT NULL,
+  awarded_at INTEGER NOT NULL,
+  winning_seconds REAL NOT NULL,
+  run_id TEXT,
+  source TEXT NOT NULL DEFAULT 'live',
+  PRIMARY KEY(user_id, date_key),
+  FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX IF NOT EXISTS daily_gold_medals_run_idx
+  ON daily_gold_medals(run_id) WHERE run_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS daily_gold_medals_date_idx
+  ON daily_gold_medals(date_key, awarded_at);
+
+CREATE TABLE IF NOT EXISTS daily_gold_medal_meta (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at INTEGER NOT NULL
+);

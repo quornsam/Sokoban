@@ -1,3 +1,8 @@
+/* BOXXY v439: keep desktop board fitting inside the live Undo/Restart boundary. */
+/* BOXXY v438: restore the established desktop Full Screen/Zen layout after the desktop utility-tray restructure. */
+/* BOXXY v437: square desktop actions, collapsed tray peek, Daily archive streak badge and refreshed Partygoer sprites. */
+/* BOXXY v429: desktop utility rail and Style board-colour controls. */
+/* BOXXY v428: Daily fastest-time gold-medal client/history assets. */
 /* BOXXY v427: PARTYGOERS visibility is secret-sequence only. */
 /* BOXXY v426: selected-user announcement testing and reliable character actions. */
 /* BOXXY v425: refresh message-bar announcement client and admin assets. */
@@ -37,7 +42,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "427";
+const RELEASE_VERSION = "439";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [
@@ -128,6 +133,12 @@ const ASSETS = [
   "/assets/characters/charlize/base.png",
   "/assets/characters/amy-annie/base.png",
   "/assets/characters/bobbyburp/base.png",
+  "/assets/characters/mr-whack/base.png",
+  "/assets/characters/elrick/base.png",
+  "/assets/characters/ms-thompson/base.png",
+  "/assets/characters/sid-the-big/base.png",
+  "/assets/characters/quock/base.png",
+  "/assets/characters/bernard/base.png",
   "/assets/characters-fallback/boy/player-back.png",
   "/assets/characters-fallback/boy/player-front.png",
   "/assets/characters-fallback/boy/player-left.png",
