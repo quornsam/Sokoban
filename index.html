@@ -161,7 +161,7 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=428">
+<link rel="stylesheet" href="styles.css?v=429">
 <link rel="stylesheet" href="how-to-play.css?v=225">
 <link rel="preload" as="image" href="assets/board/boxes/box-default-yellow.png?v=226">
 <link rel="preload" as="image" href="assets/board/goals/goal-red.png?v=226">
@@ -229,6 +229,10 @@
         <div id="pieceLayer" class="layer"></div>
         <div id="celebration" class="celebration" aria-hidden="true"></div>
       </div>
+      <div class="desktop-board-actions" aria-label="Desktop puzzle actions">
+        <button id="desktopUndoBtn" class="desktop-board-action desktop-board-undo" type="button" aria-label="Undo last move" title="Undo (U / Z)"><span aria-hidden="true">↶</span><b>UNDO</b></button>
+        <button id="desktopRestartBtn" class="desktop-board-action desktop-board-restart" type="button" aria-label="Restart level" title="Restart (R)"><span aria-hidden="true">↻</span><b>RESTART</b></button>
+      </div>
       <button id="zenZoomBtn" class="zen-zoom-btn" type="button" hidden aria-label="Increase board zoom" aria-pressed="false">
         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="10.5" cy="10.5" r="5.8"/><path d="m15 15 5 5"/></svg>
       </button>
@@ -269,14 +273,18 @@
   </section>
 
   <aside class="side-panel">
-    <section class="credit"><strong id="creditTitle">MICROBAN COLLECTION</strong><span id="creditSub">DAVID W. SKINNER · 50 LEVELS</span></section>
+    <div class="side-panel-head">
+      <section class="credit"><strong id="creditTitle">MICROBAN COLLECTION</strong><span id="creditSub">DAVID W. SKINNER · 50 LEVELS</span></section>
 
-    <section class="stats">
-      <div><span>MOVES</span><strong id="moves">0</strong></div>
-      <div><span>PUSHES</span><strong id="pushes">0</strong></div>
-      <div><span>BEST</span><strong id="best">—</strong></div>
-      <div class="time"><span>TIME</span><strong id="time">00:00</strong></div>
-    </section>
+      <section class="stats">
+        <div><span>MOVES</span><strong id="moves">0</strong></div>
+        <div><span>PUSHES</span><strong id="pushes">0</strong></div>
+        <div><span>BEST</span><strong id="best">—</strong></div>
+        <div class="time"><span>TIME</span><strong id="time">00:00</strong></div>
+      </section>
+    </div>
+
+    <button id="desktopUtilityToggle" class="desktop-utility-toggle" type="button" aria-expanded="true" aria-label="Collapse desktop tools" title="Collapse tools"><span class="desktop-utility-toggle-icon" aria-hidden="true">›</span><b>TOOLS</b></button>
 
     <section class="top-actions">
       <button id="undoBtn" class="action undo"><span>↶</span><b>UNDO</b></button>
@@ -291,14 +299,14 @@
         <button data-dir="down" aria-label="Move down"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2 7h20L12 21Z"/></svg></button>
         <button data-dir="right" aria-label="Move right"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m21 12-14 10V2Z"/></svg></button>
       </section>
-      <button id="styleBtn" class="attire-action" data-style-trigger type="button" aria-label="Change character attire" title="Change character attire">
+      <button id="styleBtn" class="attire-action" data-style-trigger type="button" aria-label="Change character style" title="Change character style">
         <svg class="style-outfit-icon" viewBox="0 0 100 100" aria-hidden="true" focusable="false" shape-rendering="geometricPrecision">
           <path class="style-hanger-hook" d="M50 27c0-7 10-8 12-2 2 5-3 8-7 10"/>
           <path class="style-hanger-bar" d="M50 35 19 58h62L50 35Z"/>
           <path class="style-shirt-body" d="M31 48 42 43c2 5 5 7 8 7s6-2 8-7l11 5 9 11-9 8-6-5v21H37V62l-6 5-9-8 9-11Z"/>
           <path class="style-shirt-seam" d="M37 62h26M50 50v33"/>
         </svg>
-        <b>ATTIRE</b>
+        <b>STYLE</b>
       </button>
     </section>
 
@@ -356,10 +364,26 @@
       <div>
         <span class="style-kicker">BAUHAUS WARDROBE</span>
         <h2 id="styleTitle">CHARACTER STYLE</h2>
-        <p>Choose character, clothing, skin, hair and shoe colours.</p>
+        <p>Choose character, clothing, skin, hair, shoe, box and target colours.</p>
       </div>
     </div>
     <div id="styleControls" class="style-controls"></div>
+    <section class="style-board-colours" aria-labelledby="styleBoardColoursTitle">
+      <div class="style-board-colours-head">
+        <span class="style-kicker">BOARD STYLE</span>
+        <h3 id="styleBoardColoursTitle">BOX & TARGET COLOURS</h3>
+      </div>
+      <div class="settings-board-style style-board-style">
+        <div class="settings-board-style-row">
+          <div class="settings-board-style-label"><strong>BOX</strong><span id="styleBoxColourName">YELLOW</span></div>
+          <div id="styleBoxColourChoices" class="settings-board-style-swatches" role="group" aria-label="Box colour"></div>
+        </div>
+        <div class="settings-board-style-row">
+          <div class="settings-board-style-label"><strong>BOX ON TARGET</strong><span id="styleTargetColourName">RED</span></div>
+          <div id="styleTargetColourChoices" class="settings-board-style-swatches" role="group" aria-label="Target and box-on-target colour"></div>
+        </div>
+      </div>
+    </section>
     <footer class="style-footer">
       <button id="styleResetBtn" class="style-reset" type="button">RESET</button>
       <button id="styleDoneBtn" class="style-done" type="button">DONE</button>
@@ -493,11 +517,11 @@
 
         <section class="settings-panel settings-style-panel">
           <h3>STYLE</h3>
-          <button id="settingsAttireBtn" class="settings-link-button settings-attire-link" data-style-trigger type="button" aria-label="Change character attire">
+          <button id="settingsAttireBtn" class="settings-link-button settings-attire-link" data-style-trigger type="button" aria-label="Change character style">
             <span class="settings-attire-preview" aria-hidden="true">
               <canvas width="600" height="520" data-character-preview="player-front"></canvas>
             </span>
-            <b>ATTIRE</b><i aria-hidden="true">→</i>
+            <b>STYLE</b><i aria-hidden="true">→</i>
           </button>
           <div class="settings-board-style">
             <div class="settings-board-style-row">
@@ -1536,7 +1560,7 @@
 <script src="daily-puzzles/boxxy-daily-loader.js?v=357"></script>
 <script src="levels.js?v=372"></script>
 <script src="starry-night.js?v=302"></script>
-<script src="boxxy.js?v=428"></script>
+<script src="boxxy.js?v=429"></script>
 <script src="attempt-history.js?v=428"></script>
 <script src="attempt-history-ui.js?v=428"></script>
 <script src="account.js?v=428"></script>

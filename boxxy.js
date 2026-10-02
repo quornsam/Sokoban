@@ -16,6 +16,7 @@
 /* BOXXY v410: character-family tabs browse without changing the selected character; six Partygoers added and profile/style controls refined. */
 /* BOXXY v409: restore v396 leaderboard typography/alignment while adding centred clickable avatars only to the full leaderboard. */
 /* BOXXY v407: keep profile bio editing geometrically stable and give full leaderboard avatars dedicated row space. */
+/* BOXXY v429: desktop-only collapsible utility rail, floating Undo/Restart and board colours in Style. */
 /* BOXXY v428: permanent Daily fastest-time gold medals appear in the header, trophy cabinet and public profiles. */
 /* BOXXY v405: profile avatar crop, trophy tooltips, inline bio placeholder and clean clickable leaderboard names. */
 /* BOXXY v404: redesigned public profiles, full-resolution avatars, visual trophies, streak and in-place bio editing. */
@@ -28,7 +29,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "428",
+  version: "429",
   lastUpdated: "2026-10-02"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
@@ -2738,6 +2739,10 @@ window.BOXXY_RELEASE = Object.freeze({
   const undoBtn = document.getElementById("undoBtn");
   const restartBtn = document.getElementById("restartBtn");
   const savePositionBtn = document.getElementById("savePositionBtn");
+  const desktopUndoBtn = document.getElementById("desktopUndoBtn");
+  const desktopRestartBtn = document.getElementById("desktopRestartBtn");
+  const desktopUtilityToggle = document.getElementById("desktopUtilityToggle");
+  const appRoot = document.querySelector(".app");
   const soundBtn = document.getElementById("soundBtn");
   const musicBtn = document.getElementById("musicBtn");
   const bgMusic = document.getElementById("bgMusic");
@@ -2770,6 +2775,10 @@ window.BOXXY_RELEASE = Object.freeze({
   const settingsTargetColourChoices = document.getElementById("settingsTargetColourChoices");
   const settingsBoxColourName = document.getElementById("settingsBoxColourName");
   const settingsTargetColourName = document.getElementById("settingsTargetColourName");
+  const styleBoxColourChoices = document.getElementById("styleBoxColourChoices");
+  const styleTargetColourChoices = document.getElementById("styleTargetColourChoices");
+  const styleBoxColourName = document.getElementById("styleBoxColourName");
+  const styleTargetColourName = document.getElementById("styleTargetColourName");
   const settingsControlsPanel = document.getElementById("settingsControlsPanel");
   const settingsContactBtn = document.getElementById("settingsContactBtn");
   const levelBtn = document.getElementById("levelBtn");
@@ -7761,6 +7770,8 @@ window.BOXXY_RELEASE = Object.freeze({
     const style = standardBoardStyle();
     if (settingsBoxColourName) settingsBoxColourName.textContent = boardStyleColourLabel(style.box);
     if (settingsTargetColourName) settingsTargetColourName.textContent = boardStyleColourLabel(style.target);
+    if (styleBoxColourName) styleBoxColourName.textContent = boardStyleColourLabel(style.box);
+    if (styleTargetColourName) styleTargetColourName.textContent = boardStyleColourLabel(style.target);
     document.querySelectorAll("[data-board-style-colour]").forEach(button => {
       const category = button.dataset.boardStyleCategory;
       const selected = style[category] === button.dataset.boardStyleColour;
@@ -7811,6 +7822,8 @@ window.BOXXY_RELEASE = Object.freeze({
     };
     build(settingsBoxColourChoices, "box");
     build(settingsTargetColourChoices, "target");
+    build(styleBoxColourChoices, "box");
+    build(styleTargetColourChoices, "target");
     updateBoardStyleControls();
   }
 
@@ -7949,6 +7962,53 @@ window.BOXXY_RELEASE = Object.freeze({
     if (!touchClickPushEnabled && !mouseSupportEnabled) resetMouseSupportInteraction();
     updateSettingsTouchPushButton();
   }
+
+  const DESKTOP_UTILITY_STORAGE_KEY = "boxxy-desktop-utility-collapsed-v1";
+  let desktopUtilityCollapsed = false;
+  try { desktopUtilityCollapsed = localStorage.getItem(DESKTOP_UTILITY_STORAGE_KEY) === "1"; } catch (_) {}
+
+  function desktopUtilityAvailable() {
+    return !document.documentElement.classList.contains("touch-ui")
+      && window.matchMedia?.("(min-width: 821px) and (pointer: fine)")?.matches;
+  }
+
+  function syncDesktopUtilityState() {
+    const active = desktopUtilityAvailable();
+    const collapsed = active && desktopUtilityCollapsed;
+    document.body.classList.toggle("desktop-utility-collapsed", collapsed);
+    if (desktopUtilityToggle) {
+      desktopUtilityToggle.hidden = !active;
+      desktopUtilityToggle.setAttribute("aria-expanded", String(!collapsed));
+      desktopUtilityToggle.setAttribute("aria-label", collapsed ? "Expand desktop tools" : "Collapse desktop tools");
+      desktopUtilityToggle.title = collapsed ? "Expand tools" : "Collapse tools";
+      const icon = desktopUtilityToggle.querySelector(".desktop-utility-toggle-icon");
+      if (icon) icon.textContent = collapsed ? "‹" : "›";
+    }
+    requestAnimationFrame(() => {
+      scheduleBoardResize();
+    });
+  }
+
+  function setDesktopUtilityCollapsed(collapsed) {
+    desktopUtilityCollapsed = Boolean(collapsed);
+    try { localStorage.setItem(DESKTOP_UTILITY_STORAGE_KEY, desktopUtilityCollapsed ? "1" : "0"); } catch (_) {}
+    syncDesktopUtilityState();
+  }
+
+  desktopUtilityToggle?.addEventListener("click", () => setDesktopUtilityCollapsed(!desktopUtilityCollapsed));
+  desktopUndoBtn?.addEventListener("click", () => undoBtn?.click());
+  desktopRestartBtn?.addEventListener("click", () => restartBtn?.click());
+  function syncDesktopBoardActionState() {
+    if (desktopUndoBtn && undoBtn) desktopUndoBtn.disabled = Boolean(undoBtn.disabled);
+    if (desktopRestartBtn && restartBtn) desktopRestartBtn.disabled = Boolean(restartBtn.disabled);
+  }
+  syncDesktopBoardActionState();
+  if (window.MutationObserver) {
+    const desktopActionStateObserver = new MutationObserver(syncDesktopBoardActionState);
+    if (undoBtn) desktopActionStateObserver.observe(undoBtn, { attributes: true, attributeFilter: ["disabled"] });
+    if (restartBtn) desktopActionStateObserver.observe(restartBtn, { attributes: true, attributeFilter: ["disabled"] });
+  }
+  window.addEventListener("resize", syncDesktopUtilityState, { passive: true });
 
   function pointControlMode() {
     if (instantMoveModeActive()) return "instant";
@@ -11285,6 +11345,7 @@ window.BOXXY_RELEASE = Object.freeze({
     else pauseBackgroundMusic();
   });
   settingsBtn?.addEventListener("pointerdown", prepareBoardStylePaletteAssets, { passive: true });
+  document.querySelectorAll("[data-style-trigger]").forEach(button => button.addEventListener("pointerdown", prepareBoardStylePaletteAssets, { passive: true }));
   settingsBtn?.addEventListener("click", openSettings);
   settingsCloseBtn?.addEventListener("click", closeSettings);
   settingsModal?.addEventListener("click", event => { if (event.target === settingsModal) closeSettings(); });
@@ -11806,6 +11867,7 @@ window.BOXXY_RELEASE = Object.freeze({
     window.addEventListener("resize", scheduleHeaderAwardsLayout, { passive: true });
   }
   updateFullscreenButton();
+  syncDesktopUtilityState();
   buildBoardStyleControls();
   updateSettingsDeviceAvailability();
   updateSoundButton();

@@ -8124,3 +8124,258 @@ html.touch-ui .dpad button {
   .daily-gold-medal-badge .daily-gold-medal-emoji{font-size:18px}
   .daily-gold-medal-badge .daily-gold-medal-count{right:-5px;bottom:-4px;min-width:13px;height:13px;font-size:6px}
 }
+
+/* BOXXY v429 — desktop-only collapsible utility rail and Style board colours. */
+.desktop-utility-toggle,
+.desktop-board-actions{display:none}
+.side-panel-head{display:contents}
+
+.style-board-colours{
+  margin-top:16px;
+  padding:14px;
+  border:2px solid var(--ink);
+  border-radius:12px;
+  background:linear-gradient(135deg,#fffaf1,#eee3d4);
+  box-shadow:4px 4px 0 rgba(23,23,25,.12);
+}
+.style-board-colours-head{display:flex;align-items:end;justify-content:space-between;gap:14px;margin-bottom:11px}
+.style-board-colours-head h3{margin:0;font-size:14px;line-height:1;letter-spacing:.06em}
+.style-board-colours-head .style-kicker{margin:0;font-size:9px;white-space:nowrap}
+.style-board-style{grid-template-columns:1fr 1fr}
+.style-board-style .settings-board-style-row{background:#fffaf1;border-color:#b7aa99}
+
+@media(max-width:760px){
+  .style-board-colours{margin-top:12px;padding:11px;border-radius:10px}
+  .style-board-colours-head{display:block;margin-bottom:9px}
+  .style-board-colours-head h3{margin-top:5px;font-size:12px}
+  .style-board-style{grid-template-columns:1fr}
+}
+
+@media (min-width:821px) and (pointer:fine){
+  html:not(.touch-ui) .app{
+    --desktop-head-height:clamp(92px,14dvh,132px);
+    --desktop-utility-expanded:clamp(250px,18vw,300px);
+    --desktop-utility-collapsed:68px;
+    grid-template-columns:minmax(0,1fr) var(--desktop-utility-expanded);
+    transition:grid-template-columns .22s cubic-bezier(.2,.7,.3,1);
+  }
+  html:not(.touch-ui) .play-area{
+    grid-template-rows:var(--desktop-head-height) minmax(0,1fr) clamp(52px,8dvh,76px);
+  }
+  html:not(.touch-ui) body.desktop-utility-collapsed .app{
+    grid-template-columns:minmax(0,1fr) var(--desktop-utility-collapsed);
+  }
+
+  /* Match the right-hand header edge exactly to the masthead rule. */
+  html:not(.touch-ui) .side-panel{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    grid-template-rows:var(--desktop-head-height) 34px repeat(3,minmax(62px,1fr)) 30px;
+    gap:8px;
+    padding:0 10px;
+    overflow:hidden;
+    border-left:2px solid var(--ink);
+    background:rgba(249,244,235,.80);
+  }
+  html:not(.touch-ui) .side-panel-head{
+    grid-column:1/-1;
+    grid-row:1;
+    min-width:0;
+    min-height:0;
+    margin-inline:-10px;
+    display:grid;
+    grid-template-rows:minmax(0,1fr) auto;
+    overflow:hidden;
+    border-bottom:1px solid var(--line);
+  }
+  html:not(.touch-ui) .side-panel-head .credit{
+    min-height:0;
+    padding:10px 14px 7px;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    border-bottom:1px solid var(--line);
+  }
+  html:not(.touch-ui) .side-panel-head .stats{border-bottom:0}
+  html:not(.touch-ui) .side-panel-head .stats>div,
+  html:not(.touch-ui) .side-panel-head .stats .time{padding:6px 2px}
+  html:not(.touch-ui) .side-panel-head .stats strong{font-size:clamp(15px,2.2dvh,22px)}
+  html:not(.touch-ui) .side-panel-head .stats .time strong{font-size:clamp(11px,1.7dvh,17px)}
+
+  html:not(.touch-ui) .desktop-utility-toggle{
+    grid-column:1/-1;
+    grid-row:2;
+    min-width:0;
+    height:34px;
+    padding:0 10px;
+    border:1px solid var(--line);
+    border-radius:8px;
+    background:#eee5d8;
+    color:var(--ink);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:7px;
+    font-weight:950;
+    letter-spacing:.08em;
+    box-shadow:0 3px 7px rgba(55,38,20,.07);
+  }
+  html:not(.touch-ui) .desktop-utility-toggle-icon{font-size:19px;line-height:1;transform:translateY(-1px)}
+  html:not(.touch-ui) .desktop-utility-toggle b{font-size:8px}
+
+  /* Existing controls become the desktop utility rail. Touch layouts are untouched. */
+  html:not(.touch-ui) .top-actions,
+  html:not(.touch-ui) .move-zone,
+  html:not(.touch-ui) .bottom-actions{display:contents}
+  html:not(.touch-ui) .top-actions #undoBtn,
+  html:not(.touch-ui) .top-actions #restartBtn,
+  html:not(.touch-ui) .move-zone .dpad{display:none!important}
+  html:not(.touch-ui) .top-actions #savePositionBtn{grid-column:1;grid-row:3}
+  html:not(.touch-ui) .move-zone #styleBtn{grid-column:2;grid-row:3}
+  html:not(.touch-ui) .bottom-actions #settingsBtn{grid-column:1;grid-row:4}
+  html:not(.touch-ui) .bottom-actions #levelBtn{grid-column:2;grid-row:4}
+  html:not(.touch-ui) .bottom-actions #fullscreenBtn{grid-column:1/-1;grid-row:5;display:flex!important}
+  html:not(.touch-ui) .side-panel>.palette{grid-column:1/-1;grid-row:6;margin-inline:-10px;height:30px;align-self:end}
+
+  html:not(.touch-ui) .side-panel .bottom-actions .action.small{display:flex!important}
+  html:not(.touch-ui) .side-panel .action,
+  html:not(.touch-ui) .side-panel .attire-action{
+    width:100%;
+    max-width:none;
+    min-height:0;
+    height:100%;
+    padding:7px 5px;
+    border:1px solid var(--line);
+    border-radius:10px;
+    background:#f8f1e6;
+    color:var(--ink);
+    box-shadow:0 4px 10px rgba(55,38,20,.08);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:4px;
+  }
+  html:not(.touch-ui) .side-panel .action.undo{background:linear-gradient(#e14b32,#c92e1f);color:#fff;border-color:#ae281c}
+  html:not(.touch-ui) .side-panel .action.save-position{background:linear-gradient(#f4e2a7,#e5b32a);border-color:#b98b12}
+  html:not(.touch-ui) .side-panel .action span,
+  html:not(.touch-ui) .side-panel .action.small span{font-size:25px;line-height:1}
+  html:not(.touch-ui) .side-panel .action b,
+  html:not(.touch-ui) .side-panel .action.small b,
+  html:not(.touch-ui) .side-panel .attire-action b{
+    font-size:8px!important;
+    line-height:1!important;
+    white-space:nowrap!important;
+    letter-spacing:.035em;
+  }
+  html:not(.touch-ui) .side-panel .attire-action .style-outfit-icon{width:39px;height:39px}
+  html:not(.touch-ui) .side-panel .fullscreen-action b{max-width:none!important}
+
+  /* Undo and Restart live over the board on computers only. */
+  html:not(.touch-ui) .desktop-board-actions{
+    position:absolute;
+    z-index:5200;
+    top:14px;
+    right:14px;
+    display:flex;
+    gap:7px;
+    pointer-events:auto;
+  }
+  html:not(.touch-ui) .desktop-board-action{
+    min-width:58px;
+    height:52px;
+    padding:4px 8px;
+    border:1px solid var(--line);
+    border-radius:10px;
+    background:rgba(248,241,230,.94);
+    color:var(--ink);
+    box-shadow:0 5px 12px rgba(37,26,15,.16);
+    backdrop-filter:blur(3px);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:1px;
+  }
+  html:not(.touch-ui) .desktop-board-action span{font-size:25px;line-height:.9}
+  html:not(.touch-ui) .desktop-board-action b{font-size:7px;line-height:1;letter-spacing:.04em}
+  html:not(.touch-ui) .desktop-board-undo{background:rgba(219,59,39,.94);border-color:#a92d20;color:#fff}
+  html:not(.touch-ui) .desktop-board-action:hover{transform:translateY(-1px)}
+  html:not(.touch-ui) .desktop-board-action:active{transform:translateY(1px)}
+  html:not(.touch-ui) .desktop-board-action:disabled{opacity:.45;cursor:default;transform:none}
+
+  /* Collapsed mode retains a real icon rail while handing width back to the board. */
+  html:not(.touch-ui) body.desktop-utility-collapsed .side-panel{
+    grid-template-columns:1fr;
+    grid-template-rows:var(--desktop-head-height) 38px repeat(5,minmax(0,1fr));
+    gap:6px;
+    padding:0 6px 6px;
+  }
+  html:not(.touch-ui) body.desktop-utility-collapsed .side-panel-head{
+    grid-column:1;
+    grid-row:1;
+    margin-inline:-6px;
+  }
+  html:not(.touch-ui) body.desktop-utility-collapsed .side-panel-head .credit,
+  html:not(.touch-ui) body.desktop-utility-collapsed .side-panel-head .stats{visibility:hidden}
+  html:not(.touch-ui) body.desktop-utility-collapsed .desktop-utility-toggle{grid-column:1;grid-row:2;padding:0}
+  html:not(.touch-ui) body.desktop-utility-collapsed .desktop-utility-toggle b{display:none}
+  html:not(.touch-ui) body.desktop-utility-collapsed .top-actions #savePositionBtn{grid-column:1;grid-row:3}
+  html:not(.touch-ui) body.desktop-utility-collapsed .move-zone #styleBtn{grid-column:1;grid-row:4}
+  html:not(.touch-ui) body.desktop-utility-collapsed .bottom-actions #settingsBtn{grid-column:1;grid-row:5}
+  html:not(.touch-ui) body.desktop-utility-collapsed .bottom-actions #levelBtn{grid-column:1;grid-row:6}
+  html:not(.touch-ui) body.desktop-utility-collapsed .bottom-actions #fullscreenBtn{grid-column:1;grid-row:7}
+  html:not(.touch-ui) body.desktop-utility-collapsed .side-panel>.palette{display:none}
+  html:not(.touch-ui) body.desktop-utility-collapsed .side-panel .action,
+  html:not(.touch-ui) body.desktop-utility-collapsed .side-panel .attire-action{border-radius:8px;padding:2px;gap:0}
+  html:not(.touch-ui) body.desktop-utility-collapsed .side-panel .action b,
+  html:not(.touch-ui) body.desktop-utility-collapsed .side-panel .attire-action b{
+    position:absolute!important;
+    width:1px!important;
+    height:1px!important;
+    padding:0!important;
+    margin:-1px!important;
+    overflow:hidden!important;
+    clip:rect(0 0 0 0)!important;
+    white-space:nowrap!important;
+    border:0!important;
+  }
+  html:not(.touch-ui) body.desktop-utility-collapsed .side-panel .action span,
+  html:not(.touch-ui) body.desktop-utility-collapsed .side-panel .action.small span{font-size:24px}
+  html:not(.touch-ui) body.desktop-utility-collapsed .side-panel .attire-action .style-outfit-icon{width:36px;height:36px}
+
+  @media (prefers-reduced-motion:reduce){
+    html:not(.touch-ui) .app{transition:none}
+  }
+}
+
+@media (min-width:821px) and (pointer:fine) and (max-height:720px){
+  html:not(.touch-ui) .app{--desktop-head-height:82px}
+  html:not(.touch-ui) .play-area{grid-template-rows:var(--desktop-head-height) minmax(0,1fr) 46px}
+  html:not(.touch-ui) .side-panel-head .credit{padding:6px 10px 4px}
+  html:not(.touch-ui) .side-panel-head .credit strong{font-size:12px}
+  html:not(.touch-ui) .side-panel-head .credit span{font-size:7px}
+  html:not(.touch-ui) .side-panel-head .stats>div,
+  html:not(.touch-ui) .side-panel-head .stats .time{padding:3px 1px}
+  html:not(.touch-ui) .side-panel-head .stats strong{font-size:14px}
+  html:not(.touch-ui) .desktop-board-action{height:44px;min-width:52px}
+}
+
+@media (min-width:821px) and (pointer:fine) and (max-height:520px) and (orientation:landscape){
+  html:not(.touch-ui) .app{--desktop-head-height:52px}
+  html:not(.touch-ui) .play-area{grid-template-rows:var(--desktop-head-height) minmax(0,1fr) 28px}
+  html:not(.touch-ui) .side-panel-head{grid-template-rows:1fr}
+  html:not(.touch-ui) .side-panel-head .credit{display:none}
+  html:not(.touch-ui) .side-panel-head .stats{height:100%}
+  html:not(.touch-ui) .side-panel-head .stats>div,
+  html:not(.touch-ui) .side-panel-head .stats .time{display:flex;flex-direction:column;justify-content:center;padding:1px}
+  html:not(.touch-ui) .side-panel-head .stats span{font-size:6px}
+  html:not(.touch-ui) .side-panel-head .stats strong{font-size:11px}
+  html:not(.touch-ui) .desktop-board-actions{top:7px;right:7px}
+  html:not(.touch-ui) .desktop-board-action{height:38px;min-width:46px;padding:2px 5px}
+  html:not(.touch-ui) .desktop-board-action span{font-size:20px}
+  html:not(.touch-ui) .desktop-board-action b{font-size:6px}
+}
+
+@media (min-width:821px) and (pointer:fine){
+  html:not(.touch-ui) body.desktop-zen-mode .desktop-board-actions{display:none!important}
+}
