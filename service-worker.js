@@ -1,4 +1,4 @@
-/* BOXXY v436: larger sliding desktop actions, larger grip and live utility icons. */
+/* BOXXY v437: square desktop actions, collapsed tray peek, Daily archive streak badge and refreshed Partygoer sprites. */
 /* BOXXY v429: desktop utility rail and Style board-colour controls. */
 /* BOXXY v428: Daily fastest-time gold-medal client/history assets. */
 /* BOXXY v427: PARTYGOERS visibility is secret-sequence only. */
@@ -40,7 +40,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "436";
+const RELEASE_VERSION = "437";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [

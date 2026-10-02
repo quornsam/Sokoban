@@ -1,4 +1,4 @@
-/* BOXXY v435 — paired desktop utility tray layout with standard line weight and message-bar gradient. */
+/* BOXXY v437 — square desktop actions, visible collapsed tray edge and Daily archive streak badge. */
 /* BOXXY v412 — cached/paged Daily leaderboard controls and 30-score pagination. */
 /* BOXXY v411 — restores established Character Style name typography and prevents arbitrary mid-word wrapping. */
 /* BOXXY v325 — board-style default choices sit in a dedicated aligned column; palette wrapping no longer breaks row continuity. */
@@ -5266,6 +5266,8 @@ body.first-person-mode .board::after{
   line-height:.84;
   letter-spacing:-.055em;
 }
+.daily-archive-title-row{display:flex;align-items:center;gap:15px;min-width:0}
+.daily-archive-streak-badge{--daily-streak-badge-size:56px;flex:0 0 auto;margin-top:3px;pointer-events:none}
 .daily-archive-head p{
   max-width:680px;
   margin:10px 0 0;
@@ -5476,6 +5478,8 @@ body.first-person-mode .board::after{
   .daily-archive-card{width:100%;max-height:calc(100dvh - 16px);box-shadow:7px 7px 0 rgba(47,143,91,.72)}
   .daily-archive-head{padding:16px 15px 13px}
   .daily-archive-head h2{font-size:clamp(34px,12vw,51px)}
+  .daily-archive-title-row{gap:9px}
+  .daily-archive-streak-badge{--daily-streak-badge-size:43px;margin-top:1px}
   .daily-archive-head p{font-size:10px}
   .daily-archive-close{width:38px;height:38px;flex-basis:38px;font-size:26px}
   .daily-archive-summary-row{display:block;padding:10px 15px}
@@ -5489,6 +5493,7 @@ body.first-person-mode .board::after{
   .daily-archive-card{max-height:calc(100dvh - 12px)}
   .daily-archive-head{padding:10px 16px 9px}
   .daily-archive-head h2{font-size:35px}
+  .daily-archive-streak-badge{--daily-streak-badge-size:38px}
   .daily-archive-head p{margin-top:5px;font-size:9px}
   .daily-archive-summary-row{padding:7px 16px}
   .daily-archive-months{padding:11px 16px 16px}
@@ -5589,6 +5594,7 @@ body.first-person-mode .board::after{
 .daily-archive-card{width:min(1220px,calc(100vw - 24px));max-height:min(94dvh,940px)}
 .daily-archive-head{padding:14px 18px 12px}
 .daily-archive-head h2{font-size:clamp(34px,4.4vw,52px)}
+.daily-archive-streak-badge{--daily-streak-badge-size:48px}
 .daily-archive-head p{margin-top:6px;font-size:10px}
 .daily-archive-summary-row{padding:8px 18px}
 .daily-archive-countdown strong{font-size:18px}
@@ -5633,6 +5639,8 @@ body.first-person-mode .board::after{
   .daily-archive-card{max-height:calc(100dvh - 10px);box-shadow:4px 4px 0 rgba(47,143,91,.72)}
   .daily-archive-head{padding:10px 10px 8px}
   .daily-archive-head h2{font-size:31px}
+  .daily-archive-title-row{gap:8px}
+  .daily-archive-streak-badge{--daily-streak-badge-size:38px;margin-top:0}
   .daily-archive-head p{display:none}
   .daily-archive-close{width:32px;height:32px;flex-basis:32px;font-size:23px}
   .daily-archive-summary-row{padding:7px 10px}
@@ -8161,6 +8169,7 @@ html.touch-ui .dpad button {
     --desktop-palette-height:20px;
     --desktop-side-head-width:clamp(320px,24vw,380px);
     --desktop-utility-expanded:150px;
+    --desktop-utility-collapsed-peek:15px;
     --desktop-utility-edge-gap:7px;
   }
 
@@ -8428,8 +8437,8 @@ html.touch-ui .dpad button {
   html:not(.touch-ui) .desktop-daily-streak-icon[data-qualified-today="false"] em{opacity:.72}
   html:not(.touch-ui) .desktop-daily-streak-icon[data-tier="zero"] em{color:#176e24;text-shadow:-1px 0 0 rgba(255,255,255,.92),1px 0 0 rgba(255,255,255,.92),0 -1px 0 rgba(255,255,255,.92),0 1px 0 rgba(255,255,255,.92)}
 
-  /* Collapse slides the entire tray off the right edge. Only the central grip remains visible. */
-  html:not(.touch-ui) body.desktop-utility-collapsed .desktop-utility-tray{transform:translateX(100%)}
+  /* Collapse leaves one grip-width of the tray itself visible, plus the grip tab. */
+  html:not(.touch-ui) body.desktop-utility-collapsed .desktop-utility-tray{transform:translateX(calc(100% - var(--desktop-utility-collapsed-peek)))}
   html:not(.touch-ui) body.desktop-utility-collapsed .desktop-utility-tray>.top-actions,
   html:not(.touch-ui) body.desktop-utility-collapsed .desktop-utility-tray>.move-zone,
   html:not(.touch-ui) body.desktop-utility-collapsed .desktop-utility-tray>.bottom-actions,
@@ -8472,7 +8481,7 @@ html.touch-ui .dpad button {
   html:not(.touch-ui) .desktop-board-action{
     width:94px;
     min-width:94px;
-    height:68px;
+    height:94px;
     padding:6px 10px;
     border:1px solid var(--line);
     border-radius:10px;
@@ -8494,7 +8503,7 @@ html.touch-ui .dpad button {
   html:not(.touch-ui) .desktop-board-action:hover{transform:translateY(-1px)}
   html:not(.touch-ui) .desktop-board-action:active{transform:translateY(1px)}
   html:not(.touch-ui) .desktop-board-action:disabled{opacity:.45;cursor:default;transform:none}
-  html:not(.touch-ui) body.desktop-utility-collapsed .desktop-board-actions{right:18px}
+  html:not(.touch-ui) body.desktop-utility-collapsed .desktop-board-actions{right:calc(var(--desktop-utility-collapsed-peek) + 18px)}
 
   @media (prefers-reduced-motion:reduce){
     html:not(.touch-ui) .desktop-utility-tray,

@@ -16,7 +16,7 @@
 /* BOXXY v410: character-family tabs browse without changing the selected character; six Partygoers added and profile/style controls refined. */
 /* BOXXY v409: restore v396 leaderboard typography/alignment while adding centred clickable avatars only to the full leaderboard. */
 /* BOXXY v407: keep profile bio editing geometrically stable and give full leaderboard avatars dedicated row space. */
-/* BOXXY v436: larger sliding desktop Undo/Restart stack, larger utility grip, and live Daily/Profile/Trophy rail icons. */
+/* BOXXY v437: square desktop Undo/Restart controls, visible collapsed tray edge, Daily archive streak badge, and refreshed Partygoer sprites. */
 /* BOXXY v434: desktop utility tray overlays the map, defaults open each load and adds audio/profile/history/trophy/Daily tools. */
 /* BOXXY v429: desktop-only collapsible utility rail, floating Undo/Restart and board colours in Style. */
 /* BOXXY v428: permanent Daily fastest-time gold medals appear in the header, trophy cabinet and public profiles. */
@@ -31,7 +31,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "436",
+  version: "437",
   lastUpdated: "2026-10-02"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
@@ -2835,6 +2835,8 @@ window.BOXXY_RELEASE = Object.freeze({
   const dailyInviteStatus = document.getElementById("dailyInviteStatus");
   const dailyArchiveModal = document.getElementById("dailyArchiveModal");
   const dailyArchiveCloseBtn = document.getElementById("dailyArchiveCloseBtn");
+  const dailyArchiveStreak = document.getElementById("dailyArchiveStreak");
+  const dailyArchiveStreakNumber = document.getElementById("dailyArchiveStreakNumber");
   const dailyArchiveMonths = document.getElementById("dailyArchiveMonths");
   const dailyArchiveSummary = document.getElementById("dailyArchiveSummary");
   const dailyArchiveCountdownLabel = document.getElementById("dailyArchiveCountdownLabel");
@@ -3831,6 +3833,12 @@ window.BOXXY_RELEASE = Object.freeze({
       desktopDailyStreak.dataset.qualifiedToday = qualifiedToday ? "true" : "false";
     }
     if (desktopDailyStreakNumber) desktopDailyStreakNumber.textContent = String(streak);
+    if (dailyArchiveStreak) {
+      dailyArchiveStreak.dataset.tier = tier;
+      dailyArchiveStreak.dataset.digits = digits;
+      dailyArchiveStreak.dataset.qualifiedToday = qualifiedToday ? "true" : "false";
+    }
+    if (dailyArchiveStreakNumber) dailyArchiveStreakNumber.textContent = String(streak);
     const streakLabel = `Daily Boxxy streak: ${streak} ${streak === 1 ? "day" : "days"}`;
     const todayLabel = todayPuzzle
       ? (qualifiedToday ? "Today’s Daily is complete." : "Today’s Daily is not yet complete.")
@@ -3838,6 +3846,10 @@ window.BOXXY_RELEASE = Object.freeze({
     const label = `${streakLabel}. ${todayLabel}`;
     dailyStreak.setAttribute("aria-label", label);
     dailyStreak.title = label;
+    if (dailyArchiveStreak) {
+      dailyArchiveStreak.setAttribute("aria-label", label);
+      dailyArchiveStreak.title = label;
+    }
   }
 
   function dailyAvailabilityLabel(puzzle = dailyPuzzleForToday()) {
