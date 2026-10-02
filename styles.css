@@ -1,3 +1,4 @@
+/* BOXXY v439 — keep the desktop board inside the live Undo/Restart boundary as the utility tray opens and closes. */
 /* BOXXY v438 — restore the established desktop Full Screen/Zen layout after the v435 utility-tray restructure. */
 /* BOXXY v437 — square desktop actions, visible collapsed tray edge and Daily archive streak badge. */
 /* BOXXY v412 — cached/paged Daily leaderboard controls and 30-score pagination. */
@@ -8175,6 +8176,9 @@ html.touch-ui .dpad button {
     --desktop-utility-expanded:150px;
     --desktop-utility-collapsed-peek:15px;
     --desktop-utility-edge-gap:7px;
+    --desktop-board-action-size:94px;
+    --desktop-board-action-clearance:14px;
+    --desktop-board-action-right:calc(var(--desktop-utility-expanded) + 14px);
   }
 
   /* The title/stats column, message bar, help button, legal/footer and colour strip are fixed chrome.
@@ -8200,12 +8204,15 @@ html.touch-ui .dpad button {
     width:100%;
   }
 
-  /* The map always extends beneath the right-side utility tray. Opening/closing the tray never changes map geometry. */
+  /* The board may use the full desktop canvas, but its fitted/centred area must stop before Undo/Restart.
+     The same action-right variable moves those buttons and defines this safe edge, so collapsing the tray
+     genuinely gives wide maps more room without allowing gameplay beneath the controls. */
   html:not(.touch-ui):not(.desktop-zen-mode) .board-wrap{
     position:relative;
     z-index:1;
     width:calc(100% + var(--desktop-side-head-width));
     max-width:none;
+    padding-right:calc(var(--desktop-board-action-right) + var(--desktop-board-action-size) + var(--desktop-board-action-clearance));
   }
 
   html:not(.touch-ui):not(.desktop-zen-mode) .side-panel{
@@ -8441,7 +8448,9 @@ html.touch-ui .dpad button {
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-daily-streak-icon[data-qualified-today="false"] em{opacity:.72}
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-daily-streak-icon[data-tier="zero"] em{color:#176e24;text-shadow:-1px 0 0 rgba(255,255,255,.92),1px 0 0 rgba(255,255,255,.92),0 -1px 0 rgba(255,255,255,.92),0 1px 0 rgba(255,255,255,.92)}
 
-  /* Collapse leaves one grip-width of the tray itself visible, plus the grip tab. */
+  /* Collapse leaves one grip-width of the tray itself visible, plus the grip tab.
+     Move the board-action boundary with it; board fitting reads the same value through board-wrap padding. */
+  html:not(.touch-ui):not(.desktop-zen-mode) body.desktop-utility-collapsed{--desktop-board-action-right:calc(var(--desktop-utility-collapsed-peek) + 18px)}
   html:not(.touch-ui):not(.desktop-zen-mode) body.desktop-utility-collapsed .desktop-utility-tray{transform:translateX(calc(100% - var(--desktop-utility-collapsed-peek)))}
   html:not(.touch-ui):not(.desktop-zen-mode) body.desktop-utility-collapsed .desktop-utility-tray>.top-actions,
   html:not(.touch-ui):not(.desktop-zen-mode) body.desktop-utility-collapsed .desktop-utility-tray>.move-zone,
@@ -8474,7 +8483,7 @@ html.touch-ui .dpad button {
     position:absolute;
     z-index:5200;
     top:14px;
-    right:calc(var(--desktop-utility-expanded) + 14px);
+    right:var(--desktop-board-action-right);
     display:flex;
     flex-direction:column;
     align-items:stretch;
@@ -8483,9 +8492,9 @@ html.touch-ui .dpad button {
     transition:right .22s cubic-bezier(.2,.7,.3,1);
   }
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-board-action{
-    width:94px;
-    min-width:94px;
-    height:94px;
+    width:var(--desktop-board-action-size);
+    min-width:var(--desktop-board-action-size);
+    height:var(--desktop-board-action-size);
     padding:6px 10px;
     border:1px solid var(--line);
     border-radius:10px;
@@ -8507,7 +8516,6 @@ html.touch-ui .dpad button {
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-board-action:hover{transform:translateY(-1px)}
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-board-action:active{transform:translateY(1px)}
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-board-action:disabled{opacity:.45;cursor:default;transform:none}
-  html:not(.touch-ui):not(.desktop-zen-mode) body.desktop-utility-collapsed .desktop-board-actions{right:calc(var(--desktop-utility-collapsed-peek) + 18px)}
 
   @media (prefers-reduced-motion:reduce){
     html:not(.touch-ui):not(.desktop-zen-mode) .desktop-utility-tray,
