@@ -1,4 +1,4 @@
-/* BOXXY v430 — six more PARTYGOERS and refined desktop-only utility rail. */
+/* BOXXY v431 — independent level header plus slimmer, smaller desktop utility rail. */
 /* BOXXY v412 — cached/paged Daily leaderboard controls and 30-score pagination. */
 /* BOXXY v411 — restores established Character Style name typography and prevents arbitrary mid-word wrapping. */
 /* BOXXY v325 — board-style default choices sit in a dedicated aligned column; palette wrapping no longer breaks row continuity. */
@@ -8126,7 +8126,7 @@ html.touch-ui .dpad button {
   .daily-gold-medal-badge .daily-gold-medal-count{right:-5px;bottom:-4px;min-width:13px;height:13px;font-size:6px}
 }
 
-/* BOXXY v430 — desktop-only utility rail refinement and Style board colours. */
+/* BOXXY v431 — desktop-only utility rail refinement and Style board colours. */
 .desktop-utility-toggle,
 .desktop-board-actions,
 .desktop-rail-nav{display:none}
@@ -8156,9 +8156,9 @@ html.touch-ui .dpad button {
 @media (min-width:821px) and (pointer:fine){
   html:not(.touch-ui) .app{
     --desktop-head-height:clamp(92px,14dvh,132px);
-    --desktop-utility-expanded:clamp(320px,23vw,390px);
-    --desktop-utility-collapsed:24px;
-    --desktop-side-head-width:var(--desktop-utility-expanded);
+    --desktop-utility-expanded:clamp(214px,15vw,244px);
+    --desktop-utility-collapsed:16px;
+    --desktop-side-head-width:clamp(320px,24vw,380px);
     grid-template-columns:minmax(0,1fr) var(--desktop-utility-expanded);
     transition:grid-template-columns .22s cubic-bezier(.2,.7,.3,1);
   }
@@ -8169,28 +8169,39 @@ html.touch-ui .dpad button {
     grid-template-columns:minmax(0,1fr) var(--desktop-utility-collapsed);
   }
 
-  /* Header information never collapses with the utility rail. */
+  /* The level title / moves / pushes / best / time block is a fixed desktop header area,
+     independent of the collapsible tool rail beneath it. Its right edge never moves. */
   html:not(.touch-ui) .side-panel{
     position:relative;
     grid-template-columns:repeat(2,minmax(0,1fr));
-    grid-template-rows:var(--desktop-head-height) repeat(4,minmax(58px,1fr)) 30px;
-    gap:7px;
-    padding:0 8px;
+    grid-template-rows:repeat(4,42px) 22px;
+    align-content:start;
+    gap:6px;
+    padding:calc(var(--desktop-head-height) + 12px) 7px 0;
     overflow:visible;
     border-left:2px solid var(--ink);
     background:rgba(249,244,235,.80);
   }
   html:not(.touch-ui) .side-panel-head{
-    grid-column:1/-1;
-    grid-row:1;
-    min-width:0;
-    min-height:0;
-    margin-inline:-8px;
+    position:absolute;
+    z-index:70;
+    top:0;
+    right:-1px;
+    width:var(--desktop-side-head-width);
+    height:var(--desktop-head-height);
+    margin:0;
     display:grid;
     grid-template-rows:minmax(0,1fr) auto;
     overflow:hidden;
+    border-left:2px solid var(--ink);
     border-bottom:1px solid var(--line);
-    background:rgba(249,244,235,.96);
+    background:rgba(249,244,235,.98);
+  }
+  html:not(.touch-ui) .masthead{
+    padding-right:calc(var(--desktop-side-head-width) - var(--desktop-utility-expanded) + 24px);
+  }
+  html:not(.touch-ui) body.desktop-utility-collapsed .masthead{
+    padding-right:calc(var(--desktop-side-head-width) - var(--desktop-utility-collapsed) + 24px);
   }
   html:not(.touch-ui) .side-panel-head .credit{
     min-height:0;
@@ -8216,34 +8227,41 @@ html.touch-ui .dpad button {
   html:not(.touch-ui) .side-panel-head .stats strong{font-size:clamp(15px,2.2dvh,22px)}
   html:not(.touch-ui) .side-panel-head .stats .time strong{font-size:clamp(11px,1.7dvh,17px)}
 
-  /* The collapse control is a narrow tab centred on the rail divider. */
+  /* Thin centre grip: it sits mostly on the divider and barely intrudes into the rail. */
   html:not(.touch-ui) .desktop-utility-toggle{
     position:absolute;
     z-index:80;
-    left:-15px;
+    left:-8px;
     top:50%;
     transform:translateY(-50%);
-    width:29px;
-    height:76px;
+    width:13px;
+    height:58px;
     padding:0;
-    border:2px solid var(--ink);
-    border-right:0;
-    border-radius:10px 0 0 10px;
+    border:1px solid var(--ink);
+    border-radius:4px;
     background:#f2e8d8;
     color:var(--ink);
     display:grid;
     place-items:center;
-    box-shadow:-4px 4px 10px rgba(55,38,20,.13);
+    box-shadow:-2px 2px 5px rgba(55,38,20,.10);
   }
   html:not(.touch-ui) .desktop-utility-toggle:hover{background:#fff7ea}
-  html:not(.touch-ui) .desktop-utility-toggle:active{transform:translateY(-50%) translateX(1px)}
-  html:not(.touch-ui) .desktop-utility-toggle-icon{font-size:24px;line-height:1;transform:translateY(-1px)}
+  html:not(.touch-ui) .desktop-utility-toggle:active{transform:translateY(-50%)}
+  html:not(.touch-ui) .desktop-utility-toggle-icon{
+    width:5px;
+    height:28px;
+    border-left:1px solid currentColor;
+    border-right:1px solid currentColor;
+    font-size:0;
+    line-height:0;
+    opacity:.68;
+  }
   html:not(.touch-ui) .desktop-utility-toggle b{
     position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;
     overflow:hidden!important;clip:rect(0 0 0 0)!important;white-space:nowrap!important;border:0!important;
   }
 
-  /* Existing controls and the new navigation buttons form one compact rail grid. */
+  /* Compact desktop utility buttons; deliberate negative space is left below them. */
   html:not(.touch-ui) .top-actions,
   html:not(.touch-ui) .move-zone,
   html:not(.touch-ui) .bottom-actions,
@@ -8252,15 +8270,15 @@ html.touch-ui .dpad button {
   html:not(.touch-ui) .top-actions #restartBtn,
   html:not(.touch-ui) .move-zone .dpad{display:none!important}
 
-  html:not(.touch-ui) .top-actions #savePositionBtn{grid-column:1;grid-row:2}
-  html:not(.touch-ui) .move-zone #styleBtn{grid-column:2;grid-row:2}
-  html:not(.touch-ui) .bottom-actions #settingsBtn{grid-column:1;grid-row:3}
-  html:not(.touch-ui) .bottom-actions #levelBtn{grid-column:2;grid-row:3}
-  html:not(.touch-ui) .desktop-rail-nav #desktopPrevLevelBtn{grid-column:1;grid-row:4}
-  html:not(.touch-ui) .desktop-rail-nav #desktopNextLevelBtn{grid-column:2;grid-row:4}
-  html:not(.touch-ui) .desktop-rail-nav #desktopPacksBtn{grid-column:1;grid-row:5}
-  html:not(.touch-ui) .bottom-actions #fullscreenBtn{grid-column:2;grid-row:5;display:flex!important}
-  html:not(.touch-ui) .side-panel>.palette{grid-column:1/-1;grid-row:6;margin-inline:-8px;height:30px;align-self:end}
+  html:not(.touch-ui) .top-actions #savePositionBtn{grid-column:1;grid-row:1}
+  html:not(.touch-ui) .move-zone #styleBtn{grid-column:2;grid-row:1}
+  html:not(.touch-ui) .bottom-actions #settingsBtn{grid-column:1;grid-row:2}
+  html:not(.touch-ui) .bottom-actions #levelBtn{grid-column:2;grid-row:2}
+  html:not(.touch-ui) .desktop-rail-nav #desktopPrevLevelBtn{grid-column:1;grid-row:3}
+  html:not(.touch-ui) .desktop-rail-nav #desktopNextLevelBtn{grid-column:2;grid-row:3}
+  html:not(.touch-ui) .desktop-rail-nav #desktopPacksBtn{grid-column:1;grid-row:4}
+  html:not(.touch-ui) .bottom-actions #fullscreenBtn{grid-column:2;grid-row:4;display:flex!important}
+  html:not(.touch-ui) .side-panel>.palette{grid-column:1/-1;grid-row:5;margin-inline:-7px;height:22px;align-self:end}
 
   html:not(.touch-ui) .side-panel .bottom-actions .action.small,
   html:not(.touch-ui) .side-panel .desktop-rail-nav .action.small{display:flex!important}
@@ -8269,18 +8287,18 @@ html.touch-ui .dpad button {
     width:100%;
     max-width:none;
     min-height:0;
-    height:100%;
-    padding:5px 4px;
+    height:42px;
+    padding:3px 3px;
     border:1px solid var(--line);
-    border-radius:9px;
+    border-radius:7px;
     background:#f8f1e6;
     color:var(--ink);
-    box-shadow:0 3px 8px rgba(55,38,20,.075);
+    box-shadow:0 2px 5px rgba(55,38,20,.065);
     display:flex;
     flex-direction:column;
     align-items:center;
     justify-content:center;
-    gap:3px;
+    gap:2px;
   }
   html:not(.touch-ui) .side-panel .action:hover,
   html:not(.touch-ui) .side-panel .attire-action:hover{background:#fff8ed;transform:translateY(-1px)}
@@ -8297,16 +8315,16 @@ html.touch-ui .dpad button {
   }
   html:not(.touch-ui) .side-panel .action.save-position{background:linear-gradient(#f4e2a7,#e5b32a);border-color:#b98b12}
   html:not(.touch-ui) .side-panel .action span,
-  html:not(.touch-ui) .side-panel .action.small span{font-size:22px;line-height:1}
+  html:not(.touch-ui) .side-panel .action.small span{font-size:18px;line-height:1}
   html:not(.touch-ui) .side-panel .action b,
   html:not(.touch-ui) .side-panel .action.small b,
   html:not(.touch-ui) .side-panel .attire-action b{
-    font-size:7.5px!important;
+    font-size:6.5px!important;
     line-height:1!important;
     white-space:nowrap!important;
-    letter-spacing:.035em;
+    letter-spacing:.025em;
   }
-  html:not(.touch-ui) .side-panel .attire-action .style-outfit-icon{width:34px;height:34px}
+  html:not(.touch-ui) .side-panel .attire-action .style-outfit-icon{width:24px;height:24px}
   html:not(.touch-ui) .side-panel .fullscreen-action b{max-width:none!important}
 
   /* Undo and Restart remain immediately available over the map on computers. */
@@ -8342,27 +8360,12 @@ html.touch-ui .dpad button {
   html:not(.touch-ui) .desktop-board-action:active{transform:translateY(1px)}
   html:not(.touch-ui) .desktop-board-action:disabled{opacity:.45;cursor:default;transform:none}
 
-  /* Collapsing removes the tools, not the level title/stats header. */
   html:not(.touch-ui) body.desktop-utility-collapsed .side-panel{
     grid-template-columns:1fr;
-    grid-template-rows:var(--desktop-head-height) minmax(0,1fr);
+    grid-template-rows:1fr;
     gap:0;
     padding:0;
     background:rgba(249,244,235,.74);
-  }
-  html:not(.touch-ui) body.desktop-utility-collapsed .side-panel-head{
-    position:absolute;
-    z-index:60;
-    top:0;
-    right:-1px;
-    width:var(--desktop-side-head-width);
-    height:var(--desktop-head-height);
-    margin:0;
-    border-left:2px solid var(--ink);
-    border-bottom:1px solid var(--line);
-  }
-  html:not(.touch-ui) body.desktop-utility-collapsed .masthead{
-    padding-right:calc(var(--desktop-side-head-width) - var(--desktop-utility-collapsed) + 22px);
   }
   html:not(.touch-ui) body.desktop-utility-collapsed .side-panel .top-actions>* ,
   html:not(.touch-ui) body.desktop-utility-collapsed .side-panel .move-zone>* ,
