@@ -1,6 +1,8 @@
+/* BOXXY v428 — Daily attempt ingest awards permanent fastest-time gold medals. */
 /* BOXXY v376 — authenticated player-only history and offline queue ingest. */
 import {json,requireDatabase,refreshAuthenticatedSession} from '../_lib/auth.js';
 import {ensureAttemptHistorySchema,writeAttemptHistory,readAttemptOverview,readLevelAttemptHistory} from '../_lib/attempt-history.js';
+import {backfillDailyGoldMedalsIfNeeded,dailyGoldMedalCount,processSubmittedDailyGoldRuns} from '../_lib/daily-gold-medals.js';
 export async function onRequest(context) {
   try {
     const db = requireDatabase(context.env);
@@ -23,7 +25,10 @@ export async function onRequest(context) {
     if (context.request.method === 'POST') {
       const body = await context.request.json();
       const ids = await writeAttemptHistory(db,session.user.id,body.attempts);
-      return json({ok:true,ids},200,headers);
+      await backfillDailyGoldMedalsIfNeeded(db);
+      const awardedGoldRunIds = await processSubmittedDailyGoldRuns(db,session.user.id,ids);
+      const dailyGoldMedals = await dailyGoldMedalCount(db,session.user.id,{backfill:false});
+      return json({ok:true,ids,awardedGoldRunIds,dailyGoldMedals},200,headers);
     }
     return json({ok:false,error:'Method not allowed.'},405);
   } catch(error) {

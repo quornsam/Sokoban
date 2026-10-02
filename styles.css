@@ -8069,3 +8069,58 @@ html.touch-ui .dpad button {
   .player-profile-stat strong{font-size:22px}
   .player-profile-trophies-card{margin:0 9px 9px}
 }
+
+/* BOXXY v428 — permanent Daily Fastest Times gold medals. */
+.daily-gold-medal-badge{
+  appearance:none;
+  position:relative;
+  width:var(--header-badge-size);
+  height:var(--header-badge-size);
+  flex:none;
+  padding:0;
+  border:0;
+  background:transparent;
+  display:grid;
+  place-items:center;
+  overflow:visible;
+  cursor:pointer;
+  filter:drop-shadow(2px 2px 0 rgba(23,23,25,.24));
+}
+.daily-gold-medal-badge[hidden]{display:none!important}
+.daily-gold-medal-emoji{display:block;font-size:calc(var(--header-badge-size,43px) * .88);line-height:1;font-style:normal;font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}
+.daily-gold-medal-count{
+  position:absolute;
+  right:-4px;
+  bottom:-3px;
+  z-index:2;
+  min-width:15px;
+  height:15px;
+  padding:0 3px;
+  border:1px solid rgba(255,255,255,.92);
+  border-radius:8px;
+  background:var(--ink);
+  color:#fff;
+  display:grid;
+  place-items:center;
+  font:1000 7px/1 Arial,sans-serif;
+  letter-spacing:-.04em;
+  white-space:nowrap;
+  box-shadow:1px 1px 0 rgba(23,23,25,.2);
+}
+.daily-gold-medal-count:empty{display:none}
+.daily-gold-medal-badge:hover,.daily-gold-medal-badge:focus-visible{transform:translateY(-2px) scale(1.06);outline:0}
+.daily-gold-medal-badge:active{transform:translateY(1px) scale(.97)}
+.daily-gold-medal-visual{position:relative;overflow:visible}
+.daily-gold-medal-visual .daily-gold-medal-emoji{font-size:calc(var(--cabinet-award-size,82px) * .88)}
+.daily-gold-medal-visual .daily-gold-medal-count{right:-6px;bottom:1px;min-width:20px;height:20px;border-radius:11px;font-size:9px}
+.player-profile-daily-gold{overflow:visible}
+.player-profile-daily-gold .daily-gold-medal-emoji{font-size:38px}
+.player-profile-daily-gold .daily-gold-medal-count{right:-5px;bottom:0}
+@media(max-width:760px){
+  .daily-gold-medal-badge{filter:drop-shadow(1px 1px 0 rgba(23,23,25,.24))}
+}
+@media(max-width:390px){
+  .daily-gold-medal-badge{width:20px;height:20px}
+  .daily-gold-medal-badge .daily-gold-medal-emoji{font-size:18px}
+  .daily-gold-medal-badge .daily-gold-medal-count{right:-5px;bottom:-4px;min-width:13px;height:13px;font-size:6px}
+}

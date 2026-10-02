@@ -1,3 +1,4 @@
+/* BOXXY v428: Daily fastest-time gold-medal client/history assets. */
 /* BOXXY v427: PARTYGOERS visibility is secret-sequence only. */
 /* BOXXY v426: selected-user announcement testing and reliable character actions. */
 /* BOXXY v425: refresh message-bar announcement client and admin assets. */
@@ -37,7 +38,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "427";
+const RELEASE_VERSION = "428";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [

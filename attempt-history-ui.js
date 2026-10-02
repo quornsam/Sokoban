@@ -1,3 +1,4 @@
+/* BOXXY v428 — medal-winning Daily runs are marked in Player History and Basement. */
 /* BOXXY v424 — Basement-only WebDriver evidence marker in per-run history. */
 /* BOXXY v395 — compact fixed Play History sort buttons and control-mode markers. */
 (() => {
@@ -263,6 +264,12 @@
                   best:isBest,
                   title:i===3?[isBest?'Best time':'',controlTitle].filter(Boolean).join(' · '):(i===4&&isBest?'Best moves':'')
                 });
+                if (i===3 && run.dailyGoldAwarded === true) {
+                  const medal=el('span','🥇','history-daily-gold');
+                  medal.title='This run earned a Daily Fastest Times gold medal';
+                  medal.setAttribute('aria-label',medal.title);
+                  cell.appendChild(medal);
+                }
                 if (i===3 && options.adminFlags === true && run.webdriverDetected === true) {
                   const flag=el('span','WEBDRIVER','history-webdriver-flag');
                   flag.title='navigator.webdriver was true for this attempt';
