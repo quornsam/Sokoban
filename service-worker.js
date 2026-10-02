@@ -1,4 +1,4 @@
-/* BOXXY v431: refined desktop utility rail geometry and controls. */
+/* BOXXY v432: fixed desktop header, compact square rail and defined footer tray. */
 /* BOXXY v429: desktop utility rail and Style board-colour controls. */
 /* BOXXY v428: Daily fastest-time gold-medal client/history assets. */
 /* BOXXY v427: PARTYGOERS visibility is secret-sequence only. */
@@ -40,7 +40,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "431";
+const RELEASE_VERSION = "432";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [
