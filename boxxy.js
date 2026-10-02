@@ -16,7 +16,7 @@
 /* BOXXY v410: character-family tabs browse without changing the selected character; six Partygoers added and profile/style controls refined. */
 /* BOXXY v409: restore v396 leaderboard typography/alignment while adding centred clickable avatars only to the full leaderboard. */
 /* BOXXY v407: keep profile bio editing geometrically stable and give full leaderboard avatars dedicated row space. */
-/* BOXXY v433: desktop collapse affects only the map-space utility tray; header, message bar and footer stay fixed. */
+/* BOXXY v434: desktop utility tray overlays the map, defaults open each load and adds audio/profile/history/trophy/Daily tools. */
 /* BOXXY v429: desktop-only collapsible utility rail, floating Undo/Restart and board colours in Style. */
 /* BOXXY v428: permanent Daily fastest-time gold medals appear in the header, trophy cabinet and public profiles. */
 /* BOXXY v405: profile avatar crop, trophy tooltips, inline bio placeholder and clean clickable leaderboard names. */
@@ -30,7 +30,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "433",
+  version: "434",
   lastUpdated: "2026-10-02"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
@@ -2753,6 +2753,12 @@ window.BOXXY_RELEASE = Object.freeze({
   const desktopPrevLevelBtn = document.getElementById("desktopPrevLevelBtn");
   const desktopNextLevelBtn = document.getElementById("desktopNextLevelBtn");
   const desktopPacksBtn = document.getElementById("desktopPacksBtn");
+  const desktopMusicBtn = document.getElementById("desktopMusicBtn");
+  const desktopAudioBtn = document.getElementById("desktopAudioBtn");
+  const desktopProfileBtn = document.getElementById("desktopProfileBtn");
+  const desktopHistoryBtn = document.getElementById("desktopHistoryBtn");
+  const desktopTrophiesBtn = document.getElementById("desktopTrophiesBtn");
+  const desktopDailyBtn = document.getElementById("desktopDailyBtn");
   const appRoot = document.querySelector(".app");
   const soundBtn = document.getElementById("soundBtn");
   const musicBtn = document.getElementById("musicBtn");
@@ -7531,12 +7537,14 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   function updateSoundButton() {
-    if (!soundBtn) return;
-    const label = soundBtn.querySelector("b");
-    const icon = soundBtn.querySelector("span");
-    if (label) label.textContent = soundOn ? "SOUND ON" : "SOUND OFF";
-    if (icon) icon.textContent = soundOn ? "◖))" : "◖";
-    soundBtn.setAttribute("aria-pressed", String(soundOn));
+    if (soundBtn) {
+      const label = soundBtn.querySelector("b");
+      const icon = soundBtn.querySelector("span");
+      if (label) label.textContent = soundOn ? "SOUND ON" : "SOUND OFF";
+      if (icon) icon.textContent = soundOn ? "◖))" : "◖";
+      soundBtn.setAttribute("aria-pressed", String(soundOn));
+    }
+    syncDesktopUtilityToggles();
   }
 
   function musicTrackIds() {
@@ -7975,9 +7983,8 @@ window.BOXXY_RELEASE = Object.freeze({
     updateSettingsTouchPushButton();
   }
 
-  const DESKTOP_UTILITY_STORAGE_KEY = "boxxy-desktop-utility-collapsed-v1";
+  // The desktop utility tray always starts open on a fresh page load. Its state is deliberately not persisted.
   let desktopUtilityCollapsed = false;
-  try { desktopUtilityCollapsed = localStorage.getItem(DESKTOP_UTILITY_STORAGE_KEY) === "1"; } catch (_) {}
 
   function desktopUtilityAvailable() {
     return !document.documentElement.classList.contains("touch-ui")
@@ -8016,8 +8023,47 @@ window.BOXXY_RELEASE = Object.freeze({
   function setDesktopUtilityCollapsed(collapsed) {
     desktopUtilityCollapsed = Boolean(collapsed);
     if (desktopUtilityCollapsed && levelPicker && !levelPicker.hidden) closeLevelPicker();
-    try { localStorage.setItem(DESKTOP_UTILITY_STORAGE_KEY, desktopUtilityCollapsed ? "1" : "0"); } catch (_) {}
     syncDesktopUtilityState();
+  }
+
+  function syncDesktopUtilityToggles() {
+    if (desktopMusicBtn) {
+      desktopMusicBtn.setAttribute("aria-pressed", String(musicOn));
+      const label = desktopMusicBtn.querySelector("b");
+      const icon = desktopMusicBtn.querySelector("span");
+      if (label) label.textContent = musicOn ? "MUSIC ON" : "MUSIC OFF";
+      if (icon) icon.textContent = musicOn ? "♫" : "♪";
+    }
+    if (desktopAudioBtn) {
+      desktopAudioBtn.setAttribute("aria-pressed", String(soundOn));
+      const label = desktopAudioBtn.querySelector("b");
+      const icon = desktopAudioBtn.querySelector("span");
+      if (label) label.textContent = soundOn ? "AUDIO ON" : "AUDIO OFF";
+      if (icon) icon.textContent = soundOn ? "◖))" : "◖";
+    }
+  }
+
+  async function openDesktopOwnProfile() {
+    const username = currentSignedInUsername();
+    if (username) { await openPlayerProfile(username); return; }
+    await openSettings();
+    window.setTimeout(() => document.getElementById("accountEntryBtn")?.click(), 0);
+  }
+
+  async function openDesktopGameHistory() {
+    const history = document.getElementById("accountPlayHistory");
+    if (history) history.open = true;
+    await openSettings();
+    window.setTimeout(() => {
+      document.getElementById("accountEntryBtn")?.click();
+      window.setTimeout(() => {
+        const target = document.getElementById("accountPlayHistory");
+        if (target) {
+          target.open = true;
+          target.scrollIntoView?.({ block:"start", behavior:"smooth" });
+        }
+      }, 80);
+    }, 0);
   }
 
   desktopUtilityToggle?.addEventListener("click", () => setDesktopUtilityCollapsed(!desktopUtilityCollapsed));
@@ -8032,6 +8078,13 @@ window.BOXXY_RELEASE = Object.freeze({
     loadLevel(levelIndex + 1);
   });
   desktopPacksBtn?.addEventListener("click", () => openPackModal());
+  desktopMusicBtn?.addEventListener("click", () => musicBtn?.click());
+  desktopAudioBtn?.addEventListener("click", () => soundBtn?.click());
+  desktopProfileBtn?.addEventListener("click", openDesktopOwnProfile);
+  desktopHistoryBtn?.addEventListener("click", openDesktopGameHistory);
+  desktopTrophiesBtn?.addEventListener("click", openTrophyCabinet);
+  desktopDailyBtn?.addEventListener("click", openDailyArchive);
+  syncDesktopUtilityToggles();
   function syncDesktopBoardActionState() {
     if (desktopUndoBtn && undoBtn) desktopUndoBtn.disabled = Boolean(undoBtn.disabled);
     if (desktopRestartBtn && restartBtn) desktopRestartBtn.disabled = Boolean(restartBtn.disabled);
@@ -8090,6 +8143,7 @@ window.BOXXY_RELEASE = Object.freeze({
       if (icon) icon.textContent = musicOn ? "♫" : "♪";
       musicBtn.setAttribute("aria-pressed", String(musicOn));
     }
+    syncDesktopUtilityToggles();
     updateSpookyMusicButton();
   }
 

@@ -1,4 +1,4 @@
-/* BOXXY v433: fixed desktop chrome with map-space-only collapsible utility tray. */
+/* BOXXY v434: overlay desktop utility tray with non-persistent open default and expanded tool set. */
 /* BOXXY v429: desktop utility rail and Style board-colour controls. */
 /* BOXXY v428: Daily fastest-time gold-medal client/history assets. */
 /* BOXXY v427: PARTYGOERS visibility is secret-sequence only. */
@@ -40,7 +40,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "433";
+const RELEASE_VERSION = "434";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [
