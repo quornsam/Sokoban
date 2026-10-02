@@ -1,3 +1,4 @@
+/* BOXXY v427: PARTYGOERS visibility is secret-sequence only; programmatic character changes cannot unlock it. */
 /* BOXXY v426: reliable message-bar character actions and selected-user announcement testing. */
 /* BOXXY v425: admin-scheduled public message-bar announcements with optional in-game actions. */
 /* BOXXY v424: record navigator.webdriver as admin-only automation evidence; it never changes score eligibility. */
@@ -26,7 +27,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "426",
+  version: "427",
   lastUpdated: "2026-10-01"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
@@ -669,7 +670,7 @@ window.BOXXY_RELEASE = Object.freeze({
   });
   const SPOOKY_STORAGE_KEY = "boxxy-spooky-character-v1";
   const PARTYGOER_STORAGE_KEY = "boxxy-partygoer-character-v1";
-  const PARTYGOERS_UNLOCK_KEY = "boxxy-partygoers-unlocked-v1";
+  const PARTYGOERS_UNLOCK_KEY = "boxxy-partygoers-unlocked-v2";
   const THEMES = ["bauhaus"];
   const SHEET_COLS = 4;
   // One efficient 300 × 260 frame set is used everywhere. It remains larger than
@@ -1111,7 +1112,6 @@ window.BOXXY_RELEASE = Object.freeze({
   async function selectCharacter(bodyType) {
     const nextBodyType = String(bodyType || '').trim().toLowerCase();
     if (!BODY_TYPES.includes(nextBodyType)) return false;
-    if (PARTYGOER_BODY_TYPES.includes(nextBodyType) && !partygoersUnlocked) setPartygoersUnlocked(true);
     const changed = style.bodyType !== nextBodyType;
     if (changed) {
       style.bodyType = nextBodyType;
@@ -1172,7 +1172,6 @@ window.BOXXY_RELEASE = Object.freeze({
   let previousFocus = null;
   let partygoersUnlocked = false;
   try { partygoersUnlocked = localStorage.getItem(PARTYGOERS_UNLOCK_KEY) === "1"; } catch (_) {}
-  if (PARTYGOER_BODY_TYPES.includes(style.bodyType)) partygoersUnlocked = true;
   let spookyUnlockClicks = 0;
   let spookyUnlockArmed = false;
 
@@ -1185,7 +1184,10 @@ window.BOXXY_RELEASE = Object.freeze({
       else localStorage.removeItem(PARTYGOERS_UNLOCK_KEY);
     } catch (_) {}
     const button = document.getElementById("stylePartygoersFamilyBtn");
-    if (button) button.hidden = !partygoersUnlocked;
+    if (button) {
+      button.hidden = !partygoersUnlocked;
+      button.style.display = partygoersUnlocked ? "" : "none";
+    }
     styleControls?.querySelector(".style-family-choices")?.classList.toggle("has-partygoers", partygoersUnlocked);
     if (!partygoersUnlocked && activeStyleFamily === "partygoers") activeStyleFamily = "spooky";
     updateSelectedSwatches();
@@ -1294,6 +1296,7 @@ window.BOXXY_RELEASE = Object.freeze({
     const partyButton = familyTab("PARTYGOERS", "partygoers", "style-family-partygoers");
     partyButton.id = "stylePartygoersFamilyBtn";
     partyButton.hidden = !partygoersUnlocked;
+    partyButton.style.display = partygoersUnlocked ? "" : "none";
     typeChoices.appendChild(partyButton);
 
     typeGroup.append(typeLegend, typeChoices);
