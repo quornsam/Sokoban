@@ -2,6 +2,7 @@
 /* BOXXY v425: administer date-specific public message-bar announcements and actions. */
 /* BOXXY v424: show navigator.webdriver evidence in red in admin Daily scores and Player History only. */
 /* BOXXY v403: artificial players can be assigned persistent random avatars. */
+/* BOXXY v430 — Basement recognises the expanded thirty-character PARTYGOERS roster. */
 /* BOXXY v416 — Basement recognises the expanded twenty-four-character PARTYGOERS roster. */
 /* BOXXY v410 — Basement recognises the expanded eighteen-character PARTYGOERS roster. */
 /* BOXXY v401 — Basement recognises the expanded twelve-character PARTYGOERS roster. */
@@ -330,7 +331,8 @@
     optimus:"OPTIMUS", pixella:"PIXELLA", bolderdash:"BOLDERDASH", sputnik:"SPUTNIK", vasquez:"VASQUEZ",
     bacterium:"BACTERIUM", clara:"CLARA", jamil:"JAMIL", clickers:"CLICKERS", bertrand:"BERTRAND", angie:"ANGIE", "the-haining":"THE HAINING",
     eric:"ERIC", marshall:"MARSHALL", catherine:"CATHERINE", "mr-pjkuylasg":"MR PJKUËYLASG", slippy:"SLIPPY", gobble:"GOBBLE",
-    sandra:"SANDRA", blaze:"BLAZE", frederick:"FREDERICK", charlize:"CHARLIZE", "amy-annie":"AMY & ANNIE", bobbyburp:"BOBBYBURP"
+    sandra:"SANDRA", blaze:"BLAZE", frederick:"FREDERICK", charlize:"CHARLIZE", "amy-annie":"AMY & ANNIE", bobbyburp:"BOBBYBURP",
+    "mr-whack":"MR WHACK", elrick:"ELRICK", "ms-thompson":"MS THOMPSON", "sid-the-big":"SID THE BIG", quock:"QUOCK", bernard:"BERNARD"
   });
   const BOARD_STYLE_SWATCHES = Object.freeze({
     red:{label:"Red",hex:"#ec2826"}, blue:{label:"Blue",hex:"#1553ca"}, green:{label:"Green",hex:"#328545"},

@@ -16,6 +16,7 @@
 /* BOXXY v410: character-family tabs browse without changing the selected character; six Partygoers added and profile/style controls refined. */
 /* BOXXY v409: restore v396 leaderboard typography/alignment while adding centred clickable avatars only to the full leaderboard. */
 /* BOXXY v407: keep profile bio editing geometrically stable and give full leaderboard avatars dedicated row space. */
+/* BOXXY v430: six more PARTYGOERS plus a refined desktop-only collapsible utility rail with compact navigation. */
 /* BOXXY v429: desktop-only collapsible utility rail, floating Undo/Restart and board colours in Style. */
 /* BOXXY v428: permanent Daily fastest-time gold medals appear in the header, trophy cabinet and public profiles. */
 /* BOXXY v405: profile avatar crop, trophy tooltips, inline bio placeholder and clean clickable leaderboard names. */
@@ -29,7 +30,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "429",
+  version: "430",
   lastUpdated: "2026-10-02"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
@@ -632,7 +633,8 @@ window.BOXXY_RELEASE = Object.freeze({
     "optimus", "pixella", "bolderdash", "sputnik", "vasquez",
     "bacterium", "clara", "jamil", "clickers", "bertrand", "angie", "the-haining",
     "eric", "marshall", "catherine", "mr-pjkuylasg", "slippy", "gobble",
-    "sandra", "blaze", "frederick", "charlize", "amy-annie", "bobbyburp"
+    "sandra", "blaze", "frederick", "charlize", "amy-annie", "bobbyburp",
+    "mr-whack", "elrick", "ms-thompson", "sid-the-big", "quock", "bernard"
   ]);
   const BODY_TYPES = ["boy", "girl", ...SPOOKY_BODY_TYPES, ...PARTYGOER_BODY_TYPES];
   const FIXED_BODY_TYPES = new Set([...SPOOKY_BODY_TYPES, ...PARTYGOER_BODY_TYPES]);
@@ -668,7 +670,13 @@ window.BOXXY_RELEASE = Object.freeze({
     frederick: "FREDERICK",
     charlize: "CHARLIZE",
     "amy-annie": "AMY & ANNIE",
-    bobbyburp: "BOBBYBURP"
+    bobbyburp: "BOBBYBURP",
+    "mr-whack": "MR WHACK",
+    elrick: "ELRICK",
+    "ms-thompson": "MS THOMPSON",
+    "sid-the-big": "SID THE BIG",
+    quock: "QUOCK",
+    bernard: "BERNARD"
   });
   const SPOOKY_STORAGE_KEY = "boxxy-spooky-character-v1";
   const PARTYGOER_STORAGE_KEY = "boxxy-partygoer-character-v1";
@@ -2742,6 +2750,9 @@ window.BOXXY_RELEASE = Object.freeze({
   const desktopUndoBtn = document.getElementById("desktopUndoBtn");
   const desktopRestartBtn = document.getElementById("desktopRestartBtn");
   const desktopUtilityToggle = document.getElementById("desktopUtilityToggle");
+  const desktopPrevLevelBtn = document.getElementById("desktopPrevLevelBtn");
+  const desktopNextLevelBtn = document.getElementById("desktopNextLevelBtn");
+  const desktopPacksBtn = document.getElementById("desktopPacksBtn");
   const appRoot = document.querySelector(".app");
   const soundBtn = document.getElementById("soundBtn");
   const musicBtn = document.getElementById("musicBtn");
@@ -3023,6 +3034,7 @@ window.BOXXY_RELEASE = Object.freeze({
     document.body?.classList.toggle("daily-mode", isDaily);
     document.body?.classList.toggle("maker-testing", isMaker);
     document.body?.classList.toggle("shared-puzzle", isShared);
+    syncDesktopLevelNavigation();
   }
 
   function dailyScoringAllowedFor(puzzle = dailyPuzzle) {
@@ -7984,13 +7996,26 @@ window.BOXXY_RELEASE = Object.freeze({
       const icon = desktopUtilityToggle.querySelector(".desktop-utility-toggle-icon");
       if (icon) icon.textContent = collapsed ? "‹" : "›";
     }
+    syncDesktopLevelNavigation();
     requestAnimationFrame(() => {
       scheduleBoardResize();
     });
   }
 
+  function syncDesktopLevelNavigation() {
+    const ordinaryLevel = !dailyMode && !makerTesting && !sharedPuzzleMode && Array.isArray(LEVELS) && LEVELS.length > 0;
+    const current = Math.max(0, Math.min(Math.max(0, LEVELS.length - 1), Number(levelIndex) || 0));
+    if (desktopPrevLevelBtn) desktopPrevLevelBtn.disabled = !ordinaryLevel || current <= 0;
+    if (desktopNextLevelBtn) {
+      const next = current + 1;
+      desktopNextLevelBtn.disabled = !ordinaryLevel || next >= LEVELS.length || next > highestUnlockedLevel;
+    }
+    if (desktopPacksBtn) desktopPacksBtn.disabled = !desktopUtilityAvailable();
+  }
+
   function setDesktopUtilityCollapsed(collapsed) {
     desktopUtilityCollapsed = Boolean(collapsed);
+    if (desktopUtilityCollapsed && levelPicker && !levelPicker.hidden) closeLevelPicker();
     try { localStorage.setItem(DESKTOP_UTILITY_STORAGE_KEY, desktopUtilityCollapsed ? "1" : "0"); } catch (_) {}
     syncDesktopUtilityState();
   }
@@ -7998,6 +8023,15 @@ window.BOXXY_RELEASE = Object.freeze({
   desktopUtilityToggle?.addEventListener("click", () => setDesktopUtilityCollapsed(!desktopUtilityCollapsed));
   desktopUndoBtn?.addEventListener("click", () => undoBtn?.click());
   desktopRestartBtn?.addEventListener("click", () => restartBtn?.click());
+  desktopPrevLevelBtn?.addEventListener("click", () => {
+    if (desktopPrevLevelBtn.disabled) return;
+    loadLevel(levelIndex - 1);
+  });
+  desktopNextLevelBtn?.addEventListener("click", () => {
+    if (desktopNextLevelBtn.disabled) return;
+    loadLevel(levelIndex + 1);
+  });
+  desktopPacksBtn?.addEventListener("click", () => openPackModal());
   function syncDesktopBoardActionState() {
     if (desktopUndoBtn && undoBtn) desktopUndoBtn.disabled = Boolean(undoBtn.disabled);
     if (desktopRestartBtn && restartBtn) desktopRestartBtn.disabled = Boolean(restartBtn.disabled);
@@ -9468,6 +9502,7 @@ window.BOXXY_RELEASE = Object.freeze({
     if (!quietReturn) captureBoxxyAnalytics("level_started", currentLevelAnalytics({
       guided_solve_start: Boolean(preserveAutoplay)
     }));
+    syncDesktopLevelNavigation();
   }
 
   function loadMakerTest(layoutRows, attachedSolution = "", options = {}) {
@@ -9997,6 +10032,7 @@ window.BOXXY_RELEASE = Object.freeze({
       if (solvedWithWalkthrough) assistedLevels.add(levelIndex);
       else assistedLevels.delete(levelIndex);
       highestUnlockedLevel = Math.max(highestUnlockedLevel, Math.min(levelIndex + 1, LEVELS.length - 1));
+      syncDesktopLevelNavigation();
       saveLevelProgress();
       persistActivePackResumeLevel();
       if (!packWasFullyCompleted && completedLevels.size === LEVELS.length) {

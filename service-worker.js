@@ -1,3 +1,4 @@
+/* BOXXY v430: cache six more PARTYGOERS and refined desktop utility rail assets. */
 /* BOXXY v429: desktop utility rail and Style board-colour controls. */
 /* BOXXY v428: Daily fastest-time gold-medal client/history assets. */
 /* BOXXY v427: PARTYGOERS visibility is secret-sequence only. */
@@ -39,7 +40,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "429";
+const RELEASE_VERSION = "430";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [
@@ -130,6 +131,12 @@ const ASSETS = [
   "/assets/characters/charlize/base.png",
   "/assets/characters/amy-annie/base.png",
   "/assets/characters/bobbyburp/base.png",
+  "/assets/characters/mr-whack/base.png",
+  "/assets/characters/elrick/base.png",
+  "/assets/characters/ms-thompson/base.png",
+  "/assets/characters/sid-the-big/base.png",
+  "/assets/characters/quock/base.png",
+  "/assets/characters/bernard/base.png",
   "/assets/characters-fallback/boy/player-back.png",
   "/assets/characters-fallback/boy/player-front.png",
   "/assets/characters-fallback/boy/player-left.png",
