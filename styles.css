@@ -8126,10 +8126,11 @@ html.touch-ui .dpad button {
   .daily-gold-medal-badge .daily-gold-medal-count{right:-5px;bottom:-4px;min-width:13px;height:13px;font-size:6px}
 }
 
-/* BOXXY v432 — compact desktop utility rail geometry and footer alignment; Style board colours retained. */
+/* BOXXY v433 — only the map-space utility tray collapses; desktop header/footer geometry remains fixed. */
 .desktop-utility-toggle,
 .desktop-board-actions,
 .desktop-rail-nav{display:none}
+.desktop-utility-tray{display:contents}
 .side-panel-head{display:contents}
 
 .style-board-colours{
@@ -8157,71 +8158,64 @@ html.touch-ui .dpad button {
   html:not(.touch-ui){
     --desktop-footer-height:clamp(52px,8dvh,76px);
     --desktop-palette-height:20px;
-    --desktop-grip-offset:24px;
-  }
-  html:not(.touch-ui) .app{
-    --desktop-head-height:clamp(92px,14dvh,132px);
-    --desktop-utility-expanded:clamp(164px,11vw,184px);
-    --desktop-utility-collapsed:12px;
     --desktop-side-head-width:clamp(320px,24vw,380px);
-    grid-template-columns:minmax(0,1fr) var(--desktop-utility-expanded);
-    transition:grid-template-columns .22s cubic-bezier(.2,.7,.3,1);
+    --desktop-utility-expanded:150px;
+    --desktop-utility-edge-gap:7px;
+  }
+
+  /* Desktop structure is deliberately fixed: the top level/stats block, comment bar,
+     help button, legal/footer and colour strip never resize when the utility tray moves. */
+  html:not(.touch-ui) .app{
+    grid-template-columns:minmax(0,1fr) var(--desktop-side-head-width);
+    overflow:hidden;
   }
   html:not(.touch-ui) .play-area{
-    grid-template-rows:var(--desktop-head-height) minmax(0,1fr) var(--desktop-footer-height);
+    position:relative;
+    z-index:1;
+    overflow:visible;
+    grid-template-rows:var(--desktop-head-height,clamp(92px,14dvh,132px)) minmax(0,1fr) var(--desktop-footer-height);
   }
-  html:not(.touch-ui) body.desktop-utility-collapsed .app{
-    grid-template-columns:minmax(0,1fr) var(--desktop-utility-collapsed);
-  }
-
-  /* The level header is anchored to the fixed right-side header width, not the utility rail.
-     Its compensating right padding now animates in exact sync with the rail, so the pack title
-     does not drift while the tools open or close. */
   html:not(.touch-ui) .masthead{
-    padding-right:calc(var(--desktop-side-head-width) - var(--desktop-utility-expanded) + 24px);
-    transition:padding-right .22s cubic-bezier(.2,.7,.3,1);
+    position:relative;
+    z-index:20;
+    padding-right:clamp(22px,2.5vw,36px);
   }
-  html:not(.touch-ui) body.desktop-utility-collapsed .masthead{
-    padding-right:calc(var(--desktop-side-head-width) - var(--desktop-utility-collapsed) + 24px);
+  html:not(.touch-ui) .instruction{
+    position:relative;
+    z-index:20;
+    width:100%;
   }
 
+  /* Only the map row grows into the fixed right-hand column. */
+  html:not(.touch-ui) .board-wrap{
+    position:relative;
+    z-index:1;
+    width:calc(100% + var(--desktop-side-head-width) - var(--desktop-utility-expanded) - (var(--desktop-utility-edge-gap) * 2));
+    max-width:none;
+    transition:width .22s cubic-bezier(.2,.7,.3,1);
+  }
+  html:not(.touch-ui) body.desktop-utility-collapsed .board-wrap{
+    width:calc(100% + var(--desktop-side-head-width) - 14px);
+  }
+
+  /* The right column itself never changes size. */
   html:not(.touch-ui) .side-panel{
     position:relative;
-    grid-template-columns:repeat(2,46px);
-    grid-template-rows:repeat(4,46px);
-    justify-content:center;
-    align-content:start;
-    column-gap:8px;
-    row-gap:8px;
-    padding:calc(var(--desktop-head-height) + 16px) 10px calc(var(--desktop-footer-height) + 14px);
+    z-index:30;
+    min-width:0;
+    min-height:0;
     overflow:visible;
-    border-left:2px solid var(--ink);
-    background:rgba(249,244,235,.80);
-  }
-  /* Defined desktop tool tray: thick top/bottom edges and a rounded inner edge.
-     It stops exactly where the message/footer bar begins. */
-  html:not(.touch-ui) .side-panel::before{
-    content:"";
-    position:absolute;
-    z-index:0;
-    left:5px;
-    right:0;
-    top:var(--desktop-head-height);
-    bottom:var(--desktop-footer-height);
-    border:2px solid var(--ink);
-    border-right:0;
-    border-radius:10px 0 0 10px;
-    background:rgba(249,244,235,.68);
+    display:block;
+    border-left:0;
+    background:transparent;
     pointer-events:none;
   }
-
   html:not(.touch-ui) .side-panel-head{
     position:absolute;
     z-index:70;
-    top:0;
-    right:-1px;
-    width:var(--desktop-side-head-width);
-    height:var(--desktop-head-height);
+    inset:0 0 auto 0;
+    width:100%;
+    height:var(--desktop-head-height,clamp(92px,14dvh,132px));
     margin:0;
     display:grid;
     grid-template-rows:minmax(0,1fr) auto;
@@ -8229,6 +8223,7 @@ html.touch-ui .dpad button {
     border-left:2px solid var(--ink);
     border-bottom:1px solid var(--line);
     background:rgba(249,244,235,.98);
+    pointer-events:auto;
   }
   html:not(.touch-ui) .side-panel-head .credit{
     min-height:0;
@@ -8254,29 +8249,53 @@ html.touch-ui .dpad button {
   html:not(.touch-ui) .side-panel-head .stats strong{font-size:clamp(15px,2.2dvh,22px)}
   html:not(.touch-ui) .side-panel-head .stats .time strong{font-size:clamp(11px,1.7dvh,17px)}
 
-  /* Very slim board-centred grip. It sits almost entirely on the divider. */
+  /* One rounded rectangle defines the tray. There is no second divider line in front of it. */
+  html:not(.touch-ui) .desktop-utility-tray{
+    position:absolute;
+    z-index:45;
+    top:calc(var(--desktop-head-height,clamp(92px,14dvh,132px)) + 7px);
+    right:var(--desktop-utility-edge-gap);
+    bottom:calc(var(--desktop-footer-height) + 7px);
+    width:var(--desktop-utility-expanded);
+    padding:11px 8px;
+    border:2px solid var(--ink);
+    border-radius:11px;
+    background:rgba(249,244,235,.93);
+    box-shadow:0 4px 12px rgba(55,38,20,.08);
+    display:grid;
+    grid-template-columns:repeat(2,58px);
+    grid-auto-rows:58px;
+    justify-content:center;
+    align-content:start;
+    gap:8px;
+    overflow:visible;
+    pointer-events:auto;
+    transition:width .22s cubic-bezier(.2,.7,.3,1),padding .22s cubic-bezier(.2,.7,.3,1),border-color .12s ease,background .12s ease,box-shadow .12s ease;
+  }
+
+  /* Grip is centred on the map-space tray itself. */
   html:not(.touch-ui) .desktop-utility-toggle{
     position:absolute;
     z-index:80;
-    left:-6px;
-    top:calc(50% + var(--desktop-grip-offset));
+    left:-7px;
+    top:50%;
     transform:translateY(-50%);
-    width:9px;
-    height:54px;
+    width:10px;
+    height:58px;
     padding:0;
     border:1px solid var(--ink);
-    border-radius:4px 0 0 4px;
+    border-radius:4px;
     background:#f2e8d8;
     color:var(--ink);
     display:grid;
     place-items:center;
-    box-shadow:-1px 2px 4px rgba(55,38,20,.09);
+    box-shadow:-1px 2px 4px rgba(55,38,20,.08);
   }
   html:not(.touch-ui) .desktop-utility-toggle:hover{background:#fff7ea}
   html:not(.touch-ui) .desktop-utility-toggle:active{transform:translateY(-50%)}
   html:not(.touch-ui) .desktop-utility-toggle-icon{
     width:4px;
-    height:26px;
+    height:29px;
     border-left:1px solid currentColor;
     border-right:1px solid currentColor;
     font-size:0;
@@ -8288,51 +8307,51 @@ html.touch-ui .dpad button {
     overflow:hidden!important;clip:rect(0 0 0 0)!important;white-space:nowrap!important;border:0!important;
   }
 
-  /* Small square utility buttons with intentional negative space. */
-  html:not(.touch-ui) .top-actions,
-  html:not(.touch-ui) .move-zone,
-  html:not(.touch-ui) .bottom-actions,
-  html:not(.touch-ui) .desktop-rail-nav{display:contents}
-  html:not(.touch-ui) .top-actions #undoBtn,
-  html:not(.touch-ui) .top-actions #restartBtn,
-  html:not(.touch-ui) .move-zone .dpad{display:none!important}
+  html:not(.touch-ui) .desktop-utility-tray>.top-actions,
+  html:not(.touch-ui) .desktop-utility-tray>.move-zone,
+  html:not(.touch-ui) .desktop-utility-tray>.bottom-actions,
+  html:not(.touch-ui) .desktop-utility-tray>.desktop-rail-nav{display:contents}
+  html:not(.touch-ui) .desktop-utility-tray .top-actions #undoBtn,
+  html:not(.touch-ui) .desktop-utility-tray .top-actions #restartBtn,
+  html:not(.touch-ui) .desktop-utility-tray .move-zone .dpad{display:none!important}
 
-  html:not(.touch-ui) .top-actions #savePositionBtn{grid-column:1;grid-row:1}
-  html:not(.touch-ui) .move-zone #styleBtn{grid-column:2;grid-row:1}
-  html:not(.touch-ui) .bottom-actions #settingsBtn{grid-column:1;grid-row:2}
-  html:not(.touch-ui) .bottom-actions #levelBtn{grid-column:2;grid-row:2}
-  html:not(.touch-ui) .desktop-rail-nav #desktopPrevLevelBtn{grid-column:1;grid-row:3}
-  html:not(.touch-ui) .desktop-rail-nav #desktopNextLevelBtn{grid-column:2;grid-row:3}
-  html:not(.touch-ui) .desktop-rail-nav #desktopPacksBtn{grid-column:1;grid-row:4}
-  html:not(.touch-ui) .bottom-actions #fullscreenBtn{grid-column:2;grid-row:4;display:flex!important}
+  html:not(.touch-ui) .desktop-utility-tray .top-actions #savePositionBtn{grid-column:1;grid-row:1}
+  html:not(.touch-ui) .desktop-utility-tray .move-zone #styleBtn{grid-column:2;grid-row:1}
+  html:not(.touch-ui) .desktop-utility-tray .bottom-actions #settingsBtn{grid-column:1;grid-row:2}
+  html:not(.touch-ui) .desktop-utility-tray .bottom-actions #levelBtn{grid-column:2;grid-row:2}
+  html:not(.touch-ui) .desktop-utility-tray .desktop-rail-nav #desktopPrevLevelBtn{grid-column:1;grid-row:3}
+  html:not(.touch-ui) .desktop-utility-tray .desktop-rail-nav #desktopNextLevelBtn{grid-column:2;grid-row:3}
+  html:not(.touch-ui) .desktop-utility-tray .desktop-rail-nav #desktopPacksBtn{grid-column:1;grid-row:4}
+  html:not(.touch-ui) .desktop-utility-tray .bottom-actions #fullscreenBtn{grid-column:2;grid-row:4;display:flex!important}
 
-  html:not(.touch-ui) .side-panel .bottom-actions .action.small,
-  html:not(.touch-ui) .side-panel .desktop-rail-nav .action.small{display:flex!important}
-  html:not(.touch-ui) .side-panel .action,
-  html:not(.touch-ui) .side-panel .attire-action{
+  /* Square means square, not smaller: restore the original 58px action height as both dimensions. */
+  html:not(.touch-ui) .desktop-utility-tray .bottom-actions .action.small,
+  html:not(.touch-ui) .desktop-utility-tray .desktop-rail-nav .action.small{display:flex!important}
+  html:not(.touch-ui) .desktop-utility-tray .action,
+  html:not(.touch-ui) .desktop-utility-tray .attire-action{
     position:relative;
     z-index:1;
-    width:46px;
-    height:46px;
-    max-width:46px;
-    min-height:0;
-    padding:3px;
+    width:58px;
+    height:58px;
+    max-width:58px;
+    min-height:58px;
+    padding:5px;
     border:1px solid var(--line);
-    border-radius:6px;
+    border-radius:7px;
     background:#f8f1e6;
     color:var(--ink);
-    box-shadow:0 2px 4px rgba(55,38,20,.06);
+    box-shadow:0 2px 5px rgba(55,38,20,.065);
     display:flex;
     flex-direction:column;
     align-items:center;
     justify-content:center;
     gap:2px;
   }
-  html:not(.touch-ui) .side-panel .action:hover,
-  html:not(.touch-ui) .side-panel .attire-action:hover{background:#fff8ed;transform:translateY(-1px)}
-  html:not(.touch-ui) .side-panel .action:active,
-  html:not(.touch-ui) .side-panel .attire-action:active{transform:translateY(1px)}
-  html:not(.touch-ui) .side-panel .action:disabled{
+  html:not(.touch-ui) .desktop-utility-tray .action:hover,
+  html:not(.touch-ui) .desktop-utility-tray .attire-action:hover{background:#fff8ed;transform:translateY(-1px)}
+  html:not(.touch-ui) .desktop-utility-tray .action:active,
+  html:not(.touch-ui) .desktop-utility-tray .attire-action:active{transform:translateY(1px)}
+  html:not(.touch-ui) .desktop-utility-tray .action:disabled{
     color:#958b7d;
     background:#e5ddd2;
     border-color:#cbc1b4;
@@ -8341,40 +8360,57 @@ html.touch-ui .dpad button {
     transform:none;
     opacity:.72;
   }
-  html:not(.touch-ui) .side-panel .action.save-position{background:linear-gradient(#f4e2a7,#e5b32a);border-color:#b98b12}
-  html:not(.touch-ui) .side-panel .action span,
-  html:not(.touch-ui) .side-panel .action.small span{font-size:16px;line-height:1}
-  html:not(.touch-ui) .side-panel .action b,
-  html:not(.touch-ui) .side-panel .action.small b,
-  html:not(.touch-ui) .side-panel .attire-action b{
-    max-width:41px;
-    font-size:5.35px!important;
-    line-height:.92!important;
+  html:not(.touch-ui) .desktop-utility-tray .action.save-position{background:linear-gradient(#f4e2a7,#e5b32a);border-color:#b98b12}
+  html:not(.touch-ui) .desktop-utility-tray .action span,
+  html:not(.touch-ui) .desktop-utility-tray .action.small span{font-size:21px;line-height:1}
+  html:not(.touch-ui) .desktop-utility-tray .action b,
+  html:not(.touch-ui) .desktop-utility-tray .action.small b,
+  html:not(.touch-ui) .desktop-utility-tray .attire-action b{
+    max-width:52px;
+    font-size:6.7px!important;
+    line-height:.98!important;
     white-space:normal!important;
     overflow-wrap:normal!important;
     text-align:center;
-    letter-spacing:.015em;
+    letter-spacing:.02em;
   }
-  html:not(.touch-ui) .side-panel .attire-action .style-outfit-icon{width:19px;height:19px}
-  html:not(.touch-ui) .side-panel .fullscreen-action b{max-width:41px!important}
+  html:not(.touch-ui) .desktop-utility-tray .attire-action .style-outfit-icon{width:25px;height:25px}
+  html:not(.touch-ui) .desktop-utility-tray .fullscreen-action b{max-width:52px!important}
 
-  /* The colour strip belongs to the fixed footer below the expandable tray. */
+  /* Collapsed state removes only the tray; nothing above or below it changes geometry. */
+  html:not(.touch-ui) body.desktop-utility-collapsed .desktop-utility-tray{
+    width:0;
+    padding-left:0;
+    padding-right:0;
+    border-color:transparent;
+    background:transparent;
+    box-shadow:none;
+  }
+  html:not(.touch-ui) body.desktop-utility-collapsed .desktop-utility-tray>.top-actions,
+  html:not(.touch-ui) body.desktop-utility-collapsed .desktop-utility-tray>.move-zone,
+  html:not(.touch-ui) body.desktop-utility-collapsed .desktop-utility-tray>.bottom-actions,
+  html:not(.touch-ui) body.desktop-utility-collapsed .desktop-utility-tray>.desktop-rail-nav{display:none!important}
+
+  /* Fixed footer corner: five-colour strip and legal button never move or collapse. */
   html:not(.touch-ui) .side-panel>.palette{
     position:absolute;
-    z-index:3;
+    z-index:70;
     left:0;
     right:0;
     bottom:0;
-    width:auto;
+    width:100%;
     height:var(--desktop-palette-height);
     margin:0;
     display:grid;
     grid-template-columns:repeat(5,1fr);
+    pointer-events:none;
   }
   html:not(.touch-ui) .legal-link{
     right:max(8px,calc((100vw - 1600px)/2 + 8px));
     bottom:calc(var(--desktop-palette-height) + 6px);
   }
+
+  html:not(.touch-ui) .side-panel #levelPicker{pointer-events:auto}
 
   /* Undo and Restart remain immediately available over the map on computers. */
   html:not(.touch-ui) .desktop-board-actions{
@@ -8409,31 +8445,16 @@ html.touch-ui .dpad button {
   html:not(.touch-ui) .desktop-board-action:active{transform:translateY(1px)}
   html:not(.touch-ui) .desktop-board-action:disabled{opacity:.45;cursor:default;transform:none}
 
-  /* Collapsed means genuinely collapsed: no utility content is allowed to squeeze into the strip. */
-  html:not(.touch-ui) body.desktop-utility-collapsed .side-panel{
-    grid-template-columns:1fr;
-    grid-template-rows:1fr;
-    gap:0;
-    padding:0;
-    background:rgba(249,244,235,.58);
-  }
-  html:not(.touch-ui) body.desktop-utility-collapsed .side-panel::before{display:none}
-  html:not(.touch-ui) body.desktop-utility-collapsed .side-panel .top-actions,
-  html:not(.touch-ui) body.desktop-utility-collapsed .side-panel .move-zone,
-  html:not(.touch-ui) body.desktop-utility-collapsed .side-panel .bottom-actions,
-  html:not(.touch-ui) body.desktop-utility-collapsed .side-panel .desktop-rail-nav,
-  html:not(.touch-ui) body.desktop-utility-collapsed .side-panel>.palette{display:none!important}
-
   @media (prefers-reduced-motion:reduce){
-    html:not(.touch-ui) .app,
-    html:not(.touch-ui) .masthead{transition:none}
+    html:not(.touch-ui) .board-wrap,
+    html:not(.touch-ui) .desktop-utility-tray{transition:none}
   }
 }
 
 @media (min-width:821px) and (pointer:fine) and (max-height:720px){
-  html:not(.touch-ui){--desktop-footer-height:46px;--desktop-grip-offset:18px}
-  html:not(.touch-ui) .app{--desktop-head-height:82px}
+  html:not(.touch-ui){--desktop-footer-height:46px;--desktop-head-height:82px}
   html:not(.touch-ui) .play-area{grid-template-rows:var(--desktop-head-height) minmax(0,1fr) var(--desktop-footer-height)}
+  html:not(.touch-ui) .side-panel-head{height:var(--desktop-head-height)}
   html:not(.touch-ui) .side-panel-head .credit{padding:6px 10px 4px}
   html:not(.touch-ui) .side-panel-head .credit strong{font-size:12px}
   html:not(.touch-ui) .side-panel-head .credit span{font-size:7px}
@@ -8441,14 +8462,12 @@ html.touch-ui .dpad button {
   html:not(.touch-ui) .side-panel-head .stats .time{padding:3px 1px}
   html:not(.touch-ui) .side-panel-head .stats strong{font-size:14px}
   html:not(.touch-ui) .desktop-board-action{height:44px;min-width:52px}
-  html:not(.touch-ui) .desktop-utility-toggle{height:64px}
 }
 
 @media (min-width:821px) and (pointer:fine) and (max-height:520px) and (orientation:landscape){
-  html:not(.touch-ui){--desktop-footer-height:28px;--desktop-grip-offset:12px}
-  html:not(.touch-ui) .app{--desktop-head-height:52px}
+  html:not(.touch-ui){--desktop-footer-height:28px;--desktop-head-height:52px}
   html:not(.touch-ui) .play-area{grid-template-rows:var(--desktop-head-height) minmax(0,1fr) var(--desktop-footer-height)}
-  html:not(.touch-ui) .side-panel-head{grid-template-rows:1fr}
+  html:not(.touch-ui) .side-panel-head{height:var(--desktop-head-height);grid-template-rows:1fr}
   html:not(.touch-ui) .side-panel-head .credit{display:none}
   html:not(.touch-ui) .side-panel-head .stats{height:100%}
   html:not(.touch-ui) .side-panel-head .stats>div,
@@ -8459,7 +8478,6 @@ html.touch-ui .dpad button {
   html:not(.touch-ui) .desktop-board-action{height:38px;min-width:46px;padding:2px 5px}
   html:not(.touch-ui) .desktop-board-action span{font-size:20px}
   html:not(.touch-ui) .desktop-board-action b{font-size:6px}
-  html:not(.touch-ui) .desktop-utility-toggle{height:52px}
 }
 
 @media (min-width:821px) and (pointer:fine){
