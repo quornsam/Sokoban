@@ -161,7 +161,7 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=435">
+<link rel="stylesheet" href="styles.css?v=436">
 <link rel="stylesheet" href="how-to-play.css?v=225">
 <link rel="preload" as="image" href="assets/board/boxes/box-default-yellow.png?v=226">
 <link rel="preload" as="image" href="assets/board/goals/goal-red.png?v=226">
@@ -230,8 +230,8 @@
         <div id="celebration" class="celebration" aria-hidden="true"></div>
       </div>
       <div class="desktop-board-actions" aria-label="Desktop puzzle actions">
-        <button id="desktopUndoBtn" class="desktop-board-action desktop-board-undo" type="button" aria-label="Undo last move" title="Undo (U / Z)"><span aria-hidden="true">↶</span><b>UNDO</b></button>
         <button id="desktopRestartBtn" class="desktop-board-action desktop-board-restart" type="button" aria-label="Restart level" title="Restart (R)"><span aria-hidden="true">↻</span><b>RESTART</b></button>
+        <button id="desktopUndoBtn" class="desktop-board-action desktop-board-undo" type="button" aria-label="Undo last move" title="Undo (U / Z)"><span aria-hidden="true">↶</span><b>UNDO</b></button>
       </div>
       <button id="zenZoomBtn" class="zen-zoom-btn" type="button" hidden aria-label="Increase board zoom" aria-pressed="false">
         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="10.5" cy="10.5" r="5.8"/><path d="m15 15 5 5"/></svg>
@@ -326,10 +326,10 @@
     <section class="desktop-rail-extra" aria-label="Desktop utilities">
       <button id="desktopMusicBtn" class="action small desktop-music" type="button" aria-pressed="true" aria-label="Toggle music"><span aria-hidden="true">♫</span><b>MUSIC ON</b></button>
       <button id="desktopAudioBtn" class="action small desktop-audio" type="button" aria-pressed="true" aria-label="Toggle audio"><span aria-hidden="true">◖))</span><b>AUDIO ON</b></button>
-      <button id="desktopProfileBtn" class="action small desktop-profile" type="button" aria-label="Open player profile"><span aria-hidden="true">●</span><b>PROFILE</b></button>
+      <button id="desktopProfileBtn" class="action small desktop-profile" type="button" aria-label="Open player profile"><span class="desktop-profile-indi" aria-hidden="true"></span><b>PROFILE</b></button>
       <button id="desktopHistoryBtn" class="action small desktop-history" type="button" aria-label="Open game history"><span aria-hidden="true">↺</span><b>HISTORY</b></button>
-      <button id="desktopTrophiesBtn" class="action small desktop-trophies" type="button" aria-label="Open trophy cabinet"><span aria-hidden="true">🏆</span><b>TROPHIES</b></button>
-      <button id="desktopDailyBtn" class="action small desktop-daily" type="button" aria-label="Open Daily Boxxy"><span aria-hidden="true">🔥</span><b>DAILY</b></button>
+      <button id="desktopTrophiesBtn" class="action small desktop-trophies" type="button" aria-label="Open trophy cabinet"><span class="desktop-trophy-star" aria-hidden="true"><svg viewBox="0 0 100 100" focusable="false"><path d="M50 6 62.7 34.2 93.5 37.5 70.5 58.3 77 88.5 50 73 23 88.5 29.5 58.3 6.5 37.5 37.3 34.2Z"/></svg></span><b>TROPHIES</b></button>
+      <button id="desktopDailyBtn" class="action small desktop-daily" type="button" aria-label="Open Daily Boxxy"><span id="desktopDailyStreak" class="desktop-daily-streak-icon" data-tier="zero" data-digits="1" data-qualified-today="false" aria-hidden="true"><i class="desktop-daily-streak-flame"></i><em id="desktopDailyStreakNumber">0</em></span><b>DAILY</b></button>
     </section>
     </div>
 
@@ -1577,7 +1577,7 @@
 <script src="daily-puzzles/boxxy-daily-loader.js?v=357"></script>
 <script src="levels.js?v=372"></script>
 <script src="starry-night.js?v=302"></script>
-<script src="boxxy.js?v=435"></script>
+<script src="boxxy.js?v=436"></script>
 <script src="attempt-history.js?v=428"></script>
 <script src="attempt-history-ui.js?v=428"></script>
 <script src="account.js?v=428"></script>

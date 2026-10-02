@@ -8274,14 +8274,14 @@ html.touch-ui .dpad button {
   html:not(.touch-ui) .desktop-utility-toggle{
     position:absolute;
     z-index:80;
-    left:-7px;
+    left:-15px;
     top:50%;
     transform:translateY(-50%);
-    width:10px;
-    height:58px;
+    width:15px;
+    height:87px;
     padding:0;
     border:1px solid var(--ink);
-    border-radius:4px 0 0 4px;
+    border-radius:6px 0 0 6px;
     background:#f2e8d8;
     color:var(--ink);
     display:grid;
@@ -8291,8 +8291,8 @@ html.touch-ui .dpad button {
   html:not(.touch-ui) .desktop-utility-toggle:hover{background:#fff7ea}
   html:not(.touch-ui) .desktop-utility-toggle:active{transform:translateY(-50%)}
   html:not(.touch-ui) .desktop-utility-toggle-icon{
-    width:4px;
-    height:29px;
+    width:6px;
+    height:44px;
     border-left:1px solid currentColor;
     border-right:1px solid currentColor;
     font-size:0;
@@ -8383,6 +8383,51 @@ html.touch-ui .dpad button {
   html:not(.touch-ui) .desktop-utility-tray .attire-action .style-outfit-icon{width:25px;height:25px}
   html:not(.touch-ui) .desktop-utility-tray .fullscreen-action b{max-width:52px!important}
 
+  /* Purpose-built rail icons: Indi, the BOXXY Originals star, and the player's live Daily streak flame. */
+  html:not(.touch-ui) .desktop-profile-indi{
+    width:34px!important;
+    height:34px!important;
+    flex:none;
+    display:block;
+    background-image:url("assets/characters/boy/base.png");
+    background-repeat:no-repeat;
+    background-size:242px 157px;
+    background-position:-13px -18px;
+  }
+  html:not(.touch-ui) .desktop-trophy-star{width:31px!important;height:31px!important;display:block;filter:drop-shadow(1px 1px 0 rgba(23,23,25,.24))}
+  html:not(.touch-ui) .desktop-trophy-star svg{display:block;width:100%;height:100%;overflow:visible}
+  html:not(.touch-ui) .desktop-trophy-star path{fill:var(--red);stroke:#f2c121;stroke-width:9;stroke-linejoin:round;paint-order:stroke fill}
+  html:not(.touch-ui) .desktop-daily-streak-icon{
+    position:relative;
+    width:27px!important;
+    height:34px!important;
+    flex:none;
+    display:block;
+    filter:drop-shadow(1px 1px 0 rgba(23,23,25,.24));
+  }
+  html:not(.touch-ui) .desktop-daily-streak-flame{position:absolute;inset:0;background-position:center;background-repeat:no-repeat;background-size:100% 100%;pointer-events:none}
+  html:not(.touch-ui) .desktop-daily-streak-icon em{
+    position:absolute;z-index:1;left:50%;top:67%;transform:translate(-50%,-50%);
+    color:#fff;font-family:"Arial Black",Arial,sans-serif;font-style:normal;font-weight:1000;line-height:1;letter-spacing:-.06em;
+    text-align:center;white-space:nowrap;pointer-events:none;
+    text-shadow:-1px 0 0 rgba(10,17,20,.82),1px 0 0 rgba(10,17,20,.82),0 -1px 0 rgba(10,17,20,.82),0 1px 0 rgba(10,17,20,.82);
+  }
+  html:not(.touch-ui) .desktop-daily-streak-icon[data-digits="1"] em{font-size:12px}
+  html:not(.touch-ui) .desktop-daily-streak-icon[data-digits="2"] em{font-size:10.5px}
+  html:not(.touch-ui) .desktop-daily-streak-icon[data-digits="3"] em{font-size:9px}
+  html:not(.touch-ui) .desktop-daily-streak-icon[data-digits="4"] em{font-size:8px}
+  html:not(.touch-ui) .desktop-daily-streak-icon[data-digits="5"] em{font-size:7px}
+  html:not(.touch-ui) .desktop-daily-streak-icon[data-tier="zero"] .desktop-daily-streak-flame{background-image:url("assets/ui/streak-flames/streak-zero.png")}
+  html:not(.touch-ui) .desktop-daily-streak-icon[data-tier="green"] .desktop-daily-streak-flame{background-image:url("assets/ui/streak-flames/streak-green.png")}
+  html:not(.touch-ui) .desktop-daily-streak-icon[data-tier="blue"] .desktop-daily-streak-flame{background-image:url("assets/ui/streak-flames/streak-blue.png")}
+  html:not(.touch-ui) .desktop-daily-streak-icon[data-tier="red"] .desktop-daily-streak-flame{background-image:url("assets/ui/streak-flames/streak-red.png")}
+  html:not(.touch-ui) .desktop-daily-streak-icon[data-tier="fire"] .desktop-daily-streak-flame{background-image:url("assets/ui/streak-flames/streak-fire.png")}
+  html:not(.touch-ui) .desktop-daily-streak-icon[data-tier="purple"] .desktop-daily-streak-flame{background-image:url("assets/ui/streak-flames/streak-purple.png")}
+  html:not(.touch-ui) .desktop-daily-streak-icon[data-tier="silver"] .desktop-daily-streak-flame{background-image:url("assets/ui/streak-flames/streak-silver.png")}
+  html:not(.touch-ui) .desktop-daily-streak-icon[data-qualified-today="false"] .desktop-daily-streak-flame{filter:grayscale(1);opacity:.38}
+  html:not(.touch-ui) .desktop-daily-streak-icon[data-qualified-today="false"] em{opacity:.72}
+  html:not(.touch-ui) .desktop-daily-streak-icon[data-tier="zero"] em{color:#176e24;text-shadow:-1px 0 0 rgba(255,255,255,.92),1px 0 0 rgba(255,255,255,.92),0 -1px 0 rgba(255,255,255,.92),0 1px 0 rgba(255,255,255,.92)}
+
   /* Collapse slides the entire tray off the right edge. Only the central grip remains visible. */
   html:not(.touch-ui) body.desktop-utility-collapsed .desktop-utility-tray{transform:translateX(100%)}
   html:not(.touch-ui) body.desktop-utility-collapsed .desktop-utility-tray>.top-actions,
@@ -8418,13 +8463,17 @@ html.touch-ui .dpad button {
     top:14px;
     right:calc(var(--desktop-utility-expanded) + 14px);
     display:flex;
-    gap:7px;
+    flex-direction:column;
+    align-items:stretch;
+    gap:8px;
     pointer-events:auto;
+    transition:right .22s cubic-bezier(.2,.7,.3,1);
   }
   html:not(.touch-ui) .desktop-board-action{
-    min-width:58px;
-    height:52px;
-    padding:4px 8px;
+    width:94px;
+    min-width:94px;
+    height:68px;
+    padding:6px 10px;
     border:1px solid var(--line);
     border-radius:10px;
     background:rgba(248,241,230,.94);
@@ -8435,18 +8484,21 @@ html.touch-ui .dpad button {
     flex-direction:column;
     align-items:center;
     justify-content:center;
-    gap:1px;
+    gap:2px;
+    transition:transform .12s ease,box-shadow .12s ease;
   }
-  html:not(.touch-ui) .desktop-board-action span{font-size:25px;line-height:.9}
-  html:not(.touch-ui) .desktop-board-action b{font-size:7px;line-height:1;letter-spacing:.04em}
-  html:not(.touch-ui) .desktop-board-undo{background:rgba(219,59,39,.94);border-color:#a92d20;color:#fff}
+  html:not(.touch-ui) .desktop-board-action span{font-size:32px;line-height:.9}
+  html:not(.touch-ui) .desktop-board-action b{font-size:9px;line-height:1;letter-spacing:.04em}
+  html:not(.touch-ui) .desktop-board-restart{order:1}
+  html:not(.touch-ui) .desktop-board-undo{order:2;background:rgba(219,59,39,.94);border-color:#a92d20;color:#fff}
   html:not(.touch-ui) .desktop-board-action:hover{transform:translateY(-1px)}
   html:not(.touch-ui) .desktop-board-action:active{transform:translateY(1px)}
   html:not(.touch-ui) .desktop-board-action:disabled{opacity:.45;cursor:default;transform:none}
-  html:not(.touch-ui) body.desktop-utility-collapsed .desktop-board-actions{right:14px}
+  html:not(.touch-ui) body.desktop-utility-collapsed .desktop-board-actions{right:18px}
 
   @media (prefers-reduced-motion:reduce){
-    html:not(.touch-ui) .desktop-utility-tray{transition:none}
+    html:not(.touch-ui) .desktop-utility-tray,
+    html:not(.touch-ui) .desktop-board-actions{transition:none}
   }
 }
 
@@ -8460,7 +8512,6 @@ html.touch-ui .dpad button {
   html:not(.touch-ui) .side-panel-head .stats>div,
   html:not(.touch-ui) .side-panel-head .stats .time{padding:3px 1px}
   html:not(.touch-ui) .side-panel-head .stats strong{font-size:14px}
-  html:not(.touch-ui) .desktop-board-action{height:44px;min-width:52px}
 }
 
 @media (min-width:821px) and (pointer:fine) and (max-height:520px) and (orientation:landscape){
@@ -8474,10 +8525,7 @@ html.touch-ui .dpad button {
   html:not(.touch-ui) .side-panel-head .stats .time{display:flex;flex-direction:column;justify-content:center;padding:1px}
   html:not(.touch-ui) .side-panel-head .stats span{font-size:6px}
   html:not(.touch-ui) .side-panel-head .stats strong{font-size:11px}
-  html:not(.touch-ui) .desktop-board-actions{top:7px;right:7px}
-  html:not(.touch-ui) .desktop-board-action{height:38px;min-width:46px;padding:2px 5px}
-  html:not(.touch-ui) .desktop-board-action span{font-size:20px}
-  html:not(.touch-ui) .desktop-board-action b{font-size:6px}
+  html:not(.touch-ui) .desktop-board-actions{top:7px}
 }
 
 @media (min-width:821px) and (pointer:fine){
