@@ -16,7 +16,7 @@
 /* BOXXY v410: character-family tabs browse without changing the selected character; six Partygoers added and profile/style controls refined. */
 /* BOXXY v409: restore v396 leaderboard typography/alignment while adding centred clickable avatars only to the full leaderboard. */
 /* BOXXY v407: keep profile bio editing geometrically stable and give full leaderboard avatars dedicated row space. */
-/* BOXXY v440: add the isolated /beta two-player experiment; normal game behaviour is unchanged. */
+/* BOXXY v441: two-player beta now uses direct PeerJS/WebRTC gameplay; normal game behaviour is unchanged. */
 /* BOXXY v439: constrain desktop board fitting to the live Undo/Restart boundary as the utility tray opens and closes. */
 /* BOXXY v438: restore the established desktop Full Screen/Zen geometry and controls after the desktop utility-tray restructure. */
 /* BOXXY v437: square desktop Undo/Restart controls, visible collapsed tray edge, Daily archive streak badge, and refreshed Partygoer sprites. */
@@ -34,8 +34,8 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "440",
-  lastUpdated: "2026-10-02"
+  version: "441",
+  lastUpdated: "2026-10-03"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
 /* BOXXY v401: PARTYGOERS expands to twelve characters, its Easter egg toggles visibility, and Attire character previews are centred/clickable. */
