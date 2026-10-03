@@ -1,3 +1,4 @@
+/* BOXXY v440: online-only two-player beta at /beta; normal offline package unchanged. */
 /* BOXXY v439: keep desktop board fitting inside the live Undo/Restart boundary. */
 /* BOXXY v438: restore the established desktop Full Screen/Zen layout after the desktop utility-tray restructure. */
 /* BOXXY v437: square desktop actions, collapsed tray peek, Daily archive streak badge and refreshed Partygoer sprites. */
@@ -42,7 +43,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "439";
+const RELEASE_VERSION = "440";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [

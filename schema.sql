@@ -240,3 +240,27 @@ CREATE TABLE IF NOT EXISTS daily_gold_medal_meta (
   value TEXT NOT NULL,
   updated_at INTEGER NOT NULL
 );
+
+-- v440: isolated online two-player beta games. Player 1 is the signed-in host;
+-- Player 2 may join by invite code as an authenticated user or a temporary guest.
+CREATE TABLE IF NOT EXISTS beta_games (
+  code TEXT PRIMARY KEY,
+  host_user_id TEXT NOT NULL,
+  host_username TEXT NOT NULL,
+  guest_user_id TEXT,
+  guest_username TEXT NOT NULL DEFAULT '',
+  guest_token_hash TEXT NOT NULL DEFAULT '',
+  map_text TEXT NOT NULL,
+  state_json TEXT NOT NULL,
+  revision INTEGER NOT NULL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'waiting',
+  starts_at INTEGER NOT NULL DEFAULT 0,
+  winner_slot INTEGER,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  expires_at INTEGER NOT NULL,
+  FOREIGN KEY(host_user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY(guest_user_id) REFERENCES users(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS beta_games_expires_idx ON beta_games(expires_at);
+CREATE INDEX IF NOT EXISTS beta_games_host_idx ON beta_games(host_user_id, updated_at DESC);

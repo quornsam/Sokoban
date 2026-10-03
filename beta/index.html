@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow">
+  <title>BOXXY BETA — Two Player</title>
+  <link rel="icon" href="/assets/ui/icons/favicon.ico">
+  <link rel="stylesheet" href="/beta/beta.css?v=440">
+</head>
+<body>
+  <header class="beta-header">
+    <a class="brand" href="/" aria-label="Back to BOXXY">
+      <strong>BOXXY</strong>
+      <span>2 PLAYER BETA</span>
+    </a>
+    <div class="beta-tag">EXPERIMENTAL</div>
+  </header>
+
+  <main>
+    <section id="lobby" class="panel lobby-panel">
+      <div class="intro">
+        <h1>TWO PLAYER BOXXY</h1>
+        <p>One box. Two targets. Get the box onto your target first.</p>
+      </div>
+
+      <div class="lobby-grid">
+        <section class="lobby-card host-card">
+          <h2>START A GAME</h2>
+          <div id="accountState" class="account-state">CHECKING ACCOUNT…</div>
+          <form id="loginForm" class="login-form" hidden>
+            <input id="loginIdentity" autocomplete="username" placeholder="USERNAME OR EMAIL" maxlength="254">
+            <input id="loginPassword" type="password" autocomplete="current-password" placeholder="PASSWORD" maxlength="128">
+            <button type="submit">SIGN IN</button>
+            <a href="/">GO TO BOXXY FOR GOOGLE SIGN-IN / ACCOUNT SETUP</a>
+          </form>
+          <button id="createBtn" class="primary" type="button" disabled>START A GAME</button>
+        </section>
+
+        <section class="lobby-card join-card">
+          <h2>JOIN A GAME</h2>
+          <p>No account is required to join.</p>
+          <form id="joinForm" class="join-form">
+            <input id="joinCode" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="6" placeholder="ABC123" aria-label="Six-character game code">
+            <button class="primary" type="submit">JOIN GAME</button>
+          </form>
+        </section>
+      </div>
+      <div id="lobbyStatus" class="status-line" role="status"></div>
+    </section>
+
+    <section id="gameView" class="game-view" hidden>
+      <div class="match-bar panel">
+        <div id="playerOne" class="player-card player-one">
+          <span class="player-dot"></span>
+          <div><small>PLAYER 1</small><strong id="playerOneName">PLAYER 1</strong></div>
+          <span class="target-label">RED TARGET</span>
+        </div>
+        <div class="match-centre">
+          <span id="gameCodeLabel">------</span>
+          <small>GAME CODE</small>
+        </div>
+        <div id="playerTwo" class="player-card player-two">
+          <span class="player-dot"></span>
+          <div><small>PLAYER 2</small><strong id="playerTwoName">PLAYER 2</strong></div>
+          <span class="target-label">BLUE TARGET</span>
+        </div>
+      </div>
+
+      <div id="waitingPanel" class="waiting-panel panel" hidden>
+        <span>INVITE CODE</span>
+        <strong id="inviteCode">------</strong>
+        <button id="copyCodeBtn" type="button">COPY CODE</button>
+        <p>Waiting for Player 2…</p>
+      </div>
+
+      <div id="boardShell" class="board-shell">
+        <div id="board" class="board" tabindex="0" aria-label="Two-player Boxxy board"></div>
+        <div id="countdown" class="countdown" hidden></div>
+        <div id="winnerOverlay" class="winner-overlay" hidden>
+          <strong id="winnerText">PLAYER 1 WINS!</strong>
+          <button id="newGameBtn" type="button">BACK TO LOBBY</button>
+        </div>
+      </div>
+
+      <div class="game-footer panel">
+        <div id="yourRole">YOU ARE PLAYER 1</div>
+        <div id="gameStatus">WAITING…</div>
+        <div class="controls-copy">ARROW KEYS / WASD · SWIPE ON TOUCHSCREEN</div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/beta/beta.js?v=440" defer></script>
+</body>
+</html>
