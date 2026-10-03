@@ -1,3 +1,4 @@
+/* BOXXY v442: Daily Practice starts with tomorrow, keeps future dates chronological, and hides current/past dates by default. */
 /* BOXXY v426: selected-user message testing and reliable character-action administration. */
 /* BOXXY v425: administer date-specific public message-bar announcements and actions. */
 /* BOXXY v424: show navigator.webdriver evidence in red in admin Daily scores and Player History only. */
@@ -782,12 +783,30 @@
       if(tile==="@"||tile==="+")drawAsset("player",x,y,()=>{context.fillStyle="#20539a";context.beginPath();context.arc(x*size+size/2,y*size+size/2,size*.32,0,Math.PI*2);context.fill();});
     }});
   }
+  function londonDateKey(date=new Date()) {
+    const parts=new Intl.DateTimeFormat("en-GB",{timeZone:"Europe/London",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(date);
+    const values=Object.fromEntries(parts.filter(part=>part.type!=="literal").map(part=>[part.type,part.value]));
+    return `${values.year}-${values.month}-${values.day}`;
+  }
+  function addIsoDateDays(dateKey,days) {
+    const [year,month,day]=String(dateKey).split("-").map(Number);
+    const date=new Date(Date.UTC(year,month-1,day+Number(days||0)));
+    return date.toISOString().slice(0,10);
+  }
   function renderPracticeCards() {
     const query=String(practiceSearch?.value||"").trim().toLowerCase();
-    const filter=practiceFilter?.value||"all";
-    const list=preparedDailies.filter(item=>{
-      if(filter==="published"&&!item.published)return false;
-      if(filter==="upcoming"&&item.published)return false;
+    const filter=practiceFilter?.value||"future";
+    const tomorrow=addIsoDateDays(londonDateKey(),1);
+    const ordered=preparedDailies.slice().sort((a,b)=>{
+      const aDate=String(a.date||"");
+      const bDate=String(b.date||"");
+      const aFuture=aDate>=tomorrow;
+      const bFuture=bDate>=tomorrow;
+      if(aFuture!==bFuture)return aFuture?-1:1;
+      return aFuture?aDate.localeCompare(bDate):bDate.localeCompare(aDate);
+    });
+    const list=ordered.filter(item=>{
+      if(filter==="future"&&String(item.date||"")<tomorrow)return false;
       return !query||[item.name,item.date,String(item.sequence)].some(value=>String(value||"").toLowerCase().includes(query));
     });
     if(practiceCount)practiceCount.textContent=String(preparedDailies.length);
@@ -805,7 +824,10 @@
       const puzzle=preparedDailies.find(item=>item.date===canvas.dataset.practiceDate);
       if(puzzle)drawPracticePreview(canvas,puzzle);
     });
-    setStatus(practiceStatus,`${list.length} OF ${preparedDailies.length} PREPARED DAILY PUZZLES`);
+    const hiddenCount=filter==="future"?preparedDailies.filter(item=>String(item.date||"")<tomorrow).length:0;
+    setStatus(practiceStatus,filter==="future"
+      ? `${list.length} FUTURE DAILY PUZZLES · ${hiddenCount} TODAY/PAST HIDDEN`
+      : `${list.length} OF ${preparedDailies.length} PREPARED DAILY PUZZLES`);
   }
   async function loadPreparedDailies(force=false) {
     if(practiceBusy)return;
@@ -816,7 +838,7 @@
       const data=await response.json();
       if(response.status===401){showLogin();return;}
       if(!response.ok||!Array.isArray(data.puzzles))throw new Error(data.error||"Could not load Daily puzzles.");
-      preparedDailies=data.puzzles.slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+      preparedDailies=data.puzzles.slice();
       practiceLoaded=true;renderPracticeCards();
     }catch(error){setStatus(practiceStatus,error.message||"Could not load Daily puzzles.","error");}
     finally{practiceBusy=false;}

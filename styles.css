@@ -1,3 +1,4 @@
+/* BOXXY v442 — smooth desktop utility-tray board fitting; Level Maker rotate control and Basement Daily ordering. */
 /* BOXXY v441 — release refresh for direct PeerJS/WebRTC /beta gameplay; normal styles unchanged. */
 /* BOXXY v439 — keep the desktop board inside the live Undo/Restart boundary as the utility tray opens and closes. */
 /* BOXXY v438 — restore the established desktop Full Screen/Zen layout after the v435 utility-tray restructure. */
@@ -8214,6 +8215,7 @@ html.touch-ui .dpad button {
     width:calc(100% + var(--desktop-side-head-width));
     max-width:none;
     padding-right:calc(var(--desktop-board-action-right) + var(--desktop-board-action-size) + var(--desktop-board-action-clearance));
+    transition:padding-right .22s cubic-bezier(.2,.7,.3,1);
   }
 
   html:not(.touch-ui):not(.desktop-zen-mode) .side-panel{

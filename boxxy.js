@@ -1,3 +1,4 @@
+/* BOXXY v442: smooth desktop utility-tray board fitting, 90-degree Level Maker rotation, and updated Basement Daily practice ordering. */
 /* BOXXY v427: PARTYGOERS visibility is secret-sequence only; programmatic character changes cannot unlock it. */
 /* BOXXY v426: reliable message-bar character actions and selected-user announcement testing. */
 /* BOXXY v425: admin-scheduled public message-bar announcements with optional in-game actions. */
@@ -34,8 +35,8 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "441",
-  lastUpdated: "2026-10-03"
+  version: "442",
+  lastUpdated: "2026-10-04"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
 /* BOXXY v401: PARTYGOERS expands to twelve characters, its Easter egg toggles visibility, and Attire character previews are centred/clickable. */
@@ -8009,7 +8010,25 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   // The desktop utility tray always starts open on a fresh page load. Its state is deliberately not persisted.
+  const DESKTOP_UTILITY_TRANSITION_MS = 220;
   let desktopUtilityCollapsed = false;
+  let desktopUtilityResizeFrame = 0;
+
+  function animateDesktopUtilityBoardResize() {
+    cancelAnimationFrame(desktopUtilityResizeFrame);
+    const startedAt = performance.now();
+    const tick = now => {
+      resizeBoard();
+      scheduleFirstPersonRender();
+      if (now - startedAt < DESKTOP_UTILITY_TRANSITION_MS + 34) {
+        desktopUtilityResizeFrame = requestAnimationFrame(tick);
+      } else {
+        desktopUtilityResizeFrame = 0;
+        scheduleBoardResize();
+      }
+    };
+    desktopUtilityResizeFrame = requestAnimationFrame(tick);
+  }
 
   function desktopUtilityAvailable() {
     return !document.documentElement.classList.contains("touch-ui")
@@ -8046,9 +8065,12 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   function setDesktopUtilityCollapsed(collapsed) {
-    desktopUtilityCollapsed = Boolean(collapsed);
+    const next = Boolean(collapsed);
+    const changed = next !== desktopUtilityCollapsed;
+    desktopUtilityCollapsed = next;
     if (desktopUtilityCollapsed && levelPicker && !levelPicker.hidden) closeLevelPicker();
     syncDesktopUtilityState();
+    if (changed && desktopUtilityAvailable()) animateDesktopUtilityBoardResize();
   }
 
   function syncDesktopUtilityToggles() {
@@ -12116,6 +12138,7 @@ window.BOXXY_RELEASE = Object.freeze({
   const symmetryInput = document.getElementById("makerSymmetry");
   const generateBtn = document.getElementById("makerGenerateBtn");
   const resizeBtn = document.getElementById("makerResizeBtn");
+  const rotateBtn = document.getElementById("makerRotateBtn");
   const roomBtn = document.getElementById("makerRoomBtn");
   const clearBtn = document.getElementById("makerClearBtn");
   const closeBtn = document.getElementById("makerCloseBtn");
@@ -14400,6 +14423,36 @@ window.BOXXY_RELEASE = Object.freeze({
     setStatus(`Grid resized to ${cols} × ${rows}.`);
   }
 
+  function rotateGridClockwise() {
+    const oldCols = cols;
+    const oldRows = rows;
+    const nextCols = oldRows;
+    const nextRows = oldCols;
+    const nextCells = blankGrid(nextCols, nextRows, VOID);
+    const nextGoalColours = blankGoalColours(nextCols, nextRows);
+
+    for (let y = 0; y < oldRows; y++) {
+      for (let x = 0; x < oldCols; x++) {
+        const oldIndex = y * oldCols + x;
+        const nextX = oldRows - 1 - y;
+        const nextY = x;
+        const nextIndex = nextY * nextCols + nextX;
+        nextCells[nextIndex] = cells[oldIndex];
+        nextGoalColours[nextIndex] = goalColours[oldIndex] || null;
+      }
+    }
+
+    cols = nextCols;
+    rows = nextRows;
+    cells = nextCells;
+    goalColours = normaliseGoalColourArray(nextGoalColours, cells);
+    clearAttachedSolution(true);
+    syncSizeInputs();
+    renderGrid();
+    updateTextFromGrid();
+    setStatus(`Level rotated 90° clockwise to ${cols} × ${rows}.`);
+  }
+
   function exportRows() {
     return exportedRowWindow().rows;
   }
@@ -15978,6 +16031,7 @@ window.BOXXY_RELEASE = Object.freeze({
 
   generateBtn.addEventListener("click", generateLevel);
   resizeBtn.addEventListener("click", () => resizeGrid(widthInput.value, heightInput.value));
+  rotateBtn?.addEventListener("click", rotateGridClockwise);
   roomBtn.addEventListener("click", () => makeRoom(widthInput.value, heightInput.value));
   clearBtn.addEventListener("click", () => {
     cols = clampSize(widthInput.value);

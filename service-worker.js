@@ -1,3 +1,4 @@
+/* BOXXY v442: refresh main app assets for smooth utility-tray fitting and Level Maker rotation. */
 /* BOXXY v441: /beta gameplay uses direct PeerJS/WebRTC; normal offline package unchanged. */
 /* BOXXY v439: keep desktop board fitting inside the live Undo/Restart boundary. */
 /* BOXXY v438: restore the established desktop Full Screen/Zen layout after the desktop utility-tray restructure. */
@@ -43,7 +44,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "441";
+const RELEASE_VERSION = "442";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [
