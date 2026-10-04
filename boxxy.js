@@ -1,3 +1,4 @@
+/* BOXXY v443: six additional PARTYGOERS characters and matching profile/leaderboard/admin support. */
 /* BOXXY v442: smooth desktop utility-tray board fitting, 90-degree Level Maker rotation, and updated Basement Daily practice ordering. */
 /* BOXXY v427: PARTYGOERS visibility is secret-sequence only; programmatic character changes cannot unlock it. */
 /* BOXXY v426: reliable message-bar character actions and selected-user announcement testing. */
@@ -35,7 +36,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "442",
+  version: "443",
   lastUpdated: "2026-10-04"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
@@ -639,7 +640,8 @@ window.BOXXY_RELEASE = Object.freeze({
     "bacterium", "clara", "jamil", "clickers", "bertrand", "angie", "the-haining",
     "eric", "marshall", "catherine", "mr-pjkuylasg", "slippy", "gobble",
     "sandra", "blaze", "frederick", "charlize", "amy-annie", "bobbyburp",
-    "mr-whack", "elrick", "ms-thompson", "sid-the-big", "quock", "bernard"
+    "mr-whack", "elrick", "ms-thompson", "sid-the-big", "quock", "bernard",
+    "binky", "hermit", "gusto", "polly", "trisha", "wendy"
   ]);
   const BODY_TYPES = ["boy", "girl", ...SPOOKY_BODY_TYPES, ...PARTYGOER_BODY_TYPES];
   const FIXED_BODY_TYPES = new Set([...SPOOKY_BODY_TYPES, ...PARTYGOER_BODY_TYPES]);
@@ -681,7 +683,13 @@ window.BOXXY_RELEASE = Object.freeze({
     "ms-thompson": "MS THOMPSON",
     "sid-the-big": "SID THE BIG",
     quock: "QUOCK",
-    bernard: "BERNARD"
+    bernard: "BERNARD",
+    binky: "BINKY",
+    hermit: "HERMIT",
+    gusto: "GUSTO",
+    polly: "POLLY",
+    trisha: "TRISHA",
+    wendy: "WENDY"
   });
   const SPOOKY_STORAGE_KEY = "boxxy-spooky-character-v1";
   const PARTYGOER_STORAGE_KEY = "boxxy-partygoer-character-v1";

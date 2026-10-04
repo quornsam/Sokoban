@@ -1,3 +1,4 @@
+/* BOXXY v443: six additional PARTYGOERS characters are available to admin/profile avatar rendering. */
 /* BOXXY v442: Daily Practice starts with tomorrow, keeps future dates chronological, and hides current/past dates by default. */
 /* BOXXY v426: selected-user message testing and reliable character-action administration. */
 /* BOXXY v425: administer date-specific public message-bar announcements and actions. */
@@ -333,7 +334,8 @@
     bacterium:"BACTERIUM", clara:"CLARA", jamil:"JAMIL", clickers:"CLICKERS", bertrand:"BERTRAND", angie:"ANGIE", "the-haining":"THE HAINING",
     eric:"ERIC", marshall:"MARSHALL", catherine:"CATHERINE", "mr-pjkuylasg":"MR PJKUËYLASG", slippy:"SLIPPY", gobble:"GOBBLE",
     sandra:"SANDRA", blaze:"BLAZE", frederick:"FREDERICK", charlize:"CHARLIZE", "amy-annie":"AMY & ANNIE", bobbyburp:"BOBBYBURP",
-    "mr-whack":"MR WHACK", elrick:"ELRICK", "ms-thompson":"MS THOMPSON", "sid-the-big":"SID THE BIG", quock:"QUOCK", bernard:"BERNARD"
+    "mr-whack":"MR WHACK", elrick:"ELRICK", "ms-thompson":"MS THOMPSON", "sid-the-big":"SID THE BIG", quock:"QUOCK", bernard:"BERNARD",
+    binky:"BINKY", hermit:"HERMIT", gusto:"GUSTO", polly:"POLLY", trisha:"TRISHA", wendy:"WENDY"
   });
   const BOARD_STYLE_SWATCHES = Object.freeze({
     red:{label:"Red",hex:"#ec2826"}, blue:{label:"Blue",hex:"#1553ca"}, green:{label:"Green",hex:"#328545"},

@@ -1,3 +1,4 @@
+/* BOXXY v443: cache six additional PARTYGOERS character sheets and refreshed character registries. */
 /* BOXXY v442: refresh main app assets for smooth utility-tray fitting and Level Maker rotation. */
 /* BOXXY v441: /beta gameplay uses direct PeerJS/WebRTC; normal offline package unchanged. */
 /* BOXXY v439: keep desktop board fitting inside the live Undo/Restart boundary. */
@@ -44,7 +45,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "442";
+const RELEASE_VERSION = "443";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [
@@ -141,6 +142,12 @@ const ASSETS = [
   "/assets/characters/sid-the-big/base.png",
   "/assets/characters/quock/base.png",
   "/assets/characters/bernard/base.png",
+  "/assets/characters/binky/base.png",
+  "/assets/characters/hermit/base.png",
+  "/assets/characters/gusto/base.png",
+  "/assets/characters/polly/base.png",
+  "/assets/characters/trisha/base.png",
+  "/assets/characters/wendy/base.png",
   "/assets/characters-fallback/boy/player-back.png",
   "/assets/characters-fallback/boy/player-front.png",
   "/assets/characters-fallback/boy/player-left.png",
