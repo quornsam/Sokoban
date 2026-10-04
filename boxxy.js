@@ -1,3 +1,4 @@
+/* BOXXY v444: Yaron Shoham added as the tenth BOXXY Originals completer. */
 /* BOXXY v443: six additional PARTYGOERS characters and matching profile/leaderboard/admin support. */
 /* BOXXY v442: smooth desktop utility-tray board fitting, 90-degree Level Maker rotation, and updated Basement Daily practice ordering. */
 /* BOXXY v427: PARTYGOERS visibility is secret-sequence only; programmatic character changes cannot unlock it. */
@@ -36,7 +37,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "443",
+  version: "444",
   lastUpdated: "2026-10-04"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
@@ -3769,7 +3770,8 @@ window.BOXXY_RELEASE = Object.freeze({
     { name: "Carlos Montiers", country: "Chile" },
     { name: "Sean Heapy", country: "US" },
     { name: "Beverley C", country: "Scotland" },
-    { name: "Lance Wolters", country: "New Zealand" }
+    { name: "Lance Wolters", country: "New Zealand" },
+    { name: "Yaron Shoham", country: "Israel" }
   ]);
 
   function renderOriginalsCompletionBoard() {
