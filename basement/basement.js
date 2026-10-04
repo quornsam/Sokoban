@@ -1,3 +1,4 @@
+/* BOXXY v445: Basement manages the BOXXY Originals Hall of Fame and linked player profiles. */
 /* BOXXY v443: six additional PARTYGOERS characters are available to admin/profile avatar rendering. */
 /* BOXXY v442: Daily Practice starts with tomorrow, keeps future dates chronological, and hides current/past dates by default. */
 /* BOXXY v426: selected-user message testing and reliable character-action administration. */
@@ -46,6 +47,19 @@
   const completionsPanel = document.getElementById("completionsPanel");
   const playersTab = document.getElementById("playersTab");
   const completionsTab = document.getElementById("completionsTab");
+  const hallOfFameTab = document.getElementById("hallOfFameTab");
+  const hallOfFamePanel = document.getElementById("hallOfFamePanel");
+  const hallOfFameForm = document.getElementById("hallOfFameForm");
+  const hallOfFameOriginalPlace = document.getElementById("hallOfFameOriginalPlace");
+  const hallOfFamePlace = document.getElementById("hallOfFamePlace");
+  const hallOfFameName = document.getElementById("hallOfFameName");
+  const hallOfFameLocation = document.getElementById("hallOfFameLocation");
+  const hallOfFameDate = document.getElementById("hallOfFameDate");
+  const hallOfFameUser = document.getElementById("hallOfFameUser");
+  const hallOfFameClear = document.getElementById("hallOfFameClear");
+  const hallOfFameRefresh = document.getElementById("hallOfFameRefresh");
+  const hallOfFameList = document.getElementById("hallOfFameList");
+  const hallOfFameStatus = document.getElementById("hallOfFameStatus");
   const playerSortSelect = document.getElementById("playerSortSelect");
   const sortDirectionBtn = document.getElementById("sortDirectionBtn");
   const textSizeSelect = document.getElementById("textSizeSelect");
@@ -114,6 +128,7 @@
   let lastPracticeFocus = null;
   let users = [];
   let completions = [];
+  let hallOfFameEntries = [];
   let syntheticUsers = [];
   let syntheticScores = [];
   let siteMessages = [];
@@ -630,20 +645,99 @@
     }
   }
 
+  function hallDateText(value) {
+    const date = String(value || "").trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return "DATE NOT ENTERED";
+    try {
+      return new Intl.DateTimeFormat("en-GB", { day:"numeric", month:"short", year:"numeric", timeZone:"UTC" }).format(new Date(`${date}T00:00:00Z`)).toUpperCase();
+    } catch (_) { return date; }
+  }
+
+  function nextHallOfFamePlace() {
+    const used = new Set(hallOfFameEntries.map(entry => Number(entry.place)).filter(Number.isInteger));
+    for (let place = 1; place <= 50; place++) if (!used.has(place)) return place;
+    return 50;
+  }
+
+  function populateHallOfFameUsers(selectedId = "") {
+    if (!hallOfFameUser) return;
+    const selected = String(selectedId || hallOfFameUser.value || "");
+    const options = [...users]
+      .sort((a,b) => String(a.username || "").localeCompare(String(b.username || ""), "en", { sensitivity:"base" }))
+      .map(user => `<option value="${escapeHtml(user.id)}">${escapeHtml(user.username)}</option>`)
+      .join("");
+    hallOfFameUser.innerHTML = `<option value="">NO ACCOUNT LINK</option>${options}`;
+    if ([...hallOfFameUser.options].some(option => option.value === selected)) hallOfFameUser.value = selected;
+  }
+
+  function resetHallOfFameForm() {
+    hallOfFameForm?.reset();
+    if (hallOfFameOriginalPlace) hallOfFameOriginalPlace.value = "";
+    if (hallOfFamePlace) hallOfFamePlace.value = String(nextHallOfFamePlace());
+    populateHallOfFameUsers("");
+  }
+
+  function fillHallOfFameForm(entry) {
+    if (!entry) return;
+    if (hallOfFameOriginalPlace) hallOfFameOriginalPlace.value = String(entry.place || "");
+    if (hallOfFamePlace) hallOfFamePlace.value = String(entry.place || "");
+    if (hallOfFameName) hallOfFameName.value = String(entry.name || "");
+    if (hallOfFameLocation) hallOfFameLocation.value = String(entry.location || "");
+    if (hallOfFameDate) hallOfFameDate.value = String(entry.completedDate || "");
+    populateHallOfFameUsers(String(entry.userId || ""));
+    hallOfFameForm?.scrollIntoView?.({ behavior:"smooth", block:"center" });
+    hallOfFameName?.focus?.({ preventScroll:true });
+  }
+
+  function renderHallOfFame() {
+    if (!hallOfFameList) return;
+    const byPlace = new Map(hallOfFameEntries.map(entry => [Number(entry.place), entry]));
+    const cards = [];
+    for (let place = 1; place <= 50; place++) {
+      const entry = byPlace.get(place);
+      if (!entry) {
+        cards.push(`<div class="hall-of-fame-admin-entry is-empty"><b class="hall-of-fame-admin-place">${place}</b><strong>AVAILABLE</strong><div class="hall-of-fame-admin-actions"><button type="button" data-hall-add="${place}">ADD ENTRY</button></div></div>`);
+        continue;
+      }
+      const account = entry.linkedUsername ? `LINKED TO ${escapeHtml(entry.linkedUsername)}` : "NO ACCOUNT LINK";
+      cards.push(`<div class="hall-of-fame-admin-entry is-claimed"><b class="hall-of-fame-admin-place">${place}</b><strong>${escapeHtml(entry.name)}</strong><span>${escapeHtml(entry.location)}</span><small>${escapeHtml(hallDateText(entry.completedDate))}</small><small>${account}</small><div class="hall-of-fame-admin-actions"><button type="button" data-hall-edit="${place}">EDIT</button><button type="button" data-hall-delete="${place}">DELETE</button></div></div>`);
+    }
+    hallOfFameList.innerHTML = cards.join("");
+  }
+
+  async function loadHallOfFame() {
+    setStatus(hallOfFameStatus, "LOADING HALL OF FAME…");
+    try {
+      const { response, data } = await api("", { action:"hall_of_fame_state" });
+      if (response.status === 401 || data.authenticated === false) { showLogin(); return; }
+      if (!response.ok) throw new Error(data.error || "Could not load Hall of Fame.");
+      hallOfFameEntries = Array.isArray(data.entries) ? data.entries : [];
+      populateHallOfFameUsers();
+      renderHallOfFame();
+      if (!hallOfFameOriginalPlace?.value) resetHallOfFameForm();
+      setStatus(hallOfFameStatus, `${hallOfFameEntries.length} OF 50 PLACES CLAIMED`, "success");
+    } catch (error) {
+      setStatus(hallOfFameStatus, error.message || "Could not load Hall of Fame.", "error");
+    }
+  }
+
   function setView(view) {
-    selectedView = ["players","completions","daily","scores","messages"].includes(view) ? view : "players";
+    selectedView = ["players","completions","hall","daily","scores","messages"].includes(view) ? view : "players";
     if (playersPanel) playersPanel.hidden = selectedView !== "players";
     if (completionsPanel) completionsPanel.hidden = selectedView !== "completions";
+    if (hallOfFamePanel) hallOfFamePanel.hidden = selectedView !== "hall";
     if (dailyPracticePanel) dailyPracticePanel.hidden = selectedView !== "daily";
     if (dailyScoresPanel) dailyScoresPanel.hidden = selectedView !== "scores";
     if (messageBarPanel) messageBarPanel.hidden = selectedView !== "messages";
     if (searchInput) searchInput.hidden = selectedView !== "players";
     playersTab?.setAttribute("aria-pressed", String(selectedView === "players"));
     completionsTab?.setAttribute("aria-pressed", String(selectedView === "completions"));
+    hallOfFameTab?.setAttribute("aria-pressed", String(selectedView === "hall"));
     dailyPracticeTab?.setAttribute("aria-pressed", String(selectedView === "daily"));
     dailyScoresTab?.setAttribute("aria-pressed", String(selectedView === "scores"));
     messageBarTab?.setAttribute("aria-pressed", String(selectedView === "messages"));
     if (selectedView === "completions") renderCompletions();
+    if (selectedView === "hall") loadHallOfFame();
     if (selectedView === "daily") loadPreparedDailies();
     if (selectedView === "scores") loadDailyScores();
     if (selectedView === "messages") loadSiteMessages();
@@ -1040,6 +1134,7 @@
       users = Array.isArray(data.users) ? data.users : [];
       completions = Array.isArray(data.completions) ? data.completions : [];
       populateCompletionPacks();
+      populateHallOfFameUsers();
       renderCompletions();
       renderSummary(); renderUsers(); showDashboard(); setStatus(dashboardStatus, `${users.length} ACCOUNT${users.length === 1 ? "" : "S"} LOADED`, "success");
     } catch (_) { setStatus(dashboardStatus, "Could not reach the Basement API.", "error"); }
@@ -1390,7 +1485,7 @@
       loginForm.reset(); setStatus(loginStatus, ""); await loadUsers();
     } catch (_) { setStatus(loginStatus, "Could not reach the Basement API.", "error"); }
   });
-  logoutBtn?.addEventListener("click", async () => { closePractice(); try { await api("", { action:"logout" }); } catch (_) {} users=[]; completions=[]; syntheticUsers=[]; syntheticScores=[]; siteMessages=[]; preparedDailies=[];practiceLoaded=false;showLogin(); });
+  logoutBtn?.addEventListener("click", async () => { closePractice(); try { await api("", { action:"logout" }); } catch (_) {} users=[]; completions=[]; hallOfFameEntries=[]; syntheticUsers=[]; syntheticScores=[]; siteMessages=[]; preparedDailies=[];practiceLoaded=false;showLogin(); });
   refreshBtn?.addEventListener("click", loadUsers);
   if (playerSortSelect) {
     playerSortSelect.innerHTML = SORT_COLUMNS.map(([key,label]) => `<option value="${key}">${label}</option>`).join("");
@@ -1401,6 +1496,7 @@
   setSort("lastSeenAt", -1);
   playersTab?.addEventListener("click", () => setView("players"));
   completionsTab?.addEventListener("click", () => setView("completions"));
+  hallOfFameTab?.addEventListener("click", () => setView("hall"));
   dailyPracticeTab?.addEventListener("click", () => setView("daily"));
   dailyScoresTab?.addEventListener("click", () => setView("scores"));
   messageBarTab?.addEventListener("click", () => setView("messages"));
@@ -1416,6 +1512,63 @@
   });
   completionRows?.addEventListener("click", event => { const row = event.target.closest("[data-user-id]"); if (row) openDetail(row.dataset.userId); });
   completionRows?.addEventListener("keydown", event => { if (event.key === "Enter") { const row = event.target.closest("[data-user-id]"); if (row) openDetail(row.dataset.userId); } });
+  hallOfFameForm?.addEventListener("submit", async event => {
+    event.preventDefault();
+    const place = Number(hallOfFamePlace?.value || 0);
+    setStatus(hallOfFameStatus, "SAVING HALL OF FAME ENTRY…");
+    try {
+      const { response, data } = await api("", {
+        action:"hall_of_fame_save",
+        originalPlace:Number(hallOfFameOriginalPlace?.value || place),
+        place,
+        name:hallOfFameName?.value || "",
+        location:hallOfFameLocation?.value || "",
+        completedDate:hallOfFameDate?.value || "",
+        userId:hallOfFameUser?.value || ""
+      });
+      if (!response.ok) throw new Error(data.error || "Could not save Hall of Fame entry.");
+      if (hallOfFameOriginalPlace) hallOfFameOriginalPlace.value = String(data.entry?.place || place);
+      await loadHallOfFame();
+      const saved = hallOfFameEntries.find(entry => Number(entry.place) === Number(data.entry?.place || place));
+      if (saved) fillHallOfFameForm(saved);
+      setStatus(hallOfFameStatus, `NUMBER ${Number(data.entry?.place || place)} SAVED`, "success");
+    } catch (error) {
+      setStatus(hallOfFameStatus, error.message || "Could not save Hall of Fame entry.", "error");
+    }
+  });
+  hallOfFameClear?.addEventListener("click", resetHallOfFameForm);
+  hallOfFameRefresh?.addEventListener("click", loadHallOfFame);
+  hallOfFameList?.addEventListener("click", async event => {
+    const add = event.target.closest("[data-hall-add]");
+    if (add) {
+      resetHallOfFameForm();
+      if (hallOfFamePlace) hallOfFamePlace.value = String(add.dataset.hallAdd || "");
+      hallOfFameName?.focus?.();
+      return;
+    }
+    const edit = event.target.closest("[data-hall-edit]");
+    if (edit) {
+      const entry = hallOfFameEntries.find(item => Number(item.place) === Number(edit.dataset.hallEdit));
+      if (entry) fillHallOfFameForm(entry);
+      return;
+    }
+    const remove = event.target.closest("[data-hall-delete]");
+    if (!remove) return;
+    const place = Number(remove.dataset.hallDelete || 0);
+    const entry = hallOfFameEntries.find(item => Number(item.place) === place);
+    if (!entry || !window.confirm(`Delete Hall of Fame number ${place}: ${entry.name}?`)) return;
+    setStatus(hallOfFameStatus, `DELETING NUMBER ${place}…`);
+    try {
+      const { response, data } = await api("", { action:"hall_of_fame_delete", place });
+      if (!response.ok) throw new Error(data.error || "Could not delete Hall of Fame entry.");
+      if (Number(hallOfFameOriginalPlace?.value || 0) === place) resetHallOfFameForm();
+      await loadHallOfFame();
+      setStatus(hallOfFameStatus, `NUMBER ${place} DELETED`, "success");
+    } catch (error) {
+      setStatus(hallOfFameStatus, error.message || "Could not delete Hall of Fame entry.", "error");
+    }
+  });
+
   const TEXT_SCALE_KEY = "boxxy-basement-text-scale-v4";
   function applyTextScale(value) {
     const scale=[0.9,1,1.1,1.2].includes(Number(value))?Number(value):1;

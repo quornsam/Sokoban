@@ -1,3 +1,4 @@
+/* BOXXY v445: Hall of Fame data is server-managed and linked cards open player profiles. */
 /* BOXXY v444: Yaron Shoham added to the BOXXY Originals Hall of Fame. */
 /* BOXXY v443: cache six additional PARTYGOERS character sheets and refreshed character registries. */
 /* BOXXY v442: refresh main app assets for smooth utility-tray fitting and Level Maker rotation. */
@@ -46,7 +47,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "444";
+const RELEASE_VERSION = "445";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [

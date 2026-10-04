@@ -1,3 +1,4 @@
+/* BOXXY v445: BOXXY Originals Hall of Fame is server-managed, dated, and linked cards open player profiles. */
 /* BOXXY v444: Yaron Shoham added as the tenth BOXXY Originals completer. */
 /* BOXXY v443: six additional PARTYGOERS characters and matching profile/leaderboard/admin support. */
 /* BOXXY v442: smooth desktop utility-tray board fitting, 90-degree Level Maker rotation, and updated Basement Daily practice ordering. */
@@ -37,7 +38,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "444",
+  version: "445",
   lastUpdated: "2026-10-04"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
@@ -3761,41 +3762,80 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   const ORIGINALS_COMPLETION_BOARD_SIZE = 50;
-  const ORIGINALS_COMPLETERS = Object.freeze([
-    { name: "Anian Wu", country: "USA" },
-    { name: "Logan Stipe", country: "USA" },
-    { name: "Stephen Wilbourne", country: "Australia" },
-    { name: "Matthias Meger", country: "Germany" },
-    { name: "Stu Weston", country: "UK" },
-    { name: "Carlos Montiers", country: "Chile" },
-    { name: "Sean Heapy", country: "US" },
-    { name: "Beverley C", country: "Scotland" },
-    { name: "Lance Wolters", country: "New Zealand" },
-    { name: "Yaron Shoham", country: "Israel" }
+  const ORIGINALS_COMPLETERS_FALLBACK = Object.freeze([
+    { place:1, name:"Anian Wu", location:"USA" },
+    { place:2, name:"Logan Stipe", location:"USA" },
+    { place:3, name:"Stephen Wilbourne", location:"Australia" },
+    { place:4, name:"Matthias Meger", location:"Germany" },
+    { place:5, name:"Stu Weston", location:"UK" },
+    { place:6, name:"Carlos Montiers", location:"Chile" },
+    { place:7, name:"Sean Heapy", location:"US" },
+    { place:8, name:"Beverley C", location:"Scotland" },
+    { place:9, name:"Lance Wolters", location:"New Zealand" },
+    { place:10, name:"Yaron Shoham", location:"Israel" }
   ]);
+  let originalsCompletionRequest = 0;
 
-  function renderOriginalsCompletionBoard() {
-    if (!originalsCompletionBoard || originalsCompletionBoard.childElementCount) return;
+  function hallCompletionDateText(value) {
+    const date = String(value || "").trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return "";
+    try {
+      return new Intl.DateTimeFormat("en-GB", { day:"numeric", month:"short", year:"numeric", timeZone:"UTC" }).format(new Date(`${date}T00:00:00Z`));
+    } catch (_) { return date; }
+  }
+
+  function drawOriginalsCompletionBoard(entries) {
+    if (!originalsCompletionBoard) return;
+    const byPlace = new Map((Array.isArray(entries) ? entries : []).map(entry => [Number(entry?.place), entry]));
     const fragment = document.createDocumentFragment();
     for (let index = 0; index < ORIGINALS_COMPLETION_BOARD_SIZE; index++) {
-      const finisher = ORIGINALS_COMPLETERS[index] || null;
-      const slot = document.createElement("div");
-      slot.className = `originals-completion-slot${finisher ? " claimed" : " unclaimed"}`;
+      const placeNumber = index + 1;
+      const finisher = byPlace.get(placeNumber) || null;
+      const linkedUsername = String(finisher?.linkedUsername || "").trim();
+      const slot = document.createElement(linkedUsername ? "button" : "div");
+      slot.className = `originals-completion-slot${finisher ? " claimed" : " unclaimed"}${linkedUsername ? " linked" : ""}`;
+      if (linkedUsername) {
+        slot.type = "button";
+        slot.setAttribute("aria-label", `Open ${linkedUsername}'s BOXXY player profile`);
+        slot.addEventListener("click", () => openPlayerProfile(linkedUsername));
+      }
 
       const place = document.createElement("span");
       place.className = "originals-completion-place";
-      place.textContent = String(index + 1);
+      place.textContent = String(placeNumber);
 
       const name = document.createElement("strong");
-      name.textContent = finisher?.name || "UNCLAIMED";
+      name.textContent = String(finisher?.name || "UNCLAIMED");
 
-      const country = document.createElement("small");
-      country.textContent = finisher?.country || "AVAILABLE";
+      const location = document.createElement("small");
+      location.textContent = String(finisher?.location || "AVAILABLE");
 
-      slot.append(place, name, country);
+      slot.append(place, name, location);
+      const dateText = hallCompletionDateText(finisher?.completedDate);
+      if (dateText) {
+        const completed = document.createElement("time");
+        completed.className = "originals-completion-date";
+        completed.dateTime = String(finisher.completedDate);
+        completed.textContent = `COMPLETED ${dateText.toUpperCase()}`;
+        slot.appendChild(completed);
+      }
       fragment.appendChild(slot);
     }
-    originalsCompletionBoard.appendChild(fragment);
+    originalsCompletionBoard.replaceChildren(fragment);
+  }
+
+  async function renderOriginalsCompletionBoard() {
+    if (!originalsCompletionBoard) return;
+    const requestId = ++originalsCompletionRequest;
+    if (!originalsCompletionBoard.childElementCount) drawOriginalsCompletionBoard(ORIGINALS_COMPLETERS_FALLBACK);
+    try {
+      const response = await fetch("/api/originals-hall-of-fame", {
+        method:"GET", credentials:"same-origin", cache:"no-store", headers:{ Accept:"application/json" }
+      });
+      const data = await response.json().catch(() => ({}));
+      if (requestId !== originalsCompletionRequest || !response.ok || !Array.isArray(data?.entries)) return;
+      drawOriginalsCompletionBoard(data.entries);
+    } catch (_) {}
   }
 
   function openLegalModal() {

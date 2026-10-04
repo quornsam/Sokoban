@@ -7,7 +7,7 @@
 <meta name="theme-color" content="#efe5d4">
 <title>BOXXY Basement</title>
 <link rel="icon" href="../assets/ui/icons/boxxy-yellow-crate-v150.ico" sizes="any">
-<link rel="stylesheet" href="basement.css?v=426">
+<link rel="stylesheet" href="basement.css?v=445">
 <link rel="stylesheet" href="/attempt-history.css?v=426">
 </head>
 <body>
@@ -42,6 +42,7 @@
     <nav class="basement-tabs" aria-label="Basement views">
       <button id="playersTab" type="button" aria-pressed="true">PLAYERS</button>
       <button id="completionsTab" type="button" aria-pressed="false">PACK COMPLETIONS</button>
+      <button id="hallOfFameTab" type="button" aria-pressed="false">HALL OF FAME</button>
       <button id="dailyPracticeTab" type="button" aria-pressed="false">DAILY PRACTICE</button>
       <button id="dailyScoresTab" type="button" aria-pressed="false">DAILY SCORES</button>
       <button id="messageBarTab" type="button" aria-pressed="false">MESSAGE BAR</button>
@@ -87,6 +88,30 @@
       </div>
       <p id="completionStatus" class="status" aria-live="polite"></p>
     </section>
+    <section id="hallOfFamePanel" class="basement-hall-of-fame" aria-label="BOXXY Originals Hall of Fame administration" hidden>
+      <div class="practice-intro"><div><h2>ORIGINALS HALL OF FAME</h2><p>Manage the first 50 BOXXY Originals finishers. Linking a BOXXY account makes that public plaque open the player's profile.</p></div></div>
+      <section class="daily-seed-card hall-of-fame-editor-card">
+        <form id="hallOfFameForm" class="hall-of-fame-form">
+          <input id="hallOfFameOriginalPlace" type="hidden">
+          <label>NUMBER <input id="hallOfFamePlace" type="number" min="1" max="50" step="1" required></label>
+          <label>NAME <input id="hallOfFameName" type="text" maxlength="60" required></label>
+          <label>LOCATION <input id="hallOfFameLocation" type="text" maxlength="60" placeholder="Scotland" required></label>
+          <label>DATE COMPLETED <input id="hallOfFameDate" type="date"></label>
+          <label class="hall-of-fame-user-field">ATTACH BOXXY USER <select id="hallOfFameUser"><option value="">NO ACCOUNT LINK</option></select></label>
+          <div class="hall-of-fame-form-actions">
+            <button type="submit">SAVE ENTRY</button>
+            <button id="hallOfFameClear" type="button">CLEAR</button>
+          </div>
+        </form>
+        <p class="table-hint">The display name and location are independent of the linked account. Date completed is optional. Account links are used only to open the public player profile from the Hall of Fame card.</p>
+      </section>
+      <section class="daily-seed-card">
+        <div class="daily-score-head"><h3>PLACES 1–50</h3><button id="hallOfFameRefresh" type="button">REFRESH</button></div>
+        <div id="hallOfFameList" class="hall-of-fame-admin-list"></div>
+      </section>
+      <p id="hallOfFameStatus" class="status" aria-live="polite"></p>
+    </section>
+
     <section id="dailyPracticePanel" class="basement-daily" aria-label="Private Daily practice" hidden>
       <div class="practice-intro"><div><h2>DAILY PRACTICE</h2><p>Every prepared Daily puzzle, including future entries. Private practice only: no account progress, attempts, streaks or leaderboard results.</p></div><strong id="practiceCount">—</strong></div>
       <div class="practice-toolbar">
@@ -252,6 +277,6 @@
   </section>
 </div>
 <script src="/attempt-history-ui.js?v=426"></script>
-<script src="basement.js?v=443"></script>
+<script src="basement.js?v=445"></script>
 </body>
 </html>

@@ -92,3 +92,22 @@
 @media(max-width:600px){.site-message-form{grid-template-columns:1fr}.site-message-form .site-message-wide{grid-column:auto}.site-message-row{grid-template-columns:1fr}.site-message-row-actions{justify-content:flex-start}}
 
 .site-message-audience-hint{margin:0;align-self:end}.site-message-form #siteMessageTargetsRow[hidden]{display:none}
+
+/* BOXXY v445 — Basement Hall of Fame administration. */
+.hall-of-fame-form{display:grid;grid-template-columns:110px minmax(180px,1fr) minmax(180px,1fr) 180px;gap:12px;align-items:end}
+.hall-of-fame-form label{display:grid;gap:5px;font-size:.86em;font-weight:800;letter-spacing:.03em;min-width:0}
+.hall-of-fame-form input,.hall-of-fame-form select{width:100%;min-width:0}
+.hall-of-fame-user-field{grid-column:span 3}
+.hall-of-fame-form-actions{display:flex;gap:8px;align-items:end;flex-wrap:wrap}
+.hall-of-fame-admin-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:9px}
+.hall-of-fame-admin-entry{position:relative;min-height:110px;padding:12px 12px 12px 48px;border:2px solid var(--ink);background:#f3eadc;display:grid;align-content:center;gap:4px;box-shadow:2px 2px 0 rgba(23,23,25,.13)}
+.hall-of-fame-admin-entry.is-claimed{background:#e7f3e9;border-color:#2f8f5b}
+.hall-of-fame-admin-entry>strong{font-size:1.05em;line-height:1.2;overflow-wrap:anywhere}
+.hall-of-fame-admin-entry>span,.hall-of-fame-admin-entry>small{font-weight:800;line-height:1.3;color:#62594e;overflow-wrap:anywhere}
+.hall-of-fame-admin-place{position:absolute;left:10px;top:10px;min-width:26px;height:26px;padding:0 4px;border:2px solid currentColor;background:#fffaf2;display:grid;place-items:center;font-weight:1000;line-height:1}
+.hall-of-fame-admin-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:5px}
+.hall-of-fame-admin-actions button{padding:7px 9px;font-size:.8em}
+.hall-of-fame-admin-entry.is-empty{opacity:.72;min-height:78px}
+.hall-of-fame-admin-entry.is-empty strong{color:#7b7268;font-size:.9em;letter-spacing:.04em}
+@media(max-width:900px){.hall-of-fame-form{grid-template-columns:1fr 1fr}.hall-of-fame-user-field{grid-column:1/-1}.hall-of-fame-form-actions{grid-column:1/-1}}
+@media(max-width:560px){.hall-of-fame-form{grid-template-columns:1fr}.hall-of-fame-user-field,.hall-of-fame-form-actions{grid-column:auto}.hall-of-fame-admin-list{grid-template-columns:1fr}}
