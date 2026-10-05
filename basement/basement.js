@@ -1,3 +1,4 @@
+/* BOXXY v446: FLUFFBALLS are first-class fixed characters; Basement character actions are generated from the avatar registry. */
 /* BOXXY v445: Basement manages the BOXXY Originals Hall of Fame and linked player profiles. */
 /* BOXXY v443: six additional PARTYGOERS characters are available to admin/profile avatar rendering. */
 /* BOXXY v442: Daily Practice starts with tomorrow, keeps future dates chronological, and hides current/past dates by default. */
@@ -350,8 +351,23 @@
     eric:"ERIC", marshall:"MARSHALL", catherine:"CATHERINE", "mr-pjkuylasg":"MR PJKUËYLASG", slippy:"SLIPPY", gobble:"GOBBLE",
     sandra:"SANDRA", blaze:"BLAZE", frederick:"FREDERICK", charlize:"CHARLIZE", "amy-annie":"AMY & ANNIE", bobbyburp:"BOBBYBURP",
     "mr-whack":"MR WHACK", elrick:"ELRICK", "ms-thompson":"MS THOMPSON", "sid-the-big":"SID THE BIG", quock:"QUOCK", bernard:"BERNARD",
-    binky:"BINKY", hermit:"HERMIT", gusto:"GUSTO", polly:"POLLY", trisha:"TRISHA", wendy:"WENDY"
+    binky:"BINKY", hermit:"HERMIT", gusto:"GUSTO", polly:"POLLY", trisha:"TRISHA", wendy:"WENDY",
+    roger:"ROGER", bobby:"BOBBY", carmen:"CARMEN", titchmarsh:"TITCHMARSH", bubbs:"BUBBS", porridge:"PORRIDGE"
   });
+
+  function populateSiteMessageCharacterActions() {
+    const group = document.getElementById("siteMessageCharacterActions");
+    if (!group) return;
+    group.querySelectorAll('option[data-fixed-character="1"]').forEach(option => option.remove());
+    for (const [bodyType, label] of Object.entries(FIXED_AVATAR_CHARACTERS)) {
+      const option = document.createElement("option");
+      option.value = `character:${bodyType}`;
+      option.textContent = label;
+      option.dataset.fixedCharacter = "1";
+      group.appendChild(option);
+    }
+  }
+  populateSiteMessageCharacterActions();
   const BOARD_STYLE_SWATCHES = Object.freeze({
     red:{label:"Red",hex:"#ec2826"}, blue:{label:"Blue",hex:"#1553ca"}, green:{label:"Green",hex:"#328545"},
     purple:{label:"Purple",hex:"#7433ac"}, "light-blue":{label:"Light blue",hex:"#64c0e8"}, teal:{label:"Teal",hex:"#119f9a"},

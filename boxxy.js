@@ -1,3 +1,4 @@
+/* BOXXY v446: hidden FLUFFBALLS character family, six new sprites, and shared secret-family unlock handling. */
 /* BOXXY v445: BOXXY Originals Hall of Fame is server-managed, dated, and linked cards open player profiles. */
 /* BOXXY v444: Yaron Shoham added as the tenth BOXXY Originals completer. */
 /* BOXXY v443: six additional PARTYGOERS characters and matching profile/leaderboard/admin support. */
@@ -38,8 +39,8 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "445",
-  lastUpdated: "2026-10-04"
+  version: "446",
+  lastUpdated: "2026-10-05"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
 /* BOXXY v401: PARTYGOERS expands to twelve characters, its Easter egg toggles visibility, and Attire character previews are centred/clickable. */
@@ -645,8 +646,9 @@ window.BOXXY_RELEASE = Object.freeze({
     "mr-whack", "elrick", "ms-thompson", "sid-the-big", "quock", "bernard",
     "binky", "hermit", "gusto", "polly", "trisha", "wendy"
   ]);
-  const BODY_TYPES = ["boy", "girl", ...SPOOKY_BODY_TYPES, ...PARTYGOER_BODY_TYPES];
-  const FIXED_BODY_TYPES = new Set([...SPOOKY_BODY_TYPES, ...PARTYGOER_BODY_TYPES]);
+  const FLUFFBALL_BODY_TYPES = Object.freeze(["roger", "bobby", "carmen", "titchmarsh", "bubbs", "porridge"]);
+  const BODY_TYPES = ["boy", "girl", ...SPOOKY_BODY_TYPES, ...PARTYGOER_BODY_TYPES, ...FLUFFBALL_BODY_TYPES];
+  const FIXED_BODY_TYPES = new Set([...SPOOKY_BODY_TYPES, ...PARTYGOER_BODY_TYPES, ...FLUFFBALL_BODY_TYPES]);
   const SPOOKY_CHARACTER_LABELS = Object.freeze({
     lincoln: "LINCOLN",
     beverley: "BEVERLEY",
@@ -693,9 +695,18 @@ window.BOXXY_RELEASE = Object.freeze({
     trisha: "TRISHA",
     wendy: "WENDY"
   });
+  const FLUFFBALL_CHARACTER_LABELS = Object.freeze({
+    roger: "ROGER",
+    bobby: "BOBBY",
+    carmen: "CARMEN",
+    titchmarsh: "TITCHMARSH",
+    bubbs: "BUBBS",
+    porridge: "PORRIDGE"
+  });
   const SPOOKY_STORAGE_KEY = "boxxy-spooky-character-v1";
   const PARTYGOER_STORAGE_KEY = "boxxy-partygoer-character-v1";
   const PARTYGOERS_UNLOCK_KEY = "boxxy-partygoers-unlocked-v2";
+  const FLUFFBALLS_UNLOCK_KEY = "boxxy-fluffballs-unlocked-v1";
   const THEMES = ["bauhaus"];
   const SHEET_COLS = 4;
   // One efficient 300 × 260 frame set is used everywhere. It remains larger than
@@ -1196,41 +1207,74 @@ window.BOXXY_RELEASE = Object.freeze({
   const styleControls = document.getElementById("styleControls");
   let previousFocus = null;
   let partygoersUnlocked = false;
+  let fluffballsUnlocked = false;
   try { partygoersUnlocked = localStorage.getItem(PARTYGOERS_UNLOCK_KEY) === "1"; } catch (_) {}
-  let spookyUnlockClicks = 0;
-  let spookyUnlockArmed = false;
+  try { fluffballsUnlocked = localStorage.getItem(FLUFFBALLS_UNLOCK_KEY) === "1"; } catch (_) {}
+  let secretUnlockClicks = 0;
+  let secretUnlockArmed = false;
+
+  function resetSecretUnlockSequence() {
+    secretUnlockClicks = 0;
+    secretUnlockArmed = false;
+  }
+
+  function syncSecretFamilyControls() {
+    const partyButton = document.getElementById("stylePartygoersFamilyBtn");
+    if (partyButton) {
+      partyButton.hidden = !partygoersUnlocked;
+      partyButton.style.display = partygoersUnlocked ? "" : "none";
+    }
+    const fluffButton = document.getElementById("styleFluffballsFamilyBtn");
+    if (fluffButton) {
+      fluffButton.hidden = !fluffballsUnlocked;
+      fluffButton.style.display = fluffballsUnlocked ? "" : "none";
+    }
+    const familyChoices = styleControls?.querySelector(".style-family-choices");
+    familyChoices?.classList.toggle("has-partygoers", partygoersUnlocked);
+    familyChoices?.classList.toggle("has-fluffballs", fluffballsUnlocked);
+    if (!partygoersUnlocked && activeStyleFamily === "partygoers") activeStyleFamily = "spooky";
+    if (!fluffballsUnlocked && activeStyleFamily === "fluffballs") activeStyleFamily = "spooky";
+    updateSelectedSwatches();
+  }
 
   function setPartygoersUnlocked(nextUnlocked) {
     partygoersUnlocked = Boolean(nextUnlocked);
-    spookyUnlockClicks = 0;
-    spookyUnlockArmed = false;
+    resetSecretUnlockSequence();
     try {
       if (partygoersUnlocked) localStorage.setItem(PARTYGOERS_UNLOCK_KEY, "1");
       else localStorage.removeItem(PARTYGOERS_UNLOCK_KEY);
     } catch (_) {}
-    const button = document.getElementById("stylePartygoersFamilyBtn");
-    if (button) {
-      button.hidden = !partygoersUnlocked;
-      button.style.display = partygoersUnlocked ? "" : "none";
-    }
-    styleControls?.querySelector(".style-family-choices")?.classList.toggle("has-partygoers", partygoersUnlocked);
-    if (!partygoersUnlocked && activeStyleFamily === "partygoers") activeStyleFamily = "spooky";
-    updateSelectedSwatches();
+    syncSecretFamilyControls();
+  }
+
+  function setFluffballsUnlocked(nextUnlocked) {
+    fluffballsUnlocked = Boolean(nextUnlocked);
+    resetSecretUnlockSequence();
+    try {
+      if (fluffballsUnlocked) localStorage.setItem(FLUFFBALLS_UNLOCK_KEY, "1");
+      else localStorage.removeItem(FLUFFBALLS_UNLOCK_KEY);
+    } catch (_) {}
+    syncSecretFamilyControls();
   }
 
   function togglePartygoers() {
     setPartygoersUnlocked(!partygoersUnlocked);
   }
 
+  function toggleFluffballs() {
+    setFluffballsUnlocked(!fluffballsUnlocked);
+  }
+
   function noteSpookyUnlockClick() {
-    spookyUnlockClicks += 1;
-    if (spookyUnlockClicks >= 5) spookyUnlockArmed = true;
+    secretUnlockClicks += 1;
+    if (secretUnlockClicks >= 5) secretUnlockArmed = true;
   }
 
   function familyForBodyType(bodyType) {
     if (bodyType === "girl") return "oli";
     if (SPOOKY_BODY_TYPES.includes(bodyType)) return "spooky";
     if (PARTYGOER_BODY_TYPES.includes(bodyType)) return "partygoers";
+    if (FLUFFBALL_BODY_TYPES.includes(bodyType)) return "fluffballs";
     return "indi";
   }
 
@@ -1248,9 +1292,10 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   function setActiveStyleFamily(nextFamily, { animate = true } = {}) {
-    const allowed = ["indi", "oli", "spooky", "partygoers"];
+    const allowed = ["indi", "oli", "spooky", "partygoers", "fluffballs"];
     if (!allowed.includes(nextFamily)) return;
     if (nextFamily === "partygoers" && !partygoersUnlocked) return;
+    if (nextFamily === "fluffballs" && !fluffballsUnlocked) return;
     if (activeStyleFamily === nextFamily) return;
     activeStyleFamily = nextFamily;
     updateSelectedSwatches();
@@ -1296,7 +1341,7 @@ window.BOXXY_RELEASE = Object.freeze({
     const typeLegend = document.createElement("legend");
     typeLegend.textContent = LABELS.bodyType;
     const typeChoices = document.createElement("div");
-    typeChoices.className = `style-type-choices style-family-choices${partygoersUnlocked ? " has-partygoers" : ""}`;
+    typeChoices.className = `style-type-choices style-family-choices${partygoersUnlocked ? " has-partygoers" : ""}${fluffballsUnlocked ? " has-fluffballs" : ""}`;
     typeChoices.setAttribute("role", "group");
     typeChoices.setAttribute("aria-label", "Character families");
 
@@ -1323,6 +1368,12 @@ window.BOXXY_RELEASE = Object.freeze({
     partyButton.hidden = !partygoersUnlocked;
     partyButton.style.display = partygoersUnlocked ? "" : "none";
     typeChoices.appendChild(partyButton);
+
+    const fluffButton = familyTab("FLUFFBALLS", "fluffballs", "style-family-fluffballs");
+    fluffButton.id = "styleFluffballsFamilyBtn";
+    fluffButton.hidden = !fluffballsUnlocked;
+    fluffButton.style.display = fluffballsUnlocked ? "" : "none";
+    typeChoices.appendChild(fluffButton);
 
     typeGroup.append(typeLegend, typeChoices);
     styleControls.appendChild(typeGroup);
@@ -1372,6 +1423,15 @@ window.BOXXY_RELEASE = Object.freeze({
     partyGroup.append(partyLegend, partyChoices);
     styleControls.appendChild(partyGroup);
 
+    const fluffballGroup = document.createElement("fieldset");
+    fluffballGroup.className = "style-group style-fluffballs-group";
+    fluffballGroup.dataset.styleCategory = "fluffballs";
+    const fluffballLegend = document.createElement("legend");
+    fluffballLegend.textContent = "FLUFFBALL";
+    const fluffballChoices = characterGrid(FLUFFBALL_BODY_TYPES, FLUFFBALL_CHARACTER_LABELS, "Fluffball");
+    fluffballGroup.append(fluffballLegend, fluffballChoices);
+    styleControls.appendChild(fluffballGroup);
+
     for (const category of CATEGORIES) {
       const group = document.createElement("fieldset");
       group.className = "style-group style-standard-option-group";
@@ -1420,8 +1480,9 @@ window.BOXXY_RELEASE = Object.freeze({
     styleControls?.querySelectorAll(".style-group[data-style-category]").forEach(group => {
       const category = group.dataset.styleCategory;
       if (category === "bodyType") return;
-      if (category === "indi" || category === "oli" || category === "spooky" || category === "partygoers") {
-        group.hidden = category !== activeStyleFamily || (category === "partygoers" && !partygoersUnlocked);
+      if (category === "indi" || category === "oli" || category === "spooky" || category === "partygoers" || category === "fluffballs") {
+        const locked = (category === "partygoers" && !partygoersUnlocked) || (category === "fluffballs" && !fluffballsUnlocked);
+        group.hidden = category !== activeStyleFamily || locked;
         return;
       }
       group.hidden = activeStyleFamily !== "indi" && activeStyleFamily !== "oli";
@@ -1431,10 +1492,10 @@ window.BOXXY_RELEASE = Object.freeze({
   function openModal() {
     if (!styleModal) return;
     previousFocus = document.activeElement;
-    spookyUnlockClicks = 0;
-    spookyUnlockArmed = false;
+    resetSecretUnlockSequence();
     activeStyleFamily = familyForBodyType(style.bodyType);
     if (activeStyleFamily === "partygoers" && !partygoersUnlocked) activeStyleFamily = "indi";
+    if (activeStyleFamily === "fluffballs" && !fluffballsUnlocked) activeStyleFamily = "indi";
     updateSelectedSwatches();
     styleModal.hidden = false;
     document.body.classList.add("style-open");
@@ -1458,9 +1519,11 @@ window.BOXXY_RELEASE = Object.freeze({
   });
   document.addEventListener("keydown", event => {
     if (styleModal?.hidden) return;
-    if (spookyUnlockArmed && String(event.key || "").toLowerCase() === "k") {
+    const secretKey = String(event.key || "").toLowerCase();
+    if (secretUnlockArmed && (secretKey === "k" || secretKey === "f")) {
       event.preventDefault();
-      togglePartygoers();
+      if (secretKey === "k") togglePartygoers();
+      else toggleFluffballs();
       return;
     }
     if (event.key === "Escape") {

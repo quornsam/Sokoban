@@ -1,3 +1,4 @@
+/* BOXXY v446 — hidden FLUFFBALLS family and responsive secret-family tabs. */
 /* BOXXY v442 — smooth desktop utility-tray board fitting; Level Maker rotate control and Basement Daily ordering. */
 /* BOXXY v441 — release refresh for direct PeerJS/WebRTC /beta gameplay; normal styles unchanged. */
 /* BOXXY v439 — keep the desktop board inside the live Undo/Restart boundary as the utility tray opens and closes. */
@@ -308,7 +309,8 @@ linear-gradient(135deg,transparent 0 58%,var(--shape-color) 58% 66%,transparent 
 
 
 .style-type-choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
-.style-family-choices.has-partygoers{grid-template-columns:repeat(4,minmax(0,1fr))}
+.style-family-choices.has-partygoers,.style-family-choices.has-fluffballs{grid-template-columns:repeat(4,minmax(0,1fr))}
+.style-family-choices.has-partygoers.has-fluffballs{grid-template-columns:repeat(5,minmax(0,1fr))}
 .style-type-btn{position:relative;border:1px solid var(--ink);border-radius:9px;background:#ece4d7;color:var(--ink);font:900 13px/1 var(--font,inherit);letter-spacing:.08em;padding:11px 10px;min-height:42px;text-align:center;cursor:pointer;transition:background-color .16s ease,color .16s ease,border-color .16s ease,box-shadow .16s ease,transform .16s ease}
 .style-type-btn:hover{background:#f7efe4}
 .style-type-btn.is-active-tab{background:var(--yellow);box-shadow:inset 0 0 0 1px rgba(23,23,25,.18)}
@@ -337,7 +339,7 @@ linear-gradient(135deg,transparent 0 58%,var(--shape-color) 58% 66%,transparent 
 .style-spooky-music-btn[aria-pressed="true"]{background:#b52222;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
 .style-spooky-music-btn:active{transform:translateY(1px)}
 @media(max-width:620px){
-  .style-family-choices.has-partygoers{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .style-family-choices.has-partygoers,.style-family-choices.has-fluffballs,.style-family-choices.has-partygoers.has-fluffballs{grid-template-columns:repeat(2,minmax(0,1fr))}
   .style-character-grid,.style-partygoers-group .style-character-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:9px 7px}
   .style-character-name{font-size:9px;padding:7px 3px}
   .style-character-choice[data-body-type="mr-pjkuylasg"] .style-character-name{font-size:7px}

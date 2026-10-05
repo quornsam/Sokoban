@@ -1,7 +1,8 @@
+/* BOXXY v446: public avatar validation includes FLUFFBALLS and exports the shared server-side body-type registry. */
 import { parseProgress, progressSummary } from "./auth.js";
 import { PROFILE_COUNTRY_CODES, PROFILE_REGION_CODES } from "./profile-location-codes.js";
 
-const AVATAR_BODY_TYPES = new Set([
+export const PUBLIC_AVATAR_BODY_TYPES = new Set([
   "boy", "girl",
   "lincoln", "beverley", "harry", "stuart", "davido", "samantha",
   "optimus", "pixella", "bolderdash", "sputnik", "vasquez",
@@ -9,7 +10,8 @@ const AVATAR_BODY_TYPES = new Set([
   "eric", "marshall", "catherine", "mr-pjkuylasg", "slippy", "gobble",
   "sandra", "blaze", "frederick", "charlize", "amy-annie", "bobbyburp",
   "mr-whack", "elrick", "ms-thompson", "sid-the-big", "quock", "bernard",
-  "binky", "hermit", "gusto", "polly", "trisha", "wendy"
+  "binky", "hermit", "gusto", "polly", "trisha", "wendy",
+  "roger", "bobby", "carmen", "titchmarsh", "bubbs", "porridge"
 ]);
 const AVATAR_DEFAULT = Object.freeze({
   bodyType: "boy", tshirt: "#df3526", trousers: "#292829", hair: "#292727", skin: "#ee9a60", shoes: "#292829"
@@ -43,7 +45,7 @@ export function cleanPublicAvatarStyle(value, { allowEmpty = false } = {}) {
   if (allowEmpty && !supplied) return null;
   const avatar = { ...AVATAR_DEFAULT };
   const bodyType = String(raw.bodyType || "").trim().toLowerCase();
-  if (AVATAR_BODY_TYPES.has(bodyType)) avatar.bodyType = bodyType;
+  if (PUBLIC_AVATAR_BODY_TYPES.has(bodyType)) avatar.bodyType = bodyType;
   for (const key of AVATAR_COLOUR_KEYS) {
     const colour = String(raw[key] || "").trim().toLowerCase();
     if (/^#[0-9a-f]{6}$/.test(colour)) avatar[key] = colour;

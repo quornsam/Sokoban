@@ -1,3 +1,4 @@
+/* BOXXY v446: cache six FLUFFBALLS character sheets and refreshed character-family registries. */
 /* BOXXY v445: Hall of Fame data is server-managed and linked cards open player profiles. */
 /* BOXXY v444: Yaron Shoham added to the BOXXY Originals Hall of Fame. */
 /* BOXXY v443: cache six additional PARTYGOERS character sheets and refreshed character registries. */
@@ -47,7 +48,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "445";
+const RELEASE_VERSION = "446";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [
@@ -150,6 +151,12 @@ const ASSETS = [
   "/assets/characters/polly/base.png",
   "/assets/characters/trisha/base.png",
   "/assets/characters/wendy/base.png",
+  "/assets/characters/roger/base.png",
+  "/assets/characters/bobby/base.png",
+  "/assets/characters/carmen/base.png",
+  "/assets/characters/titchmarsh/base.png",
+  "/assets/characters/bubbs/base.png",
+  "/assets/characters/porridge/base.png",
   "/assets/characters-fallback/boy/player-back.png",
   "/assets/characters-fallback/boy/player-front.png",
   "/assets/characters-fallback/boy/player-left.png",

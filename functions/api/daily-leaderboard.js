@@ -1,10 +1,11 @@
+/* BOXXY v446: Daily leaderboard avatar validation uses the shared public avatar registry, including FLUFFBALLS. */
 /* BOXXY v424: admin Daily scores surface navigator.webdriver evidence without affecting ranking. */
 /* BOXXY v412: public Daily leaderboards are server-paged in 30-score chunks with sort-aware ordering. */
 /* BOXXY v403: synthetic leaderboard players can carry Basement-assigned avatars. */
 import { json, requireDatabase, authenticatedUser, adminAuthenticated } from "../_lib/auth.js";
 import { ensureAttemptHistoryDeviceColumn } from "../_lib/attempt-history.js";
 import { ensureDailyLeaderboardVisibilitySchema, cleanDailyLeaderboardVisibility } from "../_lib/daily-leaderboard-visibility.js";
-import { ensureSyntheticAvatarColumn } from "../_lib/public-profile.js";
+import { ensureSyntheticAvatarColumn, PUBLIC_AVATAR_BODY_TYPES } from "../_lib/public-profile.js";
 
 const DAILY_LAUNCH_DATE = "2026-08-30";
 const MAX_PUBLIC_MOVES_PER_SECOND = 15;
@@ -12,16 +13,6 @@ const MAX_TIMING_DRIFT_SECONDS = 0.15;
 const MAX_PUBLIC_PAGE_SIZE = 30;
 const DAILY_LEADERBOARD_DEVICE_CLASSES = new Set(["phone", "tablet", "computer"]);
 
-const DAILY_LEADERBOARD_AVATAR_BODY_TYPES = new Set([
-  "boy", "girl",
-  "lincoln", "beverley", "harry", "stuart", "davido", "samantha",
-  "optimus", "pixella", "bolderdash", "sputnik", "vasquez",
-  "bacterium", "clara", "jamil", "clickers", "bertrand", "angie", "the-haining",
-  "eric", "marshall", "catherine", "mr-pjkuylasg", "slippy", "gobble",
-  "sandra", "blaze", "frederick", "charlize", "amy-annie", "bobbyburp",
-  "mr-whack", "elrick", "ms-thompson", "sid-the-big", "quock", "bernard",
-  "binky", "hermit", "gusto", "polly", "trisha", "wendy"
-]);
 const DAILY_LEADERBOARD_AVATAR_DEFAULT = Object.freeze({
   bodyType: "boy", tshirt: "#df3526", trousers: "#292829", hair: "#292727", skin: "#ee9a60", shoes: "#292829"
 });
@@ -35,7 +26,7 @@ function cleanAvatarStyle(value) {
   } catch (_) {}
   const avatar = { ...DAILY_LEADERBOARD_AVATAR_DEFAULT };
   const bodyType = String(raw.bodyType || "").trim().toLowerCase();
-  if (DAILY_LEADERBOARD_AVATAR_BODY_TYPES.has(bodyType)) avatar.bodyType = bodyType;
+  if (PUBLIC_AVATAR_BODY_TYPES.has(bodyType)) avatar.bodyType = bodyType;
   for (const key of DAILY_LEADERBOARD_AVATAR_COLOUR_KEYS) {
     const colour = String(raw[key] || "").trim().toLowerCase();
     if (/^#[0-9a-f]{6}$/.test(colour)) avatar[key] = colour;
