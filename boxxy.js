@@ -1,3 +1,4 @@
+/* BOXXY v449: fitted rare-character modal portraits and decoded fixed-character frame warm-up prevent undersized previews and first-move flashing. */
 /* BOXXY v448: rare colour-key characters now select directly, repeat their discovery modal, and never reveal the PARTYGOERS family by themselves. */
 /* BOXXY v447: two super-rare PARTYGOERS unlock through exact Oli colour combinations, with live Indi/Oli selection-card previews. */
 /* BOXXY v446: hidden FLUFFBALLS character family, six new sprites, and shared secret-family unlock handling. */
@@ -41,7 +42,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "448",
+  version: "449",
   lastUpdated: "2026-10-06"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
@@ -836,7 +837,12 @@ window.BOXXY_RELEASE = Object.freeze({
     const promise = new Promise((resolve, reject) => {
       const image = new Image();
       image.decoding = "async";
-      image.onload = () => resolve(image);
+      image.onload = async () => {
+        if (typeof image.decode === "function") {
+          try { await image.decode(); } catch (_) {}
+        }
+        resolve(image);
+      };
       image.onerror = () => reject(new Error(`Could not load ${src}`));
       image.src = window.BOXXY_PRIVATE_PRACTICE_ASSET_URL?.(src) || src;
     });
@@ -1107,6 +1113,33 @@ window.BOXXY_RELEASE = Object.freeze({
     });
   }
 
+  let preparedCharacterFrameImages = [];
+
+  async function prepareFixedCharacterFrames(requestedStyle) {
+    const preparedStyle = validStyle(requestedStyle);
+    if (!FIXED_BODY_TYPES.has(preparedStyle.bodyType)) {
+      preparedCharacterFrameImages = [];
+      return;
+    }
+    const urls = await Promise.all(FRAMES.map(frame => renderFrameUrl(frame, preparedStyle)));
+    const decoded = await Promise.all(urls.map(src => new Promise((resolve, reject) => {
+      const image = new Image();
+      image.decoding = "sync";
+      image.onload = async () => {
+        if (typeof image.decode === "function") {
+          try { await image.decode(); } catch (_) {}
+        }
+        resolve(image);
+      };
+      image.onerror = () => reject(new Error("Could not prepare a character animation frame."));
+      image.src = src;
+    })));
+    // Keep only the currently prepared character's decoded frames alive. This
+    // prevents the first movement pose from having to decode on demand on mobile
+    // without accumulating every character ever selected in memory.
+    preparedCharacterFrameImages = decoded;
+  }
+
   function drawImage(image, frame = "player-front") {
     if (!image) return Promise.resolve();
     const requestedStyle = snapshotStyle();
@@ -1148,9 +1181,9 @@ window.BOXXY_RELEASE = Object.freeze({
     });
   }
 
-  function redrawAll() {
+  function redrawAll({ preserveRenderedFrames = false } = {}) {
     updateStyleIcon();
-    clearRenderedFrames();
+    if (!preserveRenderedFrames) clearRenderedFrames();
     for (const canvas of [...canvases]) {
       if (!canvas.isConnected) {
         canvases.delete(canvas);
@@ -1200,22 +1233,29 @@ window.BOXXY_RELEASE = Object.freeze({
     const nextBodyType = String(bodyType || '').trim().toLowerCase();
     if (!BODY_TYPES.includes(nextBodyType)) return false;
 
-    commitCharacterBodyType(nextBodyType);
     const rareUnlock = nextBodyType === "girl" ? rarePartygoerForCurrentOliStyle() : null;
-    if (rareUnlock) commitCharacterBodyType(rareUnlock.bodyType);
+    const finalBodyType = rareUnlock?.bodyType || nextBodyType;
+    const finalStyle = validStyle({ ...style, bodyType: finalBodyType });
 
-    updateSelectedSwatches();
-    clearRenderedFrames();
-    redrawAll();
     try {
-      await loadSheetBundle(style.bodyType, activeTheme());
-      clearRenderedFrames();
-      redrawAll();
-      if (rareUnlock) showRareCharacterUnlockModal(rareUnlock);
+      await loadSheetBundle(finalBodyType, activeTheme());
+      if (FIXED_BODY_TYPES.has(finalBodyType)) {
+        await prepareFixedCharacterFrames(finalStyle);
+      } else {
+        preparedCharacterFrameImages = [];
+      }
+
+      commitCharacterBodyType(finalBodyType);
+      updateSelectedSwatches();
+      redrawAll({ preserveRenderedFrames: FIXED_BODY_TYPES.has(finalBodyType) });
+      if (rareUnlock) await showRareCharacterUnlockModal(rareUnlock);
       return true;
     } catch (error) {
       console.error("Selected character assets could not be loaded.", error);
-      if (rareUnlock) showRareCharacterUnlockModal(rareUnlock);
+      commitCharacterBodyType(finalBodyType);
+      updateSelectedSwatches();
+      redrawAll();
+      if (rareUnlock) await showRareCharacterUnlockModal(rareUnlock);
       return false;
     }
   }
@@ -1286,7 +1326,6 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   function rarePartygoerForCurrentOliStyle() {
-    if (style.bodyType !== "girl") return null;
     for (const bodyType of RARE_PARTYGOER_BODY_TYPES) {
       const config = RARE_PARTYGOER_UNLOCKS[bodyType];
       if (!matchesRarePartygoerStyle(config)) continue;
@@ -1305,14 +1344,20 @@ window.BOXXY_RELEASE = Object.freeze({
     rareUnlockPreviousFocus?.focus?.();
   }
 
-  function showRareCharacterUnlockModal(unlock) {
+  async function showRareCharacterUnlockModal(unlock) {
     if (!rareCharacterUnlockModal || !unlock) return;
     rareUnlockPreviousFocus = document.activeElement;
     if (rareCharacterUnlockName) rareCharacterUnlockName.textContent = unlock.name;
     if (rareCharacterUnlockText) rareCharacterUnlockText.textContent = unlock.message;
     if (rareCharacterUnlockAvatar) {
-      rareCharacterUnlockAvatar.style.backgroundImage = `url("${CHARACTER_ASSET_ROOT}/${unlock.bodyType}/base.png")`;
       rareCharacterUnlockAvatar.dataset.bodyType = unlock.bodyType;
+      await drawAvatarPreview(
+        rareCharacterUnlockAvatar,
+        { ...DEFAULT_STYLE, bodyType: unlock.bodyType },
+        "player-front",
+        190,
+        0.055
+      ).catch(error => console.error("Rare character portrait could not be drawn.", error));
     }
     rareCharacterUnlockModal.hidden = false;
     requestAnimationFrame(() => rareCharacterUnlockDone?.focus());

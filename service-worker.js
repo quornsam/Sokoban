@@ -1,3 +1,4 @@
+/* BOXXY v449: refresh rare-character sprite/rendering release references; offline re-downloads fetch the replacement artwork. */
 /* BOXXY v448: refresh rare-character selection/modal logic without changing the cached character asset set. */
 /* BOXXY v447: cache KangaRuby and WhoopsaDaisy plus refreshed rare-character logic. */
 /* BOXXY v446: cache six FLUFFBALLS character sheets and refreshed character-family registries. */
@@ -50,7 +51,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "448";
+const RELEASE_VERSION = "449";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [
