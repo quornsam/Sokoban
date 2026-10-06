@@ -1,3 +1,4 @@
+/* BOXXY v450: restore clean mobile Indi/Oli live selector-card geometry after the v447 preview change. */
 /* BOXXY v449: fitted rare-character modal portraits and decoded fixed-character frame warm-up prevent undersized previews and first-move flashing. */
 /* BOXXY v448: rare colour-key characters now select directly, repeat their discovery modal, and never reveal the PARTYGOERS family by themselves. */
 /* BOXXY v447: two super-rare PARTYGOERS unlock through exact Oli colour combinations, with live Indi/Oli selection-card previews. */
@@ -42,7 +43,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "449",
+  version: "450",
   lastUpdated: "2026-10-06"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */

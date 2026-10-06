@@ -1,3 +1,4 @@
+/* BOXXY v450 — mobile Indi/Oli live selector cards retain single-card geometry and the native 300x260 preview ratio. */
 /* BOXXY v449 — rare-character modal portraits use opaque-bound fitting; fixed-character frame warm-up is handled in the renderer. */
 /* BOXXY v448 — rare-character modal uses the fixed sprite sheet directly and rare colour keys no longer expose PARTYGOERS. */
 /* BOXXY v447 — live Indi/Oli selector previews and super-rare character unlock modal. */
@@ -356,6 +357,12 @@ linear-gradient(135deg,transparent 0 58%,var(--shape-color) 58% 66%,transparent 
 @media(max-width:620px){
   .style-family-choices.has-partygoers,.style-family-choices.has-fluffballs,.style-family-choices.has-partygoers.has-fluffballs{grid-template-columns:repeat(2,minmax(0,1fr))}
   .style-character-grid,.style-partygoers-group .style-character-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:9px 7px}
+  /* Indi/Oli are single live-composed previews, not gallery thumbnails. Keep their
+     card at the intended single-card width and preserve the renderer's 300x260
+     frame so the name button never crops/overlaps the character on phones. */
+  .style-single-character-grid{grid-template-columns:minmax(112px,150px);justify-content:start}
+  .style-standard-character-group .style-character-thumb{aspect-ratio:300/260}
+  .style-standard-character-group .style-character-thumb.is-live-preview{background-size:100% auto;background-position:center center}
   .style-character-name{font-size:9px;padding:7px 3px}
   .style-character-choice[data-body-type="mr-pjkuylasg"] .style-character-name{font-size:7px}
 }
