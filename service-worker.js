@@ -1,3 +1,4 @@
+/* BOXXY v448: refresh rare-character selection/modal logic without changing the cached character asset set. */
 /* BOXXY v447: cache KangaRuby and WhoopsaDaisy plus refreshed rare-character logic. */
 /* BOXXY v446: cache six FLUFFBALLS character sheets and refreshed character-family registries. */
 /* BOXXY v445: Hall of Fame data is server-managed and linked cards open player profiles. */
@@ -49,7 +50,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "447";
+const RELEASE_VERSION = "448";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [
