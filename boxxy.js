@@ -1,3 +1,4 @@
+/* BOXXY v447: two super-rare PARTYGOERS unlock through exact Oli colour combinations, with live Indi/Oli selection-card previews. */
 /* BOXXY v446: hidden FLUFFBALLS character family, six new sprites, and shared secret-family unlock handling. */
 /* BOXXY v445: BOXXY Originals Hall of Fame is server-managed, dated, and linked cards open player profiles. */
 /* BOXXY v444: Yaron Shoham added as the tenth BOXXY Originals completer. */
@@ -39,8 +40,8 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "446",
-  lastUpdated: "2026-10-05"
+  version: "447",
+  lastUpdated: "2026-10-06"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
 /* BOXXY v401: PARTYGOERS expands to twelve characters, its Easter egg toggles visibility, and Attire character previews are centred/clickable. */
@@ -638,7 +639,7 @@ window.BOXXY_RELEASE = Object.freeze({
   ];
   const CATEGORIES = ["tshirt", "trousers", "hair", "skin", "shoes"];
   const SPOOKY_BODY_TYPES = Object.freeze(["lincoln", "beverley", "harry", "stuart", "davido", "samantha"]);
-  const PARTYGOER_BODY_TYPES = Object.freeze([
+  const STANDARD_PARTYGOER_BODY_TYPES = Object.freeze([
     "optimus", "pixella", "bolderdash", "sputnik", "vasquez",
     "bacterium", "clara", "jamil", "clickers", "bertrand", "angie", "the-haining",
     "eric", "marshall", "catherine", "mr-pjkuylasg", "slippy", "gobble",
@@ -646,6 +647,8 @@ window.BOXXY_RELEASE = Object.freeze({
     "mr-whack", "elrick", "ms-thompson", "sid-the-big", "quock", "bernard",
     "binky", "hermit", "gusto", "polly", "trisha", "wendy"
   ]);
+  const RARE_PARTYGOER_BODY_TYPES = Object.freeze(["kangaruby", "whoopsadaisy"]);
+  const PARTYGOER_BODY_TYPES = Object.freeze([...STANDARD_PARTYGOER_BODY_TYPES, ...RARE_PARTYGOER_BODY_TYPES]);
   const FLUFFBALL_BODY_TYPES = Object.freeze(["roger", "bobby", "carmen", "titchmarsh", "bubbs", "porridge"]);
   const BODY_TYPES = ["boy", "girl", ...SPOOKY_BODY_TYPES, ...PARTYGOER_BODY_TYPES, ...FLUFFBALL_BODY_TYPES];
   const FIXED_BODY_TYPES = new Set([...SPOOKY_BODY_TYPES, ...PARTYGOER_BODY_TYPES, ...FLUFFBALL_BODY_TYPES]);
@@ -693,7 +696,9 @@ window.BOXXY_RELEASE = Object.freeze({
     gusto: "GUSTO",
     polly: "POLLY",
     trisha: "TRISHA",
-    wendy: "WENDY"
+    wendy: "WENDY",
+    kangaruby: "KANGARUBY",
+    whoopsadaisy: "WHOOPSADAISY"
   });
   const FLUFFBALL_CHARACTER_LABELS = Object.freeze({
     roger: "ROGER",
@@ -706,7 +711,20 @@ window.BOXXY_RELEASE = Object.freeze({
   const SPOOKY_STORAGE_KEY = "boxxy-spooky-character-v1";
   const PARTYGOER_STORAGE_KEY = "boxxy-partygoer-character-v1";
   const PARTYGOERS_UNLOCK_KEY = "boxxy-partygoers-unlocked-v2";
+  const RARE_PARTYGOERS_UNLOCK_KEY = "boxxy-rare-partygoers-unlocked-v1";
   const FLUFFBALLS_UNLOCK_KEY = "boxxy-fluffballs-unlocked-v1";
+  const RARE_PARTYGOER_UNLOCKS = Object.freeze({
+    kangaruby: Object.freeze({
+      name: "KangaRuby",
+      message: "Fast on her feet and even faster in her head. KangaRuby has a knack for bouncing straight into trouble and working out how to escape it.",
+      style: Object.freeze({ tshirt: "#f28b35", trousers: "#f28b35", hair: "#c87439", skin: "#6ca5cb", shoes: "#c86a2d" })
+    }),
+    whoopsadaisy: Object.freeze({
+      name: "WhoopsaDaisy",
+      message: "She is a tough little cookie, but really intelligent too. WhoopsaDaisy is bright, brave and rarely where you expect her to be.",
+      style: Object.freeze({ tshirt: "#e5b32a", trousers: "#f0c928", hair: "#44745b", skin: "#6ca5cb", shoes: "#eee8df" })
+    })
+  });
   const THEMES = ["bauhaus"];
   const SHEET_COLS = 4;
   // One efficient 300 × 260 frame set is used everywhere. It remains larger than
@@ -1145,6 +1163,22 @@ window.BOXXY_RELEASE = Object.freeze({
     window.dispatchEvent(new CustomEvent("characterstylechange", { detail: { ...style } }));
   }
 
+  function updateStandardCharacterCardPreviews() {
+    styleControls?.querySelectorAll('.style-character-choice[data-body-type="boy"], .style-character-choice[data-body-type="girl"]').forEach(card => {
+      const thumb = card.querySelector(".style-character-thumb");
+      const bodyType = card.dataset.bodyType;
+      if (!thumb || !bodyType) return;
+      const previewStyle = { ...style, bodyType };
+      const requestKey = renderedFrameKey("player-front", previewStyle);
+      thumb.dataset.previewRequest = requestKey;
+      renderFrameUrl("player-front", previewStyle).then(url => {
+        if (!thumb.isConnected || thumb.dataset.previewRequest !== requestKey) return;
+        thumb.style.backgroundImage = `url("${url}")`;
+        thumb.classList.add("is-live-preview");
+      }).catch(() => {});
+    });
+  }
+
   async function selectCharacter(bodyType) {
     const nextBodyType = String(bodyType || '').trim().toLowerCase();
     if (!BODY_TYPES.includes(nextBodyType)) return false;
@@ -1162,6 +1196,7 @@ window.BOXXY_RELEASE = Object.freeze({
         window.dispatchEvent(new CustomEvent("boxxyspookycharacterselected", { detail: { bodyType: style.bodyType } }));
       }
     }
+    const rareUnlock = nextBodyType === "girl" ? unlockRarePartygoerForCurrentOliStyle() : null;
     updateSelectedSwatches();
     clearRenderedFrames();
     redrawAll();
@@ -1169,9 +1204,11 @@ window.BOXXY_RELEASE = Object.freeze({
       await loadSheetBundle(style.bodyType, activeTheme());
       clearRenderedFrames();
       redrawAll();
+      if (rareUnlock) showRareCharacterUnlockModal(rareUnlock);
       return true;
     } catch (error) {
       console.error("Selected character assets could not be loaded.", error);
+      if (rareUnlock) showRareCharacterUnlockModal(rareUnlock);
       return false;
     }
   }
@@ -1205,13 +1242,73 @@ window.BOXXY_RELEASE = Object.freeze({
   const styleDoneBtn = document.getElementById("styleDoneBtn");
   const styleResetBtn = document.getElementById("styleResetBtn");
   const styleControls = document.getElementById("styleControls");
+  const rareCharacterUnlockModal = document.getElementById("rareCharacterUnlockModal");
+  const rareCharacterUnlockClose = document.getElementById("rareCharacterUnlockClose");
+  const rareCharacterUnlockDone = document.getElementById("rareCharacterUnlockDone");
+  const rareCharacterUnlockName = document.getElementById("rareCharacterUnlockName");
+  const rareCharacterUnlockText = document.getElementById("rareCharacterUnlockText");
+  const rareCharacterUnlockAvatar = document.getElementById("rareCharacterUnlockAvatar");
   let previousFocus = null;
+  let rareUnlockPreviousFocus = null;
   let partygoersUnlocked = false;
   let fluffballsUnlocked = false;
+  let rarePartygoersUnlocked = new Set();
   try { partygoersUnlocked = localStorage.getItem(PARTYGOERS_UNLOCK_KEY) === "1"; } catch (_) {}
+  try {
+    const storedRareUnlocks = JSON.parse(localStorage.getItem(RARE_PARTYGOERS_UNLOCK_KEY) || "[]");
+    if (Array.isArray(storedRareUnlocks)) {
+      rarePartygoersUnlocked = new Set(storedRareUnlocks.filter(bodyType => RARE_PARTYGOER_BODY_TYPES.includes(bodyType)));
+    }
+  } catch (_) {}
   try { fluffballsUnlocked = localStorage.getItem(FLUFFBALLS_UNLOCK_KEY) === "1"; } catch (_) {}
   let secretUnlockClicks = 0;
   let secretUnlockArmed = false;
+
+  function partygoersVisible() {
+    return partygoersUnlocked || rarePartygoersUnlocked.size > 0;
+  }
+
+  function saveRarePartygoerUnlocks() {
+    try {
+      localStorage.setItem(RARE_PARTYGOERS_UNLOCK_KEY, JSON.stringify([...rarePartygoersUnlocked]));
+    } catch (_) {}
+  }
+
+  function matchesRarePartygoerStyle(config) {
+    return Boolean(config) && CATEGORIES.every(category => style[category] === config.style[category]);
+  }
+
+  function unlockRarePartygoerForCurrentOliStyle() {
+    if (style.bodyType !== "girl") return null;
+    for (const bodyType of RARE_PARTYGOER_BODY_TYPES) {
+      const config = RARE_PARTYGOER_UNLOCKS[bodyType];
+      if (!rarePartygoersUnlocked.has(bodyType) && matchesRarePartygoerStyle(config)) {
+        rarePartygoersUnlocked.add(bodyType);
+        saveRarePartygoerUnlocks();
+        syncSecretFamilyControls();
+        return { bodyType, ...config };
+      }
+    }
+    return null;
+  }
+
+  function closeRareCharacterUnlockModal() {
+    if (!rareCharacterUnlockModal || rareCharacterUnlockModal.hidden) return;
+    rareCharacterUnlockModal.hidden = true;
+    rareUnlockPreviousFocus?.focus?.();
+  }
+
+  function showRareCharacterUnlockModal(unlock) {
+    if (!rareCharacterUnlockModal || !unlock) return;
+    rareUnlockPreviousFocus = document.activeElement;
+    if (rareCharacterUnlockName) rareCharacterUnlockName.textContent = unlock.name;
+    if (rareCharacterUnlockText) rareCharacterUnlockText.textContent = unlock.message;
+    rareCharacterUnlockModal.hidden = false;
+    if (rareCharacterUnlockAvatar) {
+      void drawAvatarPreview(rareCharacterUnlockAvatar, { ...style, bodyType: unlock.bodyType }, "player-front", 190, 0.06);
+    }
+    requestAnimationFrame(() => rareCharacterUnlockDone?.focus());
+  }
 
   function resetSecretUnlockSequence() {
     secretUnlockClicks = 0;
@@ -1221,8 +1318,9 @@ window.BOXXY_RELEASE = Object.freeze({
   function syncSecretFamilyControls() {
     const partyButton = document.getElementById("stylePartygoersFamilyBtn");
     if (partyButton) {
-      partyButton.hidden = !partygoersUnlocked;
-      partyButton.style.display = partygoersUnlocked ? "" : "none";
+      const visible = partygoersVisible();
+      partyButton.hidden = !visible;
+      partyButton.style.display = visible ? "" : "none";
     }
     const fluffButton = document.getElementById("styleFluffballsFamilyBtn");
     if (fluffButton) {
@@ -1230,9 +1328,9 @@ window.BOXXY_RELEASE = Object.freeze({
       fluffButton.style.display = fluffballsUnlocked ? "" : "none";
     }
     const familyChoices = styleControls?.querySelector(".style-family-choices");
-    familyChoices?.classList.toggle("has-partygoers", partygoersUnlocked);
+    familyChoices?.classList.toggle("has-partygoers", partygoersVisible());
     familyChoices?.classList.toggle("has-fluffballs", fluffballsUnlocked);
-    if (!partygoersUnlocked && activeStyleFamily === "partygoers") activeStyleFamily = "spooky";
+    if (!partygoersVisible() && activeStyleFamily === "partygoers") activeStyleFamily = "spooky";
     if (!fluffballsUnlocked && activeStyleFamily === "fluffballs") activeStyleFamily = "spooky";
     updateSelectedSwatches();
   }
@@ -1294,7 +1392,7 @@ window.BOXXY_RELEASE = Object.freeze({
   function setActiveStyleFamily(nextFamily, { animate = true } = {}) {
     const allowed = ["indi", "oli", "spooky", "partygoers", "fluffballs"];
     if (!allowed.includes(nextFamily)) return;
-    if (nextFamily === "partygoers" && !partygoersUnlocked) return;
+    if (nextFamily === "partygoers" && !partygoersVisible()) return;
     if (nextFamily === "fluffballs" && !fluffballsUnlocked) return;
     if (activeStyleFamily === nextFamily) return;
     activeStyleFamily = nextFamily;
@@ -1341,7 +1439,7 @@ window.BOXXY_RELEASE = Object.freeze({
     const typeLegend = document.createElement("legend");
     typeLegend.textContent = LABELS.bodyType;
     const typeChoices = document.createElement("div");
-    typeChoices.className = `style-type-choices style-family-choices${partygoersUnlocked ? " has-partygoers" : ""}${fluffballsUnlocked ? " has-fluffballs" : ""}`;
+    typeChoices.className = `style-type-choices style-family-choices${partygoersVisible() ? " has-partygoers" : ""}${fluffballsUnlocked ? " has-fluffballs" : ""}`;
     typeChoices.setAttribute("role", "group");
     typeChoices.setAttribute("aria-label", "Character families");
 
@@ -1365,8 +1463,8 @@ window.BOXXY_RELEASE = Object.freeze({
 
     const partyButton = familyTab("PARTYGOERS", "partygoers", "style-family-partygoers");
     partyButton.id = "stylePartygoersFamilyBtn";
-    partyButton.hidden = !partygoersUnlocked;
-    partyButton.style.display = partygoersUnlocked ? "" : "none";
+    partyButton.hidden = !partygoersVisible();
+    partyButton.style.display = partygoersVisible() ? "" : "none";
     typeChoices.appendChild(partyButton);
 
     const fluffButton = familyTab("FLUFFBALLS", "fluffballs", "style-family-fluffballs");
@@ -1472,16 +1570,20 @@ window.BOXXY_RELEASE = Object.freeze({
     });
 
     styleControls?.querySelectorAll(".style-character-choice").forEach(card => {
-      const selected = card.dataset.bodyType === style.bodyType;
+      const bodyType = card.dataset.bodyType;
+      const selected = bodyType === style.bodyType;
+      if (STANDARD_PARTYGOER_BODY_TYPES.includes(bodyType)) card.hidden = !partygoersUnlocked;
+      else if (RARE_PARTYGOER_BODY_TYPES.includes(bodyType)) card.hidden = !rarePartygoersUnlocked.has(bodyType);
       card.classList.toggle("selected", selected);
       card.querySelectorAll("button").forEach(button => button.setAttribute("aria-pressed", String(selected)));
     });
+    updateStandardCharacterCardPreviews();
 
     styleControls?.querySelectorAll(".style-group[data-style-category]").forEach(group => {
       const category = group.dataset.styleCategory;
       if (category === "bodyType") return;
       if (category === "indi" || category === "oli" || category === "spooky" || category === "partygoers" || category === "fluffballs") {
-        const locked = (category === "partygoers" && !partygoersUnlocked) || (category === "fluffballs" && !fluffballsUnlocked);
+        const locked = (category === "partygoers" && !partygoersVisible()) || (category === "fluffballs" && !fluffballsUnlocked);
         group.hidden = category !== activeStyleFamily || locked;
         return;
       }
@@ -1494,7 +1596,7 @@ window.BOXXY_RELEASE = Object.freeze({
     previousFocus = document.activeElement;
     resetSecretUnlockSequence();
     activeStyleFamily = familyForBodyType(style.bodyType);
-    if (activeStyleFamily === "partygoers" && !partygoersUnlocked) activeStyleFamily = "indi";
+    if (activeStyleFamily === "partygoers" && !partygoersVisible()) activeStyleFamily = "indi";
     if (activeStyleFamily === "fluffballs" && !fluffballsUnlocked) activeStyleFamily = "indi";
     updateSelectedSwatches();
     styleModal.hidden = false;
@@ -1511,6 +1613,11 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   styleTriggers.forEach(button => button.addEventListener("click", openModal));
+  rareCharacterUnlockClose?.addEventListener("click", closeRareCharacterUnlockModal);
+  rareCharacterUnlockDone?.addEventListener("click", closeRareCharacterUnlockModal);
+  rareCharacterUnlockModal?.addEventListener("pointerdown", event => {
+    if (event.target === rareCharacterUnlockModal) closeRareCharacterUnlockModal();
+  });
   styleCloseBtn?.addEventListener("click", closeModal);
   styleDoneBtn?.addEventListener("click", closeModal);
   styleResetBtn?.addEventListener("click", reset);
@@ -1518,6 +1625,13 @@ window.BOXXY_RELEASE = Object.freeze({
     if (event.target === styleModal) closeModal();
   });
   document.addEventListener("keydown", event => {
+    if (!rareCharacterUnlockModal?.hidden) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeRareCharacterUnlockModal();
+      }
+      return;
+    }
     if (styleModal?.hidden) return;
     const secretKey = String(event.key || "").toLowerCase();
     if (secretUnlockArmed && (secretKey === "k" || secretKey === "f")) {

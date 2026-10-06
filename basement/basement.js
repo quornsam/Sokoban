@@ -1,3 +1,4 @@
+/* BOXXY v447: KangaRuby and WhoopsaDaisy join the shared fixed-character registry and Basement actions. */
 /* BOXXY v446: FLUFFBALLS are first-class fixed characters; Basement character actions are generated from the avatar registry. */
 /* BOXXY v445: Basement manages the BOXXY Originals Hall of Fame and linked player profiles. */
 /* BOXXY v443: six additional PARTYGOERS characters are available to admin/profile avatar rendering. */
@@ -352,6 +353,7 @@
     sandra:"SANDRA", blaze:"BLAZE", frederick:"FREDERICK", charlize:"CHARLIZE", "amy-annie":"AMY & ANNIE", bobbyburp:"BOBBYBURP",
     "mr-whack":"MR WHACK", elrick:"ELRICK", "ms-thompson":"MS THOMPSON", "sid-the-big":"SID THE BIG", quock:"QUOCK", bernard:"BERNARD",
     binky:"BINKY", hermit:"HERMIT", gusto:"GUSTO", polly:"POLLY", trisha:"TRISHA", wendy:"WENDY",
+    kangaruby:"KANGARUBY", whoopsadaisy:"WHOOPSADAISY",
     roger:"ROGER", bobby:"BOBBY", carmen:"CARMEN", titchmarsh:"TITCHMARSH", bubbs:"BUBBS", porridge:"PORRIDGE"
   });
 

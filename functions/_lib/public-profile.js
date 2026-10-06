@@ -1,3 +1,4 @@
+/* BOXXY v447: public avatar validation includes KangaRuby and WhoopsaDaisy. */
 /* BOXXY v446: public avatar validation includes FLUFFBALLS and exports the shared server-side body-type registry. */
 import { parseProgress, progressSummary } from "./auth.js";
 import { PROFILE_COUNTRY_CODES, PROFILE_REGION_CODES } from "./profile-location-codes.js";
@@ -11,6 +12,7 @@ export const PUBLIC_AVATAR_BODY_TYPES = new Set([
   "sandra", "blaze", "frederick", "charlize", "amy-annie", "bobbyburp",
   "mr-whack", "elrick", "ms-thompson", "sid-the-big", "quock", "bernard",
   "binky", "hermit", "gusto", "polly", "trisha", "wendy",
+  "kangaruby", "whoopsadaisy",
   "roger", "bobby", "carmen", "titchmarsh", "bubbs", "porridge"
 ]);
 const AVATAR_DEFAULT = Object.freeze({
