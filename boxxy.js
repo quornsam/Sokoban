@@ -1,4 +1,4 @@
-/* BOXXY v456: LARGE is the default phone Zen keypad size; saved player size preferences remain respected. */
+/* BOXXY v457: Puzzle Packs links to the Secret Level Editor on iPad/tablet and desktop, while keeping the link hidden on phones. */
 /* BOXXY v449: fitted rare-character modal portraits and decoded fixed-character frame warm-up prevent undersized previews and first-move flashing. */
 /* BOXXY v448: rare colour-key characters now select directly, repeat their discovery modal, and never reveal the PARTYGOERS family by themselves. */
 /* BOXXY v447: two super-rare PARTYGOERS unlock through exact Oli colour combinations, with live Indi/Oli selection-card previews. */
@@ -43,7 +43,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "456",
+  version: "457",
   lastUpdated: "2026-10-07"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
@@ -12688,6 +12688,8 @@ window.BOXXY_RELEASE = Object.freeze({
   const textEl = document.getElementById("makerText");
   const statusEl = document.getElementById("makerStatus");
   const hotspot = document.getElementById("makerHotspot");
+  const packWorkshopNote = document.getElementById("packWorkshopNote");
+  const packLevelMakerLink = document.getElementById("packLevelMakerLink");
   const saveNameInput = document.getElementById("makerSaveName");
   const saveBtn = document.getElementById("makerSaveBtn");
   const savedSelect = document.getElementById("makerSavedSelect");
@@ -12724,6 +12726,22 @@ window.BOXXY_RELEASE = Object.freeze({
   const solverStats = document.getElementById("makerSolverStats");
 
   if (!modal || !gridEl) return;
+
+  function levelMakerFooterLinkAllowed() {
+    const ua = String(navigator.userAgent || "");
+    const ipad = /iPad/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    if (ipad) return true;
+    if (/iPhone|iPod|Android.+Mobile|Windows Phone|IEMobile|Opera Mini|BlackBerry|webOS/i.test(ua)) return false;
+    const coarse = window.matchMedia?.("(pointer: coarse)")?.matches;
+    const shortSide = Math.min(
+      Number(window.screen?.width || window.innerWidth || 0),
+      Number(window.screen?.height || window.innerHeight || 0)
+    );
+    if (coarse && shortSide && shortSide <= 600) return false;
+    return true;
+  }
+
+  if (packWorkshopNote) packWorkshopNote.hidden = !levelMakerFooterLinkAllowed();
 
   const MIN_SIZE = 3;
   const GENERATOR_MIN_SIZE = 5;
@@ -16883,6 +16901,12 @@ window.BOXXY_RELEASE = Object.freeze({
   });
   modal.addEventListener("click", event => {
     if (event.target === modal) closeMaker();
+  });
+
+  packLevelMakerLink?.addEventListener("click", event => {
+    event.preventDefault();
+    document.getElementById("packCloseBtn")?.click();
+    openMaker();
   });
 
   hotspot?.addEventListener("click", event => {

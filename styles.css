@@ -1,4 +1,4 @@
-/* BOXXY v456 — LARGE is the default phone Zen keypad size; layout and size ranges unchanged. */
+/* BOXXY v457 — Puzzle Packs exposes the Secret Level Editor on iPad/tablet and desktop, not phones. */
 /* BOXXY v449 — rare-character modal portraits use opaque-bound fitting; fixed-character frame warm-up is handled in the renderer. */
 /* BOXXY v448 — rare-character modal uses the fixed sprite sheet directly and rare colour keys no longer expose PARTYGOERS. */
 /* BOXXY v447 — live Indi/Oli selector previews and super-rare character unlock modal. */
@@ -818,6 +818,9 @@ body.maker-testing .level-picker{display:none!important}
 .pack-option .final-pack-name small{font-size:9px;line-height:1.35}
 .pack-black .final-pack-art{background:var(--ink);color:#fff}
 .pack-license-note{margin:17px 0 0;padding-top:12px;border-top:1px solid #a89d8e;color:#655c50;font-size:9px;line-height:1.4;font-weight:750}
+.pack-license-note a{color:var(--blue);font-weight:850;text-decoration:underline;text-underline-offset:2px}
+.pack-license-note a:hover{text-decoration-thickness:2px}
+.pack-license-note a:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 .final-pack-option.active{display:none}
 .collection{cursor:pointer}
 .collection:focus-visible{outline:3px solid var(--red);outline-offset:5px}

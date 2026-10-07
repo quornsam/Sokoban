@@ -1,4 +1,4 @@
-/* BOXXY v456: default phone Zen keypad size is LARGE while preserving saved preferences. */
+/* BOXXY v457: Puzzle Packs links to the Secret Level Editor on iPad/tablet and desktop. */
 /* BOXXY v449: refresh rare-character sprite/rendering release references; offline re-downloads fetch the replacement artwork. */
 /* BOXXY v448: refresh rare-character selection/modal logic without changing the cached character asset set. */
 /* BOXXY v447: cache KangaRuby and WhoopsaDaisy plus refreshed rare-character logic. */
@@ -52,7 +52,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "456";
+const RELEASE_VERSION = "457";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [
