@@ -1,4 +1,4 @@
-/* BOXXY v451 — restore one shared Indi/Oli selector-card geometry across desktop and mobile; live previews use the original card crop. */
+/* BOXXY v456 — LARGE is the default phone Zen keypad size; layout and size ranges unchanged. */
 /* BOXXY v449 — rare-character modal portraits use opaque-bound fitting; fixed-character frame warm-up is handled in the renderer. */
 /* BOXXY v448 — rare-character modal uses the fixed sprite sheet directly and rare colour keys no longer expose PARTYGOERS. */
 /* BOXXY v447 — live Indi/Oli selector previews and super-rare character unlock modal. */
@@ -4268,7 +4268,144 @@ body.maker-editor-fullscreen{overflow:hidden}
   .top-actions #undoBtn{grid-column:3;grid-row:1}
 }
 
-/* Shared Zen Mode rules: retain only the board/background, arrows, Restart, Undo and exit icon. */
+/* BOXXY v455 — phone Zen keeps controls floating and repositions the board live as the keypad moves. */
+.zen-control-panel{
+  --zen-control-size:48px;
+  display:none;
+  position:fixed;
+  z-index:8475;
+  right:max(10px,env(safe-area-inset-right));
+  bottom:max(10px,env(safe-area-inset-bottom));
+  width:max-content;
+  padding:4px;
+  border:2px solid rgba(23,23,25,.86);
+  border-radius:12px;
+  background:rgba(239,229,212,.86);
+  box-shadow:0 10px 28px rgba(23,23,25,.24);
+  -webkit-backdrop-filter:blur(9px);
+  backdrop-filter:blur(9px);
+  touch-action:none;
+  user-select:none;
+  -webkit-user-select:none;
+}
+.zen-control-panel[data-size="small"]{--zen-control-size:40px}
+.zen-control-panel[data-size="medium"]{--zen-control-size:clamp(56px,16vw,66px)}
+.zen-control-panel[data-size="large"]{--zen-control-size:clamp(72px,23vw,90px)}
+.zen-control-panel[hidden]{display:none!important}
+.zen-control-panel-head{
+  height:28px;
+  display:grid;
+  grid-template-columns:auto 1fr 28px 28px;
+  align-items:center;
+  gap:3px;
+  margin:0 0 3px;
+  padding:0 0 0 5px;
+  cursor:grab;
+  touch-action:none;
+}
+.zen-control-panel.is-dragging .zen-control-panel-head{cursor:grabbing}
+.zen-control-grip{
+  font-size:15px;
+  line-height:1;
+  letter-spacing:2px;
+  opacity:.58;
+  transform:translateY(-2px);
+}
+.zen-control-panel-head>b{
+  font-size:7px;
+  line-height:1;
+  letter-spacing:.11em;
+}
+.zen-control-size,
+.zen-control-minimise{
+  width:28px;
+  height:28px;
+  min-width:28px;
+  min-height:28px;
+  padding:0;
+  border:1.5px solid var(--ink);
+  border-radius:7px;
+  background:#f8f1e6;
+  color:var(--ink);
+  font-weight:900;
+  line-height:1;
+  display:grid;
+  place-items:center;
+  touch-action:manipulation;
+}
+.zen-control-size{font-size:9px;letter-spacing:.04em}
+.zen-control-minimise{font-size:20px}
+.zen-control-grid{
+  display:grid;
+  grid-template-columns:repeat(3,var(--zen-control-size));
+  grid-template-rows:repeat(2,var(--zen-control-size));
+  grid-template-areas:
+    "undo up restart"
+    "left down right";
+  gap:3px;
+}
+.zen-control-key{
+  width:var(--zen-control-size);
+  height:var(--zen-control-size);
+  min-width:var(--zen-control-size);
+  min-height:var(--zen-control-size);
+  padding:3px;
+  border:2px solid rgba(23,23,25,.82);
+  border-radius:9px;
+  background:rgba(248,241,230,.94);
+  color:var(--ink);
+  box-shadow:0 4px 10px rgba(55,38,20,.12);
+  display:grid;
+  place-items:center;
+  touch-action:none;
+}
+.zen-control-key:active{transform:translateY(1px)}
+.zen-control-key:disabled{opacity:.42;transform:none}
+.zen-control-key svg{
+  width:58%;
+  height:58%;
+  fill:currentColor;
+  stroke:none;
+}
+.zen-control-key>span{
+  display:block;
+  font-size:20px;
+  line-height:1;
+}
+.zen-control-key>b{
+  display:block;
+  margin-top:-6px;
+  font-size:6.5px;
+  line-height:1;
+  letter-spacing:.05em;
+}
+.zen-control-panel[data-size="small"] .zen-control-restart>b{
+  margin-top:-2px;
+  font-size:5.25px;
+  letter-spacing:0;
+}
+.zen-control-panel[data-size="small"] .zen-control-restart>span{
+  font-size:18px;
+}
+.zen-control-undo{grid-area:undo;background:linear-gradient(rgba(225,75,50,.97),rgba(201,46,31,.97));color:#fff}
+.zen-control-restart{grid-area:restart}
+.zen-control-direction[data-dir=up]{grid-area:up}
+.zen-control-direction[data-dir=left]{grid-area:left}
+.zen-control-direction[data-dir=down]{grid-area:down}
+.zen-control-direction[data-dir=right]{grid-area:right}
+.zen-control-panel.is-minimised{padding:3px}
+.zen-control-panel.is-minimised .zen-control-panel-head{
+  width:68px;
+  height:28px;
+  grid-template-columns:1fr 28px;
+  gap:3px;
+  margin:0;
+  padding-left:4px;
+}
+.zen-control-panel.is-minimised .zen-control-panel-head>b,
+.zen-control-panel.is-minimised .zen-control-size{display:none}
+.zen-control-panel.is-minimised .zen-control-grid{display:none}
+
 @media (max-width:760px) and (pointer:coarse),
        (max-height:520px) and (orientation:landscape) and (pointer:coarse){
   html.phone-zen-mode,
@@ -4289,6 +4426,7 @@ body.maker-editor-fullscreen{overflow:hidden}
   body.phone-zen-mode .app{
     position:fixed;
     inset:0;
+    display:block!important;
     width:100%;
     max-width:none;
     height:100dvh;
@@ -4296,176 +4434,22 @@ body.maker-editor-fullscreen{overflow:hidden}
     margin:0;
     border:0;
     overflow:hidden;
-    background:linear-gradient(135deg,#f4ebdd,#eadcca);
-  }
-  body.phone-zen-mode .play-area{
-    min-width:0;
-    min-height:0;
-    overflow:hidden;
-    display:grid;
-    grid-template-rows:minmax(0,1fr)!important;
-  }
-  body.phone-zen-mode .masthead,
-  body.phone-zen-mode .instruction,
-  body.phone-zen-mode .credit,
-  body.phone-zen-mode .stats,
-  body.phone-zen-mode .bottom-actions,
-  body.phone-zen-mode .palette,
-  body.phone-zen-mode #savePositionBtn,
-  body.phone-zen-mode .attire-action,
-  body.phone-zen-mode .legal-link{
-    display:none!important;
-  }
-  body.phone-zen-mode .board-wrap{
-    grid-row:1;
-    min-width:0;
-    min-height:0;
-    padding:max(8px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) 8px max(8px,env(safe-area-inset-left));
-    background:linear-gradient(135deg,#f4ebdd,#eadcca);
-  }
-  body.phone-zen-mode .side-panel{
-    min-width:0;
-    min-height:0;
-    overflow:hidden;
-    border:0;
-    background:linear-gradient(135deg,#f4ebdd,#eadcca);
-    box-shadow:none;
-  }
-  body.phone-zen-mode .top-actions{
-    padding:0;
-    gap:0;
-  }
-  body.phone-zen-mode .top-actions #restartBtn,
-  body.phone-zen-mode .top-actions #undoBtn{
-    min-width:0;
-    min-height:0;
-    height:min(68px,calc(18vw - 6px),calc(8.333dvh - 11px));
-    width:min(68px,calc(18vw - 6px),calc(8.333dvh - 11px));
-    align-self:center;
-    justify-self:center;
-    border-radius:10px;
-    box-shadow:0 5px 14px rgba(55,38,20,.14);
-    pointer-events:auto;
-  }
-  body.phone-zen-mode .top-actions #restartBtn{
-    background:rgba(248,241,230,.92);
-    -webkit-backdrop-filter:blur(5px);
-    backdrop-filter:blur(5px);
-  }
-  body.phone-zen-mode .top-actions #undoBtn{
-    background:linear-gradient(rgba(225,75,50,.96),rgba(201,46,31,.96));
-  }
-  body.phone-zen-mode .top-actions .action span{font-size:clamp(20px,6vw,25px)}
-  body.phone-zen-mode .top-actions .action b{font-size:7px;white-space:nowrap}
-  body.phone-zen-mode .move-zone{
-    min-width:0;
-    min-height:0;
-    padding:4px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    pointer-events:none;
-  }
-  body.phone-zen-mode .dpad{
-    width:min(100%,220px);
-    max-width:100%;
-    max-height:100%;
-    gap:7px;
-    padding:2px;
-    pointer-events:auto;
-  }
-  body.phone-zen-mode .dpad button{
-    min-width:0;
-    min-height:48px;
-    background:rgba(248,241,230,.92);
-    -webkit-backdrop-filter:blur(5px);
-    backdrop-filter:blur(5px);
-    box-shadow:0 5px 14px rgba(55,38,20,.14);
-  }
-  body.phone-zen-mode .mobile-fullscreen-btn{
-    display:grid!important;
-    z-index:8500;
-    right:max(10px,env(safe-area-inset-right));
-    bottom:10px;
-  }
-  body.phone-zen-mode .mobile-fullscreen-hint{display:none!important}
-}
-
-/* Portrait Zen Mode: board above, controls on the same uninterrupted background below. */
-@media (max-width:760px) and (pointer:coarse){
-  body.phone-zen-mode .app{
-    grid-template-columns:1fr!important;
-    grid-template-rows:minmax(0,1fr) clamp(158px,25dvh,210px)!important;
-  }
-  body.phone-zen-mode .play-area{grid-column:1;grid-row:1}
-  body.phone-zen-mode .side-panel{
-    grid-column:1;
-    grid-row:2;
-    grid-template-columns:minmax(48px,1fr) minmax(150px,230px) minmax(48px,1fr)!important;
-    grid-template-rows:minmax(0,1fr)!important;
-    column-gap:clamp(12px,4vw,22px);
-    padding:4px max(6px,env(safe-area-inset-right)) max(6px,env(safe-area-inset-bottom)) max(6px,env(safe-area-inset-left));
-  }
-  body.phone-zen-mode .top-actions{display:contents!important}
-  body.phone-zen-mode .top-actions #restartBtn{grid-column:1;grid-row:1}
-  body.phone-zen-mode .top-actions #undoBtn{grid-column:3;grid-row:1}
-  body.phone-zen-mode .move-zone{grid-column:2;grid-row:1}
-  body.phone-zen-mode .dpad{width:min(54vw,220px,calc(25dvh - 14px))}
-}
-
-/* Landscape Zen Mode: board fills the left, arrows and the two actions occupy a clean right strip. */
-@media (max-height:520px) and (orientation:landscape) and (pointer:coarse){
-  body.phone-zen-mode .app{
-    grid-template-columns:minmax(0,1fr) clamp(220px,31vw,290px)!important;
-    grid-template-rows:1fr!important;
-  }
-  body.phone-zen-mode .play-area{grid-column:1;grid-row:1}
-  body.phone-zen-mode .side-panel{
-    grid-column:2;
-    grid-row:1;
-    grid-template-columns:1fr 1fr!important;
-    grid-template-rows:minmax(0,1fr) auto!important;
-    row-gap:18px;
-    padding:max(6px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) 8px;
-  }
-  body.phone-zen-mode .top-actions{display:contents!important}
-  body.phone-zen-mode .top-actions #restartBtn{
-    grid-column:1;
-    grid-row:2;
-    width:min(68px,calc(18dvh - 7px));
-    height:min(68px,calc(18dvh - 7px));
-    justify-self:start;
-  }
-  body.phone-zen-mode .top-actions #undoBtn{
-    grid-column:2;
-    grid-row:2;
-    width:min(68px,calc(18dvh - 7px));
-    height:min(68px,calc(18dvh - 7px));
-    justify-self:end;
-  }
-  body.phone-zen-mode .move-zone{
-    grid-column:1/-1;
-    grid-row:1;
-    padding:3px 8px;
-  }
-  body.phone-zen-mode .dpad{width:min(100%,238px,54dvh)}
-  body.phone-zen-mode .dpad button{min-height:40px}
-}
-
-
-
-/* BOXXY v189 — phone-only floating Zen layout over the full animated background. */
-@media (max-width:760px) and (pointer:coarse),
-       (max-height:520px) and (orientation:landscape) and (pointer:coarse){
-  body.phone-zen-mode .app{
-    display:block!important;
     background:transparent!important;
   }
   body.phone-zen-mode .play-area{
     position:absolute!important;
     inset:0!important;
     display:block!important;
+    min-width:0;
+    min-height:0;
     overflow:hidden!important;
+  }
+  body.phone-zen-mode .masthead,
+  body.phone-zen-mode .instruction,
+  body.phone-zen-mode .side-panel,
+  body.phone-zen-mode .palette,
+  body.phone-zen-mode .legal-link{
+    display:none!important;
   }
   body.phone-zen-mode .board-wrap{
     position:absolute!important;
@@ -4473,7 +4457,14 @@ body.maker-editor-fullscreen{overflow:hidden}
     z-index:1;
     width:100%!important;
     height:100%!important;
+    min-width:0;
+    min-height:0;
     box-sizing:border-box;
+    padding:
+      max(8px,env(safe-area-inset-top))
+      max(8px,env(safe-area-inset-right))
+      max(8px,env(safe-area-inset-bottom))
+      max(8px,env(safe-area-inset-left))!important;
     background:linear-gradient(135deg,#f4ebdd,#eadcca)!important;
   }
   body.phone-zen-mode .bg-decor{
@@ -4482,275 +4473,39 @@ body.maker-editor-fullscreen{overflow:hidden}
     width:100%!important;
     height:100%!important;
   }
-  body.phone-zen-mode .board{
-    z-index:2;
-  }
-  body.phone-zen-mode .side-panel{
-    position:absolute!important;
-    inset:0!important;
-    z-index:60;
-    display:block!important;
-    width:100%!important;
-    height:100%!important;
-    padding:0!important;
-    overflow:visible!important;
-    pointer-events:none;
-    background:transparent!important;
-  }
-  body.phone-zen-mode .top-actions{
-    position:absolute!important;
-    inset:0!important;
-    display:block!important;
-    padding:0!important;
-    pointer-events:none;
-  }
-  body.phone-zen-mode .top-actions #restartBtn,
-  body.phone-zen-mode .top-actions #undoBtn{
-    position:absolute!important;
-    width:48px!important;
-    height:48px!important;
-    min-width:48px!important;
-    min-height:48px!important;
-    margin:0!important;
-    border-radius:11px!important;
-    pointer-events:auto;
-  }
-  body.phone-zen-mode .top-actions .action span{
-    font-size:20px!important;
-    line-height:1!important;
-  }
-  body.phone-zen-mode .top-actions .action b{
-    font-size:7px!important;
-    line-height:1!important;
-  }
-  body.phone-zen-mode .move-zone{
-    position:absolute!important;
-    z-index:65;
-    display:block!important;
-    min-width:0!important;
-    min-height:0!important;
-    padding:0!important;
-    pointer-events:none;
-  }
-  body.phone-zen-mode .dpad{
-    width:100%!important;
-    height:auto!important;
-    max-width:none!important;
-    max-height:none!important;
-    gap:9px!important;
-    padding:0!important;
-    pointer-events:auto;
-  }
-  body.phone-zen-mode .dpad button{
-    min-width:0!important;
-    min-height:0!important;
-    border:2px solid rgba(23,23,25,.78)!important;
-    border-radius:13px!important;
-    background:rgba(248,241,230,.88)!important;
-    -webkit-backdrop-filter:blur(7px);
-    backdrop-filter:blur(7px);
-    box-shadow:0 7px 18px rgba(55,38,20,.2)!important;
-  }
-  body.phone-zen-mode .dpad button svg{
-    width:58%!important;
-    height:58%!important;
-  }
+  body.phone-zen-mode .board{z-index:2}
+  body.phone-zen-mode .zen-control-panel:not([hidden]){display:block}
   body.phone-zen-mode .mobile-fullscreen-btn{
+    display:grid!important;
     position:fixed!important;
-    top:max(10px,env(safe-area-inset-top))!important;
-    bottom:auto!important;
     z-index:8500!important;
   }
 }
 
-/* Portrait phones: a large arrow pad at the bottom, with the smaller actions well above it. */
-@media (max-width:760px) and (pointer:coarse) and (orientation:portrait){
-  body.phone-zen-mode{
-    --zen-pad-size:min(84vw,330px,45dvh);
-    --zen-pad-bottom:max(14px,env(safe-area-inset-bottom));
-  }
-  body.phone-zen-mode .board-wrap{
-    padding:max(12px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right))
-      calc(var(--zen-pad-size) + 150px + env(safe-area-inset-bottom))
-      max(10px,env(safe-area-inset-left))!important;
-  }
-  body.phone-zen-mode .move-zone{
-    width:var(--zen-pad-size)!important;
-    height:var(--zen-pad-size)!important;
-    left:50%!important;
-    right:auto!important;
-    bottom:var(--zen-pad-bottom)!important;
-    transform:translateX(-50%)!important;
-  }
-  body.phone-zen-mode .top-actions #restartBtn{
-    left:max(20px,env(safe-area-inset-left))!important;
-    right:auto!important;
-    top:auto!important;
-    bottom:calc(var(--zen-pad-bottom) + var(--zen-pad-size) + 72px)!important;
-  }
-  body.phone-zen-mode .top-actions #undoBtn{
-    right:max(20px,env(safe-area-inset-right))!important;
-    left:auto!important;
-    top:auto!important;
-    bottom:calc(var(--zen-pad-bottom) + var(--zen-pad-size) + 72px)!important;
-  }
-  body.phone-zen-mode .mobile-fullscreen-btn{
-    right:max(10px,env(safe-area-inset-right))!important;
-    left:auto!important;
-  }
-}
-
-/* Landscape phones: board remains on the left and controls remain on the right.
-   The 3×2 arrow pad itself—not a larger empty square—is anchored to the lower edge. */
-@media (max-height:520px) and (orientation:landscape) and (pointer:coarse){
-  body.phone-zen-mode{
-    --zen-landscape-arrow:min(12vw,104px,25dvh);
-    --zen-pad-size:calc(var(--zen-landscape-arrow) + var(--zen-landscape-arrow) + var(--zen-landscape-arrow) + 18px);
-    --zen-landscape-pad-height:calc(var(--zen-landscape-arrow) + var(--zen-landscape-arrow) + 9px);
-    --zen-pad-right:max(14px,env(safe-area-inset-right));
-    --zen-pad-bottom:max(2px,env(safe-area-inset-bottom));
-  }
-  body.phone-zen-mode .board-wrap{
-    padding:max(10px,env(safe-area-inset-top))
-      calc(var(--zen-pad-size) + 42px + env(safe-area-inset-right))
-      max(10px,env(safe-area-inset-bottom))
-      max(10px,env(safe-area-inset-left))!important;
-  }
-  body.phone-zen-mode .move-zone{
-    width:var(--zen-pad-size)!important;
-    height:var(--zen-landscape-pad-height)!important;
-    right:var(--zen-pad-right)!important;
-    left:auto!important;
-    bottom:var(--zen-pad-bottom)!important;
-    top:auto!important;
-    transform:none!important;
-  }
-  body.phone-zen-mode .dpad{
-    width:var(--zen-pad-size)!important;
-    height:var(--zen-landscape-pad-height)!important;
-    grid-template-columns:repeat(3,var(--zen-landscape-arrow))!important;
-    grid-template-rows:repeat(2,var(--zen-landscape-arrow))!important;
-    grid-template-areas:". up ." "left down right"!important;
-    gap:9px!important;
-  }
-  body.phone-zen-mode .dpad button{
-    width:var(--zen-landscape-arrow)!important;
-    height:var(--zen-landscape-arrow)!important;
-    min-width:var(--zen-landscape-arrow)!important;
-    min-height:var(--zen-landscape-arrow)!important;
-    aspect-ratio:1/1!important;
-  }
-  body.phone-zen-mode .top-actions #restartBtn{
-    top:max(12px,env(safe-area-inset-top))!important;
-    bottom:auto!important;
-    right:calc(var(--zen-pad-right) + var(--zen-pad-size) - 48px)!important;
-    left:auto!important;
-  }
-  body.phone-zen-mode .top-actions #undoBtn{
-    top:max(12px,env(safe-area-inset-top))!important;
-    bottom:auto!important;
-    right:var(--zen-pad-right)!important;
-    left:auto!important;
-  }
-  body.phone-zen-mode .mobile-fullscreen-btn{
-    left:max(10px,env(safe-area-inset-left))!important;
-    right:auto!important;
-  }
-}
-
-
-/* BOXXY v194 — portrait phone Zen layout.
-   Keep the full animated background visible, reserve only the space needed for
-   the board and use four equal square arrow buttons close to the bottom edge. */
 @media (max-width:760px) and (pointer:coarse) and (orientation:portrait){
   html.phone-zen-mode{--max-cell:76px}
-  body.phone-zen-mode{
-    --zen-arrow-size:min(23vw,92px,12.5dvh);
-    --zen-arrow-gap:8px;
-    --zen-pad-width:calc((var(--zen-arrow-size) * 3) + (var(--zen-arrow-gap) * 2));
-    --zen-pad-height:calc((var(--zen-arrow-size) * 2) + var(--zen-arrow-gap));
-    --zen-pad-bottom:max(10px,env(safe-area-inset-bottom));
-    --zen-action-size:46px;
-  }
-
-  /* The background fills the whole phone. Padding reserves board space only. */
-  body.phone-zen-mode .board-wrap{
-    inset:0!important;
-    width:100%!important;
-    height:100%!important;
-    padding:
-      max(8px,env(safe-area-inset-top))
-      max(6px,env(safe-area-inset-right))
-      calc(var(--zen-pad-height) + var(--zen-pad-bottom) + 14px)
-      max(6px,env(safe-area-inset-left))!important;
-    background:linear-gradient(135deg,#f4ebdd,#eadcca)!important;
-  }
-
-  /* No panel or dock behind the controls. */
-  body.phone-zen-mode .side-panel,
-  body.phone-zen-mode .move-zone,
-  body.phone-zen-mode .top-actions,
-  body.phone-zen-mode .dpad{
-    background:transparent!important;
-    border:0!important;
-    box-shadow:none!important;
-  }
-
-  body.phone-zen-mode .move-zone{
-    width:var(--zen-pad-width)!important;
-    height:var(--zen-pad-height)!important;
-    left:50%!important;
-    right:auto!important;
-    top:auto!important;
-    bottom:var(--zen-pad-bottom)!important;
-    transform:translateX(-50%)!important;
-  }
-
-  body.phone-zen-mode .dpad{
-    width:var(--zen-pad-width)!important;
-    height:var(--zen-pad-height)!important;
-    aspect-ratio:auto!important;
-    display:grid!important;
-    grid-template-columns:repeat(3,var(--zen-arrow-size))!important;
-    grid-template-rows:repeat(2,var(--zen-arrow-size))!important;
-    grid-template-areas:". up ." "left down right"!important;
-    gap:var(--zen-arrow-gap)!important;
-    padding:0!important;
-  }
-
-  body.phone-zen-mode .dpad button{
-    width:var(--zen-arrow-size)!important;
-    height:var(--zen-arrow-size)!important;
-    min-width:var(--zen-arrow-size)!important;
-    min-height:var(--zen-arrow-size)!important;
-    aspect-ratio:1/1!important;
-    border-radius:13px!important;
-  }
-
-  body.phone-zen-mode .top-actions #restartBtn,
-  body.phone-zen-mode .top-actions #undoBtn{
-    width:var(--zen-action-size)!important;
-    height:var(--zen-action-size)!important;
-    min-width:var(--zen-action-size)!important;
-    min-height:var(--zen-action-size)!important;
-    top:auto!important;
-    bottom:calc(
-      var(--zen-pad-bottom) + var(--zen-arrow-size) + var(--zen-arrow-gap)
-      + ((var(--zen-arrow-size) - var(--zen-action-size)) / 2)
-    )!important;
-  }
-  body.phone-zen-mode .top-actions #restartBtn{
-    left:max(18px,env(safe-area-inset-left))!important;
-    right:auto!important;
-  }
-  body.phone-zen-mode .top-actions #undoBtn{
-    right:max(18px,env(safe-area-inset-right))!important;
-    left:auto!important;
-  }
-  body.phone-zen-mode .top-actions .action span{font-size:18px!important}
-  body.phone-zen-mode .top-actions .action b{font-size:7.5px!important}
 }
 
+@media (max-width:760px) and (pointer:coarse),
+       (max-height:520px) and (orientation:landscape) and (pointer:coarse){
+  body.phone-zen-mode .board:not(.zen-board-zoomed){
+    position:absolute;
+    margin:0;
+    transform:none;
+    transition:left 150ms cubic-bezier(.2,.7,.2,1),top 150ms cubic-bezier(.2,.7,.2,1);
+    will-change:left,top;
+  }
+}
+
+@media (max-width:760px) and (pointer:coarse),
+       (max-height:520px) and (orientation:landscape) and (pointer:coarse){
+  body.phone-zen-mode .board.zen-board-zoomed{
+    position:absolute;
+    top:0;
+    left:0;
+    margin:0;
+  }
+}
 
 /* BOXXY v195 — in-game legal modal and Zen completion continuation. */
 .legal-modal{z-index:11000;background:rgba(21,21,21,.58);backdrop-filter:blur(7px)}
@@ -4794,19 +4549,14 @@ body.maker-editor-fullscreen{overflow:hidden}
 .zen-next-btn[hidden]{display:none!important}
 .zen-next-btn b{width:28px;height:28px;display:grid;place-items:center;background:var(--yellow);color:var(--ink);font-size:19px}
 
-@media (max-width:760px) and (pointer:coarse) and (orientation:portrait){
+@media (max-width:760px) and (pointer:coarse),
+       (max-height:520px) and (orientation:landscape) and (pointer:coarse){
   body.phone-zen-mode .zen-next-btn{
-    left:50%;right:auto;top:auto;
-    bottom:calc(var(--zen-pad-height) + var(--zen-pad-bottom) + 16px);
+    left:50%;
+    right:auto;
+    top:max(10px,env(safe-area-inset-top));
+    bottom:auto;
     transform:translateX(-50%);
-  }
-}
-@media (max-height:520px) and (orientation:landscape) and (pointer:coarse){
-  body.phone-zen-mode .zen-next-btn{
-    left:auto;top:auto;
-    right:calc(var(--zen-pad-right) + var(--zen-landscape-arrow));
-    bottom:calc(var(--zen-landscape-pad-height) + var(--zen-pad-bottom) + 12px);
-    transform:none;
   }
 }
 @media(max-width:700px){
@@ -7892,66 +7642,12 @@ html.touch-ui .dpad button {
     min-height:44px;
   }
 }
-/* BOXXY v371: Zen's opt-in wider arrows grow LEFT/RIGHT spacing only.
-   The original row gap, board reservation and Restart/Undo positions stay put.
-   Make the transparent grid gaps pointer-transparent: the arrow-pad overlay
-   otherwise intercepts taps on the adjacent Restart and Undo buttons. */
-@media (max-width:760px) and (pointer:coarse),
-       (max-height:520px) and (orientation:landscape) and (pointer:coarse) {
-  body.phone-zen-mode .dpad {
-    pointer-events:none!important;
-    touch-action:none;
-    -webkit-touch-callout:none;
-    -webkit-user-select:none;
-    user-select:none;
-  }
-  body.phone-zen-mode .dpad button {
-    pointer-events:auto!important;
-    touch-action:none;
-    -webkit-touch-callout:none;
-    -webkit-user-select:none;
-    user-select:none;
-  }
-  body.phone-zen-mode .top-actions #restartBtn,
-  body.phone-zen-mode .top-actions #undoBtn {
-    touch-action:none;
-    -webkit-touch-callout:none;
-    -webkit-user-select:none;
-    user-select:none;
-  }
-}
-@media (max-width:760px) and (pointer:coarse) and (orientation:portrait) {
-  body.phone-zen-mode.spaced-arrow-controls {
-    --zen-horizontal-arrow-gap:clamp(30px,9vw,40px);
-    --zen-pad-width:calc((var(--zen-arrow-size) * 3) + (var(--zen-horizontal-arrow-gap) * 2));
-    /* --zen-pad-height still uses the original 8px vertical gap. */
-  }
-  body.phone-zen-mode.spaced-arrow-controls .dpad {
-    column-gap:var(--zen-horizontal-arrow-gap)!important;
-    row-gap:var(--zen-arrow-gap)!important;
-  }
-}
+/* BOXXY v371: keep the optional wider spacing for the standard phone controls.
+   v455's floating Zen keypad owns its own geometry. */
 @media (max-height:520px) and (orientation:landscape) and (pointer:coarse) {
   body.spaced-arrow-controls:not(.phone-zen-mode) .dpad {
     column-gap:clamp(13px,3vw,18px);
     row-gap:8px;
-  }
-  /* Landscape has a fixed board-side reservation. Fit wider horizontal gaps
-     inside the existing pad width instead of taking space from the puzzle. */
-  body.phone-zen-mode.spaced-arrow-controls .dpad {
-    grid-template-columns:repeat(3,minmax(0,1fr))!important;
-    grid-template-rows:repeat(2,max-content)!important;
-    column-gap:clamp(30px,5vw,40px)!important;
-    row-gap:9px!important;
-    align-content:end!important;
-  }
-  body.phone-zen-mode.spaced-arrow-controls .dpad button {
-    width:100%!important;
-    height:auto!important;
-    min-width:0!important;
-    min-height:0!important;
-    aspect-ratio:1/1!important;
-    align-self:end!important;
   }
 }
 

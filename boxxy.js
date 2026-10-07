@@ -1,4 +1,4 @@
-/* BOXXY v451: restore the original Indi/Oli selector-card geometry on all screen sizes while retaining live attire previews. */
+/* BOXXY v456: LARGE is the default phone Zen keypad size; saved player size preferences remain respected. */
 /* BOXXY v449: fitted rare-character modal portraits and decoded fixed-character frame warm-up prevent undersized previews and first-move flashing. */
 /* BOXXY v448: rare colour-key characters now select directly, repeat their discovery modal, and never reveal the PARTYGOERS family by themselves. */
 /* BOXXY v447: two super-rare PARTYGOERS unlock through exact Oli colour combinations, with live Indi/Oli selection-card previews. */
@@ -43,8 +43,8 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "451",
-  lastUpdated: "2026-10-06"
+  version: "456",
+  lastUpdated: "2026-10-07"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
 /* BOXXY v401: PARTYGOERS expands to twelve characters, its Easter egg toggles visibility, and Attire character previews are centred/clickable. */
@@ -3210,6 +3210,12 @@ window.BOXXY_RELEASE = Object.freeze({
   const zenZoomBtn = document.getElementById("zenZoomBtn");
   const zenCameraModeBtn = document.getElementById("zenCameraModeBtn");
   const zenNextBtn = document.getElementById("zenNextBtn");
+  const zenControlPanel = document.getElementById("zenControlPanel");
+  const zenControlDragHandle = document.getElementById("zenControlDragHandle");
+  const zenControlSizeBtn = document.getElementById("zenControlSizeBtn");
+  const zenControlMinimiseBtn = document.getElementById("zenControlMinimiseBtn");
+  const zenUndoBtn = document.getElementById("zenUndoBtn");
+  const zenRestartBtn = document.getElementById("zenRestartBtn");
   const legalBtn = document.getElementById("legalBtn");
   const legalModal = document.getElementById("legalModal");
   const legalCloseBtn = document.getElementById("legalCloseBtn");
@@ -3445,6 +3451,9 @@ window.BOXXY_RELEASE = Object.freeze({
   let firstPersonMotion = null;
   let firstPersonCameraZoom = 0;
   const ZEN_ZOOM_LEVELS = Object.freeze([1, 2, 4, 8]);
+  const ZEN_CONTROL_SIZES = Object.freeze(["small", "medium", "large"]);
+  const ZEN_CONTROL_SIZE_KEY = "boxxy-zen-control-size-v1";
+  const ZEN_IPHONE_FULLSCREEN_HINT_KEY = "boxxy-iphone-fullscreen-hint-v1";
   const ZEN_ZOOM_TARGET_VISIBLE_CELLS = 10;
   const ZEN_CAMERA_FOLLOW_DEAD_ZONE_X = 0.52;
   const ZEN_CAMERA_FOLLOW_DEAD_ZONE_Y = 0.58;
@@ -3457,6 +3466,7 @@ window.BOXXY_RELEASE = Object.freeze({
   let zenBaseBoardWidth = 0;
   let zenBaseBoardHeight = 0;
   let zenCameraGeometry = null;
+  let phoneZenBoardLayoutFrame = 0;
   const firstPersonAvatarImages = new Map();
   let currentAnimation = "idle";
   let thoughtTimer = null;
@@ -3694,16 +3704,8 @@ window.BOXXY_RELEASE = Object.freeze({
     );
     highestUnlockedLevel = Math.min(highestUnlockedLevel, Math.max(0, LEVELS.length - 1));
 
-    // The stored level is a resume pointer, not an instruction to replay a
-    // puzzle that is already complete. Reconcile older/stale saves once the
-    // completion set is known, while still allowing an explicit level-picker
-    // selection to load a completed puzzle afterwards.
-    const progressionIndex = progressionCurrentLevelIndex({
-      completed: completedLevels,
-      highestUnlocked: highestUnlockedLevel
-    }, LEVELS.length);
-    if (completedLevels.has(levelIndex) && progressionIndex >= 0) levelIndex = progressionIndex;
-
+    // The stored level is the last pack level the player actually viewed.
+    // Completion/unlock progress must not redirect that resume position.
     saveLevelProgress();
   }
 
@@ -6348,22 +6350,9 @@ window.BOXXY_RELEASE = Object.freeze({
     return -1;
   }
 
-  function activePackResumeLevelIndex() {
-    if (!LEVELS.length) return 0;
-    const displayedIndex = Math.max(0, Math.min(LEVELS.length - 1, Number(levelIndex) || 0));
-    if (!completed || dailyMode || makerTesting || sharedPuzzleMode) return displayedIndex;
-
-    const progressionIndex = progressionCurrentLevelIndex({
-      completed: completedLevels,
-      highestUnlocked: highestUnlockedLevel
-    }, LEVELS.length);
-    return progressionIndex >= 0
-      ? progressionIndex
-      : Math.max(0, Math.min(LEVELS.length - 1, highestUnlockedLevel));
-  }
-
   function persistActivePackResumeLevel() {
-    const storedIndex = activePackResumeLevelIndex();
+    if (!LEVELS.length) return;
+    const storedIndex = Math.max(0, Math.min(LEVELS.length - 1, Number(levelIndex) || 0));
     try {
       localStorage.setItem(currentLevelStorageKey(), String(storedIndex));
       if (activePack.id === "microban") localStorage.setItem("push-bauhaus-v33-level", String(storedIndex));
@@ -7567,10 +7556,165 @@ window.BOXXY_RELEASE = Object.freeze({
     else move(0, dy > 0 ? 1 : -1, animate);
   }
 
+  function clampZenControlPanel() {
+    if (!zenControlPanel || zenControlPanel.hidden || !phoneZenModeActive()) return;
+    if (zenControlPanel.dataset.customPosition !== "true") return;
+    const rect = zenControlPanel.getBoundingClientRect();
+    const margin = 8;
+    const maxLeft = Math.max(margin, window.innerWidth - rect.width - margin);
+    const maxTop = Math.max(margin, window.innerHeight - rect.height - margin);
+    const left = Math.min(maxLeft, Math.max(margin, rect.left));
+    const top = Math.min(maxTop, Math.max(margin, rect.top));
+    zenControlPanel.style.left = `${Math.round(left)}px`;
+    zenControlPanel.style.top = `${Math.round(top)}px`;
+    zenControlPanel.style.right = "auto";
+    zenControlPanel.style.bottom = "auto";
+  }
+
+  function setZenControlPanelPosition(left, top) {
+    if (!zenControlPanel) return;
+    zenControlPanel.dataset.customPosition = "true";
+    zenControlPanel.style.left = `${Math.round(left)}px`;
+    zenControlPanel.style.top = `${Math.round(top)}px`;
+    zenControlPanel.style.right = "auto";
+    zenControlPanel.style.bottom = "auto";
+    clampZenControlPanel();
+    schedulePhoneZenBoardLayout();
+  }
+
+  function phoneZenBoardOverlapArea(left, top, boardWidth, boardHeight, zone) {
+    const right = left + boardWidth;
+    const bottom = top + boardHeight;
+    const overlapWidth = Math.max(0, Math.min(right, zone.right) - Math.max(left, zone.left));
+    const overlapHeight = Math.max(0, Math.min(bottom, zone.bottom) - Math.max(top, zone.top));
+    return overlapWidth * overlapHeight;
+  }
+
+  function layoutPhoneZenBoard() {
+    if (!board || !boardWrap || !phoneZenModeActive() || firstPersonMode || currentZenZoom() > 1 || !zenBaseBoardWidth || !zenBaseBoardHeight) return;
+
+    const wrapStyle = getComputedStyle(boardWrap);
+    const wrapRect = boardWrap.getBoundingClientRect();
+    const contentLeft = parseFloat(wrapStyle.paddingLeft) || 0;
+    const contentTop = parseFloat(wrapStyle.paddingTop) || 0;
+    const contentRight = boardWrap.clientWidth - (parseFloat(wrapStyle.paddingRight) || 0);
+    const contentBottom = boardWrap.clientHeight - (parseFloat(wrapStyle.paddingBottom) || 0);
+    const contentWidth = Math.max(1, contentRight - contentLeft);
+    const contentHeight = Math.max(1, contentBottom - contentTop);
+    const boardWidth = Math.min(zenBaseBoardWidth, contentWidth);
+    const boardHeight = Math.min(zenBaseBoardHeight, contentHeight);
+    const minLeft = contentLeft;
+    const maxLeft = Math.max(minLeft, contentRight - boardWidth);
+    const minTop = contentTop;
+    const maxTop = Math.max(minTop, contentBottom - boardHeight);
+    const centreLeft = Math.min(maxLeft, Math.max(minLeft, contentLeft + (contentWidth - boardWidth) / 2));
+    const centreTop = Math.min(maxTop, Math.max(minTop, contentTop + (contentHeight - boardHeight) / 2));
+
+    let bestLeft = centreLeft;
+    let bestTop = centreTop;
+
+    if (zenControlPanel && !zenControlPanel.hidden && !zenControlPanel.classList.contains("is-minimised")) {
+      const panelRect = zenControlPanel.getBoundingClientRect();
+      const clearance = 10;
+      const zone = {
+        left: panelRect.left - wrapRect.left - clearance,
+        top: panelRect.top - wrapRect.top - clearance,
+        right: panelRect.right - wrapRect.left + clearance,
+        bottom: panelRect.bottom - wrapRect.top + clearance
+      };
+      const clampLeft = value => Math.min(maxLeft, Math.max(minLeft, value));
+      const clampTop = value => Math.min(maxTop, Math.max(minTop, value));
+      const candidates = [
+        [centreLeft, centreTop],
+        [clampLeft(zone.left - boardWidth), centreTop],
+        [clampLeft(zone.right), centreTop],
+        [centreLeft, clampTop(zone.top - boardHeight)],
+        [centreLeft, clampTop(zone.bottom)]
+      ];
+      let bestScore = Infinity;
+      for (const [left, top] of candidates) {
+        const overlap = phoneZenBoardOverlapArea(left, top, boardWidth, boardHeight, zone);
+        const dx = left - centreLeft;
+        const dy = top - centreTop;
+        const score = overlap * 1000000 + dx * dx + dy * dy;
+        if (score < bestScore) {
+          bestScore = score;
+          bestLeft = left;
+          bestTop = top;
+        }
+      }
+    }
+
+    board.style.left = `${Math.round(bestLeft)}px`;
+    board.style.top = `${Math.round(bestTop)}px`;
+    board.style.transform = "none";
+  }
+
+  function schedulePhoneZenBoardLayout() {
+    if (phoneZenBoardLayoutFrame) return;
+    phoneZenBoardLayoutFrame = requestAnimationFrame(() => {
+      phoneZenBoardLayoutFrame = 0;
+      layoutPhoneZenBoard();
+    });
+  }
+
+  function setZenControlPanelMinimised(minimised) {
+    if (!zenControlPanel || !zenControlMinimiseBtn) return;
+    const collapsed = Boolean(minimised);
+    zenControlPanel.classList.toggle("is-minimised", collapsed);
+    zenControlMinimiseBtn.textContent = collapsed ? "+" : "−";
+    zenControlMinimiseBtn.setAttribute("aria-expanded", String(!collapsed));
+    zenControlMinimiseBtn.setAttribute("aria-label", collapsed ? "Show controls" : "Minimise controls");
+    zenControlMinimiseBtn.title = collapsed ? "Show controls" : "Minimise controls";
+    requestAnimationFrame(() => {
+      clampZenControlPanel();
+      scheduleBoardResize();
+    });
+  }
+
+  function normaliseZenControlSize(value) {
+    const size = String(value || "").trim().toLowerCase();
+    return ZEN_CONTROL_SIZES.includes(size) ? size : "large";
+  }
+
+  function readZenControlSize() {
+    try { return normaliseZenControlSize(localStorage.getItem(ZEN_CONTROL_SIZE_KEY)); }
+    catch (_) { return "large"; }
+  }
+
+  function applyZenControlSize(value, persist = true) {
+    if (!zenControlPanel) return;
+    const size = normaliseZenControlSize(value);
+    zenControlPanel.dataset.size = size;
+    if (zenControlSizeBtn) {
+      const label = size === "small" ? "S" : size === "large" ? "L" : "M";
+      zenControlSizeBtn.textContent = label;
+      zenControlSizeBtn.setAttribute("aria-label", `Control size: ${size}. Change size.`);
+      zenControlSizeBtn.title = `Control size: ${size}`;
+    }
+    if (persist) {
+      try { localStorage.setItem(ZEN_CONTROL_SIZE_KEY, size); } catch (_) {}
+    }
+    requestAnimationFrame(() => {
+      clampZenControlPanel();
+      scheduleBoardResize();
+    });
+  }
+
+  function cycleZenControlSize() {
+    if (!zenControlPanel) return;
+    const current = normaliseZenControlSize(zenControlPanel.dataset.size);
+    const next = ZEN_CONTROL_SIZES[(ZEN_CONTROL_SIZES.indexOf(current) + 1) % ZEN_CONTROL_SIZES.length];
+    applyZenControlSize(next);
+  }
+
+  applyZenControlSize(readZenControlSize(), false);
+
   function setPhoneZenMode(active) {
     const enabled = Boolean(active && phoneFullscreenLayout());
     document.documentElement.classList.toggle("phone-zen-mode", enabled);
     document.body.classList.toggle("phone-zen-mode", enabled);
+    if (zenControlPanel) zenControlPanel.hidden = !enabled;
 
     if (enabled) {
       if (!document.body.classList.contains("konami-background")) {
@@ -7578,6 +7722,7 @@ window.BOXXY_RELEASE = Object.freeze({
         phoneZenActivatedKonamiMotion = true;
       }
       try { window.scrollTo({ top: 0, left: 0, behavior: "instant" }); } catch (_) { window.scrollTo(0, 0); }
+      requestAnimationFrame(clampZenControlPanel);
     } else if (phoneZenActivatedKonamiMotion) {
       document.body.classList.remove("konami-background");
       phoneZenActivatedKonamiMotion = false;
@@ -7608,7 +7753,7 @@ window.BOXXY_RELEASE = Object.freeze({
     }
     const applePhone = /iPhone|iPod/i.test(navigator.userAgent);
     hint.textContent = applePhone
-      ? "For full screen on iPhone: tap Share, choose Add to Home Screen, then open BOXXY from its icon."
+      ? "For a better experience on iPhone, tap Share, choose Add to Home Screen, then open BOXXY from its icon."
       : "This browser cannot enter full screen. Add BOXXY to your Home screen and open it from its icon.";
     hint.classList.remove("show");
     requestAnimationFrame(() => hint.classList.add("show"));
@@ -7656,7 +7801,16 @@ window.BOXXY_RELEASE = Object.freeze({
 
   async function toggleFullscreen() {
     if (phoneFullscreenLayout()) {
-      setPhoneZenMode(!phoneZenModeActive());
+      const enteringZen = !phoneZenModeActive();
+      setPhoneZenMode(enteringZen);
+      if (enteringZen && /iPhone|iPod/i.test(navigator.userAgent) && !standaloneDisplayMode()) {
+        let shouldShowHint = true;
+        try {
+          shouldShowHint = sessionStorage.getItem(ZEN_IPHONE_FULLSCREEN_HINT_KEY) !== "shown";
+          if (shouldShowHint) sessionStorage.setItem(ZEN_IPHONE_FULLSCREEN_HINT_KEY, "shown");
+        } catch (_) {}
+        if (shouldShowHint) window.setTimeout(showMobileFullscreenHint, 220);
+      }
       return;
     }
 
@@ -7701,7 +7855,10 @@ window.BOXXY_RELEASE = Object.freeze({
     if (zenModeActive()) {
       updateZenZoomButton();
       if (zoom > 1) scheduleZenZoomFocus();
-      else clearZenZoomTransform();
+      else {
+        clearZenZoomTransform();
+        if (phoneZenModeActive()) layoutPhoneZenBoard();
+      }
     }
   }
 
@@ -8414,15 +8571,17 @@ window.BOXXY_RELEASE = Object.freeze({
   desktopTrophiesBtn?.addEventListener("click", openTrophyCabinet);
   desktopDailyBtn?.addEventListener("click", openDailyArchive);
   syncDesktopUtilityToggles();
-  function syncDesktopBoardActionState() {
+  function syncMirroredBoardActionState() {
     if (desktopUndoBtn && undoBtn) desktopUndoBtn.disabled = Boolean(undoBtn.disabled);
     if (desktopRestartBtn && restartBtn) desktopRestartBtn.disabled = Boolean(restartBtn.disabled);
+    if (zenUndoBtn && undoBtn) zenUndoBtn.disabled = Boolean(undoBtn.disabled);
+    if (zenRestartBtn && restartBtn) zenRestartBtn.disabled = Boolean(restartBtn.disabled);
   }
-  syncDesktopBoardActionState();
+  syncMirroredBoardActionState();
   if (window.MutationObserver) {
-    const desktopActionStateObserver = new MutationObserver(syncDesktopBoardActionState);
-    if (undoBtn) desktopActionStateObserver.observe(undoBtn, { attributes: true, attributeFilter: ["disabled"] });
-    if (restartBtn) desktopActionStateObserver.observe(restartBtn, { attributes: true, attributeFilter: ["disabled"] });
+    const boardActionStateObserver = new MutationObserver(syncMirroredBoardActionState);
+    if (undoBtn) boardActionStateObserver.observe(undoBtn, { attributes: true, attributeFilter: ["disabled"] });
+    if (restartBtn) boardActionStateObserver.observe(restartBtn, { attributes: true, attributeFilter: ["disabled"] });
   }
   window.addEventListener("resize", syncDesktopUtilityState, { passive: true });
 
@@ -11413,12 +11572,10 @@ window.BOXXY_RELEASE = Object.freeze({
   // touch release from triggering iOS Safari's native double-tap magnifier/zoom.
   // Keep this local to the pad: text fields, page gestures and touch-board
   // controls retain their existing behaviour.
-  const arrowPad = document.querySelector(".dpad");
-  if (arrowPad) {
+  document.querySelectorAll(".dpad, .zen-control-grid").forEach(arrowPad => {
     // Safari may magnify text or zoom on the SECOND touch before touchend.
     // Gameplay is already handled by pointerdown/up. Prevent native defaults
-    // at touchstart on Zen arrow BUTTONS, including quick repeated presses.
-    // Transparent pad gaps remain available for Zen's swipe-anywhere handler.
+    // at touchstart on movement buttons, including quick repeated presses.
     arrowPad.addEventListener("touchstart", event => {
       if (!document.body.classList.contains("phone-zen-mode")) return;
       if (event.touches.length !== 1 || !event.target.closest?.("[data-dir]")) return;
@@ -11436,7 +11593,7 @@ window.BOXXY_RELEASE = Object.freeze({
     }, { passive: false });
     arrowPad.addEventListener("dblclick", event => event.preventDefault());
     arrowPad.addEventListener("contextmenu", event => event.preventDefault());
-  }
+  });
   document.querySelectorAll("[data-dir]").forEach(button => {
     let activePointerId = null;
     let repeatDelay = 0;
@@ -11672,12 +11829,18 @@ window.BOXXY_RELEASE = Object.freeze({
     document.body.classList.toggle("touch-click-push-enabled", settingsTouchDevice() && touchClickPushEnabled);
     updateFullscreenButton();
     scheduleBoardResize();
+    requestAnimationFrame(clampZenControlPanel);
   });
   window.addEventListener("orientationchange", () => {
-    window.setTimeout(() => { updateFullscreenButton(); scheduleBoardResize(); }, 80);
+    window.setTimeout(() => {
+      updateFullscreenButton();
+      scheduleBoardResize();
+      clampZenControlPanel();
+    }, 80);
   });
 
-  {
+  function bindUndoControl(control, allowZenScreenSwipe = false) {
+    if (!control) return;
     let activePointerId = null;
     let repeatDelay = 0;
     let repeatTimer = 0;
@@ -11697,14 +11860,14 @@ window.BOXXY_RELEASE = Object.freeze({
       undo();
     };
 
-    undoBtn.addEventListener("pointerdown", event => {
-      if (phoneZenTouchPointer(event)) return;
+    control.addEventListener("pointerdown", event => {
+      if (allowZenScreenSwipe && phoneZenTouchPointer(event)) return;
       event.preventDefault();
-      if (activePointerId !== null || undoBtn.disabled) return;
+      if (activePointerId !== null || control.disabled) return;
       activePointerId = event.pointerId;
 
       ensureAudio();
-      undoBtn.setPointerCapture?.(event.pointerId);
+      control.setPointerCapture?.(event.pointerId);
       performUndo();
 
       // Match held direction controls: pause briefly, then repeat while held.
@@ -11721,19 +11884,22 @@ window.BOXXY_RELEASE = Object.freeze({
       activePointerId = null;
     };
 
-    undoBtn.addEventListener("pointerup", releaseUndoButton);
-    undoBtn.addEventListener("pointercancel", releaseUndoButton);
-    undoBtn.addEventListener("lostpointercapture", releaseUndoButton);
-    undoBtn.addEventListener("pointerleave", event => {
+    control.addEventListener("pointerup", releaseUndoButton);
+    control.addEventListener("pointercancel", releaseUndoButton);
+    control.addEventListener("lostpointercapture", releaseUndoButton);
+    control.addEventListener("pointerleave", event => {
       if (event.pointerType === "mouse") releaseUndoButton(event);
     });
 
     // Pointer presses undo on pointerdown; keyboard/assistive activation still uses click.
-    undoBtn.addEventListener("click", event => {
+    control.addEventListener("click", event => {
       event.preventDefault();
       if (event.detail === 0) undo();
     });
   }
+
+  bindUndoControl(undoBtn, true);
+  bindUndoControl(zenUndoBtn);
   savePositionBtn?.addEventListener("click", saveOrRestorePosition);
   restartBtn.addEventListener("click", () => {
     if (makerTesting || sharedPuzzleMode) restartMakerTest();
@@ -11748,6 +11914,56 @@ window.BOXXY_RELEASE = Object.freeze({
       loadLevel(levelIndex);
     }
   });
+  zenRestartBtn?.addEventListener("click", () => restartBtn?.click());
+  zenControlSizeBtn?.addEventListener("click", event => {
+    event.preventDefault();
+    event.stopPropagation();
+    cycleZenControlSize();
+  });
+  zenControlMinimiseBtn?.addEventListener("click", event => {
+    event.preventDefault();
+    event.stopPropagation();
+    setZenControlPanelMinimised(!zenControlPanel?.classList.contains("is-minimised"));
+  });
+
+  {
+    let drag = null;
+
+    const endZenControlDrag = event => {
+      if (!drag || (event?.pointerId !== undefined && event.pointerId !== drag.id)) return;
+      drag = null;
+      zenControlPanel?.classList.remove("is-dragging");
+      try { zenControlDragHandle?.releasePointerCapture?.(event.pointerId); } catch (_) {}
+      clampZenControlPanel();
+      schedulePhoneZenBoardLayout();
+    };
+
+    zenControlDragHandle?.addEventListener("pointerdown", event => {
+      if (event.isPrimary === false || event.target.closest?.("button")) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const rect = zenControlPanel?.getBoundingClientRect();
+      if (!rect) return;
+      setZenControlPanelPosition(rect.left, rect.top);
+      drag = {
+        id: event.pointerId,
+        offsetX: event.clientX - rect.left,
+        offsetY: event.clientY - rect.top
+      };
+      zenControlPanel.classList.add("is-dragging");
+      zenControlDragHandle.setPointerCapture?.(event.pointerId);
+    });
+
+    zenControlDragHandle?.addEventListener("pointermove", event => {
+      if (!drag || event.pointerId !== drag.id) return;
+      event.preventDefault();
+      setZenControlPanelPosition(event.clientX - drag.offsetX, event.clientY - drag.offsetY);
+    }, { passive: false });
+
+    zenControlDragHandle?.addEventListener("pointerup", endZenControlDrag);
+    zenControlDragHandle?.addEventListener("pointercancel", endZenControlDrag);
+    zenControlDragHandle?.addEventListener("lostpointercapture", endZenControlDrag);
+  }
   soundBtn?.addEventListener("click", () => {
     if (konamiShowcaseActive) return;
     soundOn = !soundOn;
@@ -12140,6 +12356,7 @@ window.BOXXY_RELEASE = Object.freeze({
     if (event.isPrimary === false) return;
 
     const target = event.target instanceof Element ? event.target : null;
+    if (target?.closest?.(".zen-control-panel")) return;
     // Direction controls have their own integrated tap/hold/swipe handler so
     // they retain BOXXY's original held-button repeat behaviour.
     if (target?.closest?.("[data-dir]")) return;

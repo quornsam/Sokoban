@@ -161,7 +161,7 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=451">
+<link rel="stylesheet" href="styles.css?v=456">
 <link rel="stylesheet" href="how-to-play.css?v=225">
 <link rel="preload" as="image" href="assets/board/boxes/box-default-yellow.png?v=226">
 <link rel="preload" as="image" href="assets/board/goals/goal-red.png?v=226">
@@ -251,6 +251,22 @@
       <button id="zenNextBtn" class="zen-next-btn" type="button" hidden aria-label="Go to next level">
         <span>NEXT LEVEL</span><b aria-hidden="true">→</b>
       </button>
+      <div id="zenControlPanel" class="zen-control-panel" hidden aria-label="Zen movement controls">
+        <div id="zenControlDragHandle" class="zen-control-panel-head">
+          <span class="zen-control-grip" aria-hidden="true">•••</span>
+          <b>CONTROLS</b>
+          <button id="zenControlSizeBtn" class="zen-control-size" type="button" aria-label="Control size: large. Change size." title="Change control size">L</button>
+          <button id="zenControlMinimiseBtn" class="zen-control-minimise" type="button" aria-label="Minimise controls" aria-expanded="true" title="Minimise controls">−</button>
+        </div>
+        <div class="zen-control-grid" aria-label="Movement controls">
+          <button id="zenUndoBtn" class="zen-control-key zen-control-undo" type="button" aria-label="Undo last move"><span aria-hidden="true">↶</span><b>UNDO</b></button>
+          <button class="zen-control-key zen-control-direction" data-dir="up" type="button" aria-label="Move up"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3 22 17H2Z"/></svg></button>
+          <button id="zenRestartBtn" class="zen-control-key zen-control-restart" type="button" aria-label="Restart level"><span aria-hidden="true">↻</span><b>RESTART</b></button>
+          <button class="zen-control-key zen-control-direction" data-dir="left" type="button" aria-label="Move left"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 12 17 2v20Z"/></svg></button>
+          <button class="zen-control-key zen-control-direction" data-dir="down" type="button" aria-label="Move down"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2 7h20L12 21Z"/></svg></button>
+          <button class="zen-control-key zen-control-direction" data-dir="right" type="button" aria-label="Move right"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m21 12-14 10V2Z"/></svg></button>
+        </div>
+      </div>
       <button id="cancelGuidedBtn" class="cancel-guided-btn" type="button" hidden aria-label="Stop guided solve">
         <span aria-hidden="true">■</span><b>STOP GUIDED SOLVE</b><small>ESC</small>
       </button>
@@ -1597,7 +1613,7 @@
 <script src="daily-puzzles/boxxy-daily-loader.js?v=357"></script>
 <script src="levels.js?v=372"></script>
 <script src="starry-night.js?v=302"></script>
-<script src="boxxy.js?v=451"></script>
+<script src="boxxy.js?v=456"></script>
 <script src="attempt-history.js?v=428"></script>
 <script src="attempt-history-ui.js?v=428"></script>
 <script src="account.js?v=428"></script>
