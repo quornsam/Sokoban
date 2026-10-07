@@ -1,4 +1,4 @@
-/* BOXXY v453: refine phone Zen layout, resizable compact keypad and iPhone standalone guidance. */
+/* BOXXY v454: adaptive phone Zen board placement, wider keypad size range and softer iPhone standalone guidance. */
 /* BOXXY v449: fitted rare-character modal portraits and decoded fixed-character frame warm-up prevent undersized previews and first-move flashing. */
 /* BOXXY v448: rare colour-key characters now select directly, repeat their discovery modal, and never reveal the PARTYGOERS family by themselves. */
 /* BOXXY v447: two super-rare PARTYGOERS unlock through exact Oli colour combinations, with live Indi/Oli selection-card previews. */
@@ -43,7 +43,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "453",
+  version: "454",
   lastUpdated: "2026-10-07"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
@@ -7580,6 +7580,74 @@ window.BOXXY_RELEASE = Object.freeze({
     clampZenControlPanel();
   }
 
+  function phoneZenBoardOverlapArea(left, top, boardWidth, boardHeight, zone) {
+    const right = left + boardWidth;
+    const bottom = top + boardHeight;
+    const overlapWidth = Math.max(0, Math.min(right, zone.right) - Math.max(left, zone.left));
+    const overlapHeight = Math.max(0, Math.min(bottom, zone.bottom) - Math.max(top, zone.top));
+    return overlapWidth * overlapHeight;
+  }
+
+  function layoutPhoneZenBoard() {
+    if (!board || !boardWrap || !phoneZenModeActive() || firstPersonMode || currentZenZoom() > 1 || !zenBaseBoardWidth || !zenBaseBoardHeight) return;
+
+    const wrapStyle = getComputedStyle(boardWrap);
+    const wrapRect = boardWrap.getBoundingClientRect();
+    const contentLeft = parseFloat(wrapStyle.paddingLeft) || 0;
+    const contentTop = parseFloat(wrapStyle.paddingTop) || 0;
+    const contentRight = boardWrap.clientWidth - (parseFloat(wrapStyle.paddingRight) || 0);
+    const contentBottom = boardWrap.clientHeight - (parseFloat(wrapStyle.paddingBottom) || 0);
+    const contentWidth = Math.max(1, contentRight - contentLeft);
+    const contentHeight = Math.max(1, contentBottom - contentTop);
+    const boardWidth = Math.min(zenBaseBoardWidth, contentWidth);
+    const boardHeight = Math.min(zenBaseBoardHeight, contentHeight);
+    const minLeft = contentLeft;
+    const maxLeft = Math.max(minLeft, contentRight - boardWidth);
+    const minTop = contentTop;
+    const maxTop = Math.max(minTop, contentBottom - boardHeight);
+    const centreLeft = Math.min(maxLeft, Math.max(minLeft, contentLeft + (contentWidth - boardWidth) / 2));
+    const centreTop = Math.min(maxTop, Math.max(minTop, contentTop + (contentHeight - boardHeight) / 2));
+
+    let bestLeft = centreLeft;
+    let bestTop = centreTop;
+
+    if (zenControlPanel && !zenControlPanel.hidden && !zenControlPanel.classList.contains("is-minimised")) {
+      const panelRect = zenControlPanel.getBoundingClientRect();
+      const clearance = 10;
+      const zone = {
+        left: panelRect.left - wrapRect.left - clearance,
+        top: panelRect.top - wrapRect.top - clearance,
+        right: panelRect.right - wrapRect.left + clearance,
+        bottom: panelRect.bottom - wrapRect.top + clearance
+      };
+      const clampLeft = value => Math.min(maxLeft, Math.max(minLeft, value));
+      const clampTop = value => Math.min(maxTop, Math.max(minTop, value));
+      const candidates = [
+        [centreLeft, centreTop],
+        [clampLeft(zone.left - boardWidth), centreTop],
+        [clampLeft(zone.right), centreTop],
+        [centreLeft, clampTop(zone.top - boardHeight)],
+        [centreLeft, clampTop(zone.bottom)]
+      ];
+      let bestScore = Infinity;
+      for (const [left, top] of candidates) {
+        const overlap = phoneZenBoardOverlapArea(left, top, boardWidth, boardHeight, zone);
+        const dx = left - centreLeft;
+        const dy = top - centreTop;
+        const score = overlap * 1000000 + dx * dx + dy * dy;
+        if (score < bestScore) {
+          bestScore = score;
+          bestLeft = left;
+          bestTop = top;
+        }
+      }
+    }
+
+    board.style.left = `${Math.round(bestLeft)}px`;
+    board.style.top = `${Math.round(bestTop)}px`;
+    board.style.transform = "none";
+  }
+
   function setZenControlPanelMinimised(minimised) {
     if (!zenControlPanel || !zenControlMinimiseBtn) return;
     const collapsed = Boolean(minimised);
@@ -7588,7 +7656,10 @@ window.BOXXY_RELEASE = Object.freeze({
     zenControlMinimiseBtn.setAttribute("aria-expanded", String(!collapsed));
     zenControlMinimiseBtn.setAttribute("aria-label", collapsed ? "Show controls" : "Minimise controls");
     zenControlMinimiseBtn.title = collapsed ? "Show controls" : "Minimise controls";
-    requestAnimationFrame(clampZenControlPanel);
+    requestAnimationFrame(() => {
+      clampZenControlPanel();
+      scheduleBoardResize();
+    });
   }
 
   function normaliseZenControlSize(value) {
@@ -7614,7 +7685,10 @@ window.BOXXY_RELEASE = Object.freeze({
     if (persist) {
       try { localStorage.setItem(ZEN_CONTROL_SIZE_KEY, size); } catch (_) {}
     }
-    requestAnimationFrame(clampZenControlPanel);
+    requestAnimationFrame(() => {
+      clampZenControlPanel();
+      scheduleBoardResize();
+    });
   }
 
   function cycleZenControlSize() {
@@ -7669,7 +7743,7 @@ window.BOXXY_RELEASE = Object.freeze({
     }
     const applePhone = /iPhone|iPod/i.test(navigator.userAgent);
     hint.textContent = applePhone
-      ? "For full screen on iPhone: tap Share, choose Add to Home Screen, then open BOXXY from its icon."
+      ? "For a better experience on iPhone, tap Share, choose Add to Home Screen, then open BOXXY from its icon."
       : "This browser cannot enter full screen. Add BOXXY to your Home screen and open it from its icon.";
     hint.classList.remove("show");
     requestAnimationFrame(() => hint.classList.add("show"));
@@ -7771,7 +7845,10 @@ window.BOXXY_RELEASE = Object.freeze({
     if (zenModeActive()) {
       updateZenZoomButton();
       if (zoom > 1) scheduleZenZoomFocus();
-      else clearZenZoomTransform();
+      else {
+        clearZenZoomTransform();
+        if (phoneZenModeActive()) layoutPhoneZenBoard();
+      }
     }
   }
 

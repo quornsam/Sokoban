@@ -1,4 +1,4 @@
-/* BOXXY v453 — compact resizable phone Zen keypad, deliberate board anchoring and iPhone standalone guidance. */
+/* BOXXY v454 — adaptive phone Zen board placement, wider keypad size range and softer iPhone standalone guidance. */
 /* BOXXY v449 — rare-character modal portraits use opaque-bound fitting; fixed-character frame warm-up is handled in the renderer. */
 /* BOXXY v448 — rare-character modal uses the fixed sprite sheet directly and rare colour keys no longer expose PARTYGOERS. */
 /* BOXXY v447 — live Indi/Oli selector previews and super-rare character unlock modal. */
@@ -4268,7 +4268,7 @@ body.maker-editor-fullscreen{overflow:hidden}
   .top-actions #undoBtn{grid-column:3;grid-row:1}
 }
 
-/* BOXXY v453 — phone Zen keeps controls floating while giving the board a deliberate portrait/landscape anchor. */
+/* BOXXY v454 — phone Zen keeps controls floating and only biases the board away when the keypad would cover it. */
 .zen-control-panel{
   --zen-control-size:48px;
   display:none;
@@ -4289,8 +4289,8 @@ body.maker-editor-fullscreen{overflow:hidden}
   -webkit-user-select:none;
 }
 .zen-control-panel[data-size="small"]{--zen-control-size:40px}
-.zen-control-panel[data-size="medium"]{--zen-control-size:48px}
-.zen-control-panel[data-size="large"]{--zen-control-size:58px}
+.zen-control-panel[data-size="medium"]{--zen-control-size:clamp(56px,16vw,66px)}
+.zen-control-panel[data-size="large"]{--zen-control-size:clamp(72px,23vw,90px)}
 .zen-control-panel[hidden]{display:none!important}
 .zen-control-panel-head{
   height:28px;
@@ -4476,20 +4476,12 @@ body.maker-editor-fullscreen{overflow:hidden}
 
 @media (max-width:760px) and (pointer:coarse) and (orientation:portrait){
   html.phone-zen-mode{--max-cell:76px}
-  body.phone-zen-mode .board:not(.zen-board-zoomed){
-    position:absolute;
-    top:max(8px,env(safe-area-inset-top));
-    left:50%;
-    margin:0;
-    transform:translateX(-50%);
-  }
 }
 
-@media (max-height:520px) and (orientation:landscape) and (pointer:coarse){
+@media (max-width:760px) and (pointer:coarse),
+       (max-height:520px) and (orientation:landscape) and (pointer:coarse){
   body.phone-zen-mode .board:not(.zen-board-zoomed){
     position:absolute;
-    top:max(8px,env(safe-area-inset-top));
-    left:max(8px,env(safe-area-inset-left));
     margin:0;
     transform:none;
   }
@@ -7641,7 +7633,7 @@ html.touch-ui .dpad button {
   }
 }
 /* BOXXY v371: keep the optional wider spacing for the standard phone controls.
-   v453's floating Zen keypad owns its compact geometry. */
+   v454's floating Zen keypad owns its own geometry. */
 @media (max-height:520px) and (orientation:landscape) and (pointer:coarse) {
   body.spaced-arrow-controls:not(.phone-zen-mode) .dpad {
     column-gap:clamp(13px,3vw,18px);
