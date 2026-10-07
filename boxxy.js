@@ -1,4 +1,4 @@
-/* BOXXY v455: live draggable Zen avoidance, smooth board repositioning and small-keypad label refinement. */
+/* BOXXY v456: LARGE is the default phone Zen keypad size; saved player size preferences remain respected. */
 /* BOXXY v449: fitted rare-character modal portraits and decoded fixed-character frame warm-up prevent undersized previews and first-move flashing. */
 /* BOXXY v448: rare colour-key characters now select directly, repeat their discovery modal, and never reveal the PARTYGOERS family by themselves. */
 /* BOXXY v447: two super-rare PARTYGOERS unlock through exact Oli colour combinations, with live Indi/Oli selection-card previews. */
@@ -43,7 +43,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "455",
+  version: "456",
   lastUpdated: "2026-10-07"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
@@ -7674,12 +7674,12 @@ window.BOXXY_RELEASE = Object.freeze({
 
   function normaliseZenControlSize(value) {
     const size = String(value || "").trim().toLowerCase();
-    return ZEN_CONTROL_SIZES.includes(size) ? size : "medium";
+    return ZEN_CONTROL_SIZES.includes(size) ? size : "large";
   }
 
   function readZenControlSize() {
     try { return normaliseZenControlSize(localStorage.getItem(ZEN_CONTROL_SIZE_KEY)); }
-    catch (_) { return "medium"; }
+    catch (_) { return "large"; }
   }
 
   function applyZenControlSize(value, persist = true) {
