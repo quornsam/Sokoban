@@ -1,4 +1,4 @@
-/* BOXXY v454 — adaptive phone Zen board placement, wider keypad size range and softer iPhone standalone guidance. */
+/* BOXXY v455 — live draggable Zen avoidance, smooth board repositioning and small-keypad label refinement. */
 /* BOXXY v449 — rare-character modal portraits use opaque-bound fitting; fixed-character frame warm-up is handled in the renderer. */
 /* BOXXY v448 — rare-character modal uses the fixed sprite sheet directly and rare colour keys no longer expose PARTYGOERS. */
 /* BOXXY v447 — live Indi/Oli selector previews and super-rare character unlock modal. */
@@ -4268,7 +4268,7 @@ body.maker-editor-fullscreen{overflow:hidden}
   .top-actions #undoBtn{grid-column:3;grid-row:1}
 }
 
-/* BOXXY v454 — phone Zen keeps controls floating and only biases the board away when the keypad would cover it. */
+/* BOXXY v455 — phone Zen keeps controls floating and repositions the board live as the keypad moves. */
 .zen-control-panel{
   --zen-control-size:48px;
   display:none;
@@ -4379,6 +4379,14 @@ body.maker-editor-fullscreen{overflow:hidden}
   line-height:1;
   letter-spacing:.05em;
 }
+.zen-control-panel[data-size="small"] .zen-control-restart>b{
+  margin-top:-2px;
+  font-size:5.25px;
+  letter-spacing:0;
+}
+.zen-control-panel[data-size="small"] .zen-control-restart>span{
+  font-size:18px;
+}
 .zen-control-undo{grid-area:undo;background:linear-gradient(rgba(225,75,50,.97),rgba(201,46,31,.97));color:#fff}
 .zen-control-restart{grid-area:restart}
 .zen-control-direction[data-dir=up]{grid-area:up}
@@ -4484,6 +4492,8 @@ body.maker-editor-fullscreen{overflow:hidden}
     position:absolute;
     margin:0;
     transform:none;
+    transition:left 150ms cubic-bezier(.2,.7,.2,1),top 150ms cubic-bezier(.2,.7,.2,1);
+    will-change:left,top;
   }
 }
 
@@ -7633,7 +7643,7 @@ html.touch-ui .dpad button {
   }
 }
 /* BOXXY v371: keep the optional wider spacing for the standard phone controls.
-   v454's floating Zen keypad owns its own geometry. */
+   v455's floating Zen keypad owns its own geometry. */
 @media (max-height:520px) and (orientation:landscape) and (pointer:coarse) {
   body.spaced-arrow-controls:not(.phone-zen-mode) .dpad {
     column-gap:clamp(13px,3vw,18px);

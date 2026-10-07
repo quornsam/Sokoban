@@ -1,4 +1,4 @@
-/* BOXXY v454: adaptive phone Zen board placement, wider keypad size range and softer iPhone standalone guidance. */
+/* BOXXY v455: live draggable Zen avoidance, smooth board repositioning and small-keypad label refinement. */
 /* BOXXY v449: fitted rare-character modal portraits and decoded fixed-character frame warm-up prevent undersized previews and first-move flashing. */
 /* BOXXY v448: rare colour-key characters now select directly, repeat their discovery modal, and never reveal the PARTYGOERS family by themselves. */
 /* BOXXY v447: two super-rare PARTYGOERS unlock through exact Oli colour combinations, with live Indi/Oli selection-card previews. */
@@ -43,7 +43,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "454",
+  version: "455",
   lastUpdated: "2026-10-07"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
@@ -3466,6 +3466,7 @@ window.BOXXY_RELEASE = Object.freeze({
   let zenBaseBoardWidth = 0;
   let zenBaseBoardHeight = 0;
   let zenCameraGeometry = null;
+  let phoneZenBoardLayoutFrame = 0;
   const firstPersonAvatarImages = new Map();
   let currentAnimation = "idle";
   let thoughtTimer = null;
@@ -7578,6 +7579,7 @@ window.BOXXY_RELEASE = Object.freeze({
     zenControlPanel.style.right = "auto";
     zenControlPanel.style.bottom = "auto";
     clampZenControlPanel();
+    schedulePhoneZenBoardLayout();
   }
 
   function phoneZenBoardOverlapArea(left, top, boardWidth, boardHeight, zone) {
@@ -7646,6 +7648,14 @@ window.BOXXY_RELEASE = Object.freeze({
     board.style.left = `${Math.round(bestLeft)}px`;
     board.style.top = `${Math.round(bestTop)}px`;
     board.style.transform = "none";
+  }
+
+  function schedulePhoneZenBoardLayout() {
+    if (phoneZenBoardLayoutFrame) return;
+    phoneZenBoardLayoutFrame = requestAnimationFrame(() => {
+      phoneZenBoardLayoutFrame = 0;
+      layoutPhoneZenBoard();
+    });
   }
 
   function setZenControlPanelMinimised(minimised) {
@@ -11925,6 +11935,7 @@ window.BOXXY_RELEASE = Object.freeze({
       zenControlPanel?.classList.remove("is-dragging");
       try { zenControlDragHandle?.releasePointerCapture?.(event.pointerId); } catch (_) {}
       clampZenControlPanel();
+      schedulePhoneZenBoardLayout();
     };
 
     zenControlDragHandle?.addEventListener("pointerdown", event => {
