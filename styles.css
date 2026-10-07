@@ -1,4 +1,4 @@
-/* BOXXY v452 — last-viewed level resume plus a draggable/minimisable floating phone Zen keypad with full-viewport board fitting. */
+/* BOXXY v453 — compact resizable phone Zen keypad, deliberate board anchoring and iPhone standalone guidance. */
 /* BOXXY v449 — rare-character modal portraits use opaque-bound fitting; fixed-character frame warm-up is handled in the renderer. */
 /* BOXXY v448 — rare-character modal uses the fixed sprite sheet directly and rare colour keys no longer expose PARTYGOERS. */
 /* BOXXY v447 — live Indi/Oli selector previews and super-rare character unlock modal. */
@@ -4268,19 +4268,18 @@ body.maker-editor-fullscreen{overflow:hidden}
   .top-actions #undoBtn{grid-column:3;grid-row:1}
 }
 
-/* BOXXY v452 — phone Zen uses the full safe viewport for the board.
-   Movement controls are a separate floating component, so control geometry
-   never reserves board space in portrait or landscape. */
+/* BOXXY v453 — phone Zen keeps controls floating while giving the board a deliberate portrait/landscape anchor. */
 .zen-control-panel{
+  --zen-control-size:48px;
   display:none;
   position:fixed;
   z-index:8475;
-  right:max(12px,env(safe-area-inset-right));
-  bottom:max(12px,env(safe-area-inset-bottom));
+  right:max(10px,env(safe-area-inset-right));
+  bottom:max(10px,env(safe-area-inset-bottom));
   width:max-content;
-  padding:6px;
+  padding:4px;
   border:2px solid rgba(23,23,25,.86);
-  border-radius:14px;
+  border-radius:12px;
   background:rgba(239,229,212,.86);
   box-shadow:0 10px 28px rgba(23,23,25,.24);
   -webkit-backdrop-filter:blur(9px);
@@ -4289,15 +4288,18 @@ body.maker-editor-fullscreen{overflow:hidden}
   user-select:none;
   -webkit-user-select:none;
 }
+.zen-control-panel[data-size="small"]{--zen-control-size:40px}
+.zen-control-panel[data-size="medium"]{--zen-control-size:48px}
+.zen-control-panel[data-size="large"]{--zen-control-size:58px}
 .zen-control-panel[hidden]{display:none!important}
 .zen-control-panel-head{
-  height:30px;
+  height:28px;
   display:grid;
-  grid-template-columns:auto 1fr 28px;
+  grid-template-columns:auto 1fr 28px 28px;
   align-items:center;
-  gap:6px;
-  margin:0 0 6px;
-  padding:0 0 0 7px;
+  gap:3px;
+  margin:0 0 3px;
+  padding:0 0 0 5px;
   cursor:grab;
   touch-action:none;
 }
@@ -4314,6 +4316,7 @@ body.maker-editor-fullscreen{overflow:hidden}
   line-height:1;
   letter-spacing:.11em;
 }
+.zen-control-size,
 .zen-control-minimise{
   width:28px;
   height:28px;
@@ -4321,34 +4324,34 @@ body.maker-editor-fullscreen{overflow:hidden}
   min-height:28px;
   padding:0;
   border:1.5px solid var(--ink);
-  border-radius:8px;
+  border-radius:7px;
   background:#f8f1e6;
   color:var(--ink);
-  font-size:20px;
   font-weight:900;
   line-height:1;
   display:grid;
   place-items:center;
   touch-action:manipulation;
 }
+.zen-control-size{font-size:9px;letter-spacing:.04em}
+.zen-control-minimise{font-size:20px}
 .zen-control-grid{
-  --zen-control-size:clamp(46px,12dvh,58px);
   display:grid;
   grid-template-columns:repeat(3,var(--zen-control-size));
   grid-template-rows:repeat(2,var(--zen-control-size));
   grid-template-areas:
     "undo up restart"
     "left down right";
-  gap:6px;
+  gap:3px;
 }
 .zen-control-key{
   width:var(--zen-control-size);
   height:var(--zen-control-size);
   min-width:var(--zen-control-size);
   min-height:var(--zen-control-size);
-  padding:5px;
+  padding:3px;
   border:2px solid rgba(23,23,25,.82);
-  border-radius:11px;
+  border-radius:9px;
   background:rgba(248,241,230,.94);
   color:var(--ink);
   box-shadow:0 4px 10px rgba(55,38,20,.12);
@@ -4382,16 +4385,17 @@ body.maker-editor-fullscreen{overflow:hidden}
 .zen-control-direction[data-dir=left]{grid-area:left}
 .zen-control-direction[data-dir=down]{grid-area:down}
 .zen-control-direction[data-dir=right]{grid-area:right}
-.zen-control-panel.is-minimised{padding:4px}
+.zen-control-panel.is-minimised{padding:3px}
 .zen-control-panel.is-minimised .zen-control-panel-head{
-  width:72px;
-  height:30px;
+  width:68px;
+  height:28px;
   grid-template-columns:1fr 28px;
-  gap:4px;
+  gap:3px;
   margin:0;
-  padding-left:5px;
+  padding-left:4px;
 }
-.zen-control-panel.is-minimised .zen-control-panel-head>b{display:none}
+.zen-control-panel.is-minimised .zen-control-panel-head>b,
+.zen-control-panel.is-minimised .zen-control-size{display:none}
 .zen-control-panel.is-minimised .zen-control-grid{display:none}
 
 @media (max-width:760px) and (pointer:coarse),
@@ -4468,11 +4472,37 @@ body.maker-editor-fullscreen{overflow:hidden}
     position:fixed!important;
     z-index:8500!important;
   }
-  body.phone-zen-mode .mobile-fullscreen-hint{display:none!important}
 }
 
 @media (max-width:760px) and (pointer:coarse) and (orientation:portrait){
   html.phone-zen-mode{--max-cell:76px}
+  body.phone-zen-mode .board:not(.zen-board-zoomed){
+    position:absolute;
+    top:max(8px,env(safe-area-inset-top));
+    left:50%;
+    margin:0;
+    transform:translateX(-50%);
+  }
+}
+
+@media (max-height:520px) and (orientation:landscape) and (pointer:coarse){
+  body.phone-zen-mode .board:not(.zen-board-zoomed){
+    position:absolute;
+    top:max(8px,env(safe-area-inset-top));
+    left:max(8px,env(safe-area-inset-left));
+    margin:0;
+    transform:none;
+  }
+}
+
+@media (max-width:760px) and (pointer:coarse),
+       (max-height:520px) and (orientation:landscape) and (pointer:coarse){
+  body.phone-zen-mode .board.zen-board-zoomed{
+    position:absolute;
+    top:0;
+    left:0;
+    margin:0;
+  }
 }
 
 /* BOXXY v195 — in-game legal modal and Zen completion continuation. */
@@ -7611,7 +7641,7 @@ html.touch-ui .dpad button {
   }
 }
 /* BOXXY v371: keep the optional wider spacing for the standard phone controls.
-   v452's floating Zen keypad has its own compact geometry. */
+   v453's floating Zen keypad owns its compact geometry. */
 @media (max-height:520px) and (orientation:landscape) and (pointer:coarse) {
   body.spaced-arrow-controls:not(.phone-zen-mode) .dpad {
     column-gap:clamp(13px,3vw,18px);

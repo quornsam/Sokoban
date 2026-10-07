@@ -1,4 +1,4 @@
-/* BOXXY v452: reopen the last viewed pack level and replace fixed phone Zen controls with a draggable, minimisable floating keypad. */
+/* BOXXY v453: refine phone Zen layout, resizable compact keypad and iPhone standalone guidance. */
 /* BOXXY v449: fitted rare-character modal portraits and decoded fixed-character frame warm-up prevent undersized previews and first-move flashing. */
 /* BOXXY v448: rare colour-key characters now select directly, repeat their discovery modal, and never reveal the PARTYGOERS family by themselves. */
 /* BOXXY v447: two super-rare PARTYGOERS unlock through exact Oli colour combinations, with live Indi/Oli selection-card previews. */
@@ -43,7 +43,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "452",
+  version: "453",
   lastUpdated: "2026-10-07"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
@@ -3212,6 +3212,7 @@ window.BOXXY_RELEASE = Object.freeze({
   const zenNextBtn = document.getElementById("zenNextBtn");
   const zenControlPanel = document.getElementById("zenControlPanel");
   const zenControlDragHandle = document.getElementById("zenControlDragHandle");
+  const zenControlSizeBtn = document.getElementById("zenControlSizeBtn");
   const zenControlMinimiseBtn = document.getElementById("zenControlMinimiseBtn");
   const zenUndoBtn = document.getElementById("zenUndoBtn");
   const zenRestartBtn = document.getElementById("zenRestartBtn");
@@ -3450,6 +3451,9 @@ window.BOXXY_RELEASE = Object.freeze({
   let firstPersonMotion = null;
   let firstPersonCameraZoom = 0;
   const ZEN_ZOOM_LEVELS = Object.freeze([1, 2, 4, 8]);
+  const ZEN_CONTROL_SIZES = Object.freeze(["small", "medium", "large"]);
+  const ZEN_CONTROL_SIZE_KEY = "boxxy-zen-control-size-v1";
+  const ZEN_IPHONE_FULLSCREEN_HINT_KEY = "boxxy-iphone-fullscreen-hint-v1";
   const ZEN_ZOOM_TARGET_VISIBLE_CELLS = 10;
   const ZEN_CAMERA_FOLLOW_DEAD_ZONE_X = 0.52;
   const ZEN_CAMERA_FOLLOW_DEAD_ZONE_Y = 0.58;
@@ -7587,6 +7591,41 @@ window.BOXXY_RELEASE = Object.freeze({
     requestAnimationFrame(clampZenControlPanel);
   }
 
+  function normaliseZenControlSize(value) {
+    const size = String(value || "").trim().toLowerCase();
+    return ZEN_CONTROL_SIZES.includes(size) ? size : "medium";
+  }
+
+  function readZenControlSize() {
+    try { return normaliseZenControlSize(localStorage.getItem(ZEN_CONTROL_SIZE_KEY)); }
+    catch (_) { return "medium"; }
+  }
+
+  function applyZenControlSize(value, persist = true) {
+    if (!zenControlPanel) return;
+    const size = normaliseZenControlSize(value);
+    zenControlPanel.dataset.size = size;
+    if (zenControlSizeBtn) {
+      const label = size === "small" ? "S" : size === "large" ? "L" : "M";
+      zenControlSizeBtn.textContent = label;
+      zenControlSizeBtn.setAttribute("aria-label", `Control size: ${size}. Change size.`);
+      zenControlSizeBtn.title = `Control size: ${size}`;
+    }
+    if (persist) {
+      try { localStorage.setItem(ZEN_CONTROL_SIZE_KEY, size); } catch (_) {}
+    }
+    requestAnimationFrame(clampZenControlPanel);
+  }
+
+  function cycleZenControlSize() {
+    if (!zenControlPanel) return;
+    const current = normaliseZenControlSize(zenControlPanel.dataset.size);
+    const next = ZEN_CONTROL_SIZES[(ZEN_CONTROL_SIZES.indexOf(current) + 1) % ZEN_CONTROL_SIZES.length];
+    applyZenControlSize(next);
+  }
+
+  applyZenControlSize(readZenControlSize(), false);
+
   function setPhoneZenMode(active) {
     const enabled = Boolean(active && phoneFullscreenLayout());
     document.documentElement.classList.toggle("phone-zen-mode", enabled);
@@ -7678,7 +7717,16 @@ window.BOXXY_RELEASE = Object.freeze({
 
   async function toggleFullscreen() {
     if (phoneFullscreenLayout()) {
-      setPhoneZenMode(!phoneZenModeActive());
+      const enteringZen = !phoneZenModeActive();
+      setPhoneZenMode(enteringZen);
+      if (enteringZen && /iPhone|iPod/i.test(navigator.userAgent) && !standaloneDisplayMode()) {
+        let shouldShowHint = true;
+        try {
+          shouldShowHint = sessionStorage.getItem(ZEN_IPHONE_FULLSCREEN_HINT_KEY) !== "shown";
+          if (shouldShowHint) sessionStorage.setItem(ZEN_IPHONE_FULLSCREEN_HINT_KEY, "shown");
+        } catch (_) {}
+        if (shouldShowHint) window.setTimeout(showMobileFullscreenHint, 220);
+      }
       return;
     }
 
@@ -11780,6 +11828,11 @@ window.BOXXY_RELEASE = Object.freeze({
     }
   });
   zenRestartBtn?.addEventListener("click", () => restartBtn?.click());
+  zenControlSizeBtn?.addEventListener("click", event => {
+    event.preventDefault();
+    event.stopPropagation();
+    cycleZenControlSize();
+  });
   zenControlMinimiseBtn?.addEventListener("click", event => {
     event.preventDefault();
     event.stopPropagation();
