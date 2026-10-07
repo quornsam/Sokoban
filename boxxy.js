@@ -1,4 +1,4 @@
-/* BOXXY v457: Puzzle Packs links to the Secret Level Editor on iPad/tablet and desktop, while keeping the link hidden on phones. */
+/* BOXXY v458: Level Maker saves are no longer silently truncated at 100 records. */
 /* BOXXY v449: fitted rare-character modal portraits and decoded fixed-character frame warm-up prevent undersized previews and first-move flashing. */
 /* BOXXY v448: rare colour-key characters now select directly, repeat their discovery modal, and never reveal the PARTYGOERS family by themselves. */
 /* BOXXY v447: two super-rare PARTYGOERS unlock through exact Oli colour combinations, with live Indi/Oli selection-card previews. */
@@ -43,7 +43,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "457",
+  version: "458",
   lastUpdated: "2026-10-07"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
@@ -16229,8 +16229,7 @@ window.BOXXY_RELEASE = Object.freeze({
   function writeSavedLevels(records, changeDetail = {}) {
     const newestFirst = records
       .slice()
-      .sort((a, b) => Number(b.updatedAt || 0) - Number(a.updatedAt || 0))
-      .slice(0, 100);
+      .sort((a, b) => Number(b.updatedAt || 0) - Number(a.updatedAt || 0));
     localStorage.setItem(SAVE_KEY, JSON.stringify(newestFirst));
     window.dispatchEvent(new CustomEvent("boxxy-saved-levels-changed", {
       detail: { ...changeDetail, records: newestFirst }
