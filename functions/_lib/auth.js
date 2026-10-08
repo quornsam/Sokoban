@@ -343,7 +343,7 @@ export function parseProgress(value) {
   }
 }
 
-export function safeProgressJson(value, maxBytes = 256000) {
+export function safeProgressJson(value, maxBytes = 1500000) {
   const progress = parseProgress(value);
   const text = JSON.stringify(progress);
   if (encoder.encode(text).byteLength > maxBytes) throw new Error("Cloud save is too large.");

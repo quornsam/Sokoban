@@ -1,3 +1,4 @@
+/* BOXXY v460: raise the account cloud-save safety ceiling without changing synced data, and refresh account diagnostics. */
 /* BOXXY v458: preserve all Level Maker saves instead of truncating the library at 100. */
 /* BOXXY v449: refresh rare-character sprite/rendering release references; offline re-downloads fetch the replacement artwork. */
 /* BOXXY v448: refresh rare-character selection/modal logic without changing the cached character asset set. */
@@ -52,7 +53,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "458";
+const RELEASE_VERSION = "460";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [

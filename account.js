@@ -1,3 +1,4 @@
+/* BOXXY v460: report account cloud-sync failures instead of silently swallowing them. */
 /* BOXXY v428: account responses broadcast the player's permanent Daily gold-medal total. */
 /* BOXXY v404: profile-modal bio edits stay in sync with the account view. */
 /* BOXXY v403: public player bio editing and profile-safe account data. */
@@ -1509,7 +1510,11 @@
         broadcastAccountFeatures();
         return false;
       }
-      if (!response.ok) return false;
+      if (!response.ok) {
+        console.error("BOXXY cloud sync failed", { status: response.status, error: data?.error || "Unknown sync error" });
+        if (accountView && !accountView.hidden) setStatus(data?.error || "Cloud progress could not be saved.", "error");
+        return false;
+      }
       activeSecondsDelta = Math.max(0, activeSecondsDelta - delta);
       lastSyncedFingerprint = fingerprint;
       if (data.account) account = data.account;
@@ -1517,7 +1522,9 @@
       render();
       broadcastAccountFeatures();
       return true;
-    } catch (_) {
+    } catch (error) {
+      console.error("BOXXY cloud sync could not reach the account service", error);
+      if (accountView && !accountView.hidden) setStatus("Cloud progress could not reach the BOXXY account service.", "error");
       return false;
     }
   }
