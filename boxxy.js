@@ -1,3 +1,4 @@
+/* BOXXY v461: release metadata corrected after the v460 cloud-save repair; Level Maker save protection retained. */
 /* BOXXY v458: Level Maker saves are no longer silently truncated at 100 records. */
 /* BOXXY v449: fitted rare-character modal portraits and decoded fixed-character frame warm-up prevent undersized previews and first-move flashing. */
 /* BOXXY v448: rare colour-key characters now select directly, repeat their discovery modal, and never reveal the PARTYGOERS family by themselves. */
@@ -43,8 +44,8 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "458",
-  lastUpdated: "2026-10-07"
+  version: "461",
+  lastUpdated: "2026-10-08"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
 /* BOXXY v401: PARTYGOERS expands to twelve characters, its Easter egg toggles visibility, and Attire character previews are centred/clickable. */

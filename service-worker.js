@@ -1,3 +1,4 @@
+/* BOXXY v461: correct public release metadata/cache version after the v460 cloud-save repair. */
 /* BOXXY v460: raise the account cloud-save safety ceiling without changing synced data, and refresh account diagnostics. */
 /* BOXXY v458: preserve all Level Maker saves instead of truncating the library at 100. */
 /* BOXXY v449: refresh rare-character sprite/rendering release references; offline re-downloads fetch the replacement artwork. */
@@ -53,7 +54,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "460";
+const RELEASE_VERSION = "461";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [

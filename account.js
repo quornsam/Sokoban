@@ -1,3 +1,4 @@
+/* BOXXY v461: release metadata/cache correction; v460 cloud-sync diagnostics retained. */
 /* BOXXY v460: report account cloud-sync failures instead of silently swallowing them. */
 /* BOXXY v428: account responses broadcast the player's permanent Daily gold-medal total. */
 /* BOXXY v404: profile-modal bio edits stay in sync with the account view. */
