@@ -1,3 +1,4 @@
+/* BOXXY v464: include November Daily puzzles in the offline archive. */
 /* BOXXY v463: refresh cached account sync to exclude browser-only Workshop creations. */
 /* BOXXY v462: cache unlimited Pack Builder drafts and explicit saved-level deletion safeguards. */
 /* BOXXY v461: correct public release metadata/cache version after the v460 cloud-save repair. */
@@ -56,7 +57,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "463";
+const RELEASE_VERSION = "464";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [
@@ -239,6 +240,7 @@ const ASSETS = [
   "/daily-puzzles/boxxy-daily-puzzles-2026-08.js",
   "/daily-puzzles/boxxy-daily-puzzles-2026-09.js",
   "/daily-puzzles/boxxy-daily-puzzles-2026-10.js",
+  "/daily-puzzles/boxxy-daily-puzzles-2026-11.js",
   "/daily-puzzles/boxxy-daily-puzzles.js",
   "/how-to-play.css",
   "/how-to-play.js",

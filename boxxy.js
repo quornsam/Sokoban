@@ -1,3 +1,4 @@
+/* BOXXY v464: remove the Secret Workshop contact entry point while preserving Settings and password recovery. */
 /* BOXXY v463: keep all Secret Workshop creations browser-only during account sync. */
 /* BOXXY v462: protect unreadable saved-level data and refresh the Workshop release. */
 /* BOXXY v461: release metadata corrected after the v460 cloud-save repair; Level Maker save protection retained. */
@@ -46,7 +47,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "463",
+  version: "464",
   lastUpdated: "2026-10-09"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
@@ -17074,11 +17075,10 @@ window.BOXXY_RELEASE = Object.freeze({
   populateExistingPacks();
 })();
 
-/* BOXXY v250 — private Workshop contact form using a same-origin Pages Function. */
+/* BOXXY v464 — shared Settings and password-recovery contact form using a same-origin Pages Function. */
 (() => {
   "use strict";
 
-  const openBtn = document.getElementById("makerContactBtn");
   const settingsOpenBtn = document.getElementById("settingsContactBtn");
   const modal = document.getElementById("makerContactModal");
   const closeBtn = document.getElementById("makerContactCloseBtn");
@@ -17093,11 +17093,11 @@ window.BOXXY_RELEASE = Object.freeze({
   const sendBtn = document.getElementById("makerContactSendBtn");
   const status = document.getElementById("makerContactStatus");
 
-  if (!modal || !form || (!openBtn && !settingsOpenBtn)) return;
+  if (!modal || !form || !settingsOpenBtn) return;
   if (modal.parentElement !== document.body) document.body.appendChild(modal);
 
   let sending = false;
-  let lastOpener = openBtn || settingsOpenBtn;
+  let lastOpener = settingsOpenBtn;
 
   function setStatus(message = "", kind = "") {
     if (!status) return;
@@ -17106,14 +17106,14 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   function openContact(event) {
-    lastOpener = event?.currentTarget || openBtn || settingsOpenBtn;
+    lastOpener = event?.currentTarget || settingsOpenBtn;
     modal.hidden = false;
     setStatus("");
     window.setTimeout(() => nameInput?.focus(), 0);
   }
 
   function openPasswordRecovery(event) {
-    lastOpener = event?.currentTarget || forgotPasswordBtn || openBtn || settingsOpenBtn;
+    lastOpener = event?.currentTarget || forgotPasswordBtn || settingsOpenBtn;
     const identity = String(document.querySelector('#accountLoginForm input[name="identity"]')?.value || "").trim();
     if (identity) {
       if (identity.includes("@")) {
@@ -17135,7 +17135,6 @@ window.BOXXY_RELEASE = Object.freeze({
     lastOpener?.focus?.({ preventScroll: true });
   }
 
-  openBtn?.addEventListener("click", openContact);
   settingsOpenBtn?.addEventListener("click", openContact);
   forgotPasswordBtn?.addEventListener("click", openPasswordRecovery);
   closeBtn?.addEventListener("click", closeContact);

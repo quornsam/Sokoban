@@ -5761,22 +5761,7 @@ body.first-person-mode .board::after{
   .daily-pack-option .daily-pack-calendar{top:20px}
 }
 
-/* BOXXY v250 — Secret Workshop contact form. */
-.maker-contact{
-  min-height:36px;
-  padding:0 11px;
-  border:2px solid var(--ink);
-  background:var(--yellow);
-  color:var(--ink);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-size:8px;
-  font-weight:950;
-  letter-spacing:.07em;
-  white-space:nowrap;
-}
-.maker-contact:active{transform:translate(2px,2px)}
+/* BOXXY v464 — shared Settings and password-recovery contact form. */
 .maker-contact-overlay{
   position:fixed;
   inset:0;
@@ -5868,7 +5853,6 @@ body.first-person-mode .board::after{
 .maker-contact-send{background:var(--blue);color:#fff}
 .maker-contact-send:disabled{opacity:.58;cursor:wait}
 @media(max-width:760px){
-  .maker-contact{min-height:34px;padding:0 7px;font-size:7px;letter-spacing:.04em}
   .maker-contact-card{padding:16px;box-shadow:5px 5px 0 rgba(23,23,25,.42)}
   .maker-contact-head{margin-bottom:12px;padding-bottom:10px}
   .maker-contact-head h2{font-size:36px}
