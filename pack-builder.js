@@ -3,6 +3,7 @@
  * Copyright © 2026 Sam Cornwell. All rights reserved.
  * Personal non-commercial use only. See LICENSE.md.
  */
+/* BOXXY v462 — unlimited pack drafts and explicit safeguards for deleting/replacing saved puzzles. */
 /* BOXXY v354 — library triage, global used-level filtering and live-pack reference browser. */
 (() => {
   "use strict";
@@ -70,7 +71,6 @@
   const DAILY_SEQUENCE_ANCHOR_DATE = "2026-08-30";
   const DAILY_SEQUENCE_ANCHOR = 1;
   const DAILY_FIRST_MONTH = "2026-08";
-  const MAX_PACK_DRAFTS = 20;
   const VOID = "~";
   const TILE_CHARS = new Set([" ", "#", "@", "$", ".", "*", "+"]);
   const GOAL_COLOURS = window.BoxxyGoalColours;
@@ -442,9 +442,20 @@
   }
 
   function readDrafts() {
-    const parsed = safeParse(PACK_DRAFTS_KEY, []);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.map(normaliseDraft).slice(0, MAX_PACK_DRAFTS);
+    const stored = localStorage.getItem(PACK_DRAFTS_KEY);
+    if (stored === null) return [];
+    let parsed;
+    try {
+      parsed = JSON.parse(stored);
+    } catch (_) {
+      throw new Error("Saved pack drafts could not be read. The original browser data has been left untouched.");
+    }
+    if (!Array.isArray(parsed) || parsed.some(draft =>
+      !draft || typeof draft !== "object" || !Array.isArray(draft.entries)
+      || draft.entries.some(entry => !normaliseLayout(entry?.layout).some(row => row.trim())))) {
+      throw new Error("Some saved pack data is unreadable. Nothing has been replaced or deleted.");
+    }
+    return parsed.map(normaliseDraft);
   }
 
   function persistDrafts(announce = false) {
@@ -455,8 +466,7 @@
     else drafts.unshift(activeDraft);
     drafts = drafts
       .slice()
-      .sort((a, b) => Number(b.updatedAt) - Number(a.updatedAt))
-      .slice(0, MAX_PACK_DRAFTS);
+      .sort((a, b) => Number(b.updatedAt) - Number(a.updatedAt));
     try {
       localStorage.setItem(PACK_DRAFTS_KEY, JSON.stringify(drafts));
       localStorage.setItem(ACTIVE_DRAFT_KEY, activeDraft.id);
@@ -536,17 +546,20 @@
   }
 
   function normaliseDailyEntries(entries, monthKey, legacyStartDate) {
+    if (entries != null && !Array.isArray(entries)) {
+      throw new Error(`The saved puzzles for ${monthLabel(monthKey)} are unreadable. Nothing has been replaced.`);
+    }
     const usedDates = new Set();
     const startDate = dateBelongsToMonth(legacyStartDate, monthKey) ? legacyStartDate : defaultDailyStartDate(monthKey);
     const normalised = [];
     (Array.isArray(entries) ? entries : []).forEach((rawEntry, index) => {
       const entry = normaliseEntry(rawEntry);
-      if (!entry) return;
+      if (!entry) throw new Error(`A saved puzzle in ${monthLabel(monthKey)} is unreadable. Nothing has been replaced.`);
       let date = dateBelongsToMonth(rawEntry?.date, monthKey)
         ? String(rawEntry.date)
         : addDaysToDateString(startDate, index);
       if (!dateBelongsToMonth(date, monthKey) || !dailyDateIsLive(date) || usedDates.has(date)) date = firstUnusedDailyDate(monthKey, usedDates);
-      if (!date) return;
+      if (!date) throw new Error(`${monthLabel(monthKey)} contains more puzzles than available dates. Nothing has been removed or overwritten.`);
       entry.date = date;
       usedDates.add(date);
       normalised.push(entry);
@@ -614,7 +627,18 @@
   }
 
   function readDailyMonthsState() {
-    const stored = safeParse(DAILY_MONTHS_KEY, null);
+    const saved = localStorage.getItem(DAILY_MONTHS_KEY);
+    let stored = null;
+    if (saved !== null) {
+      try {
+        stored = JSON.parse(saved);
+      } catch (_) {
+        throw new Error("Saved Daily months could not be read. The original browser data has been preserved.");
+      }
+      if (!stored || (stored.version !== 2 && stored.version !== 3) || !stored.months || typeof stored.months !== "object" || Array.isArray(stored.months)) {
+        throw new Error("The saved Daily calendar format is not recognised. Nothing has been overwritten.");
+      }
+    }
     if (stored && (stored.version === 2 || stored.version === 3) && stored.months && typeof stored.months === "object") {
       const months = {};
       Object.entries(stored.months).forEach(([month, draft]) => {
@@ -624,7 +648,15 @@
       if (!months[activeMonth]) months[activeMonth] = defaultDailyDraft(activeMonth);
       return { version: 3, activeMonth, months, updatedAt: Number(stored.updatedAt) || Date.now() };
     }
-    return migrateLegacyDailyDraft(safeParse(DAILY_DRAFT_KEY, null));
+    const legacy = localStorage.getItem(DAILY_DRAFT_KEY);
+    if (legacy === null) return migrateLegacyDailyDraft(null);
+    let parsedLegacy;
+    try {
+      parsedLegacy = JSON.parse(legacy);
+    } catch (_) {
+      throw new Error("The older Daily calendar could not be read. Nothing has been overwritten.");
+    }
+    return migrateLegacyDailyDraft(parsedLegacy);
   }
 
   function dailyPublishFilename(monthKey = activeDailyMonth) {
@@ -777,11 +809,16 @@
 
   function createDraft() {
     syncDraftFromFields();
-    persistDrafts(false);
+    if (!persistDrafts(false)) return;
+    const previousDraft = activeDraft;
     const draft = defaultDraft();
     drafts.unshift(draft);
     activeDraft = draft;
-    persistDrafts(false);
+    if (!persistDrafts(false)) {
+      drafts = drafts.filter(item => item.id !== draft.id);
+      activeDraft = previousDraft;
+      return;
+    }
     loadDraftIntoFields();
     renderAll();
     packTitleInput.focus();
@@ -820,11 +857,16 @@
       armTemporaryConfirmation();
       return;
     }
-    const removedName = activeDraft.name;
-    drafts = drafts.filter(draft => draft.id !== activeDraft.id);
-    activeDraft = drafts[0] || defaultDraft();
+    const removedDraft = activeDraft;
+    const removedName = removedDraft.name;
+    drafts = drafts.filter(draft => draft.id !== removedDraft.id);
+    activeDraft = drafts[0];
     resetConfirmations();
-    persistDrafts(false);
+    if (!persistDrafts(false)) {
+      drafts.push(removedDraft);
+      activeDraft = removedDraft;
+      return;
+    }
     loadDraftIntoFields();
     renderAll();
     setStatus(`Deleted pack draft “${removedName}”.`, "success");
@@ -1134,7 +1176,16 @@
       event.stopPropagation();
       if (!isUsed && !isHidden) addSavedLevel(record.id, activeTab);
     });
-    body.append(title, meta, directActions, add);
+    const removeSaved = stopInteractiveDrag(document.createElement("button"));
+    removeSaved.type = "button";
+    removeSaved.className = "pack-card-delete-saved";
+    removeSaved.textContent = "DELETE SAVED LEVEL";
+    removeSaved.title = "Permanently delete this level from the saved library (not from existing pack drafts)";
+    removeSaved.addEventListener("click", event => {
+      event.stopPropagation();
+      deleteLibraryLevel(record);
+    });
+    body.append(title, meta, directActions, add, removeSaved);
     card.append(canvas, body);
 
     if (!isUsed && !isHidden) {
@@ -1142,6 +1193,43 @@
       card.addEventListener("dragend", finishDrag);
     }
     return card;
+  }
+
+  function deleteLibraryLevel(record) {
+    const usage = recordUsageDetails(record);
+    const inDrafts = usage.labels.some(label => label.startsWith("DRAFT ·") || label.startsWith("DAILY DRAFT ·"));
+    const warning = `Permanently delete “${record.name}” from the Saved Level Library?\n\n`
+      + (inDrafts
+        ? "Copies already included in pack and Daily drafts will remain, but this saved original will be lost."
+        : "This saved original cannot be recovered from the Pack Builder.");
+    if (!window.confirm(warning)) return;
+
+    let records;
+    try {
+      const stored = localStorage.getItem(SAVED_LEVELS_KEY);
+      records = stored === null ? [] : JSON.parse(stored);
+    } catch (_) {
+      setStatus("The saved library could not be read. Nothing was deleted.", "error");
+      return;
+    }
+    if (!Array.isArray(records) || records.filter(item => item?.id === record.id).length !== 1) {
+      setStatus("This level is no longer in the saved library. Nothing was deleted.", "error");
+      return;
+    }
+    const remaining = records.filter(item => item?.id !== record.id);
+    try {
+      localStorage.setItem(SAVED_LEVELS_KEY, JSON.stringify(remaining));
+    } catch (_) {
+      setStatus("The browser could not save the updated library. Nothing was deleted.", "error");
+      return;
+    }
+    savedLevels = readSavedLevels();
+    hiddenSavedLevelIds.delete(record.id);
+    persistHiddenSavedLevelIds();
+    window.dispatchEvent(new CustomEvent("boxxy-saved-levels-changed", {
+      detail: { type: "delete", id: record.id, records: remaining }
+    }));
+    setStatus(`Deleted saved level “${record.name}”. Existing pack and Daily draft entries were preserved.`, "success");
   }
 
   function dateForDailyIndex(index) {
@@ -1620,10 +1708,10 @@
 
   function afterTargetMutation(target, message) {
     if (target === "daily") {
-      persistDaily(false);
+      if (!persistDaily(false)) return;
       renderDailyGrid();
     } else {
-      persistDrafts(false);
+      if (!persistDrafts(false)) return;
       renderPackGrid();
     }
     renderLibrary();
@@ -1646,6 +1734,7 @@
       return;
     }
     const existing = dailyEntryAtDate(date);
+    if (existing && !window.confirm(`Replace “${existing.name}” on ${humanDate(date)} with “${snapshot.name}”?\n\nThe previous puzzle will be removed from this calendar date. Its Saved Level Maker original and any other pack copies will remain.`)) return;
     if (existing) dailyDraft.entries = dailyDraft.entries.filter(entry => entry.id !== existing.id);
     snapshot.date = date;
     dailyDraft.entries.push(snapshot);
@@ -1731,6 +1820,7 @@
     if (target !== "pack") return;
     const entries = activeDraft.entries;
     if (index < 0 || index >= entries.length) return;
+    if (!window.confirm(`Remove “${entries[index].name}” from this pack?\n\nThe original saved puzzle will remain in the Saved Level Library.`)) return;
     const [removed] = entries.splice(index, 1);
     afterTargetMutation("pack", `Removed “${removed.name}” from the level pack.`);
   }
@@ -2093,8 +2183,12 @@ window.BOXXY_DAILY_SCHEDULE = Object.freeze(${JSON.stringify(schedule, null, 2)}
   function exportPack() {
     try {
       syncDraftFromFields();
-      persistDrafts(false);
+      if (!persistDrafts(false)) return;
       const payload = packExportPayload();
+      const publishedPack = activeDraft.destination === "boxxy-public"
+        ? availableLivePacks().find(item => item.id === slugify(activeDraft.name))
+        : null;
+      if (publishedPack && !window.confirm(`A live pack named “${publishedPack.displayName || publishedPack.title || publishedPack.id}” already uses this pack ID.\n\nUploading ${payload.filename} over its existing file could replace all of its published levels. Download the replacement file anyway?`)) return;
       downloadText(payload.filename, payload.text, payload.mime);
       setStatus(`Built ${payload.filename}. Suggested destination: ${publishPathForDraft()}.`, "success");
     } catch (error) {
@@ -2113,9 +2207,12 @@ window.BOXXY_DAILY_SCHEDULE = Object.freeze(${JSON.stringify(schedule, null, 2)}
 
   function exportDaily() {
     try {
-      persistDaily(false);
+      if (!persistDaily(false)) return;
       const schedule = buildDailySchedule();
       const filename = dailyPublishFilename();
+      const existingSchedule = (Array.isArray(window.BOXXY_DAILY_SCHEDULES) ? window.BOXXY_DAILY_SCHEDULES : [])
+        .some(item => item?.month === activeDailyMonth);
+      if (existingSchedule && !window.confirm(`A Daily file for ${monthLabel(activeDailyMonth)} is already published.\n\nReplacing ${filename} in the repository would replace that month's existing puzzles. Download the replacement file anyway?`)) return;
       downloadText(filename, buildDailyScheduleScript(schedule), "text/javascript");
       setStatus(`Built ${filename}. Upload it to daily-puzzles/ and replace that month’s existing file.`, "success");
     } catch (error) {
@@ -2170,7 +2267,12 @@ window.BOXXY_DAILY_SCHEDULE = Object.freeze(${JSON.stringify(schedule, null, 2)}
 
   function openBuilder() {
     resetConfirmations();
-    initialiseState();
+    try {
+      initialiseState();
+    } catch (error) {
+      window.alert(error?.message || "The Pack Builder could not open. Saved data has not been replaced.");
+      return;
+    }
     modal.hidden = false;
     document.body.classList.add("pack-builder-open");
     setTab(activeTab);

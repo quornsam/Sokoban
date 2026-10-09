@@ -1,3 +1,4 @@
+/* BOXXY v462: protect unreadable saved-level data and refresh the Workshop release. */
 /* BOXXY v461: release metadata corrected after the v460 cloud-save repair; Level Maker save protection retained. */
 /* BOXXY v458: Level Maker saves are no longer silently truncated at 100 records. */
 /* BOXXY v449: fitted rare-character modal portraits and decoded fixed-character frame warm-up prevent undersized previews and first-move flashing. */
@@ -44,8 +45,8 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "461",
-  lastUpdated: "2026-10-08"
+  version: "462",
+  lastUpdated: "2026-10-09"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
 /* BOXXY v401: PARTYGOERS expands to twelve characters, its Easter egg toggles visibility, and Attire character previews are centred/clickable. */
@@ -16228,6 +16229,19 @@ window.BOXXY_RELEASE = Object.freeze({
   }
 
   function writeSavedLevels(records, changeDetail = {}) {
+    const existing = localStorage.getItem(SAVE_KEY);
+    if (existing !== null) {
+      let parsed;
+      try {
+        parsed = JSON.parse(existing);
+      } catch (_) {
+        throw new Error("The saved-level library is unreadable; its original data has been preserved.");
+      }
+      if (!Array.isArray(parsed) || parsed.some(record =>
+        !record || typeof record.id !== "string" || typeof record.name !== "string")) {
+        throw new Error("Some saved levels are unreadable; the existing library has not been overwritten.");
+      }
+    }
     const newestFirst = records
       .slice()
       .sort((a, b) => Number(b.updatedAt || 0) - Number(a.updatedAt || 0));
@@ -16368,9 +16382,9 @@ window.BOXXY_RELEASE = Object.freeze({
       resetSaveConfirmation();
       renderSavedLevels(record.id);
       setStatus(isOverwrite ? `Overwrote “${name}”.` : `Saved “${name}” as a new level.`, "success");
-    } catch (_) {
+    } catch (error) {
       resetSaveConfirmation();
-      setStatus("This browser would not allow the level to be saved locally.", "error");
+      setStatus(error?.message || "This browser would not allow the level to be saved locally.", "error");
     }
   }
 
