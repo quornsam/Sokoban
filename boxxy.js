@@ -1,3 +1,4 @@
+/* BOXXY v463: keep all Secret Workshop creations browser-only during account sync. */
 /* BOXXY v462: protect unreadable saved-level data and refresh the Workshop release. */
 /* BOXXY v461: release metadata corrected after the v460 cloud-save repair; Level Maker save protection retained. */
 /* BOXXY v458: Level Maker saves are no longer silently truncated at 100 records. */
@@ -45,7 +46,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "462",
+  version: "463",
   lastUpdated: "2026-10-09"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */

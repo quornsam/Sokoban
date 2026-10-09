@@ -1,3 +1,4 @@
+/* BOXXY v463: stop Workshop sync without deleting legacy D1 copies awaiting backup. */
 /* BOXXY v428: authenticated account payloads include permanent Daily gold medal totals. */
 /* BOXXY v365: include server-controlled account feature flags in authenticated responses. */
 import {
@@ -43,6 +44,33 @@ const SERVER_ACTIVITY_KEY = "__boxxy-server-activity-v1";
 const CLICK_PUSH_ENABLED_KEY = "boxxy-touch-click-push-v1";
 const CLICK_PUSH_ACCESS_KEY = "boxxy-touch-click-push-access-v1";
 const CLICK_PUSH_DEVICES_KEY = "boxxy-touch-click-push-devices-v1";
+
+// Creations and editor preferences stay on the device. A legacy cloud copy
+// must not be overwritten or deleted until it has been separately backed up.
+const WORKSHOP_LOCAL_KEYS = new Set([
+  "boxxy-level-maker-saves-v1",
+  "boxxy-level-maker-rainbow-mode-v1",
+  "boxxy-daily-puzzle-draft-v1",
+  "boxxy-daily-puzzle-months-v2"
+]);
+
+function isWorkshopKey(key) {
+  return key.startsWith("boxxy-pack-builder-") || WORKSHOP_LOCAL_KEYS.has(key);
+}
+
+function withoutWorkshop(progressValue) {
+  return Object.fromEntries(
+    Object.entries(parseProgress(progressValue)).filter(([key]) => !isWorkshopKey(key))
+  );
+}
+
+function preserveLegacyWorkshop(existingValue, progress) {
+  const result = { ...progress };
+  for (const [key, value] of Object.entries(parseProgress(existingValue))) {
+    if (isWorkshopKey(key)) result[key] = value;
+  }
+  return result;
+}
 
 const INSTANT_MOVE_FEATURE_KEY = "instant_move";
 
@@ -174,7 +202,7 @@ async function accountPayload(db, user) {
     ok: true,
     authenticated: true,
     account: await accountPublicData(db, user, authInfo),
-    progress: parseProgress(user.progress_json)
+    progress: withoutWorkshop(user.progress_json)
   };
 }
 
@@ -269,7 +297,7 @@ async function handleRegister(context, body) {
   const { salt, hash } = await passwordRecord(password, "", env.BOXXY_PASSWORD_PEPPER);
   const id = crypto.randomUUID();
   const now = Date.now();
-  const progressJson = safeProgressJson(body.progress || {});
+  const progressJson = safeProgressJson(withoutWorkshop(body.progress));
 
   await db.batch([
     db.prepare(`
@@ -410,7 +438,7 @@ async function handleGoogleRegister(context, body) {
   const { salt, hash } = await passwordRecord(unreachablePassword, "", env.BOXXY_PASSWORD_PEPPER);
   const id = crypto.randomUUID();
   const now = Date.now();
-  const progressJson = safeProgressJson(body.progress || {});
+  const progressJson = safeProgressJson(withoutWorkshop(body.progress));
 
   await db.batch([
     db.prepare(`
@@ -574,9 +602,9 @@ async function handleSync(context, body) {
 
   const activeSeconds = Math.max(0, Math.min(1800, Math.trunc(Number(body.activeSecondsDelta) || 0)));
   const now = Date.now();
-  const progress = mergeFirstCompletionMarkers(user.progress_json,
-    withServerActivity(user.progress_json, body.progress || {}, activeSeconds, now), user.id);
-  const progressJson = safeProgressJson(progress);
+  const syncedProgress = mergeFirstCompletionMarkers(user.progress_json,
+    withServerActivity(user.progress_json, withoutWorkshop(body.progress), activeSeconds, now), user.id);
+  const progressJson = safeProgressJson(preserveLegacyWorkshop(user.progress_json, syncedProgress));
   await db.prepare(`
     UPDATE users SET
       progress_json = ?, progress_updated_at = ?, last_seen_at = ?, last_ip = ?, user_agent = ?,

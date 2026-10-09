@@ -1,3 +1,4 @@
+/* BOXXY v463: keep Secret Workshop drafts and editor preferences local to the browser. */
 /* BOXXY v461: release metadata/cache correction; v460 cloud-sync diagnostics retained. */
 /* BOXXY v460: report account cloud-sync failures instead of silently swallowing them. */
 /* BOXXY v428: account responses broadcast the player's permanent Daily gold-medal total. */
@@ -534,10 +535,25 @@
     await cacheBoxxyForOffline({ automatic: true });
   }
 
+  // Workshop creations are device-local. Ordinary pack completion, best-time and
+  // progress keys still sync through the boxxy-pack- rule below.
+  const WORKSHOP_LOCAL_KEYS = new Set([
+    "boxxy-level-maker-saves-v1",
+    "boxxy-level-maker-rainbow-mode-v1",
+    "boxxy-daily-puzzle-draft-v1",
+    "boxxy-daily-puzzle-months-v2"
+  ]);
+
+  function isWorkshopKey(key) {
+    return key.startsWith("boxxy-pack-builder-") || WORKSHOP_LOCAL_KEYS.has(key);
+  }
+
   function shouldSyncKey(key) {
-    return EXACT_SYNC_KEYS.has(key)
+    return !isWorkshopKey(key) && (
+      EXACT_SYNC_KEYS.has(key)
       || key.startsWith("boxxy-pack-")
-      || key.startsWith("push-bauhaus-v22-best-");
+      || key.startsWith("push-bauhaus-v22-best-")
+    );
   }
 
   function refreshPackCatalog() {
