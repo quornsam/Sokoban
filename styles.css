@@ -8363,12 +8363,14 @@ html.touch-ui .dpad button {touch-action:none;-webkit-touch-callout:none;-webkit
   }
   body.phone-zen-mode.legacy-zen-arrows .dpad button svg {width:58%!important;height:58%!important}
 }
-/* v451 portrait placement: a fixed 3×2 D-pad and actions beside its top row. */
+/* BOXXY v470 — Legacy Arrow Keys restores v451's opt-in Spaced Arrows:
+   widen LEFT/RIGHT gaps by 30–40px; keep the original vertical gap. */
 @media (max-width:760px) and (pointer:coarse) and (orientation:portrait) {
   body.phone-zen-mode.legacy-zen-arrows {
     --legacy-arrow-size:min(23vw,92px,12.5dvh);
     --legacy-arrow-gap:8px;
-    --legacy-pad-width:calc(3 * var(--legacy-arrow-size) + 2 * var(--legacy-arrow-gap));
+    --legacy-horizontal-arrow-gap:clamp(30px,9vw,40px);
+    --legacy-pad-width:calc(3 * var(--legacy-arrow-size) + 2 * var(--legacy-horizontal-arrow-gap));
     --legacy-pad-height:calc(2 * var(--legacy-arrow-size) + var(--legacy-arrow-gap));
     --legacy-pad-bottom:max(10px,env(safe-area-inset-bottom));
   }
@@ -8386,7 +8388,8 @@ html.touch-ui .dpad button {touch-action:none;-webkit-touch-callout:none;-webkit
   body.phone-zen-mode.legacy-zen-arrows .dpad {
     grid-template-columns:repeat(3,var(--legacy-arrow-size))!important;
     grid-template-rows:repeat(2,var(--legacy-arrow-size))!important;
-    gap:var(--legacy-arrow-gap)!important;
+    column-gap:var(--legacy-horizontal-arrow-gap)!important;
+    row-gap:var(--legacy-arrow-gap)!important;
   }
   body.phone-zen-mode.legacy-zen-arrows .dpad button {width:var(--legacy-arrow-size)!important;height:var(--legacy-arrow-size)!important}
   body.phone-zen-mode.legacy-zen-arrows .top-actions #restartBtn,
@@ -8419,12 +8422,23 @@ html.touch-ui .dpad button {touch-action:none;-webkit-touch-callout:none;-webkit
     width:var(--legacy-pad-width)!important;height:var(--legacy-pad-height)!important;
     transform:none!important;
   }
+  /* As in v451, landscape keeps the same pad/board reservation and
+     redistributes the existing width into larger gaps and smaller square keys. */
   body.phone-zen-mode.legacy-zen-arrows .dpad {
-    grid-template-columns:repeat(3,var(--legacy-arrow-size))!important;
-    grid-template-rows:repeat(2,var(--legacy-arrow-size))!important;
-    gap:var(--legacy-arrow-gap)!important;
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    grid-template-rows:repeat(2,max-content)!important;
+    column-gap:clamp(30px,5vw,40px)!important;
+    row-gap:var(--legacy-arrow-gap)!important;
+    align-content:end!important;
   }
-  body.phone-zen-mode.legacy-zen-arrows .dpad button {width:var(--legacy-arrow-size)!important;height:var(--legacy-arrow-size)!important}
+  body.phone-zen-mode.legacy-zen-arrows .dpad button {
+    width:100%!important;
+    height:auto!important;
+    min-width:0!important;
+    min-height:0!important;
+    aspect-ratio:1/1!important;
+    align-self:end!important;
+  }
   body.phone-zen-mode.legacy-zen-arrows .top-actions #restartBtn,
   body.phone-zen-mode.legacy-zen-arrows .top-actions #undoBtn {
     top:max(12px,env(safe-area-inset-top))!important;bottom:auto!important;left:auto!important;

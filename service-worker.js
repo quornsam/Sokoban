@@ -1,3 +1,4 @@
+/* BOXXY v470: restore the v451 wide-spaced arrow arrangement in Legacy Zen controls. */
 /* BOXXY v469: cache optional fixed Zen controls and the Legacy Arrow Keys preference. */
 /* BOXXY v468: Hall of Fame avatar layout and admin poster-shipping status. */
 /* BOXXY v467: use site-wide reversible restart behaviour. */
@@ -62,7 +63,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "469";
+const RELEASE_VERSION = "470";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [
