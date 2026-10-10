@@ -27,7 +27,7 @@ import {
 } from "../_lib/auth.js";
 import { ensureGoogleAuthSchema } from "../_lib/google-auth.js";
 import { readPackCompletions, completionRecordsForUsers, canonicalAdminSummary } from "../_lib/pack-completions.js";
-import { DAILY_PRACTICE_CATALOG } from "../_lib/daily-practice-catalog.js";
+import { findDailyPuzzle } from "../_lib/daily-practice-catalog.js";
 import { analyseDailySolution, generateDailySyntheticRoute } from "../_lib/synthetic-daily-moves.js";
 import { ensureAttemptHistorySchema, readAttemptOverview, readLevelAttemptHistory } from '../_lib/attempt-history.js';
 import { ensureDailyLeaderboardVisibilitySchema, setDailyLeaderboardVisibility, cleanDailyLeaderboardVisibility } from '../_lib/daily-leaderboard-visibility.js';
@@ -294,9 +294,9 @@ async function deleteSiteMessage(context, body) {
 const SYNTHETIC_DEVICE_CLASSES = new Set(["phone", "computer"]);
 const DAILY_COMPLETIONS_KEY = "boxxy-daily-completions-v1";
 
-function validDailyDate(value) {
+async function validDailyDate(context, value) {
   const date = String(value || "").trim();
-  return /^\d{4}-\d{2}-\d{2}$/.test(date) && DAILY_PRACTICE_CATALOG.some(item => item.date === date) ? date : "";
+  return await findDailyPuzzle(context.env, context.request.url, date) ? date : "";
 }
 
 function cleanSyntheticDevice(value, fallback = "computer") {
@@ -334,7 +334,7 @@ async function ensureSyntheticDailySchema(db) {
 async function syntheticState(context, body = {}) {
   const db = requireDatabase(context.env);
   await ensureSyntheticDailySchema(db);
-  const date = validDailyDate(body.date || new URL(context.request.url).searchParams.get("date")) || "";
+  const date = await validDailyDate(context, body.date || new URL(context.request.url).searchParams.get("date")) || "";
   const usersResult = await db.prepare(`
     SELECT id, username, default_device, avatar_json, created_at, updated_at
     FROM synthetic_users ORDER BY username COLLATE NOCASE ASC
@@ -425,11 +425,11 @@ function selectedSyntheticIds(body) {
 async function generateSyntheticScores(context, body) {
   const db = requireDatabase(context.env);
   await ensureSyntheticDailySchema(db);
-  const date = validDailyDate(body.date);
-  if (!date) return json({ok:false,error:"Choose a prepared Daily puzzle."},400);
+  const puzzle = await findDailyPuzzle(context.env, context.request.url, body.date);
+  if (!puzzle) return json({ok:false,error:"Choose a prepared Daily puzzle."},400);
+  const date = puzzle.date;
   const ids = selectedSyntheticIds(body);
   if (!ids.length) return json({ok:false,error:"Select between 1 and 200 artificial players."},400);
-  const puzzle = DAILY_PRACTICE_CATALOG.find(item => item.date === date);
   let analysis;
   try { analysis = analyseDailySolution(puzzle); }
   catch (_) { return json({ok:false,error:"The stored Daily solution could not be validated. No scores were changed."},409); }
@@ -470,11 +470,11 @@ async function generateSyntheticScores(context, body) {
 async function regenerateSyntheticMoves(context, body) {
   const db = requireDatabase(context.env);
   await ensureSyntheticDailySchema(db);
-  const date = validDailyDate(body.date);
-  if (!date) return json({ok:false,error:"Choose a prepared Daily puzzle."},400);
+  const puzzle = await findDailyPuzzle(context.env, context.request.url, body.date);
+  if (!puzzle) return json({ok:false,error:"Choose a prepared Daily puzzle."},400);
+  const date = puzzle.date;
   const ids = selectedSyntheticIds(body);
   if (!ids.length) return json({ok:false,error:"Select between 1 and 200 artificial players."},400);
-  const puzzle = DAILY_PRACTICE_CATALOG.find(item => item.date === date);
   let analysis;
   try { analysis = analyseDailySolution(puzzle); }
   catch (_) { return json({ok:false,error:"The stored Daily solution could not be validated. No scores were changed."},409); }
@@ -509,7 +509,7 @@ async function setDailyScoreVisibility(context, body, fallbackVisibility = "") {
   const db = requireDatabase(context.env);
   await ensureSyntheticDailySchema(db);
   await ensureDailyLeaderboardVisibilitySchema(db);
-  const date = validDailyDate(body.date);
+  const date = await validDailyDate(context, body.date);
   const username = String(body.username || "").trim();
   const requestedVisibility = String(body.visibility || fallbackVisibility || "").trim().toLowerCase();
   if (!date || !username) return json({ok:false,error:"Daily date and username are required."},400);

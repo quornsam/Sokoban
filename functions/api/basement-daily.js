@@ -1,13 +1,14 @@
 import { json, requireDatabase, adminAuthenticated } from "../_lib/auth.js";
-import { DAILY_PRACTICE_CATALOG } from "../_lib/daily-practice-catalog.js";
+import { listPreparedDailyPuzzles } from "../_lib/daily-practice-catalog.js";
 
 export async function onRequest({ request, env }) {
   try {
     if (request.method !== "GET") return json({ok:false,error:"Method not allowed."},405,{"cache-control":"no-store"});
     requireDatabase(env);
     if (!await adminAuthenticated(env,request)) return json({ok:false,error:"Basement access required."},401,{"cache-control":"no-store"});
+    const puzzles = await listPreparedDailyPuzzles(env, request.url);
     const now=Date.now();
-    return json({ok:true,puzzles:DAILY_PRACTICE_CATALOG.map(({date,sequence,name,layout,goalColours,rainbowMode,preparedFor}) => ({
+    return json({ok:true,puzzles:puzzles.map(({date,sequence,name,layout,goalColours,rainbowMode,preparedFor}) => ({
       date,sequence,name,layout,goalColours:goalColours||{},rainbowMode:Boolean(rainbowMode),preparedFor,
       published:Date.parse(preparedFor)<=now
     }))},200,{"cache-control":"private, no-store"});

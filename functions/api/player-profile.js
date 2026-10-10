@@ -1,6 +1,6 @@
 /* BOXXY v428: public profiles include permanent Daily fastest-time gold medals. */
 import { json, requireDatabase } from "../_lib/auth.js";
-import { DAILY_PRACTICE_CATALOG } from "../_lib/daily-practice-catalog.js";
+import { loadDailyMonth } from "../_lib/daily-practice-catalog.js";
 import { dailyGoldMedalCount } from "../_lib/daily-gold-medals.js";
 import {
   avatarFromProgress,
@@ -16,9 +16,15 @@ function cleanUsername(value) {
   return String(value || "").trim().slice(0, 20);
 }
 
-function solutionPushes(dateKey) {
-  const puzzle = DAILY_PRACTICE_CATALOG.find(item => item.date === dateKey);
-  return puzzle ? (String(puzzle.solution || "").match(/[LRUD]/g) || []).length : 0;
+async function dailySolutionPushCounts(env, requestUrl, dateKeys) {
+  const months = [...new Set(dateKeys.filter(date => /^\d{4}-\d{2}-\d{2}$/.test(date))
+    .map(date => date.slice(0, 7)))];
+  const groups = await Promise.all(months.map(month => loadDailyMonth(env, requestUrl, month)));
+  const counts = new Map();
+  groups.forEach(entries => (entries || []).forEach(puzzle => {
+    counts.set(puzzle.date, (puzzle.solution.match(/[LRUD]/g) || []).length);
+  }));
+  return counts;
 }
 
 function currentSyntheticStreak(dateKeys) {
@@ -86,7 +92,9 @@ export async function onRequestGet(context) {
         const rows = scores.results || [];
         const dailyCompleted = rows.length;
         const totalMoves = rows.reduce((sum, row) => sum + Math.max(0, Math.trunc(Number(row.moves) || 0)), 0);
-        const totalPushes = rows.reduce((sum, row) => sum + solutionPushes(String(row.date_key || "")), 0);
+        const pushCounts = await dailySolutionPushCounts(context.env, context.request.url,
+          rows.map(row => String(row.date_key || "")));
+        const totalPushes = rows.reduce((sum, row) => sum + (pushCounts.get(String(row.date_key || "")) || 0), 0);
         const dailyStreak = currentSyntheticStreak(rows.map(row => String(row.date_key || "")));
         return json({
           ok:true,

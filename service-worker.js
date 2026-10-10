@@ -1,3 +1,4 @@
+/* BOXXY v465: release refresh for canonical Basement Daily Practice loading. */
 /* BOXXY v464: include November Daily puzzles in the offline archive. */
 /* BOXXY v463: refresh cached account sync to exclude browser-only Workshop creations. */
 /* BOXXY v462: cache unlimited Pack Builder drafts and explicit saved-level deletion safeguards. */
@@ -57,7 +58,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "464";
+const RELEASE_VERSION = "465";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [

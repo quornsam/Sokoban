@@ -1,6 +1,6 @@
 /* BOXXY v374 — serves isolated Daily practice; validates the practice runtime independently of the main game cache version. */
 import { requireDatabase, adminAuthenticated } from "../_lib/auth.js";
-import { DAILY_PRACTICE_CATALOG } from "../_lib/daily-practice-catalog.js";
+import { findDailyPuzzle } from "../_lib/daily-practice-catalog.js";
 const text = (value,status=200,headers={}) => new Response(value,{status,headers:{"content-type":"text/plain; charset=utf-8","cache-control":"private, no-store",...headers}});
 export async function onRequest({request,env}) {
   try {
@@ -9,7 +9,7 @@ export async function onRequest({request,env}) {
     if(!await adminAuthenticated(env,request)) return text("Basement access required.",401);
     const url=new URL(request.url);
     const date=url.searchParams.get("date") || "";
-    const puzzle=DAILY_PRACTICE_CATALOG.find(item=>item.date===date);
+    const puzzle=await findDailyPuzzle(env,request.url,date);
     if(!puzzle) return text("That prepared Daily puzzle was not found.",404);
     const asset=await env.ASSETS.fetch(new Request(new URL("/basement/practice-shell.html",url)));
     if(!asset.ok) return text("Practice page is unavailable. Check that the complete practice files were deployed.",503);
