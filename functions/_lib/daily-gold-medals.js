@@ -298,9 +298,14 @@ export async function processSubmittedDailyGoldRuns(db, userId, runIds, now = Da
     });
   }
 
-  const marked = await db.prepare(`SELECT id FROM level_attempt_history
-    WHERE user_id = ? AND daily_gold_awarded = 1 AND id IN (${placeholders})`)
-    .bind(String(userId || ''), ...ids).all();
+  // Resolve the submitted run IDs first. Otherwise SQLite may choose the
+  // user-history index and scan thousands of unrelated runs per submission.
+  const marked = await db.prepare(`WITH selected AS MATERIALIZED (
+      SELECT id, user_id, daily_gold_awarded FROM level_attempt_history
+      WHERE id IN (${placeholders})
+    )
+    SELECT id FROM selected WHERE user_id = ? AND daily_gold_awarded = 1`)
+    .bind(...ids, String(userId || '')).all();
   return (marked.results || []).map(row => String(row.id || '')).filter(Boolean);
 }
 
