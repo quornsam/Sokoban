@@ -1,3 +1,4 @@
+/* BOXXY v469: cache optional fixed Zen controls and the Legacy Arrow Keys preference. */
 /* BOXXY v468: Hall of Fame avatar layout and admin poster-shipping status. */
 /* BOXXY v467: use site-wide reversible restart behaviour. */
 /* BOXXY v466: cache the Zen control sizing and reversible restart update. */
@@ -61,7 +62,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "468";
+const RELEASE_VERSION = "469";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [

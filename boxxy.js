@@ -1,3 +1,4 @@
+/* BOXXY v469: optional original v451 fixed Zen arrows, retaining the modern keypad and reversible Restart. */
 /* BOXXY v468: public Hall of Fame shows linked-player avatars in responsive cards. */
 /* BOXXY v467: Restart/Revert shared by every gameplay control and keyboard R. */
 /* BOXXY v466: smaller, corner-anchored Zen actions on medium/large keypads; reversible Zen restart until the next move. */
@@ -51,7 +52,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "468",
+  version: "469",
   lastUpdated: "2026-10-10"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
@@ -3031,8 +3032,8 @@ window.BOXXY_RELEASE = Object.freeze({
   const settingsKeyboardBackBtn = document.getElementById("settingsKeyboardBackBtn");
   const settingsMusicTrack = document.getElementById("settingsMusicTrack");
   const settingsSpeedSelect = document.getElementById("settingsSpeedSelect");
-  const settingsArrowSpacingRow = document.getElementById("settingsArrowSpacingRow");
-  const settingsArrowSpacingToggle = document.getElementById("settingsArrowSpacingToggle");
+  const settingsLegacyArrowsRow = document.getElementById("settingsLegacyArrowsRow");
+  const settingsLegacyArrowsToggle = document.getElementById("settingsLegacyArrowsToggle");
   const settingsMouseRow = document.getElementById("settingsMouseRow");
   const settingsMouseToggle = document.getElementById("settingsMouseToggle");
   const settingsMouseLeaderboardWarning = document.getElementById("settingsMouseLeaderboardWarning");
@@ -3355,16 +3356,20 @@ window.BOXXY_RELEASE = Object.freeze({
     });
   }
   let blockedPushHeld = false;
-  const ARROW_SPACING_KEY = "boxxy-arrow-spacing-v1";
-  let spacedArrowControls = localStorage.getItem(ARROW_SPACING_KEY) === "wide";
-  function applyArrowSpacing(wide, persist = true) {
-    spacedArrowControls = Boolean(wide);
-    document.body.classList.toggle("spaced-arrow-controls", spacedArrowControls);
-    if (settingsArrowSpacingToggle) {
-      settingsArrowSpacingToggle.textContent = spacedArrowControls ? "ON" : "OFF";
-      settingsArrowSpacingToggle.setAttribute("aria-pressed", String(spacedArrowControls));
+  // Deliberately a new preference: users who chose wider arrows in older
+  // versions should not be switched to the legacy Zen layout unexpectedly.
+  const LEGACY_ZEN_ARROWS_KEY = "boxxy-legacy-zen-arrows-v1";
+  let legacyZenArrows = localStorage.getItem(LEGACY_ZEN_ARROWS_KEY) === "on";
+  function applyLegacyZenArrows(enabled, persist = true) {
+    legacyZenArrows = Boolean(enabled);
+    document.body.classList.toggle("legacy-zen-arrows", legacyZenArrows);
+    if (zenControlPanel) zenControlPanel.hidden = !phoneZenModeActive() || legacyZenArrows;
+    if (settingsLegacyArrowsToggle) {
+      settingsLegacyArrowsToggle.textContent = legacyZenArrows ? "ON" : "OFF";
+      settingsLegacyArrowsToggle.setAttribute("aria-pressed", String(legacyZenArrows));
     }
-    if (persist) localStorage.setItem(ARROW_SPACING_KEY, spacedArrowControls ? "wide" : "normal");
+    if (persist) localStorage.setItem(LEGACY_ZEN_ARROWS_KEY, legacyZenArrows ? "on" : "off");
+    if (phoneZenModeActive()) scheduleBoardResize();
   }
   let soundOn = localStorage.getItem("boxxy-sound-v1") !== "off";
   let musicOn = localStorage.getItem("push-bauhaus-music") !== "off";
@@ -7739,7 +7744,7 @@ window.BOXXY_RELEASE = Object.freeze({
     const enabled = Boolean(active && phoneFullscreenLayout());
     document.documentElement.classList.toggle("phone-zen-mode", enabled);
     document.body.classList.toggle("phone-zen-mode", enabled);
-    if (zenControlPanel) zenControlPanel.hidden = !enabled;
+    if (zenControlPanel) zenControlPanel.hidden = !enabled || legacyZenArrows;
 
     if (enabled) {
       if (!document.body.classList.contains("konami-background")) {
@@ -8011,7 +8016,7 @@ window.BOXXY_RELEASE = Object.freeze({
     if (settingsTouchPushRow) settingsTouchPushRow.hidden = !touchDevice;
     // This layout is designed for phones, including those held in landscape.
     const phoneLayout = touchDevice && window.matchMedia("(max-width: 760px), (max-height: 520px) and (orientation: landscape)").matches;
-    if (settingsArrowSpacingRow) settingsArrowSpacingRow.hidden = !phoneLayout;
+    if (settingsLegacyArrowsRow) settingsLegacyArrowsRow.hidden = !phoneLayout;
     if (settingsControlsPanel) settingsControlsPanel.hidden = touchDevice;
     if (touchDevice && mouseSupportEnabled) {
       mouseSupportEnabled = false;
@@ -8023,7 +8028,7 @@ window.BOXXY_RELEASE = Object.freeze({
     updateSettingsMouseButton();
     updateSettingsTouchPushButton();
     updateSettingsSolutionDataButton();
-    applyArrowSpacing(spacedArrowControls, false);
+    applyLegacyZenArrows(legacyZenArrows, false);
   }
 
   function updateSoundButton() {
@@ -12160,7 +12165,7 @@ window.BOXXY_RELEASE = Object.freeze({
     updateSpookyMusicButton();
   });
   settingsSpeedSelect?.addEventListener("change", event => applyBoxxySpeed(String(event.currentTarget.value || "normal"), true));
-  settingsArrowSpacingToggle?.addEventListener("click", () => applyArrowSpacing(!spacedArrowControls));
+  settingsLegacyArrowsToggle?.addEventListener("click", () => applyLegacyZenArrows(!legacyZenArrows));
   settingsMouseToggle?.addEventListener("click", () => setSettingsMouseSupport(!mouseSupportEnabled));
   settingsTouchPushToggle?.addEventListener("click", () => setSettingsTouchClickPush(!touchClickPushEnabled));
   settingsSolutionDataToggle?.addEventListener("click", () => setLevelSolutionAvailable(!levelSolutionAvailable));
@@ -12176,8 +12181,8 @@ window.BOXXY_RELEASE = Object.freeze({
     settingsContactBtn?.click();
   });
   window.addEventListener("boxxyclickpushcloudstate", reloadTouchClickPushState);
-  window.addEventListener("boxxyarrowspacingcloudstate", () => {
-    applyArrowSpacing(localStorage.getItem(ARROW_SPACING_KEY) === "wide", false);
+  window.addEventListener("boxxylegacyzenarrowscloudstate", () => {
+    applyLegacyZenArrows(localStorage.getItem(LEGACY_ZEN_ARROWS_KEY) === "on", false);
   });
   collectionBtn?.addEventListener("click", openPackModal);
   finalPackMoreBtn?.addEventListener("click", () => {
