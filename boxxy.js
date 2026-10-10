@@ -1,3 +1,4 @@
+/* BOXXY v467: Restart/Revert shared by every gameplay control and keyboard R. */
 /* BOXXY v466: smaller, corner-anchored Zen actions on medium/large keypads; reversible Zen restart until the next move. */
 /* BOXXY v465: Basement Daily Practice reads the canonical monthly puzzle files. */
 /* BOXXY v464: remove the Secret Workshop contact entry point while preserving Settings and password recovery. */
@@ -49,7 +50,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "466",
+  version: "467",
   lastUpdated: "2026-10-10"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
@@ -2746,7 +2747,7 @@ window.BOXXY_RELEASE = Object.freeze({
       if (thoughtText) thoughtText.textContent = "That saved position could not be restored.";
       return;
     }
-    clearPendingZenRestart();
+    clearPendingRestart();
     stopAutoplay();
     blockedPushHeld = false;
     clearTimeout(animTimer);
@@ -3257,7 +3258,7 @@ window.BOXXY_RELEASE = Object.freeze({
   let pushes = 0;
   let history = [];
   let redoHistory = [];
-  let pendingZenRestart = null;
+  let pendingRestart = null;
   let facing = "front";
   let completed = false;
   let makerTesting = false;
@@ -3287,7 +3288,7 @@ window.BOXXY_RELEASE = Object.freeze({
     const isPractice = next === GAMEPLAY_CONTEXT.DAILY_PRACTICE;
     const isShared = next === GAMEPLAY_CONTEXT.SHARED;
 
-    clearPendingZenRestart();
+    clearPendingRestart();
     gameplayContext = next;
     makerTesting = isMaker;
     makerDailyPractice = isPractice;
@@ -9706,7 +9707,7 @@ window.BOXXY_RELEASE = Object.freeze({
 
   function startLevelTimerIfNeeded() {
     if (completed) return;
-    commitZenRestart();
+    commitRestart();
     // A level load, restart, blocked direction or untouched starting board is NOT an attempt.
     if (armedLevelAttempt && !autoplayRunning && !makerTesting && !sharedPuzzleMode && !makerDailyPractice) {
       const attempt = armedLevelAttempt;
@@ -10206,34 +10207,52 @@ window.BOXXY_RELEASE = Object.freeze({
     return copyBoxes(Array.isArray(state?.boxes) ? state.boxes : []);
   }
 
-  // Zen's restart is provisional until the player makes a successful move.
-  // This keeps an accidental tap reversible without closing or duplicating a run.
-  function syncZenRestartButton() {
-    if (!zenRestartBtn) return;
-    const revert = Boolean(pendingZenRestart);
-    const label = zenRestartBtn.querySelector("b");
-    const symbol = zenRestartBtn.querySelector("span");
-    if (label) label.textContent = revert ? "REVERT" : "RESTART";
-    if (symbol) symbol.textContent = revert ? "↶" : "↻";
-    zenRestartBtn.setAttribute("aria-label", revert ? "Revert restart" : "Restart level");
-    zenRestartBtn.title = revert ? "Restore your position before restarting" : "Restart level";
-    zenRestartBtn.classList.toggle("is-revert", revert);
+  // A restart remains reversible until the next successful move, regardless
+  // of whether it came from the sidebar, desktop tools, Zen, or keyboard R.
+  function syncRestartButtons() {
+    const revert = Boolean(pendingRestart);
+    for (const button of [restartBtn, desktopRestartBtn, zenRestartBtn]) {
+      if (!button) continue;
+      const label = button.querySelector("b");
+      const symbol = button.querySelector("span");
+      if (label) label.textContent = revert ? "REVERT" : "RESTART";
+      if (symbol) symbol.textContent = revert ? "↶" : "↻";
+      button.setAttribute("aria-label", revert ? "Revert restart" : "Restart level");
+      button.title = revert ? "Restore your position before restarting (R)" : "Restart level (R)";
+      button.classList.toggle("is-revert", revert);
+    }
   }
 
-  function clearPendingZenRestart() {
-    if (!pendingZenRestart) return;
-    pendingZenRestart = null;
-    syncZenRestartButton();
+  function clearPendingRestart() {
+    if (!pendingRestart) return;
+    pendingRestart = null;
+    syncRestartButtons();
   }
 
-  function toggleZenRestart() {
-    if (!zenRestartBtn || completed || autoplayRunning) {
-      restartBtn?.click();
+  // Preserve the existing immediate reset for a finished level or while
+  // autoplay is active; those states cannot safely restore an active run.
+  function restartLevelImmediately(method) {
+    if (makerTesting || sharedPuzzleMode) restartMakerTest();
+    else if (dailyMode && dailyPuzzle) loadDailyPuzzle(dailyPuzzle, true);
+    else {
+      captureBoxxyAnalytics("level_restarted", currentLevelAnalytics({
+        restart_method: method,
+        moves_before_restart: Number(moves),
+        pushes_before_restart: Number(pushes),
+        elapsed_seconds: elapsedLevelSeconds()
+      }));
+      loadLevel(levelIndex);
+    }
+  }
+
+  function toggleRestart(method = "button") {
+    if (completed || autoplayRunning) {
+      restartLevelImmediately(method);
       return;
     }
-    if (pendingZenRestart) {
-      const saved = pendingZenRestart;
-      clearPendingZenRestart();
+    if (pendingRestart) {
+      const saved = pendingRestart;
+      clearPendingRestart();
       blockedPushHeld = false;
       clearTimeout(animTimer);
       player = [...saved.position.player];
@@ -10262,7 +10281,7 @@ window.BOXXY_RELEASE = Object.freeze({
 
     resetMouseSupportInteraction();
     const parsed = parseLayout(levelData.layout, levelData.goalColours);
-    pendingZenRestart = {
+    pendingRestart = {
       position: snapshot(),
       history: history.slice(),
       redoHistory: redoHistory.slice(),
@@ -10275,7 +10294,7 @@ window.BOXXY_RELEASE = Object.freeze({
     };
     if (!makerTesting && !sharedPuzzleMode && !dailyMode) {
       captureBoxxyAnalytics("level_restarted", currentLevelAnalytics({
-        restart_method: "zen",
+        restart_method: method,
         moves_before_restart: moves,
         pushes_before_restart: pushes,
         elapsed_seconds: elapsedLevelSeconds()
@@ -10300,18 +10319,18 @@ window.BOXXY_RELEASE = Object.freeze({
     startedAt = 0;
     clearInterval(timer);
     timer = null;
-    syncZenRestartButton();
+    syncRestartButtons();
     render("idle");
     updateTime();
     scheduleIdle();
   }
 
-  function commitZenRestart() {
-    if (!pendingZenRestart) return;
-    const saved = pendingZenRestart;
-    clearPendingZenRestart();
-    // Do not end the old attempt or start a new one until the replacement run
-    // actually moves. REVERT before then leaves the original attempt intact.
+  function commitRestart() {
+    if (!pendingRestart) return;
+    const saved = pendingRestart;
+    clearPendingRestart();
+    // Do not end the old attempt or arm a new one until the replacement run
+    // makes a valid move. Revert before then leaves the original attempt intact.
     if (saved.startedAt) {
       window.BOXXYAttemptHistory?.end?.("restart", {
         seconds: Math.max(0, (Date.now() - saved.startedAt) / 1000),
@@ -11674,17 +11693,7 @@ window.BOXXY_RELEASE = Object.freeze({
     } else if (event.key === "r" || event.key === "R") {
       event.preventDefault();
       if (event.repeat) return;
-      if (makerTesting || sharedPuzzleMode) restartMakerTest();
-      else if (dailyMode && dailyPuzzle) loadDailyPuzzle(dailyPuzzle, true);
-      else {
-        captureBoxxyAnalytics("level_restarted", currentLevelAnalytics({
-          restart_method: "keyboard",
-          moves_before_restart: Number(moves),
-          pushes_before_restart: Number(pushes),
-          elapsed_seconds: elapsedLevelSeconds()
-        }));
-        loadLevel(levelIndex);
-      }
+      toggleRestart("keyboard");
     }
   });
 
@@ -12039,20 +12048,9 @@ window.BOXXY_RELEASE = Object.freeze({
   bindUndoControl(undoBtn, true);
   bindUndoControl(zenUndoBtn);
   savePositionBtn?.addEventListener("click", saveOrRestorePosition);
-  restartBtn.addEventListener("click", () => {
-    if (makerTesting || sharedPuzzleMode) restartMakerTest();
-    else if (dailyMode) loadDailyPuzzle(dailyPuzzle, true);
-    else {
-      captureBoxxyAnalytics("level_restarted", currentLevelAnalytics({
-        restart_method: "button",
-        moves_before_restart: Number(moves),
-        pushes_before_restart: Number(pushes),
-        elapsed_seconds: elapsedLevelSeconds()
-      }));
-      loadLevel(levelIndex);
-    }
-  });
-  zenRestartBtn?.addEventListener("click", toggleZenRestart);
+  restartBtn.addEventListener("click", () => toggleRestart("button"));
+  zenRestartBtn?.addEventListener("click", () => toggleRestart("zen"));
+  syncRestartButtons();
   zenControlSizeBtn?.addEventListener("click", event => {
     event.preventDefault();
     event.stopPropagation();

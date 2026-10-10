@@ -1,3 +1,4 @@
+/* BOXXY v467: use site-wide reversible restart behaviour. */
 /* BOXXY v466: cache the Zen control sizing and reversible restart update. */
 /* BOXXY v465: release refresh for canonical Basement Daily Practice loading. */
 /* BOXXY v464: include November Daily puzzles in the offline archive. */
@@ -59,7 +60,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "466";
+const RELEASE_VERSION = "467";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [
