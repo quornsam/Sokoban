@@ -7,7 +7,7 @@
 <meta name="theme-color" content="#efe5d4">
 <title>BOXXY Basement</title>
 <link rel="icon" href="../assets/ui/icons/boxxy-yellow-crate-v150.ico" sizes="any">
-<link rel="stylesheet" href="basement.css?v=445">
+<link rel="stylesheet" href="basement.css?v=468">
 <link rel="stylesheet" href="/attempt-history.css?v=426">
 </head>
 <body>
@@ -97,13 +97,14 @@
           <label>NAME <input id="hallOfFameName" type="text" maxlength="60" required></label>
           <label>LOCATION <input id="hallOfFameLocation" type="text" maxlength="60" placeholder="Scotland" required></label>
           <label>DATE COMPLETED <input id="hallOfFameDate" type="date"></label>
+          <label class="hall-of-fame-shipping-field"><input id="hallOfFameShipped" type="checkbox"> POSTER SHIPPED</label>
           <label class="hall-of-fame-user-field">ATTACH BOXXY USER <select id="hallOfFameUser"><option value="">NO ACCOUNT LINK</option></select></label>
           <div class="hall-of-fame-form-actions">
             <button type="submit">SAVE ENTRY</button>
             <button id="hallOfFameClear" type="button">CLEAR</button>
           </div>
         </form>
-        <p class="table-hint">The display name and location are independent of the linked account. Date completed is optional. Account links are used only to open the public player profile from the Hall of Fame card.</p>
+        <p class="table-hint">The display name and location are independent of the linked account. Date completed is optional. Linked accounts show their avatar and open their public profile. Poster shipping is private to Basement.</p>
       </section>
       <section class="daily-seed-card">
         <div class="daily-score-head"><h3>PLACES 1–50</h3><button id="hallOfFameRefresh" type="button">REFRESH</button></div>
@@ -235,6 +236,6 @@
   </section>
 </div>
 <script src="/attempt-history-ui.js?v=426"></script>
-<script src="basement.js?v=451"></script>
+<script src="basement.js?v=468"></script>
 </body>
 </html>

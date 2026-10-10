@@ -264,3 +264,22 @@ CREATE TABLE IF NOT EXISTS beta_games (
 );
 CREATE INDEX IF NOT EXISTS beta_games_expires_idx ON beta_games(expires_at);
 CREATE INDEX IF NOT EXISTS beta_games_host_idx ON beta_games(host_user_id, updated_at DESC);
+
+-- v468: Originals Hall of Fame. Poster shipping remains private to Basement.
+CREATE TABLE IF NOT EXISTS originals_hall_of_fame (
+  place INTEGER PRIMARY KEY CHECK(place >= 1 AND place <= 50),
+  display_name TEXT NOT NULL,
+  location TEXT NOT NULL DEFAULT '',
+  completed_date TEXT NOT NULL DEFAULT '',
+  user_id TEXT DEFAULT NULL,
+  poster_shipped INTEGER NOT NULL DEFAULT 0 CHECK(poster_shipped IN (0,1)),
+  updated_at INTEGER NOT NULL DEFAULT 0,
+  FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE SET NULL
+);
+CREATE TABLE IF NOT EXISTS originals_hall_of_fame_meta (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_originals_hall_of_fame_user
+  ON originals_hall_of_fame(user_id)
+  WHERE user_id IS NOT NULL AND user_id <> '';

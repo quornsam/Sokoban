@@ -57,6 +57,7 @@
   const hallOfFameName = document.getElementById("hallOfFameName");
   const hallOfFameLocation = document.getElementById("hallOfFameLocation");
   const hallOfFameDate = document.getElementById("hallOfFameDate");
+  const hallOfFameShipped = document.getElementById("hallOfFameShipped");
   const hallOfFameUser = document.getElementById("hallOfFameUser");
   const hallOfFameClear = document.getElementById("hallOfFameClear");
   const hallOfFameRefresh = document.getElementById("hallOfFameRefresh");
@@ -702,6 +703,7 @@
     if (hallOfFameName) hallOfFameName.value = String(entry.name || "");
     if (hallOfFameLocation) hallOfFameLocation.value = String(entry.location || "");
     if (hallOfFameDate) hallOfFameDate.value = String(entry.completedDate || "");
+    if (hallOfFameShipped) hallOfFameShipped.checked = entry.posterShipped === true;
     populateHallOfFameUsers(String(entry.userId || ""));
     hallOfFameForm?.scrollIntoView?.({ behavior:"smooth", block:"center" });
     hallOfFameName?.focus?.({ preventScroll:true });
@@ -718,7 +720,7 @@
         continue;
       }
       const account = entry.linkedUsername ? `LINKED TO ${escapeHtml(entry.linkedUsername)}` : "NO ACCOUNT LINK";
-      cards.push(`<div class="hall-of-fame-admin-entry is-claimed"><b class="hall-of-fame-admin-place">${place}</b><strong>${escapeHtml(entry.name)}</strong><span>${escapeHtml(entry.location)}</span><small>${escapeHtml(hallDateText(entry.completedDate))}</small><small>${account}</small><div class="hall-of-fame-admin-actions"><button type="button" data-hall-edit="${place}">EDIT</button><button type="button" data-hall-delete="${place}">DELETE</button></div></div>`);
+      cards.push(`<div class="hall-of-fame-admin-entry is-claimed"><b class="hall-of-fame-admin-place">${place}</b><strong>${escapeHtml(entry.name)}</strong><span>${escapeHtml(entry.location)}</span><small>${escapeHtml(hallDateText(entry.completedDate))}</small><small>${account}</small><label class="hall-of-fame-shipping-status"><input type="checkbox" data-hall-shipped="${place}"${entry.posterShipped ? " checked" : ""}> POSTER SHIPPED</label><div class="hall-of-fame-admin-actions"><button type="button" data-hall-edit="${place}">EDIT</button><button type="button" data-hall-delete="${place}">DELETE</button></div></div>`);
     }
     hallOfFameList.innerHTML = cards.join("");
   }
@@ -1542,6 +1544,7 @@
         name:hallOfFameName?.value || "",
         location:hallOfFameLocation?.value || "",
         completedDate:hallOfFameDate?.value || "",
+        posterShipped:hallOfFameShipped?.checked === true,
         userId:hallOfFameUser?.value || ""
       });
       if (!response.ok) throw new Error(data.error || "Could not save Hall of Fame entry.");
@@ -1556,6 +1559,27 @@
   });
   hallOfFameClear?.addEventListener("click", resetHallOfFameForm);
   hallOfFameRefresh?.addEventListener("click", loadHallOfFame);
+  hallOfFameList?.addEventListener("change", async event => {
+    const checkbox = event.target.closest("input[data-hall-shipped]");
+    if (!checkbox) return;
+    const place = Number(checkbox.dataset.hallShipped);
+    const previous = hallOfFameEntries.find(entry => Number(entry.place) === place);
+    if (!previous) return;
+    const shipped = checkbox.checked;
+    checkbox.disabled = true;
+    try {
+      const { response, data } = await api("", { action:"hall_of_fame_shipped", place, posterShipped:shipped });
+      if (!response.ok) throw new Error(data.error || "Could not update poster status.");
+      previous.posterShipped = shipped;
+      if (Number(hallOfFameOriginalPlace?.value) === place && hallOfFameShipped) hallOfFameShipped.checked = shipped;
+      setStatus(hallOfFameStatus, `NUMBER ${place}: POSTER ${shipped ? "SHIPPED" : "NOT SHIPPED"}`, "success");
+    } catch (error) {
+      checkbox.checked = previous.posterShipped === true;
+      setStatus(hallOfFameStatus, error.message || "Could not update poster status.", "error");
+    } finally {
+      checkbox.disabled = false;
+    }
+  });
   hallOfFameList?.addEventListener("click", async event => {
     const add = event.target.closest("[data-hall-add]");
     if (add) {

@@ -1,3 +1,4 @@
+/* BOXXY v468: public Hall of Fame shows linked-player avatars in responsive cards. */
 /* BOXXY v467: Restart/Revert shared by every gameplay control and keyboard R. */
 /* BOXXY v466: smaller, corner-anchored Zen actions on medium/large keypads; reversible Zen restart until the next move. */
 /* BOXXY v465: Basement Daily Practice reads the canonical monthly puzzle files. */
@@ -50,7 +51,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "467",
+  version: "468",
   lastUpdated: "2026-10-10"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
@@ -4048,21 +4049,35 @@ window.BOXXY_RELEASE = Object.freeze({
       place.className = "originals-completion-place";
       place.textContent = String(placeNumber);
 
+      const details = document.createElement("span");
+      details.className = "originals-completion-details";
       const name = document.createElement("strong");
       name.textContent = String(finisher?.name || "UNCLAIMED");
-
       const location = document.createElement("small");
       location.textContent = String(finisher?.location || "AVAILABLE");
-
-      slot.append(place, name, location);
+      details.append(name, location);
       const dateText = hallCompletionDateText(finisher?.completedDate);
       if (dateText) {
         const completed = document.createElement("time");
         completed.className = "originals-completion-date";
         completed.dateTime = String(finisher.completedDate);
         completed.textContent = `COMPLETED ${dateText.toUpperCase()}`;
-        slot.appendChild(completed);
+        details.appendChild(completed);
       }
+      slot.append(place);
+      if (linkedUsername && finisher?.avatar) {
+        slot.classList.add("has-avatar");
+        const avatarFrame = document.createElement("span");
+        avatarFrame.className = "originals-completion-avatar-frame";
+        avatarFrame.setAttribute("aria-hidden", "true");
+        const avatar = document.createElement("canvas");
+        avatar.className = "originals-completion-avatar";
+        avatarFrame.appendChild(avatar);
+        slot.appendChild(avatarFrame);
+        Promise.resolve(window.CharacterStyler?.drawAvatarPreview?.(avatar, finisher.avatar, "player-front", 90, 0.10))
+          .catch(() => { avatarFrame.remove(); slot.classList.remove("has-avatar"); });
+      }
+      slot.appendChild(details);
       fragment.appendChild(slot);
     }
     originalsCompletionBoard.replaceChildren(fragment);

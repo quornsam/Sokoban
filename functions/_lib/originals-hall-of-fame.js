@@ -1,3 +1,5 @@
+/* BOXXY v468: private poster-shipping status and public linked-player avatars. */
+import { cleanPublicAvatarStyle } from "./public-profile.js";
 /* BOXXY v445: persistent BOXXY Originals Hall of Fame schema and administration helpers. */
 const HALL_SIZE = 50;
 const SEED_VERSION = "v1";
@@ -45,6 +47,7 @@ export async function ensureOriginalsHallOfFameSchema(db) {
         location TEXT NOT NULL DEFAULT '',
         completed_date TEXT NOT NULL DEFAULT '',
         user_id TEXT DEFAULT NULL,
+        poster_shipped INTEGER NOT NULL DEFAULT 0 CHECK(poster_shipped IN (0,1)),
         updated_at INTEGER NOT NULL DEFAULT 0,
         FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE SET NULL
       )
@@ -61,6 +64,15 @@ export async function ensureOriginalsHallOfFameSchema(db) {
       WHERE user_id IS NOT NULL AND user_id <> ''
     `)
   ]);
+
+  const columns = await db.prepare("PRAGMA table_info(originals_hall_of_fame)").all();
+  if (!(columns.results || []).some(column => column.name === "poster_shipped")) {
+    try {
+      await db.prepare("ALTER TABLE originals_hall_of_fame ADD COLUMN poster_shipped INTEGER NOT NULL DEFAULT 0 CHECK(poster_shipped IN (0,1))").run();
+    } catch (error) {
+      if (!/duplicate column name/i.test(String(error?.message || error))) throw error;
+    }
+  }
 
   const seeded = await db.prepare("SELECT value FROM originals_hall_of_fame_meta WHERE key = 'seed_version' LIMIT 1").first();
   if (!seeded) {
@@ -84,17 +96,24 @@ function mappedEntry(row, includeUserId = false) {
     name: cleanHallName(row?.display_name),
     location: cleanHallLocation(row?.location),
     completedDate: cleanHallDate(row?.completed_date),
-    linkedUsername: cleanText(row?.linked_username, 20)
+    linkedUsername: cleanText(row?.linked_username, 20),
+    avatar: row?.linked_username ? cleanPublicAvatarStyle(row?.linked_avatar_json) : null
   };
-  if (includeUserId) entry.userId = cleanText(row?.user_id, 128);
+  if (includeUserId) {
+    entry.userId = cleanText(row?.user_id, 128);
+    entry.posterShipped = Number(row?.poster_shipped) === 1;
+  }
   return entry;
 }
 
 export async function readOriginalsHallOfFame(db, { includeUserId = false } = {}) {
   await ensureOriginalsHallOfFameSchema(db);
   const result = await db.prepare(`
-    SELECT h.place, h.display_name, h.location, h.completed_date, h.user_id,
-           u.username AS linked_username
+    SELECT h.place, h.display_name, h.location, h.completed_date, h.user_id, h.poster_shipped,
+           u.username AS linked_username,
+           CASE WHEN json_valid(u.progress_json)
+             THEN json_extract(u.progress_json, '$."push-bauhaus-character-style-v51"')
+             ELSE NULL END AS linked_avatar_json
     FROM originals_hall_of_fame h
     LEFT JOIN users u ON u.id = h.user_id
     ORDER BY h.place ASC
@@ -111,6 +130,7 @@ export async function saveOriginalsHallOfFameEntry(db, value) {
   const rawDate = String(value?.completedDate || "").trim();
   const completedDate = cleanHallDate(rawDate);
   const userId = cleanText(value?.userId, 128);
+  const posterShipped = value?.posterShipped === true ? 1 : 0;
 
   if (!place) throw new Error("Hall of Fame number must be between 1 and 50.");
   if (!name) throw new Error("Hall of Fame name is required.");
@@ -142,18 +162,19 @@ export async function saveOriginalsHallOfFameEntry(db, value) {
   }
   statements.push(db.prepare(`
     INSERT INTO originals_hall_of_fame
-      (place, display_name, location, completed_date, user_id, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?)
+      (place, display_name, location, completed_date, user_id, poster_shipped, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(place) DO UPDATE SET
       display_name = excluded.display_name,
       location = excluded.location,
       completed_date = excluded.completed_date,
       user_id = excluded.user_id,
+      poster_shipped = excluded.poster_shipped,
       updated_at = excluded.updated_at
-  `).bind(place, name, location, completedDate, userId || null, now));
+  `).bind(place, name, location, completedDate, userId || null, posterShipped, now));
   await db.batch(statements);
 
-  return { place, name, location, completedDate, userId, linkedUsername };
+  return { place, name, location, completedDate, userId, linkedUsername, posterShipped:Boolean(posterShipped) };
 }
 
 export async function deleteOriginalsHallOfFameEntry(db, placeValue) {
@@ -162,4 +183,16 @@ export async function deleteOriginalsHallOfFameEntry(db, placeValue) {
   if (!place) throw new Error("Choose a valid Hall of Fame number.");
   await db.prepare("DELETE FROM originals_hall_of_fame WHERE place = ?").bind(place).run();
   return place;
+}
+
+export async function setOriginalsHallOfFamePosterShipped(db, placeValue, shipped) {
+  await ensureOriginalsHallOfFameSchema(db);
+  const place = cleanHallPlace(placeValue);
+  if (!place) throw new Error("Choose a valid Hall of Fame number.");
+  if (typeof shipped !== "boolean") throw new Error("Poster shipped must be checked or unchecked.");
+  const existing = await db.prepare("SELECT place FROM originals_hall_of_fame WHERE place = ? LIMIT 1").bind(place).first();
+  if (!existing) throw new Error("Hall of Fame entry not found.");
+  await db.prepare("UPDATE originals_hall_of_fame SET poster_shipped = ?, updated_at = ? WHERE place = ?")
+    .bind(shipped ? 1 : 0, Date.now(), place).run();
+  return { place, posterShipped:shipped };
 }

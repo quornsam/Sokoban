@@ -1,3 +1,4 @@
+/* BOXXY v468: track private Hall of Fame poster dispatch. */
 /* BOXXY v445: administer the BOXXY Originals Hall of Fame, including account links and completion dates. */
 /* BOXXY v426: message-bar actions support selected-user testing and reliable character actions. */
 /* BOXXY v425: Basement schedules date-specific public message-bar announcements and actions. */
@@ -33,7 +34,7 @@ import { ensureAttemptHistorySchema, readAttemptOverview, readLevelAttemptHistor
 import { ensureDailyLeaderboardVisibilitySchema, setDailyLeaderboardVisibility, cleanDailyLeaderboardVisibility } from '../_lib/daily-leaderboard-visibility.js';
 import { cleanPublicAvatarStyle, ensureSyntheticAvatarColumn, randomPublicAvatarStyle } from '../_lib/public-profile.js';
 import { ensureSiteAnnouncementsSchema, cleanSiteAnnouncementDate, cleanSiteAnnouncementColour, cleanSiteAnnouncementAction, cleanSiteAnnouncementValue, cleanSiteAnnouncementAudience, mappedSiteAnnouncement } from '../_lib/site-announcements.js';
-import { readOriginalsHallOfFame, saveOriginalsHallOfFameEntry, deleteOriginalsHallOfFameEntry } from '../_lib/originals-hall-of-fame.js';
+import { readOriginalsHallOfFame, saveOriginalsHallOfFameEntry, deleteOriginalsHallOfFameEntry, setOriginalsHallOfFamePosterShipped } from '../_lib/originals-hall-of-fame.js';
 
 const INSTANT_MOVE_FEATURE_KEY = "instant_move";
 
@@ -46,6 +47,12 @@ async function hallOfFameState(context) {
 async function saveHallOfFame(context, body) {
   const db = requireDatabase(context.env);
   const entry = await saveOriginalsHallOfFameEntry(db, body);
+  return json({ ok:true, authenticated:true, entry });
+}
+
+async function setHallOfFameShipped(context, body) {
+  const db = requireDatabase(context.env);
+  const entry = await setOriginalsHallOfFamePosterShipped(db, body.place, body.posterShipped);
   return json({ ok:true, authenticated:true, entry });
 }
 
@@ -725,6 +732,7 @@ export async function onRequest(context) {
       if (action === "set_instant_move") return await setInstantMoveAccess(context, body);
       if (action === "hall_of_fame_state") return await hallOfFameState(context);
       if (action === "hall_of_fame_save") return await saveHallOfFame(context, body);
+      if (action === "hall_of_fame_shipped") return await setHallOfFameShipped(context, body);
       if (action === "hall_of_fame_delete") return await deleteHallOfFame(context, body);
       if (action === "site_message_state") return await siteMessageState(context);
       if (action === "site_message_save") return await saveSiteMessage(context, body);
