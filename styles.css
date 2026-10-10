@@ -4391,6 +4391,28 @@ body.maker-editor-fullscreen{overflow:hidden}
 .zen-control-panel[data-size="small"] .zen-control-restart>span{
   font-size:18px;
 }
+/* v466: shrink only the medium/large Zen actions, keeping each in its own
+   top corner of the 3-column keypad. Small is deliberately unchanged. */
+.zen-control-panel:is([data-size="medium"],[data-size="large"]) .zen-control-key:is(.zen-control-undo,.zen-control-restart){
+  width:calc(var(--zen-control-size) / 2);
+  height:calc(var(--zen-control-size) / 2);
+  min-width:0;
+  min-height:0;
+  align-self:start;
+  padding:1px;
+  border-width:1px;
+  border-radius:6px;
+}
+.zen-control-panel:is([data-size="medium"],[data-size="large"]) .zen-control-undo{justify-self:start}
+.zen-control-panel:is([data-size="medium"],[data-size="large"]) .zen-control-restart{justify-self:end}
+.zen-control-panel:is([data-size="medium"],[data-size="large"]) .zen-control-key:is(.zen-control-undo,.zen-control-restart)>span{
+  font-size:calc(var(--zen-control-size) * .2);
+}
+.zen-control-panel:is([data-size="medium"],[data-size="large"]) .zen-control-key:is(.zen-control-undo,.zen-control-restart)>b{
+  margin-top:-3px;
+  font-size:calc(var(--zen-control-size) * .077);
+  letter-spacing:0;
+}
 .zen-control-undo{grid-area:undo;background:linear-gradient(rgba(225,75,50,.97),rgba(201,46,31,.97));color:#fff}
 .zen-control-restart{grid-area:restart}
 .zen-control-direction[data-dir=up]{grid-area:up}

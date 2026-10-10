@@ -1,3 +1,5 @@
+/* BOXXY v467: Restart/Revert shared by every gameplay control and keyboard R. */
+/* BOXXY v466: smaller, corner-anchored Zen actions on medium/large keypads; reversible Zen restart until the next move. */
 /* BOXXY v465: Basement Daily Practice reads the canonical monthly puzzle files. */
 /* BOXXY v464: remove the Secret Workshop contact entry point while preserving Settings and password recovery. */
 /* BOXXY v463: keep all Secret Workshop creations browser-only during account sync. */
@@ -48,8 +50,8 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "465",
-  lastUpdated: "2026-10-09"
+  version: "467",
+  lastUpdated: "2026-10-10"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
 /* BOXXY v401: PARTYGOERS expands to twelve characters, its Easter egg toggles visibility, and Attire character previews are centred/clickable. */
@@ -2745,6 +2747,7 @@ window.BOXXY_RELEASE = Object.freeze({
       if (thoughtText) thoughtText.textContent = "That saved position could not be restored.";
       return;
     }
+    clearPendingRestart();
     stopAutoplay();
     blockedPushHeld = false;
     clearTimeout(animTimer);
@@ -3255,6 +3258,7 @@ window.BOXXY_RELEASE = Object.freeze({
   let pushes = 0;
   let history = [];
   let redoHistory = [];
+  let pendingRestart = null;
   let facing = "front";
   let completed = false;
   let makerTesting = false;
@@ -3284,6 +3288,7 @@ window.BOXXY_RELEASE = Object.freeze({
     const isPractice = next === GAMEPLAY_CONTEXT.DAILY_PRACTICE;
     const isShared = next === GAMEPLAY_CONTEXT.SHARED;
 
+    clearPendingRestart();
     gameplayContext = next;
     makerTesting = isMaker;
     makerDailyPractice = isPractice;
@@ -9702,6 +9707,7 @@ window.BOXXY_RELEASE = Object.freeze({
 
   function startLevelTimerIfNeeded() {
     if (completed) return;
+    commitRestart();
     // A level load, restart, blocked direction or untouched starting board is NOT an attempt.
     if (armedLevelAttempt && !autoplayRunning && !makerTesting && !sharedPuzzleMode && !makerDailyPractice) {
       const attempt = armedLevelAttempt;
@@ -10199,6 +10205,152 @@ window.BOXXY_RELEASE = Object.freeze({
       return restored;
     }
     return copyBoxes(Array.isArray(state?.boxes) ? state.boxes : []);
+  }
+
+  // A restart remains reversible until the next successful move, regardless
+  // of whether it came from the sidebar, desktop tools, Zen, or keyboard R.
+  function syncRestartButtons() {
+    const revert = Boolean(pendingRestart);
+    for (const button of [restartBtn, desktopRestartBtn, zenRestartBtn]) {
+      if (!button) continue;
+      const label = button.querySelector("b");
+      const symbol = button.querySelector("span");
+      if (label) label.textContent = revert ? "REVERT" : "RESTART";
+      if (symbol) symbol.textContent = revert ? "↶" : "↻";
+      button.setAttribute("aria-label", revert ? "Revert restart" : "Restart level");
+      button.title = revert ? "Restore your position before restarting (R)" : "Restart level (R)";
+      button.classList.toggle("is-revert", revert);
+    }
+  }
+
+  function clearPendingRestart() {
+    if (!pendingRestart) return;
+    pendingRestart = null;
+    syncRestartButtons();
+  }
+
+  // Preserve the existing immediate reset for a finished level or while
+  // autoplay is active; those states cannot safely restore an active run.
+  function restartLevelImmediately(method) {
+    if (makerTesting || sharedPuzzleMode) restartMakerTest();
+    else if (dailyMode && dailyPuzzle) loadDailyPuzzle(dailyPuzzle, true);
+    else {
+      captureBoxxyAnalytics("level_restarted", currentLevelAnalytics({
+        restart_method: method,
+        moves_before_restart: Number(moves),
+        pushes_before_restart: Number(pushes),
+        elapsed_seconds: elapsedLevelSeconds()
+      }));
+      loadLevel(levelIndex);
+    }
+  }
+
+  function toggleRestart(method = "button") {
+    if (completed || autoplayRunning) {
+      restartLevelImmediately(method);
+      return;
+    }
+    if (pendingRestart) {
+      const saved = pendingRestart;
+      clearPendingRestart();
+      blockedPushHeld = false;
+      clearTimeout(animTimer);
+      player = [...saved.position.player];
+      boxes = boxesFromSnapshot(saved.position);
+      boxes.forEach(box => { box.moving = false; });
+      rebuildBoxLookup();
+      moves = saved.position.moves;
+      pushes = saved.position.pushes;
+      facing = saved.position.facing;
+      playedRoute = saved.position.route;
+      history = saved.history;
+      redoHistory = saved.redoHistory;
+      startedAt = saved.startedAt;
+      guidedSolveUsed = saved.guidedSolveUsed;
+      dailyPointControlUsed = saved.dailyPointControlUsed;
+      mouseOrClickPushUsedThisLevel = saved.mouseOrClickPushUsedThisLevel;
+      instantMoveUsedThisLevel = saved.instantMoveUsedThisLevel;
+      makerCompletedRoute = saved.makerCompletedRoute;
+      clearInterval(timer);
+      timer = startedAt ? setInterval(updateTime, 250) : null;
+      render("idle");
+      updateTime();
+      scheduleIdle();
+      return;
+    }
+
+    resetMouseSupportInteraction();
+    const parsed = parseLayout(levelData.layout, levelData.goalColours);
+    pendingRestart = {
+      position: snapshot(),
+      history: history.slice(),
+      redoHistory: redoHistory.slice(),
+      startedAt,
+      guidedSolveUsed,
+      dailyPointControlUsed,
+      mouseOrClickPushUsedThisLevel,
+      instantMoveUsedThisLevel,
+      makerCompletedRoute
+    };
+    if (!makerTesting && !sharedPuzzleMode && !dailyMode) {
+      captureBoxxyAnalytics("level_restarted", currentLevelAnalytics({
+        restart_method: method,
+        moves_before_restart: moves,
+        pushes_before_restart: pushes,
+        elapsed_seconds: elapsedLevelSeconds()
+      }));
+    }
+    clearTimeout(animTimer);
+    blockedPushHeld = false;
+    player = [...parsed.player];
+    boxes = parsed.boxes.map(([x, y]) => ({ x, y, moving: false }));
+    rebuildBoxLookup();
+    moves = 0;
+    pushes = 0;
+    history = [];
+    redoHistory = [];
+    facing = "front";
+    playedRoute = "";
+    makerCompletedRoute = "";
+    guidedSolveUsed = false;
+    dailyPointControlUsed = false;
+    mouseOrClickPushUsedThisLevel = false;
+    instantMoveUsedThisLevel = false;
+    startedAt = 0;
+    clearInterval(timer);
+    timer = null;
+    syncRestartButtons();
+    render("idle");
+    updateTime();
+    scheduleIdle();
+  }
+
+  function commitRestart() {
+    if (!pendingRestart) return;
+    const saved = pendingRestart;
+    clearPendingRestart();
+    // Do not end the old attempt or arm a new one until the replacement run
+    // makes a valid move. Revert before then leaves the original attempt intact.
+    if (saved.startedAt) {
+      window.BOXXYAttemptHistory?.end?.("restart", {
+        seconds: Math.max(0, (Date.now() - saved.startedAt) / 1000),
+        moves: saved.position.moves,
+        pushes: saved.position.pushes
+      });
+    }
+    armedLevelAttempt = null;
+    if (dailyMode && dailyPuzzle && dailyScoringAllowedFor(dailyPuzzle)) {
+      armLevelAttempt("daily-boxxy", String(dailyPuzzle.date || dailyPuzzle.sequence || "daily"), {
+        packName: "Daily Boxxy", levelNumber: Number(dailyPuzzle.sequence) || 0,
+        levelName: String(dailyPuzzle.date || "Daily Boxxy")
+      });
+    } else if (!makerTesting && !sharedPuzzleMode && !dailyMode) {
+      armLevelAttempt(activePack.id, String(levelIndex + 1), {
+        packName: String(activePack.displayName || activePack.title || activePack.id || ""),
+        levelNumber: levelIndex + 1,
+        levelName: String(levelData?.name || `Level ${levelIndex + 1}`)
+      });
+    }
   }
 
   function blocked(x, y) {
@@ -11541,17 +11693,7 @@ window.BOXXY_RELEASE = Object.freeze({
     } else if (event.key === "r" || event.key === "R") {
       event.preventDefault();
       if (event.repeat) return;
-      if (makerTesting || sharedPuzzleMode) restartMakerTest();
-      else if (dailyMode && dailyPuzzle) loadDailyPuzzle(dailyPuzzle, true);
-      else {
-        captureBoxxyAnalytics("level_restarted", currentLevelAnalytics({
-          restart_method: "keyboard",
-          moves_before_restart: Number(moves),
-          pushes_before_restart: Number(pushes),
-          elapsed_seconds: elapsedLevelSeconds()
-        }));
-        loadLevel(levelIndex);
-      }
+      toggleRestart("keyboard");
     }
   });
 
@@ -11906,20 +12048,9 @@ window.BOXXY_RELEASE = Object.freeze({
   bindUndoControl(undoBtn, true);
   bindUndoControl(zenUndoBtn);
   savePositionBtn?.addEventListener("click", saveOrRestorePosition);
-  restartBtn.addEventListener("click", () => {
-    if (makerTesting || sharedPuzzleMode) restartMakerTest();
-    else if (dailyMode) loadDailyPuzzle(dailyPuzzle, true);
-    else {
-      captureBoxxyAnalytics("level_restarted", currentLevelAnalytics({
-        restart_method: "button",
-        moves_before_restart: Number(moves),
-        pushes_before_restart: Number(pushes),
-        elapsed_seconds: elapsedLevelSeconds()
-      }));
-      loadLevel(levelIndex);
-    }
-  });
-  zenRestartBtn?.addEventListener("click", () => restartBtn?.click());
+  restartBtn.addEventListener("click", () => toggleRestart("button"));
+  zenRestartBtn?.addEventListener("click", () => toggleRestart("zen"));
+  syncRestartButtons();
   zenControlSizeBtn?.addEventListener("click", event => {
     event.preventDefault();
     event.stopPropagation();
