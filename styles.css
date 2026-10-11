@@ -1,4 +1,4 @@
-/* BOXXY v473: compact mobile trophy header and opaque desktop Undo. */
+/* BOXXY v474: restore over-medal mobile gold count, enlarge the gold medal, and refresh Static Noise art. */
 /* BOXXY v457 — Puzzle Packs exposes the Secret Level Editor on iPad/tablet and desktop, not phones. */
 /* BOXXY v449 — rare-character modal portraits use opaque-bound fitting; fixed-character frame warm-up is handled in the renderer. */
 /* BOXXY v448 — rare-character modal uses the fixed sprite sheet directly and rare colour keys no longer expose PARTYGOERS. */
@@ -7836,30 +7836,45 @@ html.touch-ui .dpad button {touch-action:none;-webkit-touch-callout:none;-webkit
   /* On phones the pack awards live in the cabinet, not a reflowing badge rail. */
   .completed-pack-stars{display:none!important}
   .daily-gold-medal-badge{
-    display:flex;
-    width:auto;
-    height:var(--header-badge-size);
-    gap:2px;
+    width:var(--daily-streak-badge-size,clamp(24px,6.8vw,29px));
+    height:var(--daily-streak-badge-size,clamp(24px,6.8vw,29px));
+    display:grid;
+    place-items:center;
     filter:drop-shadow(1px 1px 0 rgba(23,23,25,.24));
   }
-  /* The count sits beside the medal, not on top of it (including 10+ medals). */
+  .daily-gold-medal-badge .daily-gold-medal-emoji{
+    font-size:calc(var(--daily-streak-badge-size,clamp(24px,6.8vw,29px)) * .9);
+  }
+  /* Keep the count over the medal, but a little smaller so two digits still read cleanly. */
   .daily-gold-medal-badge .daily-gold-medal-count{
-    position:static;
-    min-width:0;
-    height:auto;
-    padding:0;
-    border:0;
-    border-radius:0;
-    background:transparent;
-    color:var(--ink);
-    box-shadow:none;
-    font:900 11px/1 Arial,sans-serif;
+    position:absolute;
+    right:-3px;
+    bottom:-2px;
+    min-width:14px;
+    height:14px;
+    padding:0 2px;
+    border:1px solid rgba(255,255,255,.92);
+    border-radius:8px;
+    background:var(--ink);
+    color:#fff;
+    box-shadow:1px 1px 0 rgba(23,23,25,.2);
+    font:1000 6px/1 Arial,sans-serif;
+    letter-spacing:-.04em;
   }
 }
 @media(max-width:390px){
-  .daily-gold-medal-badge{height:20px}
-  .daily-gold-medal-badge .daily-gold-medal-emoji{font-size:18px}
-  .daily-gold-medal-badge .daily-gold-medal-count{font-size:10px}
+  .daily-gold-medal-badge{
+    width:24px;
+    height:24px;
+  }
+  .daily-gold-medal-badge .daily-gold-medal-emoji{font-size:21px}
+  .daily-gold-medal-badge .daily-gold-medal-count{
+    min-width:13px;
+    height:13px;
+    font-size:5.7px;
+    right:-2px;
+    bottom:-2px;
+  }
 }
 
 /* BOXXY v435 — desktop tools are an independent slide-over tray above the map; fixed header/footer chrome never participates. */
