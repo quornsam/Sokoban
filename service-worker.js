@@ -1,3 +1,4 @@
+/* BOXXY v473: stable mobile trophy header and opaque desktop Undo. */
 /* BOXXY v472: add Static Noise pack and monthly Daily completion medals. */
 /* BOXXY v471: optimise submitted Daily gold-run lookup using the existing attempt-ID index. */
 /* BOXXY v470: restore the v451 wide-spaced arrow arrangement in Legacy Zen controls. */
@@ -65,7 +66,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "472";
+const RELEASE_VERSION = "473";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [

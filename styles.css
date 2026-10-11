@@ -1,3 +1,4 @@
+/* BOXXY v473: compact mobile trophy header and opaque desktop Undo. */
 /* BOXXY v457 — Puzzle Packs exposes the Secret Level Editor on iPad/tablet and desktop, not phones. */
 /* BOXXY v449 — rare-character modal portraits use opaque-bound fitting; fixed-character frame warm-up is handled in the renderer. */
 /* BOXXY v448 — rare-character modal uses the fixed sprite sheet directly and rare colour keys no longer expose PARTYGOERS. */
@@ -3173,6 +3174,7 @@ html.touch-ui .level-attire{
   min-width:0;
 }
 .completed-pack-stars[hidden]{display:none!important}
+.completed-pack-star[hidden]{display:none!important}
 .completed-pack-star{
   appearance:none;
   width:var(--header-badge-size);
@@ -7831,12 +7833,33 @@ html.touch-ui .dpad button {touch-action:none;-webkit-touch-callout:none;-webkit
 .player-profile-daily-gold .daily-gold-medal-emoji{font-size:38px}
 .player-profile-daily-gold .daily-gold-medal-count{right:-5px;bottom:0}
 @media(max-width:760px){
-  .daily-gold-medal-badge{filter:drop-shadow(1px 1px 0 rgba(23,23,25,.24))}
+  /* On phones the pack awards live in the cabinet, not a reflowing badge rail. */
+  .completed-pack-stars{display:none!important}
+  .daily-gold-medal-badge{
+    display:flex;
+    width:auto;
+    height:var(--header-badge-size);
+    gap:2px;
+    filter:drop-shadow(1px 1px 0 rgba(23,23,25,.24));
+  }
+  /* The count sits beside the medal, not on top of it (including 10+ medals). */
+  .daily-gold-medal-badge .daily-gold-medal-count{
+    position:static;
+    min-width:0;
+    height:auto;
+    padding:0;
+    border:0;
+    border-radius:0;
+    background:transparent;
+    color:var(--ink);
+    box-shadow:none;
+    font:900 11px/1 Arial,sans-serif;
+  }
 }
 @media(max-width:390px){
-  .daily-gold-medal-badge{width:20px;height:20px}
+  .daily-gold-medal-badge{height:20px}
   .daily-gold-medal-badge .daily-gold-medal-emoji{font-size:18px}
-  .daily-gold-medal-badge .daily-gold-medal-count{right:-5px;bottom:-4px;min-width:13px;height:13px;font-size:6px}
+  .daily-gold-medal-badge .daily-gold-medal-count{font-size:10px}
 }
 
 /* BOXXY v435 — desktop tools are an independent slide-over tray above the map; fixed header/footer chrome never participates. */
@@ -8213,10 +8236,12 @@ html.touch-ui .dpad button {touch-action:none;-webkit-touch-callout:none;-webkit
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-board-action span{font-size:32px;line-height:.9}
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-board-action b{font-size:9px;line-height:1;letter-spacing:.04em}
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-board-restart{order:1}
-  html:not(.touch-ui):not(.desktop-zen-mode) .desktop-board-undo{order:2;background:rgba(219,59,39,.94);border-color:#a92d20;color:#fff}
+  html:not(.touch-ui):not(.desktop-zen-mode) .desktop-board-undo{order:2;background:#db3b27;border-color:#a92d20;color:#fff;backdrop-filter:none}
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-board-action:hover{transform:translateY(-1px)}
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-board-action:active{transform:translateY(1px)}
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-board-action:disabled{opacity:.45;cursor:default;transform:none}
+  /* Dull but fully opaque while Undo is unavailable: board motifs never show through. */
+  html:not(.touch-ui):not(.desktop-zen-mode) .desktop-board-undo:disabled{opacity:1;background:#d9a59c;border-color:#b9867f;color:#77564f}
 
   @media (prefers-reduced-motion:reduce){
     html:not(.touch-ui):not(.desktop-zen-mode) .desktop-utility-tray,

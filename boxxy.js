@@ -1,3 +1,4 @@
+/* BOXXY v473: steady mobile awards header and compact, non-overlapping gold count. */
 /* BOXXY v469: optional original v451 fixed Zen arrows, retaining the modern keypad and reversible Restart. */
 /* BOXXY v468: public Hall of Fame shows linked-player avatars in responsive cards. */
 /* BOXXY v467: Restart/Revert shared by every gameplay control and keyboard R. */
@@ -52,7 +53,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "472",
+  version: "473",
   lastUpdated: "2026-10-11"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
@@ -6115,6 +6116,21 @@ window.BOXXY_RELEASE = Object.freeze({
     headerAwardsLayoutFrame = 0;
     if (!completedPackStars || !trophyCabinetBtn || !dailyStreak) return;
     const packButtons = Array.from(completedPackStars.querySelectorAll(".completed-pack-star"));
+    // The compact header always uses the cabinet rather than dynamically fitting
+    // individual pack badges. This keeps the awards rail stable during moves.
+    if (window.matchMedia("(max-width: 760px)").matches) {
+      packButtons.forEach(button => { button.hidden = true; });
+      const hiddenCount = packButtons.length;
+      trophyCabinetBtn.hidden = !(hiddenCount || dailyGoldMedalsEarned || earnedMonthlyMedals().length);
+      if (trophyCabinetMoreCount) trophyCabinetMoreCount.textContent = hiddenCount ? `+${hiddenCount}` : "";
+      const label = hiddenCount
+        ? `View trophy cabinet, ${hiddenCount} pack ${hiddenCount === 1 ? "award" : "awards"}`
+        : "View trophy cabinet";
+      trophyCabinetBtn.setAttribute("aria-label", label);
+      trophyCabinetBtn.title = label;
+      return;
+    }
+
     packButtons.forEach(button => { button.hidden = false; });
     trophyCabinetBtn.hidden = true;
     if (trophyCabinetMoreCount) trophyCabinetMoreCount.textContent = "";
