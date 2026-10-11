@@ -1,3 +1,4 @@
+/* BOXXY v472: add Static Noise pack and monthly Daily completion medals. */
 /* BOXXY v471: optimise submitted Daily gold-run lookup using the existing attempt-ID index. */
 /* BOXXY v470: restore the v451 wide-spaced arrow arrangement in Legacy Zen controls. */
 /* BOXXY v469: cache optional fixed Zen controls and the Legacy Arrow Keys preference. */
@@ -64,7 +65,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "471";
+const RELEASE_VERSION = "472";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [
@@ -73,6 +74,7 @@ const ASSETS = [
   "/attempt-history-ui.js",
   "/attempt-history.css",
   "/alphabet-soup.js",
+  "/static-noise.js",
   "/assets/audio/Fading-into-Gold-296KB.mp3",
   "/assets/audio/Starry-Night-Lullaby-281KB.mp3",
   "/assets/audio/Tetris-Piano-293KB.mp3",
@@ -214,6 +216,14 @@ const ASSETS = [
   "/assets/pack-art/the-jigsaw-banner.webp",
   "/assets/pack-art/the-jigsaw-mobile.webp",
   "/assets/pack-art/the-jigsaw-pack-art.png",
+  "/assets/pack-art/static-noise-banner.webp",
+  "/assets/pack-art/static-noise-mobile.webp",
+  "/assets/medals/static-noise-tv.png",
+  "/assets/medals/boxxy-medal-2026-08.png",
+  "/assets/medals/boxxy-medal-2026-09.png",
+  "/assets/medals/boxxy-medal-2026-10.png",
+  "/assets/medals/boxxy-medal-2026-11.png",
+  "/assets/medals/boxxy-medal-2026-12.png",
   "/assets/ui/alphabet-soup-badge.png",
   "/assets/ui/boxxy-prize-poster-lowres.jpg",
   "/assets/ui/boxxy-splash.png",

@@ -7,7 +7,8 @@ export const PACK_COMPLETION_DEFS = Object.freeze([
   { id:"jigsaw", name:"The Jigsaw", levels:25 },
   { id:"exponentially", name:"Exponentially", levels:11 },
   { id:"alphabet-soup", name:"Alphabet Soup", levels:27 },
-  { id:"starry-night", name:"Starry Night", levels:25 }
+  { id:"starry-night", name:"Starry Night", levels:25 },
+  { id:"static-noise", name:"Static Noise", levels:11 }
 ]);
 const MICROBAN_SOURCES = Object.freeze(["44", "2", "21", "30", "31", "40", "4", "1", "9", "25", "17", "28", "24", "38", "32", "46", "5", "14", "7", "15", "34", "26", "12", "27", "3", "23", "45", "33", "22", "41", "20", "19", "42", "18", "48", "11", "13", "43", "50", "47", "37", "49", "10", "39", "29", "8", "35", "6", "16", "120"]);
 const KNOWN = new Map(PACK_COMPLETION_DEFS.map(pack => [pack.id, pack]));
