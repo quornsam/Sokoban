@@ -1,3 +1,4 @@
+/* BOXXY v476: wait for initial account identity before presenting monthly medal notices. */
 /* BOXXY v463: keep Secret Workshop drafts and editor preferences local to the browser. */
 /* BOXXY v461: release metadata/cache correction; v460 cloud-sync diagnostics retained. */
 /* BOXXY v460: report account cloud-sync failures instead of silently swallowing them. */
@@ -161,9 +162,10 @@
   if (!entryBtn || !accountView) return;
 
   let account = null;
+  let initialAccountReady = false;
   // Read-only identity for first-completion records. Authentication remains
   // server-side; this is never used to authorise a request.
-  window.BOXXYAccountIdentity = { get id() { return account?.id || ""; }, get username() { return account?.username || ""; } };
+  window.BOXXYAccountIdentity = { get id() { return account?.id || ""; }, get username() { return account?.username || ""; }, get ready() { return initialAccountReady; } };
   // Read-only display statistics for BOXXY's rotating footer facts. This exposes
   // no account credentials or identifiers and always reflects the live session.
   window.BOXXYPlayerStats = Object.freeze({
@@ -1844,7 +1846,12 @@
   render();
   broadcastAccountFeatures();
   (async () => {
-    await initialAccountCheck();
-    await resumeGoogleRedirect();
+    try {
+      await initialAccountCheck();
+      await resumeGoogleRedirect();
+    } finally {
+      initialAccountReady = true;
+      window.dispatchEvent(new Event("boxxyaccountready"));
+    }
   })();
 })();

@@ -1,3 +1,4 @@
+/* BOXXY v476: correct user-supplied Static Noise level titles. */
 /* BOXXY user level pack: Static Noise */
 (() => {
   "use strict";
@@ -16,7 +17,7 @@
     {
       "rank": 1,
       "sourceNumber": "static-noise-1",
-      "name": "Binary1",
+      "name": "Snow",
       "author": "Sam Cornwell",
       "tier": "STATIC NOISE",
       "minimum": null,
@@ -34,7 +35,7 @@
     {
       "rank": 2,
       "sourceNumber": "static-noise-2",
-      "name": "Binary2",
+      "name": "Bugs",
       "author": "Sam Cornwell",
       "tier": "STATIC NOISE",
       "minimum": null,
@@ -53,7 +54,7 @@
     {
       "rank": 3,
       "sourceNumber": "static-noise-3",
-      "name": "Binary3",
+      "name": "Purici / Fleas",
       "author": "Sam Cornwell",
       "tier": "STATIC NOISE",
       "minimum": null,
@@ -73,7 +74,7 @@
     {
       "rank": 4,
       "sourceNumber": "static-noise-4",
-      "name": "Binary4",
+      "name": "Lluvia / Rain",
       "author": "Sam Cornwell",
       "tier": "STATIC NOISE",
       "minimum": null,
@@ -94,7 +95,7 @@
     {
       "rank": 5,
       "sourceNumber": "static-noise-5",
-      "name": "Binary5",
+      "name": "Sale e pepe / Salt & Pepper",
       "author": "Sam Cornwell",
       "tier": "STATIC NOISE",
       "minimum": null,
@@ -116,7 +117,7 @@
     {
       "rank": 6,
       "sourceNumber": "static-noise-6",
-      "name": "Binary6",
+      "name": "Hangyafoci / Ant Football",
       "author": "Sam Cornwell",
       "tier": "STATIC NOISE",
       "minimum": null,
@@ -139,7 +140,7 @@
     {
       "rank": 7,
       "sourceNumber": "static-noise-7",
-      "name": "Binary7",
+      "name": "Chiado / Wheezing",
       "author": "Sam Cornwell",
       "tier": "STATIC NOISE",
       "minimum": null,
@@ -163,7 +164,7 @@
     {
       "rank": 8,
       "sourceNumber": "static-noise-8",
-      "name": "Binary8",
+      "name": "砂嵐 (Suna-arashi) / Sandstorm",
       "author": "Sam Cornwell",
       "tier": "STATIC NOISE",
       "minimum": null,
@@ -188,7 +189,7 @@
     {
       "rank": 9,
       "sourceNumber": "static-noise-9",
-      "name": "Binary9",
+      "name": "Formigueiro / Anthill",
       "author": "Sam Cornwell",
       "tier": "STATIC NOISE",
       "minimum": null,
@@ -214,7 +215,7 @@
     {
       "rank": 10,
       "sourceNumber": "static-noise-10",
-      "name": "Binary10",
+      "name": "Myrornas krig / War of the Ants",
       "author": "Sam Cornwell",
       "tier": "STATIC NOISE",
       "minimum": null,
@@ -241,7 +242,7 @@
     {
       "rank": 11,
       "sourceNumber": "static-noise-11",
-      "name": "Binary-Final",
+      "name": "Cosmic Microwave Background",
       "author": "Sam Cornwell",
       "tier": "STATIC NOISE",
       "minimum": null,

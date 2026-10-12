@@ -1,4 +1,5 @@
-/* BOXXY v475: full portrait Zen keypad, clear mobile trophy badges, muted opaque desktop Undo. */
+/* BOXXY v476: restore the original transparent disabled desktop Undo treatment. */
+/* BOXXY v475: full portrait Zen keypad and clear mobile trophy badges. */
 /* BOXXY v474: restore over-medal mobile gold count, enlarge the gold medal, and refresh Static Noise art. */
 /* BOXXY v457 — Puzzle Packs exposes the Secret Level Editor on iPad/tablet and desktop, not phones. */
 /* BOXXY v449 — rare-character modal portraits use opaque-bound fitting; fixed-character frame warm-up is handled in the renderer. */
@@ -8273,12 +8274,10 @@ html.touch-ui .dpad button {touch-action:none;-webkit-touch-callout:none;-webkit
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-board-action span{font-size:32px;line-height:.9}
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-board-action b{font-size:9px;line-height:1;letter-spacing:.04em}
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-board-restart{order:1}
-  html:not(.touch-ui):not(.desktop-zen-mode) .desktop-board-undo{order:2;background:#db3b27;border-color:#a92d20;color:#fff;backdrop-filter:none}
+  html:not(.touch-ui):not(.desktop-zen-mode) .desktop-board-undo{order:2;background:rgba(219,59,39,.94);border-color:#a92d20;color:#fff}
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-board-action:hover{transform:translateY(-1px)}
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-board-action:active{transform:translateY(1px)}
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-board-action:disabled{opacity:.45;cursor:default;transform:none}
-  /* Dull but fully opaque while Undo is unavailable: board motifs never show through. */
-  html:not(.touch-ui):not(.desktop-zen-mode) .desktop-board-undo:disabled{opacity:1;background:#c6b9af;border-color:#a99a90;color:#75675e}
 
   @media (prefers-reduced-motion:reduce){
     html:not(.touch-ui):not(.desktop-zen-mode) .desktop-utility-tray,

@@ -1,3 +1,4 @@
+/* BOXXY v476: restore transparent Undo, fix month-award identity timing, and correct Static Noise names. */
 /* BOXXY v475: portrait Full Zen keypad, mobile header spacing, muted opaque desktop Undo. */
 /* BOXXY v474: larger overlaid mobile gold medal count and refreshed Static Noise art. */
 /* BOXXY v472: add Static Noise pack and monthly Daily completion medals. */
@@ -67,7 +68,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "475";
+const RELEASE_VERSION = "476";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [

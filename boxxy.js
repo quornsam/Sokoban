@@ -1,3 +1,4 @@
+/* BOXXY v476: prevent monthly award acknowledgements being saved under a temporary guest identity. */
 /* BOXXY v475: full-width portrait Zen controls with orientation-aware size selection. */
 /* BOXXY v474: mobile gold badge layout, Static Noise pack artwork, and release metadata. */
 /* BOXXY v473: steady mobile awards header and compact, non-overlapping gold count. */
@@ -55,7 +56,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "475",
+  version: "476",
   lastUpdated: "2026-10-12"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
@@ -5952,6 +5953,9 @@ window.BOXXY_RELEASE = Object.freeze({
 
   function showNextMonthlyMedal() {
     if (!monthlyMedalModal || !monthlyMedalModal.hidden) return;
+    // Wait for the existing account check to complete before choosing the
+    // acknowledgement owner. Otherwise a slow login saves it as "guest".
+    if (window.BOXXYAccountIdentity && !window.BOXXYAccountIdentity.ready) return;
     const next = earnedMonthlyMedals().find(month => !readMonthlyMedalNotices().includes(month));
     if (!next) return;
     // Congratulate returning players even when the ordinary Daily invitation is open.
@@ -5992,6 +5996,7 @@ window.BOXXY_RELEASE = Object.freeze({
     buildTrophyCabinet();
     deferMonthlyMedalNotices();
   });
+  window.addEventListener("boxxyaccountready", () => deferMonthlyMedalNotices(100));
   window.addEventListener("boxxyaccountawards", () => deferMonthlyMedalNotices(700));
   window.addEventListener("boxxydailycompletionrecorded", () => deferMonthlyMedalNotices(900));
   deferMonthlyMedalNotices(1300);
