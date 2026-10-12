@@ -1,3 +1,4 @@
+/* BOXXY v479: refresh earned-only Trophy Cabinet client assets. */
 /* BOXXY v478: refreshed award details and Daily gold replay controls. */
 /* BOXXY v477: on-demand medal details and heading adjustments. */
 /* BOXXY v476: restore transparent Undo, fix month-award identity timing, and correct Static Noise names. */
@@ -70,7 +71,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "478";
+const RELEASE_VERSION = "479";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [

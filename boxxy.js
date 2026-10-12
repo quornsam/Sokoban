@@ -1,3 +1,4 @@
+/* BOXXY v479: show earned trophies only, without the collection count summary. */
 /* BOXXY v478: month medal presentation and replay links for indexed, cached Daily gold dates. */
 /* BOXXY v477: trophy detail views use cached Daily records and indexed on-demand gold dates; mobile and desktop layout tidy-up. */
 /* BOXXY v476: prevent monthly award acknowledgements being saved under a temporary guest identity. */
@@ -58,7 +59,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "478",
+  version: "479",
   lastUpdated: "2026-10-12"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
@@ -3113,7 +3114,6 @@ window.BOXXY_RELEASE = Object.freeze({
   const trophyCabinetMoreCount = document.getElementById("trophyCabinetMoreCount");
   const trophyCabinetModal = document.getElementById("trophyCabinetModal");
   const trophyCabinetCloseBtn = document.getElementById("trophyCabinetCloseBtn");
-  const trophyCabinetSummary = document.getElementById("trophyCabinetSummary");
   const trophyCabinetGrid = document.getElementById("trophyCabinetGrid");
   const dailyStreak = document.getElementById("dailyStreak");
   const dailyStreakNumber = document.getElementById("dailyStreakNumber");
@@ -6157,27 +6157,21 @@ window.BOXXY_RELEASE = Object.freeze({
   function buildTrophyCabinet() {
     if (!trophyCabinetGrid) return;
     trophyCabinetGrid.innerHTML = "";
-    const earnedCount = PACKS.reduce((total, pack) => total + (packIsComplete(pack.id) ? 1 : 0), 0);
-    if (trophyCabinetSummary) trophyCabinetSummary.textContent = `${earnedCount} OF ${PACKS.length} PACK AWARDS · ${earnedMonthlyMedals().length} MONTHLY MEDALS` + (dailyGoldMedalsEarned > 0 ? ` · ${dailyGoldMedalsEarned} DAILY GOLD` : "");
-
     const fragment = document.createDocumentFragment();
-    PACKS.forEach(pack => {
-      const earned = packIsComplete(pack.id);
-      const slot = document.createElement("div");
-      slot.className = `trophy-cabinet-slot ${earned ? "is-earned" : "is-unearned"}`;
 
-      const award = document.createElement(earned ? "button" : "div");
-      if (earned) {
-        award.type = "button";
-        award.className = "trophy-cabinet-award";
-        award.setAttribute("aria-label", `View congratulations for ${pack.displayName || pack.title}`);
-        award.addEventListener("click", () => {
-          closeTrophyCabinet();
-          showCollectionCongratulations(pack.id);
-        });
-      } else {
-        award.className = "trophy-cabinet-award trophy-cabinet-award-locked";
-      }
+    PACKS.forEach(pack => {
+      if (!packIsComplete(pack.id)) return;
+      const slot = document.createElement("div");
+      slot.className = "trophy-cabinet-slot is-earned";
+
+      const award = document.createElement("button");
+      award.type = "button";
+      award.className = "trophy-cabinet-award";
+      award.setAttribute("aria-label", `View congratulations for ${pack.displayName || pack.title}`);
+      award.addEventListener("click", () => {
+        closeTrophyCabinet();
+        showCollectionCongratulations(pack.id);
+      });
 
       const icon = document.createElement("span");
       icon.className = `trophy-cabinet-award-icon completed-pack-reward-${packRewardKind(pack)}`;
@@ -6190,24 +6184,22 @@ window.BOXXY_RELEASE = Object.freeze({
 
       const status = document.createElement("span");
       status.className = "trophy-cabinet-slot-status";
-      status.textContent = earned ? "EARNED" : "NOT YET EARNED";
+      status.textContent = "EARNED";
 
       award.append(icon, name);
       slot.append(award, status);
       fragment.appendChild(slot);
     });
-    const monthlyEarned = new Set(earnedMonthlyMedals());
-    MONTH_MEDAL_MONTHS.forEach(month => {
-      const earned = monthlyEarned.has(month);
+
+    earnedMonthlyMedals().forEach(month => {
       const slot = document.createElement("div");
-      slot.className = `trophy-cabinet-slot trophy-cabinet-month ${earned ? "is-earned" : "is-unearned"}`;
-      const award = document.createElement(earned ? "button" : "div");
-      award.className = `trophy-cabinet-award${earned ? "" : " trophy-cabinet-award-locked"}`;
-      if (earned) {
-        award.type = "button";
-        award.setAttribute("aria-label", `View ${dailyMonthHeading(month)} Daily medal totals`);
-        award.addEventListener("click", () => showMonthTrophyDetails(month));
-      }
+      slot.className = "trophy-cabinet-slot trophy-cabinet-month is-earned";
+      const award = document.createElement("button");
+      award.type = "button";
+      award.className = "trophy-cabinet-award";
+      award.setAttribute("aria-label", `View ${dailyMonthHeading(month)} Daily medal totals`);
+      award.addEventListener("click", () => showMonthTrophyDetails(month));
+
       const icon = document.createElement("span");
       icon.className = "trophy-cabinet-award-icon";
       const image = document.createElement("img");
@@ -6215,12 +6207,13 @@ window.BOXXY_RELEASE = Object.freeze({
       image.alt = "";
       image.loading = "lazy";
       icon.appendChild(image);
+
       const name = document.createElement("strong");
       name.className = "trophy-cabinet-slot-name";
       name.textContent = dailyMonthHeading(month);
       const status = document.createElement("span");
       status.className = "trophy-cabinet-slot-status";
-      status.textContent = earned ? "EARNED · ALL DAILYS" : "NOT YET EARNED";
+      status.textContent = "EARNED · ALL DAILYS";
       award.append(icon, name);
       slot.append(award, status);
       fragment.appendChild(slot);
@@ -6245,6 +6238,12 @@ window.BOXXY_RELEASE = Object.freeze({
       award.append(icon, name);
       slot.append(award, status);
       fragment.appendChild(slot);
+    }
+    if (!fragment.childNodes.length) {
+      const empty = document.createElement("p");
+      empty.className = "trophy-cabinet-empty";
+      empty.textContent = "No trophies earned yet.";
+      fragment.appendChild(empty);
     }
     trophyCabinetGrid.appendChild(fragment);
   }
