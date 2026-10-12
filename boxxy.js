@@ -1,3 +1,4 @@
+/* BOXXY v481: three-way Zen arrow mode (movable, original, wide). */
 /* BOXXY v480: unnumbered gold-medal replay list with ordinal dates. */
 /* BOXXY v479: show earned trophies only, without the collection count summary. */
 /* BOXXY v478: month medal presentation and replay links for indexed, cached Daily gold dates. */
@@ -60,7 +61,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "480",
+  version: "481",
   lastUpdated: "2026-10-12"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
@@ -3401,19 +3402,33 @@ window.BOXXY_RELEASE = Object.freeze({
     });
   }
   let blockedPushHeld = false;
-  // Deliberately a new preference: users who chose wider arrows in older
-  // versions should not be switched to the legacy Zen layout unexpectedly.
+  // Preserve v469–v480 preferences: stored "on" was the wide legacy layout.
+  // "compact" represents the original fixed layout without a migration or new sync key.
   const LEGACY_ZEN_ARROWS_KEY = "boxxy-legacy-zen-arrows-v1";
-  let legacyZenArrows = localStorage.getItem(LEGACY_ZEN_ARROWS_KEY) === "on";
-  function applyLegacyZenArrows(enabled, persist = true) {
-    legacyZenArrows = Boolean(enabled);
+  const legacyZenArrowModeFromStorage = () => {
+    const stored = localStorage.getItem(LEGACY_ZEN_ARROWS_KEY);
+    return stored === "on" ? "wide" : stored === "compact" ? "on" : "off";
+  };
+  let legacyZenArrowMode = legacyZenArrowModeFromStorage();
+  let legacyZenArrows = legacyZenArrowMode !== "off";
+  function applyLegacyZenArrows(mode, persist = true) {
+    legacyZenArrowMode = ["off", "on", "wide"].includes(mode) ? mode : "off";
+    legacyZenArrows = legacyZenArrowMode !== "off";
     document.body.classList.toggle("legacy-zen-arrows", legacyZenArrows);
+    document.body.classList.toggle("legacy-zen-arrows-wide", legacyZenArrowMode === "wide");
     if (zenControlPanel) zenControlPanel.hidden = !phoneZenModeActive() || legacyZenArrows;
     if (settingsLegacyArrowsToggle) {
-      settingsLegacyArrowsToggle.textContent = legacyZenArrows ? "ON" : "OFF";
-      settingsLegacyArrowsToggle.setAttribute("aria-pressed", String(legacyZenArrows));
+      settingsLegacyArrowsToggle.dataset.mode = legacyZenArrowMode;
+      settingsLegacyArrowsToggle.querySelectorAll("[data-legacy-mode]").forEach(button => {
+        const selected = button.dataset.legacyMode === legacyZenArrowMode;
+        button.setAttribute("aria-checked", String(selected));
+        button.tabIndex = selected ? 0 : -1;
+      });
     }
-    if (persist) localStorage.setItem(LEGACY_ZEN_ARROWS_KEY, legacyZenArrows ? "on" : "off");
+    if (persist) {
+      localStorage.setItem(LEGACY_ZEN_ARROWS_KEY,
+        legacyZenArrowMode === "wide" ? "on" : legacyZenArrowMode === "on" ? "compact" : "off");
+    }
     if (phoneZenModeActive()) scheduleBoardResize();
   }
   let soundOn = localStorage.getItem("boxxy-sound-v1") !== "off";
@@ -8361,7 +8376,7 @@ window.BOXXY_RELEASE = Object.freeze({
     updateSettingsMouseButton();
     updateSettingsTouchPushButton();
     updateSettingsSolutionDataButton();
-    applyLegacyZenArrows(legacyZenArrows, false);
+    applyLegacyZenArrows(legacyZenArrowMode, false);
   }
 
   function updateSoundButton() {
@@ -12500,7 +12515,20 @@ window.BOXXY_RELEASE = Object.freeze({
     updateSpookyMusicButton();
   });
   settingsSpeedSelect?.addEventListener("change", event => applyBoxxySpeed(String(event.currentTarget.value || "normal"), true));
-  settingsLegacyArrowsToggle?.addEventListener("click", () => applyLegacyZenArrows(!legacyZenArrows));
+  settingsLegacyArrowsToggle?.addEventListener("click", event => {
+    const option = event.target.closest("[data-legacy-mode]");
+    if (option) applyLegacyZenArrows(option.dataset.legacyMode);
+  });
+  settingsLegacyArrowsToggle?.addEventListener("keydown", event => {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const modes = ["off", "on", "wide"];
+    const current = modes.indexOf(legacyZenArrowMode);
+    const next = event.key === "Home" ? 0 : event.key === "End" ? 2
+      : (current + (event.key === "ArrowRight" ? 1 : 2)) % modes.length;
+    applyLegacyZenArrows(modes[next]);
+    settingsLegacyArrowsToggle.querySelector(`[data-legacy-mode="${modes[next]}"]`)?.focus();
+  });
   settingsMouseToggle?.addEventListener("click", () => setSettingsMouseSupport(!mouseSupportEnabled));
   settingsTouchPushToggle?.addEventListener("click", () => setSettingsTouchClickPush(!touchClickPushEnabled));
   settingsSolutionDataToggle?.addEventListener("click", () => setLevelSolutionAvailable(!levelSolutionAvailable));
@@ -12517,7 +12545,7 @@ window.BOXXY_RELEASE = Object.freeze({
   });
   window.addEventListener("boxxyclickpushcloudstate", reloadTouchClickPushState);
   window.addEventListener("boxxylegacyzenarrowscloudstate", () => {
-    applyLegacyZenArrows(localStorage.getItem(LEGACY_ZEN_ARROWS_KEY) === "on", false);
+    applyLegacyZenArrows(legacyZenArrowModeFromStorage(), false);
   });
   collectionBtn?.addEventListener("click", openPackModal);
   finalPackMoreBtn?.addEventListener("click", () => {

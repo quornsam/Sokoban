@@ -1,3 +1,4 @@
+/* BOXXY v481: compact/wide legacy Zen arrows with a three-position selector. */
 /* BOXXY v480: unnumbered gold-medal replay entries. */
 /* BOXXY v479: earned-only trophy cabinet and no count summary. */
 /* BOXXY v477: trophy detail dialogs, right-edge mobile badge, and clear desktop descenders. */
@@ -5991,6 +5992,32 @@ body.first-person-mode .board::after{
 .settings-option-row .settings-mouse-leaderboard-warning[hidden]{display:none!important}
 .settings-mini-toggle{flex:none;min-width:62px;min-height:38px;padding:7px 9px;border:2px solid var(--ink);background:#e9e3da;color:var(--ink);box-shadow:3px 3px 0 var(--ink);font-size:9px;font-weight:1000;letter-spacing:.08em}
 .settings-mini-toggle[aria-pressed="true"]{background:var(--green);color:#fff}
+/* A single three-position slider, using the existing mobile settings row. */
+.settings-option-row .settings-legacy-segment{
+  position:relative;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;
+  flex:0 0 150px;min-width:150px;height:40px;padding:3px;
+  border:2px solid var(--ink);background:#e9e3da;box-shadow:3px 3px 0 var(--ink);
+}
+.settings-legacy-segment::before{
+  content:"";position:absolute;top:3px;left:3px;bottom:3px;
+  width:calc((100% - 6px) / 3);background:var(--green);
+  transform:translateX(0);transition:transform .16s ease;pointer-events:none;
+}
+.settings-legacy-segment[data-mode="on"]::before{transform:translateX(100%)}
+.settings-legacy-segment[data-mode="wide"]::before{transform:translateX(200%)}
+.settings-legacy-segment button{
+  position:relative;z-index:1;min-width:0;min-height:30px;padding:4px 0;
+  background:transparent;border:0;color:var(--ink);
+  font:1000 9px/1 Inter,ui-sans-serif,sans-serif;letter-spacing:.04em;
+}
+.settings-legacy-segment button[aria-checked="true"]{color:#fff}
+.settings-legacy-segment button:focus-visible{outline:2px solid var(--blue);outline-offset:-2px}
+@media(max-width:390px){
+  #settingsLegacyArrowsRow{flex-wrap:wrap;gap:9px}
+  .settings-option-row .settings-legacy-segment{flex:1 1 100%;width:100%}
+}
+@media(prefers-reduced-motion:reduce){.settings-legacy-segment::before{transition:none}}
+
 .settings-link-button{width:100%;min-height:47px;padding:9px 10px;border:2px solid var(--ink);background:#f7f0e5;color:var(--ink);box-shadow:3px 3px 0 var(--ink);display:grid;grid-template-columns:30px minmax(0,1fr) 20px;align-items:center;gap:7px;text-align:left}
 .settings-link-button span{font-size:20px;text-align:center}.settings-link-button b{font-size:9px;letter-spacing:.07em}.settings-link-button i{font-style:normal;font-size:18px;text-align:right}
 .settings-contact-link{background:var(--blue);color:#fff}
@@ -8447,16 +8474,18 @@ html.touch-ui .dpad button {touch-action:none;-webkit-touch-callout:none;-webkit
   }
   body.phone-zen-mode.legacy-zen-arrows .dpad button svg {width:58%!important;height:58%!important}
 }
-/* BOXXY v470 — Legacy Arrow Keys restores v451's opt-in Spaced Arrows:
-   widen LEFT/RIGHT gaps by 30–40px; keep the original vertical gap. */
+/* BOXXY v481 — legacy ON uses the compact v469 keys; WIDE preserves v470 spacing. */
 @media (max-width:760px) and (pointer:coarse) and (orientation:portrait) {
   body.phone-zen-mode.legacy-zen-arrows {
     --legacy-arrow-size:min(23vw,92px,12.5dvh);
     --legacy-arrow-gap:8px;
-    --legacy-horizontal-arrow-gap:clamp(30px,9vw,40px);
+    --legacy-horizontal-arrow-gap:8px;
     --legacy-pad-width:calc(3 * var(--legacy-arrow-size) + 2 * var(--legacy-horizontal-arrow-gap));
     --legacy-pad-height:calc(2 * var(--legacy-arrow-size) + var(--legacy-arrow-gap));
     --legacy-pad-bottom:max(10px,env(safe-area-inset-bottom));
+  }
+  body.phone-zen-mode.legacy-zen-arrows-wide {
+    --legacy-horizontal-arrow-gap:clamp(30px,9vw,40px);
   }
   body.phone-zen-mode.legacy-zen-arrows .board-wrap {
     padding:max(8px,env(safe-area-inset-top)) max(6px,env(safe-area-inset-right))
@@ -8506,16 +8535,25 @@ html.touch-ui .dpad button {touch-action:none;-webkit-touch-callout:none;-webkit
     width:var(--legacy-pad-width)!important;height:var(--legacy-pad-height)!important;
     transform:none!important;
   }
-  /* As in v451, landscape keeps the same pad/board reservation and
-     redistributes the existing width into larger gaps and smaller square keys. */
+  /* ON: exact compact fixed layout from v469. */
   body.phone-zen-mode.legacy-zen-arrows .dpad {
+    grid-template-columns:repeat(3,var(--legacy-arrow-size))!important;
+    grid-template-rows:repeat(2,var(--legacy-arrow-size))!important;
+    gap:var(--legacy-arrow-gap)!important;
+  }
+  body.phone-zen-mode.legacy-zen-arrows .dpad button {
+    width:var(--legacy-arrow-size)!important;
+    height:var(--legacy-arrow-size)!important;
+  }
+  /* WIDE: keep v470's reflowed horizontal spacing and smaller keys. */
+  body.phone-zen-mode.legacy-zen-arrows-wide .dpad {
     grid-template-columns:repeat(3,minmax(0,1fr))!important;
     grid-template-rows:repeat(2,max-content)!important;
     column-gap:clamp(30px,5vw,40px)!important;
     row-gap:var(--legacy-arrow-gap)!important;
     align-content:end!important;
   }
-  body.phone-zen-mode.legacy-zen-arrows .dpad button {
+  body.phone-zen-mode.legacy-zen-arrows-wide .dpad button {
     width:100%!important;
     height:auto!important;
     min-width:0!important;

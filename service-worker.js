@@ -1,3 +1,4 @@
+/* BOXXY v481: three-position legacy Zen arrow preference. */
 /* BOXXY v480: refresh unnumbered gold-medal list and ordinal replay dates. */
 /* BOXXY v479: refresh earned-only Trophy Cabinet client assets. */
 /* BOXXY v478: refreshed award details and Daily gold replay controls. */
@@ -72,7 +73,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "480";
+const RELEASE_VERSION = "481";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [
