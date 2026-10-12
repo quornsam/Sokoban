@@ -1,3 +1,4 @@
+/* BOXXY v480: unnumbered gold-medal replay entries. */
 /* BOXXY v479: earned-only trophy cabinet and no count summary. */
 /* BOXXY v477: trophy detail dialogs, right-edge mobile badge, and clear desktop descenders. */
 /* BOXXY v476: restore the original transparent disabled desktop Undo treatment. */
@@ -3344,7 +3345,7 @@ html.touch-ui .level-attire{
 .trophy-detail-replay{display:block;width:100%;min-height:44px;padding:10px 12px;text-align:left;border:1px solid var(--ink);border-radius:0;background:var(--paper);color:var(--ink);font:700 13px/1.4 Inter,ui-sans-serif,sans-serif;cursor:pointer}
 .trophy-detail-replay:hover{background:var(--yellow)}
 .trophy-detail-replay:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
-.trophy-detail-list{margin:12px 0 4px;padding-left:25px;text-align:left}
+.trophy-detail-list{margin:12px 0 4px;padding-left:0;list-style:none;text-align:left}
 .trophy-detail-list li{margin:5px 0}
 @media(max-width:620px){
   .trophy-detail-modal{padding:8px}

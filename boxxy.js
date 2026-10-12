@@ -1,3 +1,4 @@
+/* BOXXY v480: unnumbered gold-medal replay list with ordinal dates. */
 /* BOXXY v479: show earned trophies only, without the collection count summary. */
 /* BOXXY v478: month medal presentation and replay links for indexed, cached Daily gold dates. */
 /* BOXXY v477: trophy detail views use cached Daily records and indexed on-demand gold dates; mobile and desktop layout tidy-up. */
@@ -59,7 +60,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "479",
+  version: "480",
   lastUpdated: "2026-10-12"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
@@ -6086,6 +6087,16 @@ window.BOXXY_RELEASE = Object.freeze({
     trophyDetailLine(`Total moves: ${allMovesKnown ? moves.reduce((a,b) => a+b,0).toLocaleString("en-GB") : "Not fully recorded"}`, "trophy-detail-stat");
   }
 
+  function formatGoldMedalDate(dateKey) {
+    const date = parseDateKey(dateKey);
+    if (!date) return String(dateKey || "");
+    const day = date.getDate();
+    const suffix = day % 100 >= 11 && day % 100 <= 13
+      ? "th"
+      : ({ 1:"st", 2:"nd", 3:"rd" }[day % 10] || "th");
+    return formatDailyDate(dateKey, { long:true, year:true }).replace(/^\d+/, `${day}${suffix}`);
+  }
+
   async function showGoldTrophyDetails() {
     if (!openTrophyDetails("DAILY GOLD MEDALS")) return;
     trophyDetailLine(`${dailyGoldMedalsEarned} fastest-time gold ${dailyGoldMedalsEarned === 1 ? "medal" : "medals"}.`);
@@ -6119,12 +6130,12 @@ window.BOXXY_RELEASE = Object.freeze({
         trophyDetailLine("No gold medal dates recorded.");
         return;
       }
-      const list = document.createElement("ol");
+      const list = document.createElement("ul");
       list.className = "trophy-detail-list";
       goldDatesCache.forEach(date => {
         const item = document.createElement("li");
         const puzzle = DAILY_PUZZLE_BY_DATE.get(date);
-        const label = `${formatDailyDate(date,{ long:true, year:true })}${puzzle ? ` · Daily #${puzzle.sequence}` : ""}`;
+        const label = `${formatGoldMedalDate(date)}${puzzle ? ` · Daily #${puzzle.sequence}` : ""}`;
         if (puzzle && date <= activeDailyDateKey() && !window.BOXXY_PRIVATE_PRACTICE) {
           const replay = document.createElement("button");
           replay.type = "button";
