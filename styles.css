@@ -1,3 +1,4 @@
+/* BOXXY v475: full portrait Zen keypad, clear mobile trophy badges, muted opaque desktop Undo. */
 /* BOXXY v474: restore over-medal mobile gold count, enlarge the gold medal, and refresh Static Noise art. */
 /* BOXXY v457 — Puzzle Packs exposes the Secret Level Editor on iPad/tablet and desktop, not phones. */
 /* BOXXY v449 — rare-character modal portraits use opaque-bound fitting; fixed-character frame warm-up is handled in the renderer. */
@@ -3252,6 +3253,13 @@ html.touch-ui .level-attire{
   letter-spacing:-.03em;
 }
 .trophy-cabinet-more-count:empty{display:none}
+/* The mobile title clips overflowing children. Keep the count inside the
+   cabinet button and provide room for the gold medal overlay. */
+@media(max-width:760px){
+  .title-badges .trophy-cabinet-btn{margin-left:7px}
+  .title-badges .trophy-cabinet-more-count{top:0;right:0}
+}
+
 
 .trophy-cabinet-modal{
   z-index:11200;
@@ -4296,7 +4304,21 @@ body.maker-editor-fullscreen{overflow:hidden}
 }
 .zen-control-panel[data-size="small"]{--zen-control-size:40px}
 .zen-control-panel[data-size="medium"]{--zen-control-size:clamp(56px,16vw,66px)}
-.zen-control-panel[data-size="large"]{--zen-control-size:clamp(72px,23vw,90px)}
+.zen-control-panel[data-size="large"],
+.zen-control-panel[data-size="full"]{--zen-control-size:clamp(72px,23vw,90px)}
+/* Full stretches the movable control across the phone in portrait only.
+   The directional keys keep Large dimensions, but the columns spread to the edges. */
+@media(max-width:760px) and (orientation:portrait) and (pointer:coarse){
+  .zen-control-panel[data-size="full"]:not(.is-minimised){
+    width:calc(100vw - 20px);
+    width:calc(100dvw - 20px);
+  }
+  .zen-control-panel[data-size="full"] .zen-control-grid{
+    width:100%;
+    justify-content:space-between;
+    column-gap:0;
+  }
+}
 .zen-control-panel[hidden]{display:none!important}
 .zen-control-panel-head{
   height:28px;
@@ -4393,9 +4415,9 @@ body.maker-editor-fullscreen{overflow:hidden}
 .zen-control-panel[data-size="small"] .zen-control-restart>span{
   font-size:18px;
 }
-/* v466: shrink only the medium/large Zen actions, keeping each in its own
-   top corner of the 3-column keypad. Small is deliberately unchanged. */
-.zen-control-panel:is([data-size="medium"],[data-size="large"]) .zen-control-key:is(.zen-control-undo,.zen-control-restart){
+/* v475: Medium, Large and Full keep half-size actions in their top
+   corners. Small remains unchanged. */
+.zen-control-panel:is([data-size="medium"],[data-size="large"],[data-size="full"]) .zen-control-key:is(.zen-control-undo,.zen-control-restart){
   width:calc(var(--zen-control-size) / 2);
   height:calc(var(--zen-control-size) / 2);
   min-width:0;
@@ -4405,12 +4427,12 @@ body.maker-editor-fullscreen{overflow:hidden}
   border-width:1px;
   border-radius:6px;
 }
-.zen-control-panel:is([data-size="medium"],[data-size="large"]) .zen-control-undo{justify-self:start}
-.zen-control-panel:is([data-size="medium"],[data-size="large"]) .zen-control-restart{justify-self:end}
-.zen-control-panel:is([data-size="medium"],[data-size="large"]) .zen-control-key:is(.zen-control-undo,.zen-control-restart)>span{
+.zen-control-panel:is([data-size="medium"],[data-size="large"],[data-size="full"]) .zen-control-undo{justify-self:start}
+.zen-control-panel:is([data-size="medium"],[data-size="large"],[data-size="full"]) .zen-control-restart{justify-self:end}
+.zen-control-panel:is([data-size="medium"],[data-size="large"],[data-size="full"]) .zen-control-key:is(.zen-control-undo,.zen-control-restart)>span{
   font-size:calc(var(--zen-control-size) * .2);
 }
-.zen-control-panel:is([data-size="medium"],[data-size="large"]) .zen-control-key:is(.zen-control-undo,.zen-control-restart)>b{
+.zen-control-panel:is([data-size="medium"],[data-size="large"],[data-size="full"]) .zen-control-key:is(.zen-control-undo,.zen-control-restart)>b{
   margin-top:-3px;
   font-size:calc(var(--zen-control-size) * .077);
   letter-spacing:0;
@@ -8256,7 +8278,7 @@ html.touch-ui .dpad button {touch-action:none;-webkit-touch-callout:none;-webkit
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-board-action:active{transform:translateY(1px)}
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-board-action:disabled{opacity:.45;cursor:default;transform:none}
   /* Dull but fully opaque while Undo is unavailable: board motifs never show through. */
-  html:not(.touch-ui):not(.desktop-zen-mode) .desktop-board-undo:disabled{opacity:1;background:#d9a59c;border-color:#b9867f;color:#77564f}
+  html:not(.touch-ui):not(.desktop-zen-mode) .desktop-board-undo:disabled{opacity:1;background:#c6b9af;border-color:#a99a90;color:#75675e}
 
   @media (prefers-reduced-motion:reduce){
     html:not(.touch-ui):not(.desktop-zen-mode) .desktop-utility-tray,

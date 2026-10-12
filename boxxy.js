@@ -1,3 +1,4 @@
+/* BOXXY v475: full-width portrait Zen controls with orientation-aware size selection. */
 /* BOXXY v474: mobile gold badge layout, Static Noise pack artwork, and release metadata. */
 /* BOXXY v473: steady mobile awards header and compact, non-overlapping gold count. */
 /* BOXXY v469: optional original v451 fixed Zen arrows, retaining the modern keypad and reversible Restart. */
@@ -54,7 +55,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "474",
+  version: "475",
   lastUpdated: "2026-10-12"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
@@ -3507,7 +3508,7 @@ window.BOXXY_RELEASE = Object.freeze({
   let firstPersonMotion = null;
   let firstPersonCameraZoom = 0;
   const ZEN_ZOOM_LEVELS = Object.freeze([1, 2, 4, 8]);
-  const ZEN_CONTROL_SIZES = Object.freeze(["small", "medium", "large"]);
+  const ZEN_CONTROL_SIZES = Object.freeze(["small", "medium", "large", "full"]);
   const ZEN_CONTROL_SIZE_KEY = "boxxy-zen-control-size-v1";
   const ZEN_IPHONE_FULLSCREEN_HINT_KEY = "boxxy-iphone-fullscreen-hint-v1";
   const ZEN_ZOOM_TARGET_VISIBLE_CELLS = 10;
@@ -7881,16 +7882,21 @@ window.BOXXY_RELEASE = Object.freeze({
 
   function applyZenControlSize(value, persist = true) {
     if (!zenControlPanel) return;
-    const size = normaliseZenControlSize(value);
+    const selectedSize = normaliseZenControlSize(value);
+    // Full is a portrait-only layout. Preserve the preference across rotation,
+    // but show/use Large while in landscape.
+    const portrait = window.matchMedia("(orientation: portrait)").matches;
+    const size = selectedSize === "full" && !portrait ? "large" : selectedSize;
+    zenControlPanel.dataset.preferredSize = selectedSize;
     zenControlPanel.dataset.size = size;
     if (zenControlSizeBtn) {
-      const label = size === "small" ? "S" : size === "large" ? "L" : "M";
+      const label = size === "small" ? "S" : size === "medium" ? "M" : size === "full" ? "F" : "L";
       zenControlSizeBtn.textContent = label;
       zenControlSizeBtn.setAttribute("aria-label", `Control size: ${size}. Change size.`);
       zenControlSizeBtn.title = `Control size: ${size}`;
     }
     if (persist) {
-      try { localStorage.setItem(ZEN_CONTROL_SIZE_KEY, size); } catch (_) {}
+      try { localStorage.setItem(ZEN_CONTROL_SIZE_KEY, selectedSize); } catch (_) {}
     }
     requestAnimationFrame(() => {
       clampZenControlPanel();
@@ -7900,8 +7906,10 @@ window.BOXXY_RELEASE = Object.freeze({
 
   function cycleZenControlSize() {
     if (!zenControlPanel) return;
+    const portrait = window.matchMedia("(orientation: portrait)").matches;
+    const availableSizes = portrait ? ZEN_CONTROL_SIZES : ZEN_CONTROL_SIZES.slice(0, -1);
     const current = normaliseZenControlSize(zenControlPanel.dataset.size);
-    const next = ZEN_CONTROL_SIZES[(ZEN_CONTROL_SIZES.indexOf(current) + 1) % ZEN_CONTROL_SIZES.length];
+    const next = availableSizes[(availableSizes.indexOf(current) + 1) % availableSizes.length];
     applyZenControlSize(next);
   }
 
@@ -12162,12 +12170,14 @@ window.BOXXY_RELEASE = Object.freeze({
     }
     document.body.classList.toggle("touch-click-push-enabled", settingsTouchDevice() && touchClickPushEnabled);
     updateFullscreenButton();
+    if (zenControlPanel?.dataset.preferredSize === "full") applyZenControlSize("full", false);
     scheduleBoardResize();
     requestAnimationFrame(clampZenControlPanel);
   });
   window.addEventListener("orientationchange", () => {
     window.setTimeout(() => {
       updateFullscreenButton();
+      if (zenControlPanel?.dataset.preferredSize === "full") applyZenControlSize("full", false);
       scheduleBoardResize();
       clampZenControlPanel();
     }, 80);
