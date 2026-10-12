@@ -1,3 +1,4 @@
+/* BOXXY v478: month medal presentation and replay links for indexed, cached Daily gold dates. */
 /* BOXXY v477: trophy detail views use cached Daily records and indexed on-demand gold dates; mobile and desktop layout tidy-up. */
 /* BOXXY v476: prevent monthly award acknowledgements being saved under a temporary guest identity. */
 /* BOXXY v475: full-width portrait Zen controls with orientation-aware size selection. */
@@ -57,7 +58,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "477",
+  version: "478",
   lastUpdated: "2026-10-12"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
@@ -6057,13 +6058,23 @@ window.BOXXY_RELEASE = Object.freeze({
     const dates = monthlyMedalDates(month);
     const completions = readDailyCompletions();
     const completed = dates.filter(date => completions[date] && typeof completions[date] === "object");
-    trophyDetailLine(`${completed.length} of ${dates.length} Daily puzzles completed.`);
     if (completed.length !== dates.length || !dates.length) {
+      trophyDetailLine(`${completed.length} of ${dates.length} Daily puzzles completed.`);
       trophyDetailLine("Complete every Daily puzzle in this month to earn its medal.");
       return;
     }
-    // Best time and best moves are independent personal records: don't imply
-    // they came from the same attempt, and don't fabricate missing historical values.
+    const monthName = dailyMonthHeading(month).toLowerCase().replace(/^[a-z]/, first => first.toUpperCase());
+    trophyDetailLine(`You've completed all the ${monthName} Dailys!`);
+    const image = document.createElement("img");
+    image.className = "trophy-detail-month-medal";
+    image.src = monthMedalImage(month);
+    image.alt = `${monthName} medal`;
+    image.width = 160;
+    image.height = 160;
+    trophyDetailContent.appendChild(image);
+    trophyDetailLine("Here's a shiny medal for your trophy cabinet.");
+    // The locally saved best time and best moves are independent; missing
+    // historical values remain unknown rather than being fabricated.
     const values = dates.map(date => completions[date]);
     const times = values.map(record => Number(record.seconds));
     const moves = values.map(record => Number(record.moves));
@@ -6071,9 +6082,8 @@ window.BOXXY_RELEASE = Object.freeze({
       values[index].seconds !== null && values[index].seconds !== undefined && Number.isFinite(value) && value > 0);
     const allMovesKnown = moves.every((value, index) =>
       values[index].moves !== null && values[index].moves !== undefined && Number.isInteger(value) && value >= 0);
-    trophyDetailLine(`TOTAL BEST TIMES: ${allTimesKnown ? formatPackDuration(times.reduce((a,b) => a+b,0)) : "Not fully recorded"}`, "trophy-detail-stat");
-    trophyDetailLine(`TOTAL BEST MOVES: ${allMovesKnown ? moves.reduce((a,b) => a+b,0).toLocaleString("en-GB") : "Not fully recorded"}`, "trophy-detail-stat");
-    trophyDetailLine("Totals are sums of each day's saved personal bests. Best time and fewest moves may be from different attempts.", "trophy-detail-note");
+    trophyDetailLine(`Total time: ${allTimesKnown ? formatPackDuration(times.reduce((a,b) => a+b,0)) : "Not fully recorded"}`, "trophy-detail-stat");
+    trophyDetailLine(`Total moves: ${allMovesKnown ? moves.reduce((a,b) => a+b,0).toLocaleString("en-GB") : "Not fully recorded"}`, "trophy-detail-stat");
   }
 
   async function showGoldTrophyDetails() {
@@ -6114,7 +6124,22 @@ window.BOXXY_RELEASE = Object.freeze({
       goldDatesCache.forEach(date => {
         const item = document.createElement("li");
         const puzzle = DAILY_PUZZLE_BY_DATE.get(date);
-        item.textContent = `${formatDailyDate(date,{ long:true, year:true })}${puzzle ? ` · Daily #${puzzle.sequence}` : ""}`;
+        const label = `${formatDailyDate(date,{ long:true, year:true })}${puzzle ? ` · Daily #${puzzle.sequence}` : ""}`;
+        if (puzzle && date <= activeDailyDateKey() && !window.BOXXY_PRIVATE_PRACTICE) {
+          const replay = document.createElement("button");
+          replay.type = "button";
+          replay.className = "trophy-detail-replay";
+          replay.textContent = label;
+          replay.setAttribute("aria-label", `Replay ${label}`);
+          replay.addEventListener("click", () => {
+            if (!playHistoryLevel("daily-boxxy", date)) return;
+            closeTrophyDetails();
+            closeTrophyCabinet();
+          });
+          item.appendChild(replay);
+        } else {
+          item.textContent = label;
+        }
         list.appendChild(item);
       });
       trophyDetailContent.appendChild(list);

@@ -3340,6 +3340,11 @@ html.touch-ui .level-attire{
 .trophy-detail-content p{margin:0 0 10px}
 .trophy-detail-content .trophy-detail-stat{font-size:15px;font-weight:900}
 .trophy-detail-content .trophy-detail-note{font-size:12px;color:#655b50}
+/* BOXXY v478 — compact month medal image and accessible replay targets. */
+.trophy-detail-month-medal{display:block;width:min(160px,46vw);height:auto;aspect-ratio:1;object-fit:contain;margin:8px auto 16px}
+.trophy-detail-replay{display:block;width:100%;min-height:44px;padding:10px 12px;text-align:left;border:1px solid var(--ink);border-radius:0;background:var(--paper);color:var(--ink);font:700 13px/1.4 Inter,ui-sans-serif,sans-serif;cursor:pointer}
+.trophy-detail-replay:hover{background:var(--yellow)}
+.trophy-detail-replay:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
 .trophy-detail-list{margin:12px 0 4px;padding-left:25px;text-align:left}
 .trophy-detail-list li{margin:5px 0}
 @media(max-width:620px){
