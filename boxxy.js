@@ -1,3 +1,4 @@
+/* BOXXY v474: mobile gold badge layout, Static Noise pack artwork, and release metadata. */
 /* BOXXY v473: steady mobile awards header and compact, non-overlapping gold count. */
 /* BOXXY v469: optional original v451 fixed Zen arrows, retaining the modern keypad and reversible Restart. */
 /* BOXXY v468: public Hall of Fame shows linked-player avatars in responsive cards. */
@@ -53,8 +54,8 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "473",
-  lastUpdated: "2026-10-11"
+  version: "474",
+  lastUpdated: "2026-10-12"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
 /* BOXXY v401: PARTYGOERS expands to twelve characters, its Easter egg toggles visibility, and Attire character previews are centred/clickable. */
