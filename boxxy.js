@@ -1,3 +1,4 @@
+/* BOXXY v477: trophy detail views use cached Daily records and indexed on-demand gold dates; mobile and desktop layout tidy-up. */
 /* BOXXY v476: prevent monthly award acknowledgements being saved under a temporary guest identity. */
 /* BOXXY v475: full-width portrait Zen controls with orientation-aware size selection. */
 /* BOXXY v474: mobile gold badge layout, Static Noise pack artwork, and release metadata. */
@@ -56,7 +57,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "476",
+  version: "477",
   lastUpdated: "2026-10-12"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
@@ -6006,7 +6007,9 @@ window.BOXXY_RELEASE = Object.freeze({
   let dailyGoldAccountId = "";
 
   function updateDailyGoldMedal(count) {
-    dailyGoldMedalsEarned = Math.max(0, Math.trunc(Number(count) || 0));
+    const nextCount = Math.max(0, Math.trunc(Number(count) || 0));
+    if (nextCount !== dailyGoldMedalsEarned) goldDatesCache = null;
+    dailyGoldMedalsEarned = nextCount;
     if (!dailyGoldMedal) return;
     dailyGoldMedal.hidden = dailyGoldMedalsEarned < 1;
     if (dailyGoldMedalCount) dailyGoldMedalCount.textContent = dailyGoldMedalsEarned > 1 ? `×${dailyGoldMedalsEarned}` : "";
@@ -6018,6 +6021,113 @@ window.BOXXY_RELEASE = Object.freeze({
     buildTrophyCabinet();
     scheduleHeaderAwardsLayout();
   }
+
+  const trophyDetailModal = document.getElementById("trophyDetailModal");
+  const trophyDetailTitle = document.getElementById("trophyDetailTitle");
+  const trophyDetailContent = document.getElementById("trophyDetailContent");
+  const trophyDetailClose = document.getElementById("trophyDetailClose");
+  let goldDatesForAccount = "";
+  let goldDatesCache = null;
+
+  function openTrophyDetails(title) {
+    if (!trophyDetailModal || !trophyDetailTitle || !trophyDetailContent) return false;
+    trophyDetailTitle.textContent = title;
+    trophyDetailContent.replaceChildren();
+    trophyDetailModal.hidden = false;
+    trophyDetailClose?.focus({ preventScroll:true });
+    return true;
+  }
+
+  function closeTrophyDetails() {
+    if (!trophyDetailModal || trophyDetailModal.hidden) return;
+    trophyDetailModal.hidden = true;
+    trophyCabinetCloseBtn?.focus({ preventScroll:true });
+    deferMonthlyMedalNotices(200);
+  }
+
+  function trophyDetailLine(text, className = "") {
+    const line = document.createElement("p");
+    if (className) line.className = className;
+    line.textContent = text;
+    trophyDetailContent.appendChild(line);
+  }
+
+  function showMonthTrophyDetails(month) {
+    if (!openTrophyDetails(`${dailyMonthHeading(month)} DAILYS`)) return;
+    const dates = monthlyMedalDates(month);
+    const completions = readDailyCompletions();
+    const completed = dates.filter(date => completions[date] && typeof completions[date] === "object");
+    trophyDetailLine(`${completed.length} of ${dates.length} Daily puzzles completed.`);
+    if (completed.length !== dates.length || !dates.length) {
+      trophyDetailLine("Complete every Daily puzzle in this month to earn its medal.");
+      return;
+    }
+    // Best time and best moves are independent personal records: don't imply
+    // they came from the same attempt, and don't fabricate missing historical values.
+    const values = dates.map(date => completions[date]);
+    const times = values.map(record => Number(record.seconds));
+    const moves = values.map(record => Number(record.moves));
+    const allTimesKnown = times.every((value, index) =>
+      values[index].seconds !== null && values[index].seconds !== undefined && Number.isFinite(value) && value > 0);
+    const allMovesKnown = moves.every((value, index) =>
+      values[index].moves !== null && values[index].moves !== undefined && Number.isInteger(value) && value >= 0);
+    trophyDetailLine(`TOTAL BEST TIMES: ${allTimesKnown ? formatPackDuration(times.reduce((a,b) => a+b,0)) : "Not fully recorded"}`, "trophy-detail-stat");
+    trophyDetailLine(`TOTAL BEST MOVES: ${allMovesKnown ? moves.reduce((a,b) => a+b,0).toLocaleString("en-GB") : "Not fully recorded"}`, "trophy-detail-stat");
+    trophyDetailLine("Totals are sums of each day's saved personal bests. Best time and fewest moves may be from different attempts.", "trophy-detail-note");
+  }
+
+  async function showGoldTrophyDetails() {
+    if (!openTrophyDetails("DAILY GOLD MEDALS")) return;
+    trophyDetailLine(`${dailyGoldMedalsEarned} fastest-time gold ${dailyGoldMedalsEarned === 1 ? "medal" : "medals"}.`);
+    const accountId = String(window.BOXXYAccountIdentity?.id || "");
+    if (!accountId) {
+      trophyDetailLine("Sign in to see which Daily puzzles earned gold.");
+      return;
+    }
+    if (goldDatesForAccount !== accountId) {
+      goldDatesForAccount = accountId;
+      goldDatesCache = null;
+    }
+    const loading = document.createElement("p");
+    loading.textContent = "Loading medal dates…";
+    trophyDetailContent.appendChild(loading);
+    try {
+      // One indexed, authenticated read only when the medal is opened. Cached
+      // in memory for subsequent opens; never part of gameplay/profile loads.
+      if (goldDatesCache === null) {
+        const response = await fetch("/api/daily-gold-dates", { credentials:"same-origin", cache:"no-store" });
+        if (!response.ok) throw new Error("Medal dates are temporarily unavailable.");
+        const data = await response.json();
+        if (!data.ok || !Array.isArray(data.dates)) throw new Error("Medal dates are temporarily unavailable.");
+        if (String(window.BOXXYAccountIdentity?.id || "") !== accountId) return;
+        goldDatesCache = data.dates.filter(date => /^\d{4}-\d{2}-\d{2}$/.test(String(date)));
+      }
+      if (trophyDetailModal.hidden || trophyDetailTitle.textContent !== "DAILY GOLD MEDALS" ||
+          String(window.BOXXYAccountIdentity?.id || "") !== accountId) return;
+      loading.remove();
+      if (!goldDatesCache.length) {
+        trophyDetailLine("No gold medal dates recorded.");
+        return;
+      }
+      const list = document.createElement("ol");
+      list.className = "trophy-detail-list";
+      goldDatesCache.forEach(date => {
+        const item = document.createElement("li");
+        const puzzle = DAILY_PUZZLE_BY_DATE.get(date);
+        item.textContent = `${formatDailyDate(date,{ long:true, year:true })}${puzzle ? ` · Daily #${puzzle.sequence}` : ""}`;
+        list.appendChild(item);
+      });
+      trophyDetailContent.appendChild(list);
+    } catch(error) {
+      if (!trophyDetailModal.hidden && trophyDetailTitle.textContent === "DAILY GOLD MEDALS")
+        loading.textContent = "Medal dates unavailable. Please try again later.";
+    }
+  }
+
+  trophyDetailClose?.addEventListener("click", closeTrophyDetails);
+  trophyDetailModal?.addEventListener("click", event => {
+    if (event.target === trophyDetailModal) closeTrophyDetails();
+  });
 
   function buildTrophyCabinet() {
     if (!trophyCabinetGrid) return;
@@ -6066,8 +6176,13 @@ window.BOXXY_RELEASE = Object.freeze({
       const earned = monthlyEarned.has(month);
       const slot = document.createElement("div");
       slot.className = `trophy-cabinet-slot trophy-cabinet-month ${earned ? "is-earned" : "is-unearned"}`;
-      const award = document.createElement("div");
+      const award = document.createElement(earned ? "button" : "div");
       award.className = `trophy-cabinet-award${earned ? "" : " trophy-cabinet-award-locked"}`;
+      if (earned) {
+        award.type = "button";
+        award.setAttribute("aria-label", `View ${dailyMonthHeading(month)} Daily medal totals`);
+        award.addEventListener("click", () => showMonthTrophyDetails(month));
+      }
       const icon = document.createElement("span");
       icon.className = "trophy-cabinet-award-icon";
       const image = document.createElement("img");
@@ -6088,8 +6203,11 @@ window.BOXXY_RELEASE = Object.freeze({
     if (dailyGoldMedalsEarned > 0) {
       const slot = document.createElement("div");
       slot.className = "trophy-cabinet-slot is-earned daily-gold-cabinet-slot";
-      const award = document.createElement("div");
+      const award = document.createElement("button");
+      award.type = "button";
       award.className = "trophy-cabinet-award";
+      award.setAttribute("aria-label", "View Daily gold medal dates");
+      award.addEventListener("click", showGoldTrophyDetails);
       const icon = document.createElement("span");
       icon.className = "trophy-cabinet-award-icon daily-gold-medal-visual";
       icon.innerHTML = `<span class="daily-gold-medal-emoji" aria-hidden="true">🥇</span>${dailyGoldMedalsEarned > 1 ? `<span class="daily-gold-medal-count" aria-hidden="true">×${dailyGoldMedalsEarned}</span>` : ""}`;
@@ -12870,6 +12988,7 @@ window.BOXXY_RELEASE = Object.freeze({
     if (event.key === "Escape" && playerProfileModal && !playerProfileModal.hidden) { closePlayerProfile(); return; }
     if (event.key === "Escape" && dailyLeaderboardModal && !dailyLeaderboardModal.hidden) { closeDailyLeaderboard(); return; }
     if (event.key === "Escape" && dailyArchiveModal && !dailyArchiveModal.hidden) { closeDailyArchive(); return; }
+    if (event.key === "Escape" && trophyDetailModal && !trophyDetailModal.hidden) { closeTrophyDetails(); return; }
     if (event.key === "Escape" && trophyCabinetModal && !trophyCabinetModal.hidden) { closeTrophyCabinet(); return; }
     if (event.key === "Escape" && packModal && !packModal.hidden) { closePackModal(); return; }
     if (event.key === "Escape" && themeModal && !themeModal.hidden) { closeThemeModal(); return; }

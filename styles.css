@@ -1,3 +1,4 @@
+/* BOXXY v477: trophy detail dialogs, right-edge mobile badge, and clear desktop descenders. */
 /* BOXXY v476: restore the original transparent disabled desktop Undo treatment. */
 /* BOXXY v475: full portrait Zen keypad and clear mobile trophy badges. */
 /* BOXXY v474: restore over-medal mobile gold count, enlarge the gold medal, and refresh Static Noise art. */
@@ -3257,8 +3258,8 @@ html.touch-ui .level-attire{
 /* The mobile title clips overflowing children. Keep the count inside the
    cabinet button and provide room for the gold medal overlay. */
 @media(max-width:760px){
-  .title-badges .trophy-cabinet-btn{margin-left:7px}
-  .title-badges .trophy-cabinet-more-count{top:0;right:0}
+  .title-badges .trophy-cabinet-btn{margin-left:7px;margin-right:9px}
+  .title-badges .trophy-cabinet-more-count{top:50%;right:-9px;transform:translateY(-50%)}
 }
 
 
@@ -3329,6 +3330,23 @@ html.touch-ui .level-attire{
 .trophy-cabinet-slot-status{margin-top:6px;color:#746a5e;font-size:8px;line-height:1;font-weight:950;letter-spacing:.08em}
 .trophy-cabinet-slot.is-earned .trophy-cabinet-slot-status{color:#2f8f5b}
 
+/* Medal details share the existing cabinet styling; no extra backend reads for month totals. */
+.trophy-detail-modal{z-index:11300;padding:18px;overflow:auto;background:rgba(23,23,25,.62)}
+.trophy-detail-card{width:min(530px,94vw);max-height:90dvh;overflow:auto;margin:auto;padding:23px;background:var(--paper2);border:2px solid var(--ink);box-shadow:9px 9px 0 rgba(245,194,27,.6)}
+.trophy-detail-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;border-bottom:2px solid var(--ink);padding-bottom:12px}
+.trophy-detail-head h2{margin:0;font-size:clamp(23px,4vw,34px);line-height:1.1;letter-spacing:-.02em}
+.trophy-detail-head button{flex:none;width:38px;height:38px;border:2px solid var(--ink);background:var(--red);color:white;font-size:25px;line-height:1;cursor:pointer}
+.trophy-detail-content{padding-top:12px;font-size:14px;line-height:1.5}
+.trophy-detail-content p{margin:0 0 10px}
+.trophy-detail-content .trophy-detail-stat{font-size:15px;font-weight:900}
+.trophy-detail-content .trophy-detail-note{font-size:12px;color:#655b50}
+.trophy-detail-list{margin:12px 0 4px;padding-left:25px;text-align:left}
+.trophy-detail-list li{margin:5px 0}
+@media(max-width:620px){
+  .trophy-detail-modal{padding:8px}
+  .trophy-detail-card{width:100%;padding:17px}
+}
+
 @media(max-width:620px){
   .trophy-cabinet-modal{padding:8px}
   .trophy-cabinet-card{width:100%;max-height:calc(100dvh - 16px);padding:15px;box-shadow:6px 6px 0 rgba(245,194,27,.55)}
@@ -3342,7 +3360,7 @@ html.touch-ui .level-attire{
   .trophy-cabinet-slot-name{margin-top:9px;font-size:9px}
   .trophy-cabinet-slot-status{margin-top:5px;font-size:7px}
   .trophy-cabinet-btn{width:24px;height:24px}
-  .trophy-cabinet-more-count{right:-6px;top:-7px;min-width:15px;height:15px;padding:0 3px;border-width:1px;font-size:7px}
+  .trophy-cabinet-more-count{right:-9px;top:50%;transform:translateY(-50%);min-width:15px;height:15px;padding:0 3px;border-width:1px;font-size:7px}
 }
 
 .pack-completion-stats{
@@ -8013,14 +8031,14 @@ html.touch-ui .dpad button {touch-action:none;-webkit-touch-callout:none;-webkit
   }
   html:not(.touch-ui):not(.desktop-zen-mode) .side-panel-head .credit strong{
     font-size:clamp(13px,1.05vw,17px);
-    line-height:1.02;
+    line-height:1.23;
     white-space:normal;
     overflow:hidden;
     display:-webkit-box;
     -webkit-box-orient:vertical;
     -webkit-line-clamp:2;
   }
-  html:not(.touch-ui):not(.desktop-zen-mode) .side-panel-head .credit span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  html:not(.touch-ui):not(.desktop-zen-mode) .side-panel-head .credit span{margin-top:5px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   html:not(.touch-ui):not(.desktop-zen-mode) .side-panel-head .stats{border-bottom:0}
   html:not(.touch-ui):not(.desktop-zen-mode) .side-panel-head .stats>div,
   html:not(.touch-ui):not(.desktop-zen-mode) .side-panel-head .stats .time{padding:6px 2px}
