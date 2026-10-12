@@ -75,7 +75,8 @@ const PUBLIC_PACK_LEVEL_COUNTS = Object.freeze({
   jigsaw: 25,
   exponentially: 11,
   "alphabet-soup": 27,
-  "starry-night": 25
+  "starry-night": 25,
+  "static-noise": 11
 });
 
 function parsedProgressValue(value, fallback) {
@@ -108,6 +109,24 @@ function completedPublicPackIds(progress) {
   return completed;
 }
 
+const PUBLIC_DAILY_MONTHS = Object.freeze(["2026-08", "2026-09", "2026-10", "2026-11", "2026-12"]);
+
+function completedPublicDailyMonths(progress) {
+  const daily = parsedProgressValue(progress["boxxy-daily-completions-v1"], {});
+  if (!daily || typeof daily !== "object" || Array.isArray(daily)) return [];
+  const today = new Date().toISOString().slice(0, 10);
+  return PUBLIC_DAILY_MONTHS.filter(month => {
+    const [year, number] = month.split("-").map(Number);
+    const days = new Date(Date.UTC(year, number, 0)).getUTCDate();
+    if (`${month}-${String(days).padStart(2, "0")}` > today) return false;
+    for (let day = month === "2026-08" ? 30 : 1; day <= days; day++) {
+      const record = daily[`${month}-${String(day).padStart(2, "0")}`];
+      if (!record || typeof record !== "object" || Array.isArray(record)) return false;
+    }
+    return true;
+  });
+}
+
 export function publicStatsFromProgress(progressValue) {
   const progress = parseProgress(progressValue);
   const summary = progressSummary(progress);
@@ -117,6 +136,7 @@ export function publicStatsFromProgress(progressValue) {
     dailyCompleted: Math.max(0, Math.trunc(Number(summary.dailyCompleted) || 0)),
     trophies: completedPackIds.length,
     completedPackIds,
+    completedDailyMonths: completedPublicDailyMonths(progress),
     totalMoves: Math.max(0, Math.trunc(Number(summary.totalSteps) || 0)),
     totalPushes: Math.max(0, Math.trunc(Number(summary.totalPushes) || 0)),
     dailyStreak: Math.max(0, Math.trunc(Number(summary.dailyStreak) || 0))

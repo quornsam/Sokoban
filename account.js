@@ -1,3 +1,4 @@
+/* BOXXY v476: wait for initial account identity before presenting monthly medal notices. */
 /* BOXXY v463: keep Secret Workshop drafts and editor preferences local to the browser. */
 /* BOXXY v461: release metadata/cache correction; v460 cloud-sync diagnostics retained. */
 /* BOXXY v460: report account cloud-sync failures instead of silently swallowing them. */
@@ -44,6 +45,7 @@
     "boxxy-active-pack-v2",
     "boxxy-additional-packs-unlocked-v1",
     "boxxy-daily-completions-v1",
+    "boxxy-daily-month-medal-notices-v1",
     "boxxy-daily-streak-v1",
     "boxxy-sound-v1",
     "boxxy-music-track-v1",
@@ -139,6 +141,8 @@
     // Never hold up rendering while the existing upload queue is sent to D1.
     window.BOXXYAttemptHistory?.flush?.();
   });
+  window.addEventListener("boxxymonthmedalsupdated", () => renderMedals());
+  window.addEventListener("boxxymonthmedalcollected", () => { if (account) syncNow(true); });
   window.addEventListener('boxxyhistorysynced',event=>{
     if (accountPlayHistory?.open && account?.id === event.detail?.userId) historyBrowser?.refresh?.();
   });
@@ -158,9 +162,10 @@
   if (!entryBtn || !accountView) return;
 
   let account = null;
+  let initialAccountReady = false;
   // Read-only identity for first-completion records. Authentication remains
   // server-side; this is never used to authorise a request.
-  window.BOXXYAccountIdentity = { get id() { return account?.id || ""; }, get username() { return account?.username || ""; } };
+  window.BOXXYAccountIdentity = { get id() { return account?.id || ""; }, get username() { return account?.username || ""; }, get ready() { return initialAccountReady; } };
   // Read-only display statistics for BOXXY's rotating footer facts. This exposes
   // no account credentials or identifiers and always reflects the live session.
   window.BOXXYPlayerStats = Object.freeze({
@@ -579,6 +584,8 @@
         const key = localStorage.key(index);
         if (!key || !shouldSyncKey(key)) continue;
         const value = localStorage.getItem(key);
+        if (key === "boxxy-daily-month-medal-notices-v1" &&
+          (!account?.id || parseJson(value, null)?.owner !== account.id)) continue;
         if (value !== null) state[key] = value;
       }
     } catch (_) {}
@@ -997,6 +1004,14 @@
         merged[key] = mergeCompletionStats(left, right);
       } else if (key === "boxxy-daily-completions-v1") {
         merged[key] = mergeDailyCompletions(left, right);
+      } else if (key === "boxxy-daily-month-medal-notices-v1") {
+        const valid = value => {
+          const parsed = parseJson(value, null);
+          return parsed?.owner === account?.id && Array.isArray(parsed.months)
+            ? parsed.months.filter(month => /^2026-(08|09|10|11|12)$/.test(month)) : [];
+        };
+        merged[key] = JSON.stringify({ owner: account.id,
+          months: [...new Set([...valid(left), ...valid(right)])].sort() });
       } else if (key === "boxxy-daily-streak-v1") {
         merged[key] = mergeStreak(left, right);
       } else if (/-position-\d+-v1$/.test(key)) {
@@ -1050,6 +1065,7 @@
     if (changed) window.BoxxyBoardStyle?.reloadFromStorage?.();
     if (clickPushChanged) window.dispatchEvent(new CustomEvent("boxxyclickpushcloudstate"));
     if (legacyArrowsChanged) window.dispatchEvent(new CustomEvent("boxxylegacyzenarrowscloudstate"));
+    if (changed) window.dispatchEvent(new CustomEvent("boxxymonthmedalsupdated"));
     return changed;
   }
 
@@ -1315,6 +1331,16 @@
       const label = source.getAttribute("aria-label") || source.title || "Completed puzzle pack medal";
       medal.setAttribute("aria-label", label.replace(/^View congratulations for /i, "Medal for "));
       medals.appendChild(medal);
+      earned++;
+    });
+
+    const monthly = window.BoxxyMonthlyMedals;
+    if (monthly) monthly.earned().forEach(month => {
+      const icon = document.createElement("img");
+      icon.src = monthly.image(month);
+      icon.alt = `${month} Daily completion medal`;
+      icon.className = "account-month-medal";
+      medals.appendChild(icon);
       earned++;
     });
 
@@ -1820,7 +1846,12 @@
   render();
   broadcastAccountFeatures();
   (async () => {
-    await initialAccountCheck();
-    await resumeGoogleRedirect();
+    try {
+      await initialAccountCheck();
+      await resumeGoogleRedirect();
+    } finally {
+      initialAccountReady = true;
+      window.dispatchEvent(new Event("boxxyaccountready"));
+    }
   })();
 })();

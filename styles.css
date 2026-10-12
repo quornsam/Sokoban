@@ -1,3 +1,8 @@
+/* BOXXY v479: earned-only trophy cabinet and no count summary. */
+/* BOXXY v477: trophy detail dialogs, right-edge mobile badge, and clear desktop descenders. */
+/* BOXXY v476: restore the original transparent disabled desktop Undo treatment. */
+/* BOXXY v475: full portrait Zen keypad and clear mobile trophy badges. */
+/* BOXXY v474: restore over-medal mobile gold count, enlarge the gold medal, and refresh Static Noise art. */
 /* BOXXY v457 — Puzzle Packs exposes the Secret Level Editor on iPad/tablet and desktop, not phones. */
 /* BOXXY v449 — rare-character modal portraits use opaque-bound fitting; fixed-character frame warm-up is handled in the renderer. */
 /* BOXXY v448 — rare-character modal uses the fixed sprite sheet directly and rare colour keys no longer expose PARTYGOERS. */
@@ -3173,6 +3178,7 @@ html.touch-ui .level-attire{
   min-width:0;
 }
 .completed-pack-stars[hidden]{display:none!important}
+.completed-pack-star[hidden]{display:none!important}
 .completed-pack-star{
   appearance:none;
   width:var(--header-badge-size);
@@ -3250,6 +3256,13 @@ html.touch-ui .level-attire{
   letter-spacing:-.03em;
 }
 .trophy-cabinet-more-count:empty{display:none}
+/* The mobile title clips overflowing children. Keep the count inside the
+   cabinet button and provide room for the gold medal overlay. */
+@media(max-width:760px){
+  .title-badges .trophy-cabinet-btn{margin-left:7px;margin-right:9px}
+  .title-badges .trophy-cabinet-more-count{top:50%;right:-9px;transform:translateY(-50%)}
+}
+
 
 .trophy-cabinet-modal{
   z-index:11200;
@@ -3269,9 +3282,9 @@ html.touch-ui .level-attire{
 }
 .trophy-cabinet-head{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;padding-bottom:16px;border-bottom:2px solid var(--ink)}
 .trophy-cabinet-head h2{margin:5px 0 4px;font-size:clamp(30px,5vw,54px);line-height:.88;letter-spacing:-.055em}
-.trophy-cabinet-head p{margin:9px 0 0;color:#61574b;font-size:11px;line-height:1.2;font-weight:900;letter-spacing:.055em}
 .trophy-cabinet-close{flex:none;width:44px;height:44px;padding:0;border:2px solid var(--ink);background:var(--red);color:#fff;font-size:30px;line-height:1;font-weight:950;cursor:pointer}
 .trophy-cabinet-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:18px}
+.trophy-cabinet-empty{grid-column:1/-1;margin:20px 0;text-align:center;font-weight:800}
 .trophy-cabinet-slot{
   min-width:0;
   min-height:180px;
@@ -3312,11 +3325,31 @@ html.touch-ui .level-attire{
 .trophy-cabinet-award:hover .trophy-cabinet-award-icon{transform:translateY(-3px) rotate(-3deg) scale(1.04)}
 .trophy-cabinet-award-icon svg,.trophy-cabinet-award-icon img{display:block;width:100%;height:100%;object-fit:contain}
 .trophy-cabinet-award-icon path{fill:var(--pack-star-colour,var(--red));stroke:#f2c121;stroke-width:9;stroke-linejoin:round;paint-order:stroke fill}
-.trophy-cabinet-slot.is-unearned .trophy-cabinet-award-icon{filter:grayscale(1);opacity:.18}
-.trophy-cabinet-slot.is-unearned .trophy-cabinet-award-icon path{fill:#8f887e;stroke:#d8cec0}
 .trophy-cabinet-slot-name{margin-top:12px;font-size:12px;line-height:1.05;font-weight:1000;letter-spacing:.015em;text-transform:uppercase}
 .trophy-cabinet-slot-status{margin-top:6px;color:#746a5e;font-size:8px;line-height:1;font-weight:950;letter-spacing:.08em}
 .trophy-cabinet-slot.is-earned .trophy-cabinet-slot-status{color:#2f8f5b}
+
+/* Medal details share the existing cabinet styling; no extra backend reads for month totals. */
+.trophy-detail-modal{z-index:11300;padding:18px;overflow:auto;background:rgba(23,23,25,.62)}
+.trophy-detail-card{width:min(530px,94vw);max-height:90dvh;overflow:auto;margin:auto;padding:23px;background:var(--paper2);border:2px solid var(--ink);box-shadow:9px 9px 0 rgba(245,194,27,.6)}
+.trophy-detail-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;border-bottom:2px solid var(--ink);padding-bottom:12px}
+.trophy-detail-head h2{margin:0;font-size:clamp(23px,4vw,34px);line-height:1.1;letter-spacing:-.02em}
+.trophy-detail-head button{flex:none;width:38px;height:38px;border:2px solid var(--ink);background:var(--red);color:white;font-size:25px;line-height:1;cursor:pointer}
+.trophy-detail-content{padding-top:12px;font-size:14px;line-height:1.5}
+.trophy-detail-content p{margin:0 0 10px}
+.trophy-detail-content .trophy-detail-stat{font-size:15px;font-weight:900}
+.trophy-detail-content .trophy-detail-note{font-size:12px;color:#655b50}
+/* BOXXY v478 — compact month medal image and accessible replay targets. */
+.trophy-detail-month-medal{display:block;width:min(160px,46vw);height:auto;aspect-ratio:1;object-fit:contain;margin:8px auto 16px}
+.trophy-detail-replay{display:block;width:100%;min-height:44px;padding:10px 12px;text-align:left;border:1px solid var(--ink);border-radius:0;background:var(--paper);color:var(--ink);font:700 13px/1.4 Inter,ui-sans-serif,sans-serif;cursor:pointer}
+.trophy-detail-replay:hover{background:var(--yellow)}
+.trophy-detail-replay:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.trophy-detail-list{margin:12px 0 4px;padding-left:25px;text-align:left}
+.trophy-detail-list li{margin:5px 0}
+@media(max-width:620px){
+  .trophy-detail-modal{padding:8px}
+  .trophy-detail-card{width:100%;padding:17px}
+}
 
 @media(max-width:620px){
   .trophy-cabinet-modal{padding:8px}
@@ -3331,7 +3364,7 @@ html.touch-ui .level-attire{
   .trophy-cabinet-slot-name{margin-top:9px;font-size:9px}
   .trophy-cabinet-slot-status{margin-top:5px;font-size:7px}
   .trophy-cabinet-btn{width:24px;height:24px}
-  .trophy-cabinet-more-count{right:-6px;top:-7px;min-width:15px;height:15px;padding:0 3px;border-width:1px;font-size:7px}
+  .trophy-cabinet-more-count{right:-9px;top:50%;transform:translateY(-50%);min-width:15px;height:15px;padding:0 3px;border-width:1px;font-size:7px}
 }
 
 .pack-completion-stats{
@@ -4294,7 +4327,21 @@ body.maker-editor-fullscreen{overflow:hidden}
 }
 .zen-control-panel[data-size="small"]{--zen-control-size:40px}
 .zen-control-panel[data-size="medium"]{--zen-control-size:clamp(56px,16vw,66px)}
-.zen-control-panel[data-size="large"]{--zen-control-size:clamp(72px,23vw,90px)}
+.zen-control-panel[data-size="large"],
+.zen-control-panel[data-size="full"]{--zen-control-size:clamp(72px,23vw,90px)}
+/* Full stretches the movable control across the phone in portrait only.
+   The directional keys keep Large dimensions, but the columns spread to the edges. */
+@media(max-width:760px) and (orientation:portrait) and (pointer:coarse){
+  .zen-control-panel[data-size="full"]:not(.is-minimised){
+    width:calc(100vw - 20px);
+    width:calc(100dvw - 20px);
+  }
+  .zen-control-panel[data-size="full"] .zen-control-grid{
+    width:100%;
+    justify-content:space-between;
+    column-gap:0;
+  }
+}
 .zen-control-panel[hidden]{display:none!important}
 .zen-control-panel-head{
   height:28px;
@@ -4391,9 +4438,9 @@ body.maker-editor-fullscreen{overflow:hidden}
 .zen-control-panel[data-size="small"] .zen-control-restart>span{
   font-size:18px;
 }
-/* v466: shrink only the medium/large Zen actions, keeping each in its own
-   top corner of the 3-column keypad. Small is deliberately unchanged. */
-.zen-control-panel:is([data-size="medium"],[data-size="large"]) .zen-control-key:is(.zen-control-undo,.zen-control-restart){
+/* v475: Medium, Large and Full keep half-size actions in their top
+   corners. Small remains unchanged. */
+.zen-control-panel:is([data-size="medium"],[data-size="large"],[data-size="full"]) .zen-control-key:is(.zen-control-undo,.zen-control-restart){
   width:calc(var(--zen-control-size) / 2);
   height:calc(var(--zen-control-size) / 2);
   min-width:0;
@@ -4403,12 +4450,12 @@ body.maker-editor-fullscreen{overflow:hidden}
   border-width:1px;
   border-radius:6px;
 }
-.zen-control-panel:is([data-size="medium"],[data-size="large"]) .zen-control-undo{justify-self:start}
-.zen-control-panel:is([data-size="medium"],[data-size="large"]) .zen-control-restart{justify-self:end}
-.zen-control-panel:is([data-size="medium"],[data-size="large"]) .zen-control-key:is(.zen-control-undo,.zen-control-restart)>span{
+.zen-control-panel:is([data-size="medium"],[data-size="large"],[data-size="full"]) .zen-control-undo{justify-self:start}
+.zen-control-panel:is([data-size="medium"],[data-size="large"],[data-size="full"]) .zen-control-restart{justify-self:end}
+.zen-control-panel:is([data-size="medium"],[data-size="large"],[data-size="full"]) .zen-control-key:is(.zen-control-undo,.zen-control-restart)>span{
   font-size:calc(var(--zen-control-size) * .2);
 }
-.zen-control-panel:is([data-size="medium"],[data-size="large"]) .zen-control-key:is(.zen-control-undo,.zen-control-restart)>b{
+.zen-control-panel:is([data-size="medium"],[data-size="large"],[data-size="full"]) .zen-control-key:is(.zen-control-undo,.zen-control-restart)>b{
   margin-top:-3px;
   font-size:calc(var(--zen-control-size) * .077);
   letter-spacing:0;
@@ -7831,12 +7878,48 @@ html.touch-ui .dpad button {touch-action:none;-webkit-touch-callout:none;-webkit
 .player-profile-daily-gold .daily-gold-medal-emoji{font-size:38px}
 .player-profile-daily-gold .daily-gold-medal-count{right:-5px;bottom:0}
 @media(max-width:760px){
-  .daily-gold-medal-badge{filter:drop-shadow(1px 1px 0 rgba(23,23,25,.24))}
+  /* On phones the pack awards live in the cabinet, not a reflowing badge rail. */
+  .completed-pack-stars{display:none!important}
+  .daily-gold-medal-badge{
+    width:var(--daily-streak-badge-size,clamp(24px,6.8vw,29px));
+    height:var(--daily-streak-badge-size,clamp(24px,6.8vw,29px));
+    display:grid;
+    place-items:center;
+    filter:drop-shadow(1px 1px 0 rgba(23,23,25,.24));
+  }
+  .daily-gold-medal-badge .daily-gold-medal-emoji{
+    font-size:calc(var(--daily-streak-badge-size,clamp(24px,6.8vw,29px)) * .9);
+  }
+  /* Keep the count over the medal, but a little smaller so two digits still read cleanly. */
+  .daily-gold-medal-badge .daily-gold-medal-count{
+    position:absolute;
+    right:-3px;
+    bottom:-2px;
+    min-width:14px;
+    height:14px;
+    padding:0 2px;
+    border:1px solid rgba(255,255,255,.92);
+    border-radius:8px;
+    background:var(--ink);
+    color:#fff;
+    box-shadow:1px 1px 0 rgba(23,23,25,.2);
+    font:1000 6px/1 Arial,sans-serif;
+    letter-spacing:-.04em;
+  }
 }
 @media(max-width:390px){
-  .daily-gold-medal-badge{width:20px;height:20px}
-  .daily-gold-medal-badge .daily-gold-medal-emoji{font-size:18px}
-  .daily-gold-medal-badge .daily-gold-medal-count{right:-5px;bottom:-4px;min-width:13px;height:13px;font-size:6px}
+  .daily-gold-medal-badge{
+    width:24px;
+    height:24px;
+  }
+  .daily-gold-medal-badge .daily-gold-medal-emoji{font-size:21px}
+  .daily-gold-medal-badge .daily-gold-medal-count{
+    min-width:13px;
+    height:13px;
+    font-size:5.7px;
+    right:-2px;
+    bottom:-2px;
+  }
 }
 
 /* BOXXY v435 — desktop tools are an independent slide-over tray above the map; fixed header/footer chrome never participates. */
@@ -7952,14 +8035,14 @@ html.touch-ui .dpad button {touch-action:none;-webkit-touch-callout:none;-webkit
   }
   html:not(.touch-ui):not(.desktop-zen-mode) .side-panel-head .credit strong{
     font-size:clamp(13px,1.05vw,17px);
-    line-height:1.02;
+    line-height:1.23;
     white-space:normal;
     overflow:hidden;
     display:-webkit-box;
     -webkit-box-orient:vertical;
     -webkit-line-clamp:2;
   }
-  html:not(.touch-ui):not(.desktop-zen-mode) .side-panel-head .credit span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  html:not(.touch-ui):not(.desktop-zen-mode) .side-panel-head .credit span{margin-top:5px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   html:not(.touch-ui):not(.desktop-zen-mode) .side-panel-head .stats{border-bottom:0}
   html:not(.touch-ui):not(.desktop-zen-mode) .side-panel-head .stats>div,
   html:not(.touch-ui):not(.desktop-zen-mode) .side-panel-head .stats .time{padding:6px 2px}
@@ -8446,3 +8529,15 @@ html.touch-ui .dpad button {touch-action:none;-webkit-touch-callout:none;-webkit
   body.phone-zen-mode.legacy-zen-arrows .top-actions #restartBtn {right:calc(var(--legacy-pad-right) + var(--legacy-pad-width) - 46px)!important}
   body.phone-zen-mode.legacy-zen-arrows .top-actions #undoBtn {right:var(--legacy-pad-right)!important}
 }
+
+/* v472 — Monthly Daily medals and one-time award announcements. */
+.monthly-medal-modal{z-index:10600}
+.trophy-cabinet-month .trophy-cabinet-award-icon img,
+.player-profile-month-medal img {width:100%;height:100%;object-fit:contain}
+.account-month-medal{width:var(--header-badge-size,46px);height:var(--header-badge-size,46px);object-fit:contain;filter:drop-shadow(2px 2px 0 rgba(23,23,25,.25))}
+.monthly-medal-card{width:min(440px,94vw);max-height:90dvh;overflow:auto;padding:25px;text-align:center;background:var(--paper2);border:2px solid var(--ink);box-shadow:9px 9px 0 var(--yellow)}
+.monthly-medal-card h2{margin:13px 0 8px;font-size:clamp(26px,7vw,38px);line-height:1.05;letter-spacing:-.05em}
+.monthly-medal-card img{width:min(180px,48vw);height:min(180px,48vw);object-fit:contain;display:block;margin:12px auto}
+.monthly-medal-card p{font-size:14px;line-height:1.5;max-width:350px;margin:12px auto 20px}
+.monthly-medal-card button{border:2px solid var(--ink);background:var(--yellow);padding:12px 18px;font:900 13px/1.1 Inter,ui-sans-serif,sans-serif;cursor:pointer}
+.monthly-medal-card button:focus-visible{outline:3px solid var(--blue);outline-offset:3px}

@@ -107,6 +107,7 @@ export async function onRequestGet(context) {
             dailyCompleted,
             trophies:0,
             completedPackIds:[],
+            completedDailyMonths:[],
             totalMoves,
             totalPushes,
             dailyStreak,
