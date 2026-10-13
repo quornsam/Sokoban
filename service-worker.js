@@ -1,3 +1,4 @@
+/* BOXXY v485: refresh gameplay script for desktop background ring placement. */
 /* BOXXY v484: cache the shared published-content catalogue used by game, Basement and Functions. */
 /* BOXXY v483: include the standard Four Leaf Clover medal in offline assets. */
 /* BOXXY v482: Four Leaf Clover pack and automatic Basement history discovery. */
@@ -76,7 +77,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "484";
+const RELEASE_VERSION = "485";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [

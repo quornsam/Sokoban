@@ -1,3 +1,4 @@
+/* BOXXY v485: move recurring desktop background rings clear of the Restart/Undo area. */
 /* BOXXY v484: pack labels, artwork and rewards use the shared published-content catalogue. */
 /* BOXXY v483: image medals use one shared pack reward definition. */
 /* BOXXY v482: add Four Leaf Clover artwork and canonical pack registration. */
@@ -64,7 +65,7 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "484",
+  version: "485",
   lastUpdated: "2026-10-13"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
@@ -7148,7 +7149,7 @@ window.BOXXY_RELEASE = Object.freeze({
         ["shape-quarter", 4, 5, 108, 108, 0],
         ["shape-rect", 28, 8, 184, 34, 0],
         ["shape-semi-bottom", 51, 6, 88, 88, 0],
-        ["shape-ring", 80, 8, 96, 96, 0],
+        ["shape-ring", 64, 8, 96, 96, 0],
         ["shape-triangle", 89, 28, 82, 74, -10],
         ["shape-semi-right", 4, 57, 94, 94, 0],
         ["shape-circle", 55, 84, 72, 72, 0],
@@ -7171,7 +7172,7 @@ window.BOXXY_RELEASE = Object.freeze({
       [
         ["shape-semi-top", 11, 7, 88, 88, 0],
         ["shape-pill", 38, 8, 170, 28, 0],
-        ["shape-ring", 74, 9, 96, 96, 0],
+        ["shape-ring", 67, 9, 96, 96, 0],
         ["shape-quarter", 87, 31, 98, 98, 0],
         ["shape-rect", 6, 72, 120, 40, 12],
         ["shape-circle", 49, 84, 72, 72, 0],
@@ -7184,7 +7185,7 @@ window.BOXXY_RELEASE = Object.freeze({
         ["shape-quarter", 6, 6, 104, 104, 0],
         ["shape-circle", 24, 11, 62, 62, 0],
         ["shape-rect", 46, 9, 176, 32, 0],
-        ["shape-ring", 82, 9, 92, 92, 0],
+        ["shape-ring", 65, 9, 92, 92, 0],
         ["shape-rect", 89, 31, 70, 28, 0],
         ["shape-semi-right", 5, 47, 92, 92, 0],
         ["shape-pill", 18, 79, 100, 22, 12],
