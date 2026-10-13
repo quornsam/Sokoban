@@ -1,6 +1,8 @@
+/* BOXXY v484: public pack/month completion definitions use the shared published-content catalogue. */
 /* BOXXY v447: public avatar validation includes KangaRuby and WhoopsaDaisy. */
 /* BOXXY v446: public avatar validation includes FLUFFBALLS and exports the shared server-side body-type registry. */
 import { parseProgress, progressSummary } from "./auth.js";
+import { OFFICIAL_PACKS, OFFICIAL_DAILY_MONTHS } from "./content-catalog.js";
 import { PROFILE_COUNTRY_CODES, PROFILE_REGION_CODES } from "./profile-location-codes.js";
 
 export const PUBLIC_AVATAR_BODY_TYPES = new Set([
@@ -69,15 +71,8 @@ export function avatarFromProgress(progressValue) {
   return cleanPublicAvatarStyle(progress["push-bauhaus-character-style-v51"]);
 }
 
-const PUBLIC_PACK_LEVEL_COUNTS = Object.freeze({
-  "boxxy-original-puzzle-pack-of-50-levels": 50,
-  microban: 50,
-  jigsaw: 25,
-  exponentially: 11,
-  "alphabet-soup": 27,
-  "starry-night": 25,
-  "static-noise": 11
-});
+const PUBLIC_PACK_LEVEL_COUNTS = Object.freeze(Object.fromEntries(OFFICIAL_PACKS.map(pack => [pack.id, pack.levels])));
+
 
 function parsedProgressValue(value, fallback) {
   try {
@@ -91,7 +86,15 @@ function parsedProgressValue(value, fallback) {
 function completedPublicPackIds(progress) {
   const catalog = parsedProgressValue(progress["boxxy-pack-catalog-v1"], {});
   const completed = [];
-  for (const [packId, fallbackLevelCount] of Object.entries(PUBLIC_PACK_LEVEL_COUNTS)) {
+  // Existing metadata is the source for future packs; older accounts retain
+  // the legacy definitions only as fallbacks when the catalogue is absent.
+  const counts = new Map(Object.entries(PUBLIC_PACK_LEVEL_COUNTS));
+  for (const [id, entry] of Object.entries(catalog || {}).slice(0,1000)) {
+    if (!/^[a-z0-9][a-z0-9_-]{0,159}$/i.test(id)) continue;
+    const levelCount = Number(entry?.levels);
+    if (Number.isInteger(levelCount) && levelCount > 0 && levelCount <= 10000) counts.set(id, levelCount);
+  }
+  for (const [packId, fallbackLevelCount] of counts) {
     const catalogLevelCount = Math.max(0, Math.trunc(Number(catalog?.[packId]?.levels) || 0));
     const levelCount = catalogLevelCount || fallbackLevelCount;
     let indexes = parsedProgressValue(progress[`boxxy-pack-${packId}-completed-v1`], []);
@@ -109,23 +112,25 @@ function completedPublicPackIds(progress) {
   return completed;
 }
 
-const PUBLIC_DAILY_MONTHS = Object.freeze(["2026-08", "2026-09", "2026-10", "2026-11", "2026-12"]);
+const PUBLIC_DAILY_MONTHS = Object.freeze(OFFICIAL_DAILY_MONTHS);
 
 function completedPublicDailyMonths(progress) {
   const daily = parsedProgressValue(progress["boxxy-daily-completions-v1"], {});
   if (!daily || typeof daily !== "object" || Array.isArray(daily)) return [];
   const today = new Date().toISOString().slice(0, 10);
-  return PUBLIC_DAILY_MONTHS.filter(month => {
-    const [year, number] = month.split("-").map(Number);
-    const days = new Date(Date.UTC(year, number, 0)).getUTCDate();
-    if (`${month}-${String(days).padStart(2, "0")}` > today) return false;
-    for (let day = month === "2026-08" ? 30 : 1; day <= days; day++) {
-      const record = daily[`${month}-${String(day).padStart(2, "0")}`];
+  return PUBLIC_DAILY_MONTHS.filter(definition => {
+    if (definition.lastDate > today) return false;
+    const cursor = new Date(`${definition.firstDate}T12:00:00Z`);
+    const end = new Date(`${definition.lastDate}T12:00:00Z`);
+    for (; cursor <= end; cursor.setUTCDate(cursor.getUTCDate() + 1)) {
+      const date = cursor.toISOString().slice(0, 10);
+      const record = daily[date];
       if (!record || typeof record !== "object" || Array.isArray(record)) return false;
     }
     return true;
-  });
+  }).map(definition => definition.month);
 }
+
 
 export function publicStatsFromProgress(progressValue) {
   const progress = parseProgress(progressValue);

@@ -1,3 +1,6 @@
+/* BOXXY v484: cache the shared published-content catalogue used by game, Basement and Functions. */
+/* BOXXY v483: include the standard Four Leaf Clover medal in offline assets. */
+/* BOXXY v482: Four Leaf Clover pack and automatic Basement history discovery. */
 /* BOXXY v481: three-position legacy Zen arrow preference. */
 /* BOXXY v480: refresh unnumbered gold-medal list and ordinal replay dates. */
 /* BOXXY v479: refresh earned-only Trophy Cabinet client assets. */
@@ -73,7 +76,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "481";
+const RELEASE_VERSION = "484";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [
@@ -83,6 +86,8 @@ const ASSETS = [
   "/attempt-history.css",
   "/alphabet-soup.js",
   "/static-noise.js",
+  "/four-leaf-clover.js",
+  "/assets/data/content-catalog.js",
   "/assets/audio/Fading-into-Gold-296KB.mp3",
   "/assets/audio/Starry-Night-Lullaby-281KB.mp3",
   "/assets/audio/Tetris-Piano-293KB.mp3",
@@ -226,7 +231,10 @@ const ASSETS = [
   "/assets/pack-art/the-jigsaw-pack-art.png",
   "/assets/pack-art/static-noise-banner.webp",
   "/assets/pack-art/static-noise-mobile.webp",
+  "/assets/pack-art/four-leaf-clover-banner.webp",
+  "/assets/pack-art/four-leaf-clover-mobile.webp",
   "/assets/medals/static-noise-tv.png",
+  "/assets/medals/four-leaf-clover.png",
   "/assets/medals/boxxy-medal-2026-08.png",
   "/assets/medals/boxxy-medal-2026-09.png",
   "/assets/medals/boxxy-medal-2026-10.png",

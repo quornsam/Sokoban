@@ -1,3 +1,5 @@
+/* BOXXY v484: Basement pack history starts from the shared published-content catalogue. */
+/* BOXXY v482: pack history from account catalogue and derived Daily month groups. */
 /* BOXXY v447: KangaRuby and WhoopsaDaisy join the shared fixed-character registry and Basement actions. */
 /* BOXXY v446: FLUFFBALLS are first-class fixed characters; Basement character actions are generated from the avatar registry. */
 /* BOXXY v445: Basement manages the BOXXY Originals Hall of Fame and linked player profiles. */
@@ -138,7 +140,7 @@
   let sortColumn = "lastSeenAt";
   let sortDirection = -1;
   let selectedView = "players";
-  const SORT_COLUMNS = Object.freeze([
+  const SORT_COLUMNS = [
     ["username", "User", "text"], ["email", "Email", "text"],
     ["createdAt", "Joined", "number"], ["lastSeenAt", "Last active", "number"],
     ["totalActiveSeconds", "Total time", "number"],
@@ -151,20 +153,51 @@
     ["validSessionCount", "Valid sessions", "number"],
     ["latestSessionStartedAt", "Latest session began", "number"],
     ["firstRecordedLoginAt", "First recorded login", "number"],
-    ["dailyCompleted", "Daily completed", "number"],
-    ["pack:boxxy-original-puzzle-pack-of-50-levels", "BOXXY Originals levels", "number"],
-    ["pack:microban", "Microban levels", "number"],
-    ["pack:jigsaw", "Jigsaw levels", "number"],
-    ["pack:alphabet-soup", "Alphabet levels", "number"],
-    ["pack:starry-night", "Starry Night levels", "number"]
-  ]);
+    ["dailyCompleted", "Daily completed", "number"]
+  ];
   const SORT_BY_KEY = new Map(SORT_COLUMNS.map(item => [item[0], item]));
-  const COMPLETION_PACKS = Object.freeze([
-    ["boxxy-original-puzzle-pack-of-50-levels", "BOXXY Originals"],
-    ["microban", "Microban"], ["jigsaw", "The Jigsaw"],
-    ["exponentially", "Exponentially"], ["alphabet-soup", "Alphabet Soup"],
-    ["starry-night", "Starry Night"]
-  ]);
+  function publishedPacks() {
+    return Array.isArray(window.BOXXY_CONTENT_CATALOG?.packs) ? window.BOXXY_CONTENT_CATALOG.packs : [];
+  }
+  function publishedDailyMonths() {
+    return Array.isArray(window.BOXXY_CONTENT_CATALOG?.dailyMonths) ? window.BOXXY_CONTENT_CATALOG.dailyMonths : [];
+  }
+  // Basement starts from the published catalogue, then merges any legitimate
+  // historic/custom records. Player activity is never used to discover which
+  // official packs exist.
+  function completionPackDefinitions() {
+    const packs=new Map();
+    const officialOrder=[];
+    for (const pack of publishedPacks()) {
+      if (!pack?.id) continue;
+      packs.set(String(pack.id),String(pack.name||pack.id));
+      officialOrder.push(String(pack.id));
+    }
+    for (const month of publishedDailyMonths()) {
+      if (!month?.id) continue;
+      packs.set(String(month.id),String(month.name||month.id));
+      officialOrder.push(String(month.id));
+    }
+    for (const user of users) {
+      for (const [id,pack] of Object.entries(user.summary?.packs || {})) {
+        if (!packs.has(id)) packs.set(id,String(pack.name||id));
+      }
+      for (const month of user.summary?.dailyMonths || []) {
+        if (month?.id && !packs.has(month.id)) packs.set(month.id,String(month.name||month.id));
+      }
+    }
+    for (const record of completions) {
+      if (record.packId && !packs.has(record.packId)) packs.set(record.packId,String(record.packName||record.packId));
+    }
+    const order=new Map(officialOrder.map((id,index)=>[id,index]));
+    return [...packs].sort(([idA,nameA],[idB,nameB])=>{
+      const a=order.has(idA),b=order.has(idB);
+      if (a||b) return a&&b ? order.get(idA)-order.get(idB) : a ? -1 : 1;
+      const dailyA=idA.startsWith("daily-month-"),dailyB=idB.startsWith("daily-month-");
+      return dailyA!==dailyB ? (dailyA?1:-1) : dailyA ? idA.localeCompare(idB) : nameA.localeCompare(nameB,"en",{sensitivity:"base"});
+    });
+  }
+
 
   function escapeHtml(value) {
     return String(value ?? "").replace(/[&<>"']/g, char => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[char]));
@@ -327,21 +360,11 @@
     return onlineRecently(user) ? `<span class="online-dot" title="Online within the last hour" aria-label="Online within the last hour"></span>` : "";
   }
 
-  const PROGRESS_PACK_ORDER = Object.freeze([
-    { id: "boxxy-original-puzzle-pack-of-50-levels", label: "BOXXY" },
-    { id: "microban", label: "MICROBAN" },
-    { id: "jigsaw", label: "JIGSAW" },
-    { id: "alphabet-soup", label: "ALPHABET" },
-    { id: "starry-night", label: "STARRY" }
-  ]);
-  const MEDAL_PACKS = Object.freeze([
-    { id: "boxxy-original-puzzle-pack-of-50-levels", label: "BOXXY Originals", levels: 50, kind: "star", colour: "#db3b27" },
-    { id: "microban", label: "Microban", levels: 50, kind: "star", colour: "#171719" },
-    { id: "jigsaw", label: "The Jigsaw", levels: 25, kind: "jigsaw", colour: "#00a6b2" },
-    { id: "exponentially", label: "Exponentially", levels: 11, kind: "star", colour: "#8e44ad" },
-    { id: "alphabet-soup", label: "Alphabet Soup", levels: 27, kind: "alphabet", colour: "#171719" },
-    { id: "starry-night", label: "Starry Night", levels: 25, kind: "moon", colour: "#e5b32a" }
-  ]);
+  const MEDAL_PACKS = Object.freeze(publishedPacks().map(pack => ({
+    id:String(pack.id), label:String(pack.name||pack.id), levels:Number(pack.levels)||0,
+    kind:String(pack.reward?.kind||"star"), colour:String(pack.reward?.colour||"#2f8f5b"),
+    src:pack.reward?.src ? `/${String(pack.reward.src).replace(/^\/+/,"")}` : ""
+  })));
   const STAR_SVG = '<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M50 6 62.7 34.2 93.5 37.5 70.5 58.3 77 88.5 50 73 23 88.5 29.5 58.3 6.5 37.5 37.3 34.2Z"/></svg>';
   const JIGSAW_SVG = '<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M8 26H34C34 14 40 6 50 6S66 14 66 26H82V38C82 42 84 44 88 44C94 44 98 48 98 54S94 66 88 66C84 66 82 68 82 72V90H64C64 78 58 72 50 72S36 78 36 90H8V64C20 64 28 58 28 50S20 36 8 36Z"/></svg>';
   const AVATAR_DEFAULT = Object.freeze({ bodyType:"boy", tshirt:"#df3526", trousers:"#292829", hair:"#292727", skin:"#ee9a60", shoes:"#292829" });
@@ -497,33 +520,40 @@
     if (streak > 0) {
       medals.push(`<span class="basement-streak" data-tier="${dailyStreakTier(streak)}" title="Daily Boxxy streak: ${streak} day${streak === 1 ? "" : "s"}"><i></i><b>${streak}</b></span>`);
     }
+    const standardMedals=new Set(MEDAL_PACKS.map(definition=>definition.id));
     MEDAL_PACKS.forEach(definition => {
       if (!packIsComplete(summary, definition)) return;
-      if (definition.kind === "alphabet") {
-        medals.push(`<span class="basement-medal basement-medal-image" title="${definition.label} completed"><img src="/assets/ui/alphabet-soup-badge.png" alt=""></span>`);
-      } else if (definition.kind === "moon") {
-        medals.push(`<span class="basement-medal basement-medal-image basement-medal-moon" title="${definition.label} completed"><img src="/assets/ui/starry-night-badge.png" alt=""></span>`);
+      if (definition.src) {
+        const moonClass=definition.kind === "moon" ? " basement-medal-moon" : "";
+        medals.push(`<span class="basement-medal basement-medal-image${moonClass}" title="${escapeHtml(definition.label)} completed"><img src="${escapeHtml(definition.src)}" alt=""></span>`);
       } else {
-        medals.push(`<span class="basement-medal" title="${definition.label} completed" style="--medal-colour:${definition.colour}">${definition.kind === "jigsaw" ? JIGSAW_SVG : STAR_SVG}</span>`);
+        medals.push(`<span class="basement-medal" title="${escapeHtml(definition.label)} completed" style="--medal-colour:${escapeHtml(definition.colour)}">${definition.kind === "jigsaw" ? JIGSAW_SVG : STAR_SVG}</span>`);
       }
     });
+    for (const [id,entry] of Object.entries(summary?.packs || {})) {
+      if (standardMedals.has(id) || !packIsComplete(summary,{id})) continue;
+      const name=String(entry.name||id);
+      medals.push(`<span class="basement-medal" title="${escapeHtml(name)} completed" style="--medal-colour:#2f8f5b">${STAR_SVG}</span>`);
+    }
     return medals.length ? `<div class="basement-medals" aria-label="Earned medals and badges">${medals.join("")}</div>` : "";
   }
   function orderedProgress(summary) {
     const dailyCompleted = Math.max(0, Number(summary?.dailyCompleted) || 0);
     const dailyStreak = Math.max(0, Number(summary?.dailyStreak) || 0);
     const items = [{ label:"DAILY", detail:`${dailyCompleted} completed · ${dailyStreak} day streak` }];
-    PROGRESS_PACK_ORDER.forEach(definition => {
-      const data = summary?.packs?.[definition.id] || {};
+    Object.entries(summary?.packs || {}).sort((a,b)=>String(a[1]?.name||a[0]).localeCompare(String(b[1]?.name||b[0]),"en")).forEach(([id,data]) => {
       const completed = Math.max(0, Number(data.completed) || 0);
       const levelCount = Math.max(0, Number(data.levelCount) || 0);
       let detail = levelCount ? `${completed}/${levelCount} completed` : `${completed} completed`;
       const storedCurrent = Math.max(0, Number(data.currentLevel) || 0);
-      const inferredCurrent = completed > 0 ? completed + 1 : 0;
-      const current = storedCurrent || inferredCurrent;
+      const current = storedCurrent || (completed > 0 ? completed + 1 : 0);
       if (current > 0) detail += ` · current ${levelCount ? Math.min(current, levelCount) : current}`;
-      items.push({ label:definition.label, detail });
+      items.push({ label:String(data.name||id).toUpperCase(), detail });
     });
+    for (const month of summary?.dailyMonths || []) {
+      items.push({label:String(month.name||month.id).toUpperCase(),
+        detail:`${month.completed}/${month.total} completed${month.complete ? " · complete" : ""}`});
+    }
     return items;
   }
   function progressHtml(summary) {
@@ -770,9 +800,9 @@
       }).format(new Date(Number(timestamp))) + " UK";
     } catch (_) { return "Original date unavailable"; }
   }
+  let completionPackSortIndex=new Map();
   function completionSortOrder(item) {
-    const index = COMPLETION_PACKS.findIndex(pack => pack[0] === item.packId);
-    return index < 0 ? COMPLETION_PACKS.length : index;
+    return completionPackSortIndex.get(item.packId) ?? completionPackSortIndex.size;
   }
   function compareCompletions(a,b) {
     const group=completionSortOrder(a)-completionSortOrder(b)
@@ -795,8 +825,9 @@
   function populateCompletionPacks() {
     if(!completionPackSelect) return;
     const selected=completionPackSelect.value;
-    const packs=new Map(COMPLETION_PACKS);
-    completions.forEach(item=>{if(!packs.has(item.packId)) packs.set(item.packId,item.packName);});
+    const entries=completionPackDefinitions();
+    completionPackSortIndex=new Map(entries.map(([id],index)=>[id,index]));
+    const packs=new Map(entries);
     completionPackSelect.innerHTML='<option value="">ALL LEVEL PACKS</option>'
       +[...packs].map(([id,name])=>`<option value="${escapeHtml(id)}">${escapeHtml(name)}</option>`).join("");
     if(packs.has(selected)) completionPackSelect.value=selected;
@@ -818,7 +849,7 @@
   function renderCompletionPackCards() {
     if(!completionPackCards) return;
     const selected=completionPackSelect?.value||"";
-    completionPackCards.innerHTML=COMPLETION_PACKS.map(([id,name])=>{
+    completionPackCards.innerHTML=completionPackDefinitions().map(([id,name])=>{
       const records=completions.filter(item=>item.packId===id&&item.complete&&!item.needsReview);
       const dated=records.filter(item=>!item.historical).length;
       return `<button type="button" data-completion-pack="${escapeHtml(id)}" aria-pressed="${selected===id}">
@@ -1153,6 +1184,12 @@
       if (!response.ok) { setStatus(dashboardStatus, data.error || "Could not load users.", "error"); return; }
       users = Array.isArray(data.users) ? data.users : [];
       completions = Array.isArray(data.completions) ? data.completions : [];
+      for (const [id,name] of completionPackDefinitions()) {
+        if (id.startsWith("daily-month-") || SORT_BY_KEY.has(`pack:${id}`)) continue;
+        const column=[`pack:${id}`,`${name} levels`,"number"];
+        SORT_COLUMNS.push(column); SORT_BY_KEY.set(column[0],column);
+        playerSortSelect?.add(new Option(column[1],column[0]));
+      }
       populateCompletionPacks();
       populateHallOfFameUsers();
       renderCompletions();
@@ -1521,7 +1558,7 @@
   dailyScoresTab?.addEventListener("click", () => setView("scores"));
   messageBarTab?.addEventListener("click", () => setView("messages"));
   if (completionPackSelect) {
-    completionPackSelect.innerHTML = '<option value="">ALL LEVEL PACKS</option>' + COMPLETION_PACKS.map(([id,name]) => `<option value="${id}">${name}</option>`).join("");
+    completionPackSelect.innerHTML = '<option value="">ALL LEVEL PACKS</option>';
     completionPackSelect.addEventListener("change", renderCompletions);
   }
   completionSearch?.addEventListener("input", renderCompletions);

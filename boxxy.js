@@ -1,3 +1,6 @@
+/* BOXXY v484: pack labels, artwork and rewards use the shared published-content catalogue. */
+/* BOXXY v483: image medals use one shared pack reward definition. */
+/* BOXXY v482: add Four Leaf Clover artwork and canonical pack registration. */
 /* BOXXY v481: three-way Zen arrow mode (movable, original, wide). */
 /* BOXXY v480: unnumbered gold-medal replay list with ordinal dates. */
 /* BOXXY v479: show earned trophies only, without the collection count summary. */
@@ -61,8 +64,8 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "481",
-  lastUpdated: "2026-10-12"
+  version: "484",
+  lastUpdated: "2026-10-13"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
 /* BOXXY v401: PARTYGOERS expands to twelve characters, its Easter egg toggles visibility, and Attire character previews are centred/clickable. */
@@ -1756,25 +1759,8 @@ window.BOXXY_RELEASE = Object.freeze({
         levels: window.SOKOBAN_LEVELS || []
       }];
   const PACK_BY_ID = new Map(PACKS.map(pack => [pack.id, pack]));
-  const PACK_COLLECTION_LABELS = Object.freeze({
-    "boxxy-original-puzzle-pack-of-50-levels": "Boxxy Originals",
-    microban: "Microban",
-    jigsaw: "The Jigsaw",
-    exponentially: "Exponentially",
-    "alphabet-soup": "Alphabet Soup",
-    "starry-night": "Starry Night",
-    "static-noise": "Static Noise"
-  });
-  const PACK_COLLECTION_HEADER_HTML = Object.freeze({
-    "boxxy-original-puzzle-pack-of-50-levels": "BOXXY<br>ORIGINALS",
-    microban: "MICROBAN",
-    jigsaw: "THE JIGSAW",
-    exponentially: "EXPONENTIALLY",
-    "alphabet-soup": "ALPHABET<br>SOUP",
-    "starry-night": "STARRY<br>NIGHT",
-    "static-noise": "STATIC<br>NOISE"
-  });
-
+  const PUBLISHED_PACKS = Array.isArray(window.BOXXY_CONTENT_CATALOG?.packs) ? window.BOXXY_CONTENT_CATALOG.packs : [];
+  const PACK_META_BY_ID = new Map(PUBLISHED_PACKS.map(pack => [pack.id, pack]));
   function levelUsesRainbowStyle(level) {
     if (!level || typeof level !== "object") return false;
     if (level.rainbowMode === true) return true;
@@ -1815,63 +1801,22 @@ window.BOXXY_RELEASE = Object.freeze({
     const colour = displayTargetColour(rawColour, level);
     return GOAL_COLOURS?.PALETTE?.[colour]?.hex || "#ec2826";
   }
-  const PACK_ARTWORK = Object.freeze({
-    "boxxy-original-puzzle-pack-of-50-levels": {
-      desktop: "assets/pack-art/boxxy-originals-banner.webp",
-      mobile: "assets/pack-art/boxxy-originals-mobile.webp",
-      alt: "Indi sitting on a crate and scratching his head"
-    },
-    microban: {
-      desktop: "assets/pack-art/microban-banner.webp",
-      mobile: "assets/pack-art/microban-mobile.webp",
-      alt: "Indi studying a compact Microban puzzle with three wooden crates"
-    },
-    jigsaw: {
-      desktop: "assets/pack-art/the-jigsaw-banner.webp",
-      mobile: "assets/pack-art/the-jigsaw-mobile.webp",
-      alt: "Indi studying The Jigsaw map"
-    },
-    exponentially: {
-      desktop: "assets/pack-art/exponentially-source.webp",
-      mobile: "assets/pack-art/exponentially-mobile.webp",
-      alt: "Indi screaming among a huge number of boxes"
-    },
-    "alphabet-soup": {
-      desktop: "assets/pack-art/alphabet-soup-banner.webp",
-      mobile: "assets/pack-art/alphabet-soup-mobile.webp",
-      alt: "Indi studying wooden crates arranged as the letters A, B and C"
-    },
-    "starry-night": {
-      desktop: "assets/pack-art/starry-night-banner.webp",
-      mobile: "assets/pack-art/starry-night-mobile.webp",
-      alt: "Boxxy doing a star jump in a sea of glowing stars"
-    },
-    "static-noise": {
-      desktop: "assets/pack-art/static-noise-banner.webp",
-      mobile: "assets/pack-art/static-noise-mobile.webp",
-      alt: "Static Noise puzzles with yellow and red boxes and red goals"
-    }
-  });
-
   function packCollectionLabel(pack) {
-    return PACK_COLLECTION_LABELS[pack?.id]
-      || String(pack?.displayName || pack?.title || "Puzzle Pack");
+    const meta = PACK_META_BY_ID.get(pack?.id);
+    return String(meta?.collectionLabel || meta?.name || pack?.displayName || pack?.title || "Puzzle Pack");
   }
 
   function packCollectionHeaderHtml(pack) {
-    if (PACK_COLLECTION_HEADER_HTML[pack?.id]) return PACK_COLLECTION_HEADER_HTML[pack.id];
+    const meta = PACK_META_BY_ID.get(pack?.id);
+    if (meta?.headerHtml) return String(meta.headerHtml);
     const safeLabel = packCollectionLabel(pack).toUpperCase().replace(/[&<>"']/g, character => ({
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      "\"": "&quot;",
-      "'": "&#39;"
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;"
     })[character]);
     return safeLabel.replace(/\s+/, "<br>");
   }
 
   function packArtwork(pack) {
-    return pack ? (PACK_ARTWORK[pack.id] || null) : null;
+    return pack ? (PACK_META_BY_ID.get(pack.id)?.artwork || null) : null;
   }
 
   const DAILY_LAUNCH_DATE = /^\d{4}-\d{2}-\d{2}$/.test(String(window.BOXXY_DAILY_LAUNCH_DATE || ""))
@@ -3907,48 +3852,48 @@ window.BOXXY_RELEASE = Object.freeze({
   const PACK_STAR_SVG = '<svg viewBox="0 0 100 100" aria-hidden="true" focusable="false"><path d="M50 6 62.7 34.2 93.5 37.5 70.5 58.3 77 88.5 50 73 23 88.5 29.5 58.3 6.5 37.5 37.3 34.2Z"/></svg>';
   const PACK_JIGSAW_SVG = '<svg viewBox="0 0 100 100" aria-hidden="true" focusable="false"><path d="M8 26H34C34 14 40 6 50 6S66 14 66 26H82V38C82 42 84 44 88 44C94 44 98 48 98 54S94 66 88 66C84 66 82 68 82 72V90H64C64 78 58 72 50 72S36 78 36 90H8V64C20 64 28 58 28 50S20 36 8 36Z"/></svg>';
   const PACK_ALPHABET_SOUP_SVG = '<svg viewBox="0 0 100 100" aria-hidden="true" focusable="false"><path fill-rule="evenodd" d="M50 6 87 94H68L60 75H40L32 94H13L50 6ZM50 31 43 56H57L50 31ZM35 62H65V74H35V62Z"/></svg>';
-  const PACK_ALPHABET_SOUP_BADGE_HTML = '<img src="assets/ui/alphabet-soup-badge.png" alt="" aria-hidden="true" style="display:block;width:100%;height:100%;object-fit:contain;">';
-  const PACK_STARRY_NIGHT_BADGE_HTML = '<img src="assets/ui/starry-night-badge.png" alt="" aria-hidden="true" style="display:block;width:100%;height:100%;object-fit:contain;">';
-  const PACK_STATIC_NOISE_BADGE_HTML = '<img src="assets/medals/static-noise-tv.png" alt="" aria-hidden="true" style="display:block;width:100%;height:100%;object-fit:contain;">';
+  function packRewardDefinition(pack) {
+    return PACK_META_BY_ID.get(pack?.id)?.reward || null;
+  }
   const PACK_STARRY_NIGHT_AWARD_MESSAGES = Object.freeze([
     packName => `A crescent moon has been added to your BOXXY awards collection for completing “${packName}”.`,
     packName => `You completed “${packName}” and earned its crescent moon badge. It is now in your BOXXY awards collection.`,
     packName => `“${packName}” is complete. Its crescent moon badge is now in your BOXXY awards collection.`
   ]);
-  const lastPackAwardMessage = { star: -1, jigsaw: -1, alphabet: -1, moon: -1, television: -1 };
+  const PACK_IMAGE_AWARD_MESSAGES = Object.freeze({
+    alphabet: [
+      packName => `A letter A has been added to your BOXXY awards collection for completing “${packName}”, you box-pusher extraordinaire.`,
+      packName => `You completed “${packName}” and earned its A badge. It is now in your BOXXY awards collection, you word-loving warehouse wizard.`,
+      packName => `“${packName}” is complete. Its A badge is now in your BOXXY awards collection, you alphabet-shifting champion.`
+    ],
+    moon: PACK_STARRY_NIGHT_AWARD_MESSAGES,
+    television: [packName => `An old-school television medal has been added to your BOXXY trophy cabinet for completing “${packName}”.`],
+    clover: [packName => `A four-leaf clover medal has been added to your BOXXY trophy cabinet for completing “${packName}”.`]
+  });
+  const PACK_AWARD_ARIA_LABELS = Object.freeze({
+    jigsaw: "Pack completion jigsaw puzzle piece awarded",
+    alphabet: "Pack completion A badge awarded",
+    moon: "Pack completion crescent moon badge awarded",
+    television: "Pack completion television medal awarded",
+    clover: "Pack completion four-leaf clover medal awarded"
+  });
+  const lastPackAwardMessage = { star: -1, jigsaw: -1, alphabet: -1, moon: -1, television: -1, clover: -1 };
 
   function packRewardKind(pack) {
-    if (pack?.id === JIGSAW_PACK_ID) return "jigsaw";
-    if (pack?.id === "alphabet-soup") return "alphabet";
-    if (pack?.id === "static-noise") return "television";
-    if (pack?.id === STARRY_NIGHT_PACK_ID) return "moon";
-    return "star";
+    return String(packRewardDefinition(pack)?.kind || (pack?.id === JIGSAW_PACK_ID ? "jigsaw" : "star"));
   }
 
   function packRewardSvg(pack) {
-    const kind = packRewardKind(pack);
-    if (kind === "jigsaw") return PACK_JIGSAW_SVG;
-    if (kind === "alphabet") return PACK_ALPHABET_SOUP_BADGE_HTML;
-    if (kind === "moon") return PACK_STARRY_NIGHT_BADGE_HTML;
-    if (kind === "television") return PACK_STATIC_NOISE_BADGE_HTML;
+    const reward = packRewardDefinition(pack);
+    if (reward?.src) return `<img src="${reward.src}" alt="" aria-hidden="true" style="display:block;width:100%;height:100%;object-fit:contain;">`;
+    if (packRewardKind(pack) === "jigsaw") return PACK_JIGSAW_SVG;
     return PACK_STAR_SVG;
   }
 
   function nextPackAwardMessage(pack) {
     const kind = packRewardKind(pack);
-    const messages = kind === "jigsaw"
-      ? PACK_JIGSAW_AWARD_MESSAGES
-      : kind === "alphabet"
-        ? [
-            packName => `A letter A has been added to your BOXXY awards collection for completing “${packName}”, you box-pusher extraordinaire.`,
-            packName => `You completed “${packName}” and earned its A badge. It is now in your BOXXY awards collection, you word-loving warehouse wizard.`,
-            packName => `“${packName}” is complete. Its A badge is now in your BOXXY awards collection, you alphabet-shifting champion.`
-          ]
-        : kind === "moon"
-          ? PACK_STARRY_NIGHT_AWARD_MESSAGES
-          : kind === "television"
-            ? [packName => `An old-school television medal has been added to your BOXXY trophy cabinet for completing “${packName}”.`]
-            : PACK_STAR_AWARD_MESSAGES;
+    const messages = kind === "jigsaw" ? PACK_JIGSAW_AWARD_MESSAGES
+      : PACK_IMAGE_AWARD_MESSAGES[kind] || PACK_STAR_AWARD_MESSAGES;
     let index = Math.floor(Math.random() * messages.length);
     if (messages.length > 1 && index === lastPackAwardMessage[kind]) {
       index = (index + 1 + Math.floor(Math.random() * (messages.length - 1))) % messages.length;
@@ -3963,7 +3908,7 @@ window.BOXXY_RELEASE = Object.freeze({
     const kind = packRewardKind(pack);
     packStarAward.hidden = false;
     packStarAward.dataset.rewardType = kind;
-    packStarAward.setAttribute("aria-label", kind === "jigsaw" ? "Pack completion jigsaw puzzle piece awarded" : kind === "alphabet" ? "Pack completion A badge awarded" : kind === "moon" ? "Pack completion crescent moon badge awarded" : kind === "television" ? "Pack completion television medal awarded" : "Pack completion star awarded");
+    packStarAward.setAttribute("aria-label", PACK_AWARD_ARIA_LABELS[kind] || "Pack completion star awarded");
     if (packStarAwardIcon) {
       packStarAwardIcon.innerHTML = packRewardSvg(pack);
       packStarAwardIcon.style.setProperty("--pack-star-colour", packAccentColour(pack));

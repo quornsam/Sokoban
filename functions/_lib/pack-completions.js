@@ -1,15 +1,10 @@
+/* BOXXY v484 — published pack definitions come from one shared content catalogue. */
 /* BOXXY v335 — canonical pack definitions and conservative completion history. */
 import { parseProgress } from "./auth.js";
+import { OFFICIAL_PACKS, OFFICIAL_DAILY_MONTHS } from "./content-catalog.js";
 
-export const PACK_COMPLETION_DEFS = Object.freeze([
-  { id:"boxxy-original-puzzle-pack-of-50-levels", name:"BOXXY Originals", levels:50 },
-  { id:"microban", name:"Microban", levels:50 },
-  { id:"jigsaw", name:"The Jigsaw", levels:25 },
-  { id:"exponentially", name:"Exponentially", levels:11 },
-  { id:"alphabet-soup", name:"Alphabet Soup", levels:27 },
-  { id:"starry-night", name:"Starry Night", levels:25 },
-  { id:"static-noise", name:"Static Noise", levels:11 }
-]);
+export const PACK_COMPLETION_DEFS = Object.freeze(OFFICIAL_PACKS.map(pack => ({ id:pack.id, name:pack.name, levels:pack.levels })));
+
 const MICROBAN_SOURCES = Object.freeze(["44", "2", "21", "30", "31", "40", "4", "1", "9", "25", "17", "28", "24", "38", "32", "46", "5", "14", "7", "15", "34", "26", "12", "27", "3", "23", "45", "33", "22", "41", "20", "19", "42", "18", "48", "11", "13", "43", "50", "47", "37", "49", "10", "39", "29", "8", "35", "6", "16", "120"]);
 const KNOWN = new Map(PACK_COMPLETION_DEFS.map(pack => [pack.id, pack]));
 const ID_PATTERN = /^[a-z0-9][a-z0-9_-]{0,159}$/i;
@@ -39,6 +34,35 @@ function definitionsForProgress(progress) {
   }
   return definitions;
 }
+function catalogContainsPack(progress, definition) {
+  try {
+    const catalog = JSON.parse(String(progress["boxxy-pack-catalog-v1"] || "{}"));
+    const levels = Number(catalog?.[definition.id]?.levels);
+    return Number.isInteger(levels) && levels === definition.levels && levels > 0;
+  } catch (_) { return false; }
+}
+// Monthly Daily history is a derived Basement view, not extra packs or D1 rows.
+export function dailyMonthEvidence(progressValue, now = Date.now()) {
+  const progress = parseProgress(progressValue);
+  let days = {};
+  try { days = JSON.parse(String(progress["boxxy-daily-completions-v1"] || "{}")); } catch (_) {}
+  if (!days || typeof days !== "object" || Array.isArray(days)) days = {};
+
+  const completedDates = new Set();
+  for (const [date, record] of Object.entries(days)) {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(date) && record && typeof record === "object" && !Array.isArray(record)) completedDates.add(date);
+  }
+
+  return OFFICIAL_DAILY_MONTHS.map(definition => {
+    let completed = 0;
+    for (const date of completedDates) {
+      if (date >= definition.firstDate && date <= definition.lastDate) completed++;
+    }
+    const complete = completed === definition.levels && Date.parse(`${definition.lastDate}T23:59:59Z`) <= now;
+    return { id:definition.id, name:definition.name, completed, total:definition.levels, complete };
+  });
+}
+
 export function mergeFirstCompletionMarkers(existingValue, incomingValue, userId = "") {
   const existing = parseProgress(existingValue), incoming = parseProgress(incomingValue);
   const merged = { ...incoming };
@@ -89,7 +113,7 @@ export async function ensurePackCompletionSchema(db) {
 }
 export async function recordPackCompletions(db,userId,progressValue) {
   const progress = parseProgress(progressValue),now=Date.now();
-  const records = PACK_COMPLETION_DEFS.map(definition => ({
+  const records = [...definitionsForProgress(progress).values()].map(definition => ({
     definition,completedAt:parseFirstCompletionMarker(progress[firstCompletionKey(definition.id)],userId,now)?.completedAt || 0
   })).filter(item => item.completedAt && packCompletionEvidence(progress,item.definition).complete);
   if (!records.length) return;
@@ -139,7 +163,7 @@ export function completionRecordsForUsers(users,rows) {
       const rowTime=validFirstCompletionTime(row?.completed_at);
       const rowCount=Number(row?.level_count);
       const countMatches=!row || rowCount===definition.levels;
-      const official=KNOWN.has(definition.id);
+      const official=KNOWN.has(definition.id) || catalogContainsPack(progress,definition);
       const timestampConflict=Boolean(row && (!rowTime || (marker && marker.completedAt!==rowTime)));
       const needsReview=!complete || !official || Boolean(row&&!countMatches) || timestampConflict || invalidMarker;
       const reviewReason=!complete ? "The saved progress does not contain every level."
@@ -155,6 +179,13 @@ export function completionRecordsForUsers(users,rows) {
         historical:complete&&!dated,verified:dated,needsReview,reviewReason,
         previousRecord:row&&!dated?{completedAt:Number(row.completed_at)||0,recordedAt:Number(row.recorded_at)||0,levelCount:rowCount}:null});
     }
+    for (const month of dailyMonthEvidence(progress)) {
+      if (!month.complete) continue;
+      // Earliest all-days-completed timestamp was not recorded; never invent it.
+      records.push({userId:user.id,username:user.username,packId:month.id,packName:month.name,
+        levelCount:month.total,completed:month.completed,complete:true,completedAt:0,recordedAt:0,
+        historical:true,verified:false,needsReview:false,reviewReason:"",previousRecord:null});
+    }
   }
   return records;
 }
@@ -162,8 +193,8 @@ export function completionRecordsForUsers(users,rows) {
 // Correct only the admin presentation. The persisted progress is never rewritten.
 export function canonicalAdminSummary(summary, progressValue) {
   const progress=parseProgress(progressValue);
-  const result={...summary,packs:{...(summary?.packs||{})}};
-  for(const definition of PACK_COMPLETION_DEFS) {
+  const result={...summary,packs:{...(summary?.packs||{})},dailyMonths:dailyMonthEvidence(progress)};
+  for(const definition of definitionsForProgress(progress).values()) {
     const evidence=packCompletionEvidence(progress,definition);
     result.packs[definition.id]={...(result.packs[definition.id]||{}),name:definition.name,
       levelCount:definition.levels,completed:evidence.completed};
