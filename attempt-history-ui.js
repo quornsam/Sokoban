@@ -1,3 +1,4 @@
+/* BOXXY v484: history labels and colours use the shared published-content catalogue. */
 /* BOXXY v482: display Daily attempts in automatic month groups without changing saved pack IDs. */
 /* BOXXY v428 — medal-winning Daily runs are marked in Player History and Basement. */
 /* BOXXY v424 — Basement-only WebDriver evidence marker in per-run history. */
@@ -13,13 +14,10 @@
     return node;
   };
   const ACCENTS = Object.freeze({red:'#db3b27',black:'#171719',green:'#2f8f5b',blue:'#20539a',yellow:'#e5b32a',purple:'#8e44ad',orange:'#f47a20',teal:'#00a6b2'});
-  // Consistent names in player and Basement history, regardless of the longer
-  // pack labels saved by older clients. These are display labels only.
+  const PUBLISHED_PACKS = Array.isArray(window.BOXXY_CONTENT_CATALOG?.packs) ? window.BOXXY_CONTENT_CATALOG.packs : [];
   const PACK_LABELS = Object.freeze({
-    'daily-boxxy':'Daily Boxxy',
-    'boxxy-original-puzzle-pack-of-50-levels':'BOXXY Originals',
-    microban:'Microban', jigsaw:'The Jigsaw', 'alphabet-soup':'Alphabet Soup',
-    'starry-night':'Starry Night', exponentially:'Exponentially'
+    "daily-boxxy":"Daily Boxxy",
+    ...Object.fromEntries(PUBLISHED_PACKS.map(pack => [pack.id, String(pack.name || pack.id)]))
   });
   // Attempts and older cloud saves can retain Exponentially's pre-v372 names.
   // Resolve its current display titles by stable puzzle identity, never by
@@ -30,8 +28,8 @@
   ]);
   const TOP_PACKS = ['daily-boxxy','boxxy-original-puzzle-pack-of-50-levels','microban'];
   const PACK_ACCENTS = Object.freeze({
-    'boxxy-original-puzzle-pack-of-50-levels':'red',microban:'black',jigsaw:'teal',
-    'alphabet-soup':'yellow','starry-night':'yellow',exponentially:'purple','daily-boxxy':'blue'
+    "daily-boxxy":"blue",
+    ...Object.fromEntries(PUBLISHED_PACKS.map(pack => [pack.id, String(pack.accent || "black")]))
   });
   function colour(packId) {
     // In the public game prefer the actual pack metadata; Basement uses the

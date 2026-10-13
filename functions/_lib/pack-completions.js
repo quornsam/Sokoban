@@ -1,16 +1,10 @@
-/* BOXXY v482 — discover pack records from existing synced pack catalogue; legacy definitions remain fallback. */
+/* BOXXY v484 — published pack definitions come from one shared content catalogue. */
 /* BOXXY v335 — canonical pack definitions and conservative completion history. */
 import { parseProgress } from "./auth.js";
+import { OFFICIAL_PACKS, OFFICIAL_DAILY_MONTHS } from "./content-catalog.js";
 
-export const PACK_COMPLETION_DEFS = Object.freeze([
-  { id:"boxxy-original-puzzle-pack-of-50-levels", name:"BOXXY Originals", levels:50 },
-  { id:"microban", name:"Microban", levels:50 },
-  { id:"jigsaw", name:"The Jigsaw", levels:25 },
-  { id:"exponentially", name:"Exponentially", levels:11 },
-  { id:"alphabet-soup", name:"Alphabet Soup", levels:27 },
-  { id:"starry-night", name:"Starry Night", levels:25 },
-  { id:"static-noise", name:"Static Noise", levels:11 }
-]);
+export const PACK_COMPLETION_DEFS = Object.freeze(OFFICIAL_PACKS.map(pack => ({ id:pack.id, name:pack.name, levels:pack.levels })));
+
 const MICROBAN_SOURCES = Object.freeze(["44", "2", "21", "30", "31", "40", "4", "1", "9", "25", "17", "28", "24", "38", "32", "46", "5", "14", "7", "15", "34", "26", "12", "27", "3", "23", "45", "33", "22", "41", "20", "19", "42", "18", "48", "11", "13", "43", "50", "47", "37", "49", "10", "39", "29", "8", "35", "6", "16", "120"]);
 const KNOWN = new Map(PACK_COMPLETION_DEFS.map(pack => [pack.id, pack]));
 const ID_PATTERN = /^[a-z0-9][a-z0-9_-]{0,159}$/i;
@@ -53,25 +47,19 @@ export function dailyMonthEvidence(progressValue, now = Date.now()) {
   let days = {};
   try { days = JSON.parse(String(progress["boxxy-daily-completions-v1"] || "{}")); } catch (_) {}
   if (!days || typeof days !== "object" || Array.isArray(days)) days = {};
-  const months = new Map();
+
+  const completedDates = new Set();
   for (const [date, record] of Object.entries(days)) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !record || typeof record !== "object" || Array.isArray(record)) continue;
-    const year = Number(date.slice(0,4)), month = Number(date.slice(5,7)), day = Number(date.slice(8,10));
-    if (year < 2026 || month < 1 || month > 12 || day < 1 || day > new Date(Date.UTC(year, month, 0)).getUTCDate()) continue;
-    if (date < "2026-08-30") continue;
-    const key = date.slice(0,7);
-    if (!months.has(key)) months.set(key,new Set());
-    months.get(key).add(date);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(date) && record && typeof record === "object" && !Array.isArray(record)) completedDates.add(date);
   }
-  return [...months].sort(([a],[b])=>a.localeCompare(b)).map(([month,dates])=>{
-    const year = Number(month.slice(0,4)), number = Number(month.slice(5,7));
-    const daysInMonth = new Date(Date.UTC(year, number, 0)).getUTCDate();
-    const first = month === "2026-08" ? 30 : 1;
-    const total = daysInMonth - first + 1;
-    const last = `${month}-${String(daysInMonth).padStart(2,"0")}`;
-    const complete = dates.size === total && Date.parse(`${last}T23:59:59Z`) <= now;
-    const name = `Daily BOXXY · ${new Intl.DateTimeFormat("en-GB",{month:"long",year:"numeric",timeZone:"UTC"}).format(new Date(Date.UTC(year,number-1,1)))}`;
-    return { id:`daily-month-${month}`, name, completed:dates.size, total, complete };
+
+  return OFFICIAL_DAILY_MONTHS.map(definition => {
+    let completed = 0;
+    for (const date of completedDates) {
+      if (date >= definition.firstDate && date <= definition.lastDate) completed++;
+    }
+    const complete = completed === definition.levels && Date.parse(`${definition.lastDate}T23:59:59Z`) <= now;
+    return { id:definition.id, name:definition.name, completed, total:definition.levels, complete };
   });
 }
 

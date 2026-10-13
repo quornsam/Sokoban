@@ -1,3 +1,4 @@
+/* BOXXY v484: cloud pack catalogue starts from the shared published-content catalogue. */
 /* BOXXY v476: wait for initial account identity before presenting monthly medal notices. */
 /* BOXXY v463: keep Secret Workshop drafts and editor preferences local to the browser. */
 /* BOXXY v461: release metadata/cache correction; v460 cloud-sync diagnostics retained. */
@@ -563,13 +564,18 @@
 
   function refreshPackCatalog() {
     try {
-      const packs = Array.isArray(window.BOXXY_LEVEL_PACKS) ? window.BOXXY_LEVEL_PACKS : [];
       const catalog = {};
+      const published = Array.isArray(window.BOXXY_CONTENT_CATALOG?.packs) ? window.BOXXY_CONTENT_CATALOG.packs : [];
+      published.forEach(pack => {
+        if (!pack?.id) return;
+        catalog[String(pack.id)] = { name:String(pack.name || pack.id), levels:Math.max(0, Number(pack.levels) || 0) };
+      });
+      const packs = Array.isArray(window.BOXXY_LEVEL_PACKS) ? window.BOXXY_LEVEL_PACKS : [];
       packs.forEach(pack => {
         if (!pack?.id) return;
         catalog[String(pack.id)] = {
-          name: String(pack.displayName || pack.title || pack.id),
-          levels: Array.isArray(pack.levels) ? pack.levels.length : 0
+          name: String(pack.displayName || pack.title || catalog[String(pack.id)]?.name || pack.id),
+          levels: Array.isArray(pack.levels) ? pack.levels.length : Math.max(0, Number(catalog[String(pack.id)]?.levels) || 0)
         };
       });
       localStorage.setItem(PACK_CATALOG_KEY, JSON.stringify(catalog));

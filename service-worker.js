@@ -1,3 +1,4 @@
+/* BOXXY v484: cache the shared published-content catalogue used by game, Basement and Functions. */
 /* BOXXY v483: include the standard Four Leaf Clover medal in offline assets. */
 /* BOXXY v482: Four Leaf Clover pack and automatic Basement history discovery. */
 /* BOXXY v481: three-position legacy Zen arrow preference. */
@@ -75,7 +76,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "483";
+const RELEASE_VERSION = "484";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [
@@ -86,6 +87,7 @@ const ASSETS = [
   "/alphabet-soup.js",
   "/static-noise.js",
   "/four-leaf-clover.js",
+  "/assets/data/content-catalog.js",
   "/assets/audio/Fading-into-Gold-296KB.mp3",
   "/assets/audio/Starry-Night-Lullaby-281KB.mp3",
   "/assets/audio/Tetris-Piano-293KB.mp3",
