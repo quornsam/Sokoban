@@ -91,7 +91,15 @@ function parsedProgressValue(value, fallback) {
 function completedPublicPackIds(progress) {
   const catalog = parsedProgressValue(progress["boxxy-pack-catalog-v1"], {});
   const completed = [];
-  for (const [packId, fallbackLevelCount] of Object.entries(PUBLIC_PACK_LEVEL_COUNTS)) {
+  // Existing metadata is the source for future packs; older accounts retain
+  // the legacy definitions only as fallbacks when the catalogue is absent.
+  const counts = new Map(Object.entries(PUBLIC_PACK_LEVEL_COUNTS));
+  for (const [id, entry] of Object.entries(catalog || {}).slice(0,1000)) {
+    if (!/^[a-z0-9][a-z0-9_-]{0,159}$/i.test(id)) continue;
+    const levelCount = Number(entry?.levels);
+    if (Number.isInteger(levelCount) && levelCount > 0 && levelCount <= 10000) counts.set(id, levelCount);
+  }
+  for (const [packId, fallbackLevelCount] of counts) {
     const catalogLevelCount = Math.max(0, Math.trunc(Number(catalog?.[packId]?.levels) || 0));
     const levelCount = catalogLevelCount || fallbackLevelCount;
     let indexes = parsedProgressValue(progress[`boxxy-pack-${packId}-completed-v1`], []);

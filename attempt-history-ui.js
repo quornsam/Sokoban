@@ -1,3 +1,4 @@
+/* BOXXY v482: display Daily attempts in automatic month groups without changing saved pack IDs. */
 /* BOXXY v428 — medal-winning Daily runs are marked in Player History and Basement. */
 /* BOXXY v424 — Basement-only WebDriver evidence marker in per-run history. */
 /* BOXXY v395 — compact fixed Play History sort buttons and control-mode markers. */
@@ -132,10 +133,22 @@
     // Recent activity stays compact: pack, level and actual last-played time.
     return `${labelFor(level)} · ${levelLabel(level)} · ${date(level.lastAt)}`;
   }
+  const groupKeyFor = level => level.packId==='daily-boxxy' && validDate(level.levelToken)
+    ? `daily-boxxy:${String(level.levelToken).slice(0,7)}` : String(level.packId);
+  const groupLabelFor = (key,items) => {
+    if (!key.startsWith('daily-boxxy:')) return labelFor(items[0]);
+    const month=key.slice('daily-boxxy:'.length);
+    return /^\d{4}-\d{2}$/.test(month)
+      ? `Daily BOXXY · ${new Date(`${month}-01T12:00:00Z`).toLocaleDateString('en-GB',{month:'long',year:'numeric',timeZone:'UTC'})}`
+      : 'Daily BOXXY';
+  };
   function orderedPacks(packs) {
     return [...packs].sort(([a],[b])=>{
+      const dailyA=a.startsWith('daily-boxxy:'),dailyB=b.startsWith('daily-boxxy:');
+      if (dailyA!==dailyB) return dailyA?-1:1;
+      if (dailyA&&dailyB) return b.localeCompare(a);
       const ai=TOP_PACKS.indexOf(a),bi=TOP_PACKS.indexOf(b);
-      return (ai<0?TOP_PACKS.length:ai)-(bi<0?TOP_PACKS.length:bi);
+      return (ai<0?TOP_PACKS.length:ai)-(bi<0?TOP_PACKS.length:bi) || a.localeCompare(b);
     });
   }
   function appendCell(tr,value,{missing=false,best=false,title=''}={}) {
@@ -155,6 +168,8 @@
       return data;
     };
     const render=data=>{
+      // Monthly history packs are an admin-only view of the original Daily IDs.
+      const groupKey=level=>options.adminFlags === true ? groupKeyFor(level) : String(level.packId);
       // A background refresh must not collapse a pack the player is reading.
       const previousRecent=root.querySelector('.history-recent')?.open || false;
       const previousPacks=new Map([...root.querySelectorAll('.history-pack')]
@@ -169,7 +184,7 @@
       if (!levels.length) {root.appendChild(el('p','No recorded attempts or earlier progress yet.'));return;}
       const packs=new Map(),packNodes=new Map(),levelNodes=new Map(),packEnsure=new Map();
       for (const level of levels) {
-        const key=String(level.packId);
+        const key=groupKey(level);
         if (!packs.has(key)) packs.set(key,[]);
         packs.get(key).push(level);
       }
@@ -302,8 +317,9 @@
         const button=tint(el('button',recentLabel(level)),level.packId);
         button.type='button';
         button.addEventListener('click',()=>{
-          const pack=packNodes.get(level.packId);
-          packEnsure.get(level.packId)?.(level);
+          const group=groupKey(level);
+          const pack=packNodes.get(group);
+          packEnsure.get(group)?.(level);
           const item=levelNodes.get(`${level.packId}:${level.levelToken}`);
           if(pack)pack.open=true;
           if(item){item.open=true;item.scrollIntoView?.({block:'nearest',behavior:'smooth'});}
@@ -312,18 +328,18 @@
       if (!recentContent.children.length) recentContent.appendChild(el('p','No dated level activity available yet.','history-note'));
       recent.appendChild(recentContent);root.appendChild(recent);
       for (const [packId,items] of orderedPacks(packs)) {
-        const pack=tint(el('details',null,'history-pack'),packId);
+        const pack=tint(el('details',null,'history-pack'),items[0].packId);
         pack.dataset.historyPack=packId;
-        const name=labelFor(items[0]);
+        const name=groupLabelFor(packId,items);
         pack.appendChild(el('summary',`${name} · ${items.length} level${items.length===1?'':'s'}`));
-        items.sort((a,b)=>packId==='daily-boxxy'
+        items.sort((a,b)=>packId.startsWith('daily-boxxy:')
           ? String(b.levelToken).localeCompare(String(a.levelToken))
             || (numberFor(b)||0)-(numberFor(a)||0)
           : (numberFor(a)||0)-(numberFor(b)||0)
             || String(a.levelToken).localeCompare(String(b.levelToken)));
         // Dailys are paged at the pack level: old players may eventually have
         // years of history, but only the first 50 entries need DOM elements.
-        const perPage=packId==='daily-boxxy'?50:items.length;
+        const perPage=packId.startsWith('daily-boxxy:')?50:items.length;
         let shown=0;
         const more=el('button',null,'history-more-levels');
         more.type='button';

@@ -1,3 +1,4 @@
+/* BOXXY v482: add Four Leaf Clover artwork and canonical pack registration. */
 /* BOXXY v481: three-way Zen arrow mode (movable, original, wide). */
 /* BOXXY v480: unnumbered gold-medal replay list with ordinal dates. */
 /* BOXXY v479: show earned trophies only, without the collection count summary. */
@@ -61,8 +62,8 @@
 /* Single source of truth for the public release information.
    Update only this object when a new BOXXY version is published. */
 window.BOXXY_RELEASE = Object.freeze({
-  version: "481",
-  lastUpdated: "2026-10-12"
+  version: "482",
+  lastUpdated: "2026-10-13"
 });
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
 /* BOXXY v401: PARTYGOERS expands to twelve characters, its Easter egg toggles visibility, and Attire character previews are centred/clickable. */
@@ -1850,6 +1851,11 @@ window.BOXXY_RELEASE = Object.freeze({
       desktop: "assets/pack-art/static-noise-banner.webp",
       mobile: "assets/pack-art/static-noise-mobile.webp",
       alt: "Static Noise puzzles with yellow and red boxes and red goals"
+    },
+    "four-leaf-clover": {
+      desktop: "assets/pack-art/four-leaf-clover-banner.webp",
+      mobile: "assets/pack-art/four-leaf-clover-mobile.webp",
+      alt: "BOXXY character holding a four-leaf clover in a field of clovers"
     }
   });
 

@@ -1,3 +1,4 @@
+/* BOXXY v482 — discover pack records from existing synced pack catalogue; legacy definitions remain fallback. */
 /* BOXXY v335 — canonical pack definitions and conservative completion history. */
 import { parseProgress } from "./auth.js";
 
@@ -39,6 +40,41 @@ function definitionsForProgress(progress) {
   }
   return definitions;
 }
+function catalogContainsPack(progress, definition) {
+  try {
+    const catalog = JSON.parse(String(progress["boxxy-pack-catalog-v1"] || "{}"));
+    const levels = Number(catalog?.[definition.id]?.levels);
+    return Number.isInteger(levels) && levels === definition.levels && levels > 0;
+  } catch (_) { return false; }
+}
+// Monthly Daily history is a derived Basement view, not extra packs or D1 rows.
+export function dailyMonthEvidence(progressValue, now = Date.now()) {
+  const progress = parseProgress(progressValue);
+  let days = {};
+  try { days = JSON.parse(String(progress["boxxy-daily-completions-v1"] || "{}")); } catch (_) {}
+  if (!days || typeof days !== "object" || Array.isArray(days)) days = {};
+  const months = new Map();
+  for (const [date, record] of Object.entries(days)) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !record || typeof record !== "object" || Array.isArray(record)) continue;
+    const year = Number(date.slice(0,4)), month = Number(date.slice(5,7)), day = Number(date.slice(8,10));
+    if (year < 2026 || month < 1 || month > 12 || day < 1 || day > new Date(Date.UTC(year, month, 0)).getUTCDate()) continue;
+    if (date < "2026-08-30") continue;
+    const key = date.slice(0,7);
+    if (!months.has(key)) months.set(key,new Set());
+    months.get(key).add(date);
+  }
+  return [...months].sort(([a],[b])=>a.localeCompare(b)).map(([month,dates])=>{
+    const year = Number(month.slice(0,4)), number = Number(month.slice(5,7));
+    const daysInMonth = new Date(Date.UTC(year, number, 0)).getUTCDate();
+    const first = month === "2026-08" ? 30 : 1;
+    const total = daysInMonth - first + 1;
+    const last = `${month}-${String(daysInMonth).padStart(2,"0")}`;
+    const complete = dates.size === total && Date.parse(`${last}T23:59:59Z`) <= now;
+    const name = `Daily BOXXY · ${new Intl.DateTimeFormat("en-GB",{month:"long",year:"numeric",timeZone:"UTC"}).format(new Date(Date.UTC(year,number-1,1)))}`;
+    return { id:`daily-month-${month}`, name, completed:dates.size, total, complete };
+  });
+}
+
 export function mergeFirstCompletionMarkers(existingValue, incomingValue, userId = "") {
   const existing = parseProgress(existingValue), incoming = parseProgress(incomingValue);
   const merged = { ...incoming };
@@ -89,7 +125,7 @@ export async function ensurePackCompletionSchema(db) {
 }
 export async function recordPackCompletions(db,userId,progressValue) {
   const progress = parseProgress(progressValue),now=Date.now();
-  const records = PACK_COMPLETION_DEFS.map(definition => ({
+  const records = [...definitionsForProgress(progress).values()].map(definition => ({
     definition,completedAt:parseFirstCompletionMarker(progress[firstCompletionKey(definition.id)],userId,now)?.completedAt || 0
   })).filter(item => item.completedAt && packCompletionEvidence(progress,item.definition).complete);
   if (!records.length) return;
@@ -139,7 +175,7 @@ export function completionRecordsForUsers(users,rows) {
       const rowTime=validFirstCompletionTime(row?.completed_at);
       const rowCount=Number(row?.level_count);
       const countMatches=!row || rowCount===definition.levels;
-      const official=KNOWN.has(definition.id);
+      const official=KNOWN.has(definition.id) || catalogContainsPack(progress,definition);
       const timestampConflict=Boolean(row && (!rowTime || (marker && marker.completedAt!==rowTime)));
       const needsReview=!complete || !official || Boolean(row&&!countMatches) || timestampConflict || invalidMarker;
       const reviewReason=!complete ? "The saved progress does not contain every level."
@@ -155,6 +191,13 @@ export function completionRecordsForUsers(users,rows) {
         historical:complete&&!dated,verified:dated,needsReview,reviewReason,
         previousRecord:row&&!dated?{completedAt:Number(row.completed_at)||0,recordedAt:Number(row.recorded_at)||0,levelCount:rowCount}:null});
     }
+    for (const month of dailyMonthEvidence(progress)) {
+      if (!month.complete) continue;
+      // Earliest all-days-completed timestamp was not recorded; never invent it.
+      records.push({userId:user.id,username:user.username,packId:month.id,packName:month.name,
+        levelCount:month.total,completed:month.completed,complete:true,completedAt:0,recordedAt:0,
+        historical:true,verified:false,needsReview:false,reviewReason:"",previousRecord:null});
+    }
   }
   return records;
 }
@@ -162,8 +205,8 @@ export function completionRecordsForUsers(users,rows) {
 // Correct only the admin presentation. The persisted progress is never rewritten.
 export function canonicalAdminSummary(summary, progressValue) {
   const progress=parseProgress(progressValue);
-  const result={...summary,packs:{...(summary?.packs||{})}};
-  for(const definition of PACK_COMPLETION_DEFS) {
+  const result={...summary,packs:{...(summary?.packs||{})},dailyMonths:dailyMonthEvidence(progress)};
+  for(const definition of definitionsForProgress(progress).values()) {
     const evidence=packCompletionEvidence(progress,definition);
     result.packs[definition.id]={...(result.packs[definition.id]||{}),name:definition.name,
       levelCount:definition.levels,completed:evidence.completed};
