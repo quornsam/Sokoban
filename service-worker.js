@@ -1,3 +1,4 @@
+/* BOXXY v483: include the standard Four Leaf Clover medal in offline assets. */
 /* BOXXY v482: Four Leaf Clover pack and automatic Basement history discovery. */
 /* BOXXY v481: three-position legacy Zen arrow preference. */
 /* BOXXY v480: refresh unnumbered gold-medal list and ordinal replay dates. */
@@ -74,7 +75,7 @@
 "use strict";
 
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "482";
+const RELEASE_VERSION = "483";
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [
@@ -231,6 +232,7 @@ const ASSETS = [
   "/assets/pack-art/four-leaf-clover-banner.webp",
   "/assets/pack-art/four-leaf-clover-mobile.webp",
   "/assets/medals/static-noise-tv.png",
+  "/assets/medals/four-leaf-clover.png",
   "/assets/medals/boxxy-medal-2026-08.png",
   "/assets/medals/boxxy-medal-2026-09.png",
   "/assets/medals/boxxy-medal-2026-10.png",
