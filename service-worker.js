@@ -1,3 +1,4 @@
+/* BOXXY v486: complete Starry Night offline assets, shared release metadata and 2027 monthly medals. */
 /* BOXXY v485: refresh gameplay script for desktop background ring placement. */
 /* BOXXY v484: cache the shared published-content catalogue used by game, Basement and Functions. */
 /* BOXXY v483: include the standard Four Leaf Clover medal in offline assets. */
@@ -76,8 +77,10 @@
 /* BOXXY v363: retains v361 recording fix and original Daily share wording; persistent player sessions and Basement history. */
 "use strict";
 
+importScripts("/assets/data/release.js");
+
 const CACHE_NAME = "boxxy-offline-v2";
-const RELEASE_VERSION = "485";
+const RELEASE_VERSION = String(globalThis.BOXXY_RELEASE?.version || "0");
 const META_URL = "/__boxxy_offline_meta__";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [
@@ -85,9 +88,10 @@ const ASSETS = [
   "/attempt-history.js",
   "/attempt-history-ui.js",
   "/attempt-history.css",
-  "/alphabet-soup.js",
   "/static-noise.js",
   "/four-leaf-clover.js",
+  "/starry-night.js",
+  "/assets/data/release.js",
   "/assets/data/content-catalog.js",
   "/assets/audio/Fading-into-Gold-296KB.mp3",
   "/assets/audio/Starry-Night-Lullaby-281KB.mp3",
@@ -234,6 +238,8 @@ const ASSETS = [
   "/assets/pack-art/static-noise-mobile.webp",
   "/assets/pack-art/four-leaf-clover-banner.webp",
   "/assets/pack-art/four-leaf-clover-mobile.webp",
+  "/assets/pack-art/starry-night-banner.webp",
+  "/assets/pack-art/starry-night-mobile.webp",
   "/assets/medals/static-noise-tv.png",
   "/assets/medals/four-leaf-clover.png",
   "/assets/medals/boxxy-medal-2026-08.png",
@@ -241,7 +247,20 @@ const ASSETS = [
   "/assets/medals/boxxy-medal-2026-10.png",
   "/assets/medals/boxxy-medal-2026-11.png",
   "/assets/medals/boxxy-medal-2026-12.png",
+  "/assets/medals/boxxy-medal-2027-01.png",
+  "/assets/medals/boxxy-medal-2027-02.png",
+  "/assets/medals/boxxy-medal-2027-03.png",
+  "/assets/medals/boxxy-medal-2027-04.png",
+  "/assets/medals/boxxy-medal-2027-05.png",
+  "/assets/medals/boxxy-medal-2027-06.png",
+  "/assets/medals/boxxy-medal-2027-07.png",
+  "/assets/medals/boxxy-medal-2027-08.png",
+  "/assets/medals/boxxy-medal-2027-09.png",
+  "/assets/medals/boxxy-medal-2027-10.png",
+  "/assets/medals/boxxy-medal-2027-11.png",
+  "/assets/medals/boxxy-medal-2027-12.png",
   "/assets/ui/alphabet-soup-badge.png",
+  "/assets/ui/starry-night-badge.png",
   "/assets/ui/boxxy-prize-poster-lowres.jpg",
   "/assets/ui/boxxy-splash.png",
   "/assets/ui/completion/happy-boxxy-sprites-1.png",
@@ -280,10 +299,10 @@ const ASSETS = [
   "/how-to-play.js",
   OFFLINE_ENTRY,
   "/legal.html",
+  "/legal.js",
   "/levels.js",
   "/pack-builder.js",
   "/solver-worker.js",
-  "/styles-v147-fixes.css",
   "/styles.css"
 ];
 

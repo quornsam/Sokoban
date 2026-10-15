@@ -1,3 +1,4 @@
+/* BOXXY v486: canonical release/legal metadata and 2027 monthly Daily medal assets. */
 /* BOXXY v485: move recurring desktop background rings clear of the Restart/Undo area. */
 /* BOXXY v484: pack labels, artwork and rewards use the shared published-content catalogue. */
 /* BOXXY v483: image medals use one shared pack reward definition. */
@@ -62,12 +63,6 @@
  * Copyright © 2026 Sam Cornwell. All rights reserved.
  * Personal non-commercial use only. See LICENSE.md.
  */
-/* Single source of truth for the public release information.
-   Update only this object when a new BOXXY version is published. */
-window.BOXXY_RELEASE = Object.freeze({
-  version: "485",
-  lastUpdated: "2026-10-13"
-});
 /* BOXXY v402: Daily leaderboards display each signed-in player’s current cloud-synced avatar beside their username. */
 /* BOXXY v401: PARTYGOERS expands to twelve characters, its Easter egg toggles visibility, and Attire character previews are centred/clickable. */
 /* BOXXY v400: Attire adds the hidden PARTYGOERS family, visual character grids, and an in-modal Spooky Music control. */
@@ -1845,7 +1840,11 @@ window.BOXXY_RELEASE = Object.freeze({
   const DAILY_COMPLETIONS_KEY = "boxxy-daily-completions-v1";
   /* Monthly medals are derived from the same canonical Daily schedule and saved
      completion records as the game. No second puzzle catalogue or medal counter. */
-  const MONTH_MEDAL_MONTHS = Object.freeze(["2026-08", "2026-09", "2026-10", "2026-11", "2026-12"]);
+  const MONTH_MEDAL_MONTHS = Object.freeze(
+    Array.isArray(window.BOXXY_CONTENT_CATALOG?.monthlyMedals)
+      ? window.BOXXY_CONTENT_CATALOG.monthlyMedals.filter(month => /^\d{4}-\d{2}$/.test(String(month)))
+      : []
+  );
   const MONTH_MEDAL_NOTICES_KEY = "boxxy-daily-month-medal-notices-v1";
   const monthMedalImage = month => `assets/medals/boxxy-medal-${month}.png`;
 
@@ -3221,8 +3220,6 @@ window.BOXXY_RELEASE = Object.freeze({
   const legalBtn = document.getElementById("legalBtn");
   const legalModal = document.getElementById("legalModal");
   const legalCloseBtn = document.getElementById("legalCloseBtn");
-  const legalVersion = document.getElementById("legalVersion");
-  const legalLastUpdated = document.getElementById("legalLastUpdated");
   const originalsCompletionBoard = document.getElementById("originalsCompletionBoard");
   const autoSolveBtn = document.getElementById("autoSolveBtn");
   const cancelGuidedBtn = document.getElementById("cancelGuidedBtn");
@@ -3999,29 +3996,6 @@ window.BOXXY_RELEASE = Object.freeze({
     zenNextBtn.hidden = !Boolean(visible);
   }
 
-  function formatReleaseDate(isoDate) {
-    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(isoDate || ""));
-    if (!match) return "—";
-    return `${Number(match[3])}.${Number(match[2])}.${match[1]}`;
-  }
-
-  function renderReleaseMetadata() {
-    const release = window.BOXXY_RELEASE || {};
-    const version = Number(release.version);
-    const isoDate = String(release.lastUpdated || "");
-
-    if (legalVersion) {
-      legalVersion.textContent = Number.isFinite(version) && version > 0
-        ? String(Math.trunc(version))
-        : "—";
-    }
-    if (legalLastUpdated) {
-      legalLastUpdated.textContent = formatReleaseDate(isoDate);
-      if (/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) legalLastUpdated.dateTime = isoDate;
-      else legalLastUpdated.removeAttribute("datetime");
-    }
-  }
-
   const ORIGINALS_COMPLETION_BOARD_SIZE = 50;
   const ORIGINALS_COMPLETERS_FALLBACK = Object.freeze([
     { place:1, name:"Anian Wu", location:"USA" },
@@ -4115,7 +4089,6 @@ window.BOXXY_RELEASE = Object.freeze({
 
   function openLegalModal() {
     if (!legalModal) return;
-    renderReleaseMetadata();
     renderOriginalsCompletionBoard();
     legalModal.hidden = false;
     requestAnimationFrame(() => legalCloseBtn?.focus());
@@ -13034,7 +13007,6 @@ window.BOXXY_RELEASE = Object.freeze({
     isMakerTesting() { return makerTesting; }
   };
 
-  renderReleaseMetadata();
   refreshSiteAnnouncement(true);
   startSiteAnnouncementPolling();
   applyTheme(currentTheme, false);
