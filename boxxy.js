@@ -1,3 +1,4 @@
+/* BOXXY v487: keep the large once-daily invitation independent of site announcements. */
 /* BOXXY v486: canonical release/legal metadata and 2027 monthly Daily medal assets. */
 /* BOXXY v485: move recurring desktop background rings clear of the Restart/Undo area. */
 /* BOXXY v484: pack labels, artwork and rewards use the shared published-content catalogue. */
@@ -4225,7 +4226,6 @@
     } else {
       siteAnnouncement.classList.remove('is-entering');
     }
-    if (dailyInviteModal && !dailyInviteModal.hidden) closeDailyInvite();
     return true;
   }
 
@@ -4375,7 +4375,7 @@
   }
 
   function showDailyInvite(force = false) {
-    if (!dailyInviteModal || sharedPuzzleMode || makerTesting || dailyMode || (siteAnnouncementActive && !force)) return;
+    if (!dailyInviteModal || sharedPuzzleMode || makerTesting || dailyMode) return;
     const puzzle = dailyPuzzleForToday();
     if (!force) {
       if (!puzzle || dailyCompletion(puzzle.date)) return;
