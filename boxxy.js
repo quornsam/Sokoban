@@ -1,3 +1,4 @@
+/* BOXXY v488: PostHog receives a first-valid-move event for every counted gameplay attempt. */
 /* BOXXY v487: keep the large once-daily invitation independent of site announcements. */
 /* BOXXY v486: canonical release/legal metadata and 2027 monthly Daily medal assets. */
 /* BOXXY v485: move recurring desktop background rings clear of the Restart/Undo area. */
@@ -10000,6 +10001,7 @@
       const attempt = armedLevelAttempt;
       armedLevelAttempt = null;
       recordLevelAttempt(attempt.packId, attempt.levelToken, attempt.details);
+      captureBoxxyAnalytics("level_attempt_started", currentLevelAnalytics());
     }
     if (startedAt) return;
     startedAt = Date.now();

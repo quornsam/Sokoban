@@ -1,3 +1,4 @@
+/* BOXXY v488: report actual first-valid-move attempts to PostHog for regular and Daily levels. */
 /* BOXXY v487: refresh cached Daily invitation logic without changing the offline asset list. */
 /* BOXXY v486: complete Starry Night offline assets, shared release metadata and 2027 monthly medals. */
 /* BOXXY v485: refresh gameplay script for desktop background ring placement. */
