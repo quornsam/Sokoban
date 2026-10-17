@@ -13033,21 +13033,35 @@
     });
     if (!result?.ok) loadLevel(levelIndex);
   } else {
+    // A numbered Daily URL starts in its published Daily, not a temporary
+    // regular level. This avoids recording a phantom regular-level opening.
+    const dailyRoute = /^\/daily([1-9]\d*)\/?$/.exec(window.location.pathname);
+    const dailySequence = Number(dailyRoute?.[1]);
+    const linkedDaily = Number.isSafeInteger(dailySequence)
+      ? DAILY_PUZZLES.find(item => Number(item.sequence) === dailySequence)
+      : null;
+    const publishedAt = Date.parse(linkedDaily?.publishAtUtc || "");
+    const publishedDaily = Boolean(linkedDaily && linkedDaily.date >= DAILY_LAUNCH_DATE
+      && Number.isFinite(publishedAt) && Date.now() >= publishedAt);
     captureBoxxyAnalytics("game_opened", {
-      initial_pack_id: String(activePack?.id || ""),
-      initial_pack_name: String(activePack?.displayName || activePack?.title || ""),
-      initial_level_number: Number(levelIndex) + 1
+      initial_pack_id: publishedDaily ? "daily-boxxy" : String(activePack?.id || ""),
+      initial_pack_name: publishedDaily ? "Daily Boxxy" : String(activePack?.displayName || activePack?.title || ""),
+      initial_level_number: publishedDaily ? dailySequence : Number(levelIndex) + 1
     });
-    loadLevel(levelIndex);
-    // Basement links open a fresh game tab at the selected published Daily or
-    // unlocked pack level. Invalid and locked links leave ordinary startup alone.
-    try {
-      const deepLink=new URLSearchParams(window.location.search);
-      const daily=deepLink.get('playDaily');
-      if (daily) playHistoryLevel('daily-boxxy',daily);
-      else if (deepLink.has('playPack')&&deepLink.has('playLevel'))
-        playHistoryLevel(deepLink.get('playPack'),deepLink.get('playLevel'));
-    } catch (_) {}
+    loadLevel(levelIndex, false, false, publishedDaily);
+    if (dailyRoute) {
+      if (publishedDaily) loadDailyPuzzle(linkedDaily);
+      else if (thoughtText) thoughtText.textContent = "That Daily puzzle is not available yet.";
+    } else {
+      // Existing Basement query links retain their established behaviour.
+      try {
+        const deepLink = new URLSearchParams(window.location.search);
+        const daily = deepLink.get("playDaily");
+        if (daily) playHistoryLevel("daily-boxxy", daily);
+        else if (deepLink.has("playPack") && deepLink.has("playLevel"))
+          playHistoryLevel(deepLink.get("playPack"), deepLink.get("playLevel"));
+      } catch (_) {}
+    }
     if (SHARED_PUZZLE_PAYLOAD && !SHARED_PUZZLE_PAYLOAD.ok && thoughtText) {
       thoughtText.textContent = SHARED_PUZZLE_PAYLOAD.error || "That shared puzzle link could not be read.";
     }
