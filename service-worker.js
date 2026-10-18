@@ -1,3 +1,4 @@
+/* BOXXY v490: repair public-profile streak artwork by sharing tier mapping with other streak displays. */
 /* BOXXY v489: refresh offline game for public /dailyN links to published Daily puzzles. */
 /* BOXXY v488: report actual first-valid-move attempts to PostHog for regular and Daily levels. */
 /* BOXXY v487: refresh cached Daily invitation logic without changing the offline asset list. */

@@ -4674,6 +4674,7 @@ body.maker-editor-fullscreen{overflow:hidden}
   background-position:center;
   background-repeat:no-repeat;
   background-size:100% 100%;
+  background-image:var(--streak-flame-image, none);
   pointer-events:none;
 }
 .daily-streak-number{
@@ -4700,13 +4701,15 @@ body.maker-editor-fullscreen{overflow:hidden}
 .daily-streak-badge[data-digits="3"] .daily-streak-number{font-size:calc(var(--daily-streak-badge-size) * .265)}
 .daily-streak-badge[data-digits="4"] .daily-streak-number{font-size:calc(var(--daily-streak-badge-size) * .23)}
 .daily-streak-badge[data-digits="5"] .daily-streak-number{font-size:calc(var(--daily-streak-badge-size) * .20)}
-.daily-streak-badge[data-tier="zero"] .daily-streak-flame{background-image:url("assets/ui/streak-flames/streak-zero.png")}
-.daily-streak-badge[data-tier="green"] .daily-streak-flame{background-image:url("assets/ui/streak-flames/streak-green.png")}
-.daily-streak-badge[data-tier="blue"] .daily-streak-flame{background-image:url("assets/ui/streak-flames/streak-blue.png")}
-.daily-streak-badge[data-tier="red"] .daily-streak-flame{background-image:url("assets/ui/streak-flames/streak-red.png")}
-.daily-streak-badge[data-tier="fire"] .daily-streak-flame{background-image:url("assets/ui/streak-flames/streak-fire.png")}
-.daily-streak-badge[data-tier="purple"] .daily-streak-flame{background-image:url("assets/ui/streak-flames/streak-purple.png")}
-.daily-streak-badge[data-tier="silver"] .daily-streak-flame{background-image:url("assets/ui/streak-flames/streak-silver.png")}
+/* All in-game streak flames share one tier-to-artwork mapping.
+   Public profiles, Daily badges and desktop Daily icons use the same names. */
+:is(.daily-streak-badge, .player-profile-streak, .desktop-daily-streak-icon)[data-tier="zero"]{--streak-flame-image:url("assets/ui/streak-flames/streak-zero.png")}
+:is(.daily-streak-badge, .player-profile-streak, .desktop-daily-streak-icon)[data-tier="green"]{--streak-flame-image:url("assets/ui/streak-flames/streak-green.png")}
+:is(.daily-streak-badge, .player-profile-streak, .desktop-daily-streak-icon)[data-tier="blue"]{--streak-flame-image:url("assets/ui/streak-flames/streak-blue.png")}
+:is(.daily-streak-badge, .player-profile-streak, .desktop-daily-streak-icon)[data-tier="red"]{--streak-flame-image:url("assets/ui/streak-flames/streak-red.png")}
+:is(.daily-streak-badge, .player-profile-streak, .desktop-daily-streak-icon)[data-tier="fire"]{--streak-flame-image:url("assets/ui/streak-flames/streak-fire.png")}
+:is(.daily-streak-badge, .player-profile-streak, .desktop-daily-streak-icon)[data-tier="purple"]{--streak-flame-image:url("assets/ui/streak-flames/streak-purple.png")}
+:is(.daily-streak-badge, .player-profile-streak, .desktop-daily-streak-icon)[data-tier="silver"]{--streak-flame-image:url("assets/ui/streak-flames/streak-silver.png")}
 .daily-streak-badge[data-qualified-today="false"] .daily-streak-flame{filter:grayscale(1);opacity:.38}
 .daily-streak-badge[data-qualified-today="false"] .daily-streak-number{opacity:.72}
 .daily-streak-badge[data-tier="zero"] .daily-streak-number{
@@ -7775,21 +7778,14 @@ html.touch-ui .dpad button {touch-action:none;-webkit-touch-callout:none;-webkit
 .player-profile-location-form-actions button[type="submit"]{background:var(--yellow)}
 .player-profile-location-form-actions button:disabled{opacity:.45;cursor:default}
 .player-profile-streak{position:relative;flex:none;align-self:center;--profile-streak-size:50px;width:calc(var(--profile-streak-size) * 163 / 208);height:var(--profile-streak-size);filter:drop-shadow(2px 2px 0 rgba(23,23,25,.24))}
-.player-profile-streak-flame{position:absolute;inset:0;background-position:center;background-repeat:no-repeat;background-size:100% 100%}
+.player-profile-streak-flame{position:absolute;inset:0;background-position:center;background-repeat:no-repeat;background-size:100% 100%;background-image:var(--streak-flame-image, none)}
 .player-profile-streak-number{position:absolute;z-index:1;left:50%;top:67%;transform:translate(-50%,-50%);color:#fff;font-family:"Arial Black",Arial,sans-serif;font-weight:1000;line-height:1;letter-spacing:-.06em;text-align:center;text-shadow:-1px 0 0 rgba(10,17,20,.82),1px 0 0 rgba(10,17,20,.82),0 -1px 0 rgba(10,17,20,.82),0 1px 0 rgba(10,17,20,.82)}
 .player-profile-streak[data-digits="1"] .player-profile-streak-number{font-size:calc(var(--profile-streak-size) * .36)}
 .player-profile-streak[data-digits="2"] .player-profile-streak-number{font-size:calc(var(--profile-streak-size) * .31)}
 .player-profile-streak[data-digits="3"] .player-profile-streak-number{font-size:calc(var(--profile-streak-size) * .265)}
 .player-profile-streak[data-digits="4"] .player-profile-streak-number{font-size:calc(var(--profile-streak-size) * .23)}
 .player-profile-streak[data-digits="5"] .player-profile-streak-number{font-size:calc(var(--profile-streak-size) * .20)}
-.player-profile-streak[data-tier="zero"] .player-profile-streak-flame{background-image:url("assets/ui/streak-flames/streak-zero.png")}
-.player-profile-streak[data-tier="yellow"] .player-profile-streak-flame{background-image:url("assets/ui/streak-flames/streak-yellow.png")}
-.player-profile-streak[data-tier="orange"] .player-profile-streak-flame{background-image:url("assets/ui/streak-flames/streak-orange.png")}
-.player-profile-streak[data-tier="red"] .player-profile-streak-flame{background-image:url("assets/ui/streak-flames/streak-red.png")}
-.player-profile-streak[data-tier="green"] .player-profile-streak-flame{background-image:url("assets/ui/streak-flames/streak-green.png")}
-.player-profile-streak[data-tier="purple"] .player-profile-streak-flame{background-image:url("assets/ui/streak-flames/streak-purple.png")}
-.player-profile-streak[data-tier="blue"] .player-profile-streak-flame{background-image:url("assets/ui/streak-flames/streak-blue.png")}
-.player-profile-streak[data-tier="black"] .player-profile-streak-flame{background-image:url("assets/ui/streak-flames/streak-black.png")}
+
 .player-profile-stats{display:grid;grid-template-columns:1fr 1fr;gap:11px;padding:14px}
 .player-profile-stat{min-width:0;min-height:88px;padding:13px 14px;border:2px solid var(--ink);border-radius:13px;background:#fff;display:flex;flex-direction:column;justify-content:center;gap:7px;box-shadow:3px 3px 0 rgba(23,23,25,.13)}
 .player-profile-stat-levels{border-top:6px solid var(--red)}
@@ -8237,7 +8233,7 @@ html.touch-ui .dpad button {touch-action:none;-webkit-touch-callout:none;-webkit
     display:block;
     filter:drop-shadow(1px 1px 0 rgba(23,23,25,.24));
   }
-  html:not(.touch-ui):not(.desktop-zen-mode) .desktop-daily-streak-flame{position:absolute;inset:0;background-position:center;background-repeat:no-repeat;background-size:100% 100%;pointer-events:none}
+  html:not(.touch-ui):not(.desktop-zen-mode) .desktop-daily-streak-flame{position:absolute;inset:0;background-position:center;background-repeat:no-repeat;background-size:100% 100%;background-image:var(--streak-flame-image, none);pointer-events:none}
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-daily-streak-icon em{
     position:absolute;z-index:1;left:50%;top:67%;transform:translate(-50%,-50%);
     color:#fff;font-family:"Arial Black",Arial,sans-serif;font-style:normal;font-weight:1000;line-height:1;letter-spacing:-.06em;
@@ -8249,13 +8245,7 @@ html.touch-ui .dpad button {touch-action:none;-webkit-touch-callout:none;-webkit
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-daily-streak-icon[data-digits="3"] em{font-size:9px}
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-daily-streak-icon[data-digits="4"] em{font-size:8px}
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-daily-streak-icon[data-digits="5"] em{font-size:7px}
-  html:not(.touch-ui):not(.desktop-zen-mode) .desktop-daily-streak-icon[data-tier="zero"] .desktop-daily-streak-flame{background-image:url("assets/ui/streak-flames/streak-zero.png")}
-  html:not(.touch-ui):not(.desktop-zen-mode) .desktop-daily-streak-icon[data-tier="green"] .desktop-daily-streak-flame{background-image:url("assets/ui/streak-flames/streak-green.png")}
-  html:not(.touch-ui):not(.desktop-zen-mode) .desktop-daily-streak-icon[data-tier="blue"] .desktop-daily-streak-flame{background-image:url("assets/ui/streak-flames/streak-blue.png")}
-  html:not(.touch-ui):not(.desktop-zen-mode) .desktop-daily-streak-icon[data-tier="red"] .desktop-daily-streak-flame{background-image:url("assets/ui/streak-flames/streak-red.png")}
-  html:not(.touch-ui):not(.desktop-zen-mode) .desktop-daily-streak-icon[data-tier="fire"] .desktop-daily-streak-flame{background-image:url("assets/ui/streak-flames/streak-fire.png")}
-  html:not(.touch-ui):not(.desktop-zen-mode) .desktop-daily-streak-icon[data-tier="purple"] .desktop-daily-streak-flame{background-image:url("assets/ui/streak-flames/streak-purple.png")}
-  html:not(.touch-ui):not(.desktop-zen-mode) .desktop-daily-streak-icon[data-tier="silver"] .desktop-daily-streak-flame{background-image:url("assets/ui/streak-flames/streak-silver.png")}
+
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-daily-streak-icon[data-qualified-today="false"] .desktop-daily-streak-flame{filter:grayscale(1);opacity:.38}
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-daily-streak-icon[data-qualified-today="false"] em{opacity:.72}
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-daily-streak-icon[data-tier="zero"] em{color:#176e24;text-shadow:-1px 0 0 rgba(255,255,255,.92),1px 0 0 rgba(255,255,255,.92),0 -1px 0 rgba(255,255,255,.92),0 1px 0 rgba(255,255,255,.92)}
