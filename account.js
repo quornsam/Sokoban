@@ -202,7 +202,8 @@
         loggedIn: Boolean(account),
         userId: account ? String(account.id || "") : "",
         dailyGoldMedals: account ? Math.max(0, Math.trunc(Number(account.dailyGoldMedals) || 0)) : 0,
-        specialMedals: account && Array.isArray(account.specialMedals) ? account.specialMedals : []
+        specialMedals: account && Array.isArray(account.specialMedals) ? account.specialMedals : [],
+        adminMedals: account && Array.isArray(account.adminMedals) ? account.adminMedals : []
       }
     }));
   }
@@ -1029,7 +1030,7 @@
         const valid = value => {
           const parsed = parseJson(value, null);
           return parsed?.owner === account?.id && Array.isArray(parsed.ids)
-            ? parsed.ids.filter(id => (window.BOXXY_CONTENT_CATALOG?.specialMedals || []).some(medal => medal.id === id)) : [];
+            ? parsed.ids.filter(id => (window.BOXXY_CONTENT_CATALOG?.specialMedals || []).some(medal => medal.id === id) || /^admin-[0-9a-f-]{36}$/.test(id)) : [];
         };
         merged[key] = JSON.stringify({ owner:account.id,
           ids:[...new Set([...valid(left),...valid(right)])].sort() });
@@ -1368,7 +1369,7 @@
     window.BoxxySpecialMedals?.earned?.().forEach(medal => {
       const icon = document.createElement("img");
       icon.src = medal.image;
-      icon.alt = `${medal.title} special medal`;
+      icon.alt = `${medal.title} medal`;
       icon.className = "account-month-medal";
       medals.appendChild(icon);
       earned++;

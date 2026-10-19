@@ -7,7 +7,7 @@
 <meta name="theme-color" content="#efe5d4">
 <title>BOXXY Basement</title>
 <link rel="icon" href="../assets/ui/icons/boxxy-yellow-crate-v150.ico" sizes="any">
-<link rel="stylesheet" href="basement.css?v=468">
+<link rel="stylesheet" href="basement.css?v=492">
 <link rel="stylesheet" href="/attempt-history.css?v=426">
 </head>
 <body>
@@ -46,6 +46,7 @@
       <button id="dailyPracticeTab" type="button" aria-pressed="false">DAILY PRACTICE</button>
       <button id="dailyScoresTab" type="button" aria-pressed="false">DAILY SCORES</button>
       <button id="messageBarTab" type="button" aria-pressed="false">MESSAGE BAR</button>
+      <button id="medalAdminTab" type="button" aria-pressed="false">AWARD MEDALS</button>
     </nav>
     <div class="toolbar">
       <input id="searchInput" type="search" placeholder="Search username, email or IP…" aria-label="Search account holders" hidden>
@@ -211,6 +212,26 @@
         <div id="siteMessageList" class="site-message-list"></div>
       </section>
     </section>
+    <section id="medalAdminPanel" class="basement-medal-admin" aria-label="Award existing artwork as special medals" hidden>
+      <div class="daily-score-head"><h2>AWARD MEDALS</h2><button id="medalAdminRefresh" type="button">REFRESH</button></div>
+      <p class="table-hint">Choose existing BOXXY artwork and write your own congratulations. You can also issue a safe test copy of the official Halloween medal with its exact artwork and message. Test copies do not use up the real Halloween award. All Basement grants can be revoked. Recipients see awards at their next account refresh or sign-in.</p>
+      <form id="medalAdminForm" class="medal-admin-form">
+        <label class="medal-admin-wide">RECIPIENT USERNAMES (UP TO 10)<input id="medalAdminRecipients" type="text" maxlength="250" placeholder="username1, username2" required></label>
+        <label>AWARD TYPE<select id="medalAdminKind"><option value="custom">CUSTOM SPECIAL MEDAL</option><option value="official-preview">OFFICIAL MEDAL TEST COPY</option></select></label>
+        <label id="medalAdminOfficialField" hidden>OFFICIAL MEDAL<select id="medalAdminOfficial"></select></label>
+        <label id="medalAdminImageField">EXISTING MEDAL IMAGE<select id="medalAdminImage"></select></label>
+        <div class="medal-admin-artwork"><img id="medalAdminPreview" src="/assets/medals/boxxy-special-halloween-2026.png" alt="Selected medal artwork" width="110" height="110"><div><strong id="medalAdminPreviewTitle">MEDAL PREVIEW</strong><p id="medalAdminPreviewMessage"></p></div></div>
+        <label id="medalAdminTitleField" class="medal-admin-wide">MEDAL TITLE<input id="medalAdminTitle" maxlength="64" placeholder="Congratulations" required></label>
+        <label id="medalAdminMessageField" class="medal-admin-wide">CONGRATULATIONS MESSAGE<textarea id="medalAdminMessage" rows="3" maxlength="300" placeholder="Your medal is ready for the trophy cabinet." required></textarea></label>
+        <div class="medal-admin-buttons medal-admin-wide"><button type="submit">ADD TO BATCH</button></div>
+      </form>
+      <h3>MEDALS READY TO SEND</h3>
+      <div id="medalAdminBatch" class="medal-admin-batch" aria-live="polite">No medals queued.</div>
+      <div class="medal-admin-buttons"><button id="medalAdminSend" type="button" disabled>AWARD BATCH TO PLAYERS</button></div>
+      <p id="medalAdminStatus" class="status" aria-live="polite"></p>
+      <div class="daily-score-head"><h3>RECENT BASEMENT GRANTS</h3></div>
+      <div id="medalAdminRecent" class="medal-admin-recent"></div>
+    </section>
     <p id="dashboardStatus" class="status" aria-live="polite"></p>
   </section>
 </main>
@@ -237,6 +258,6 @@
 </div>
 <script src="/assets/data/content-catalog.js?v=484"></script>
 <script src="/attempt-history-ui.js?v=484"></script>
-<script src="basement.js?v=484"></script>
+<script src="basement.js?v=492"></script>
 </body>
 </html>

@@ -293,3 +293,14 @@ CREATE TABLE IF NOT EXISTS user_special_medals (
   PRIMARY KEY (user_id, medal_id),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+
+-- v492: reusable Basement-authored medal definitions, linked to the existing
+-- user_special_medals ledger. Artwork is chosen from shipped game assets.
+CREATE TABLE IF NOT EXISTS admin_special_medal_definitions (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  image TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);

@@ -27,7 +27,7 @@ import {
 } from "../_lib/auth.js";
 import { mergeFirstCompletionMarkers, recordPackCompletions } from "../_lib/pack-completions.js";
 import { dailyGoldMedalCount } from "../_lib/daily-gold-medals.js";
-import { reconcileSpecialMedals, specialMedalsForUser } from "../_lib/special-medals.js";
+import { reconcileSpecialMedals, specialAwardsForUser } from "../_lib/special-medals.js";
 import {
   ensurePublicProfileSchema,
   readPublicBio,
@@ -93,11 +93,11 @@ async function accountPublicData(db, user, authInfo = null) {
   const resolvedAuthInfo = authInfo || await userAuthInfo(db, user.id);
   const features = await accountFeatureState(db, user.id);
   await reconcileSpecialMedals(db, user.id, user.progress_json);
-  const [bio, location, dailyGoldMedals, specialMedals] = await Promise.all([
+  const [bio, location, dailyGoldMedals, specialAwards] = await Promise.all([
     readPublicBio(db, user.id),
     readPublicLocation(db, user.id),
     dailyGoldMedalCount(db, user.id),
-    specialMedalsForUser(db, user.id)
+    specialAwardsForUser(db, user.id)
   ]);
   return {
     ...publicAccount(user, resolvedAuthInfo),
@@ -105,7 +105,7 @@ async function accountPublicData(db, user, authInfo = null) {
     location,
     features,
     dailyGoldMedals,
-    specialMedals
+    ...specialAwards
   };
 }
 

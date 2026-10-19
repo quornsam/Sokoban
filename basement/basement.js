@@ -92,6 +92,24 @@
   const dailyScoresRefresh = document.getElementById("dailyScoresRefresh");
   const dailyScoresList = document.getElementById("dailyScoresList");
   const dailyScoresStatus = document.getElementById("dailyScoresStatus");
+  const medalAdminTab = document.getElementById("medalAdminTab");
+  const medalAdminPanel = document.getElementById("medalAdminPanel");
+  const medalAdminForm = document.getElementById("medalAdminForm");
+  const medalAdminKind = document.getElementById("medalAdminKind");
+  const medalAdminImage = document.getElementById("medalAdminImage");
+  const medalAdminOfficial = document.getElementById("medalAdminOfficial");
+  const medalAdminPreview = document.getElementById("medalAdminPreview");
+  const medalAdminTitle = document.getElementById("medalAdminTitle");
+  const medalAdminMessage = document.getElementById("medalAdminMessage");
+  const medalAdminRecipients = document.getElementById("medalAdminRecipients");
+  const medalAdminBatch = document.getElementById("medalAdminBatch");
+  const medalAdminSend = document.getElementById("medalAdminSend");
+  const medalAdminStatus = document.getElementById("medalAdminStatus");
+  const medalAdminRecent = document.getElementById("medalAdminRecent");
+  const medalAdminRefresh = document.getElementById("medalAdminRefresh");
+  let medalArtwork = [];
+  let officialMedalOptions = [];
+  let medalDrafts = [];
   const messageBarTab = document.getElementById("messageBarTab");
   const messageBarPanel = document.getElementById("messageBarPanel");
   const siteMessageForm = document.getElementById("siteMessageForm");
@@ -772,13 +790,14 @@
   }
 
   function setView(view) {
-    selectedView = ["players","completions","hall","daily","scores","messages"].includes(view) ? view : "players";
+    selectedView = ["players","completions","hall","daily","scores","messages","medals"].includes(view) ? view : "players";
     if (playersPanel) playersPanel.hidden = selectedView !== "players";
     if (completionsPanel) completionsPanel.hidden = selectedView !== "completions";
     if (hallOfFamePanel) hallOfFamePanel.hidden = selectedView !== "hall";
     if (dailyPracticePanel) dailyPracticePanel.hidden = selectedView !== "daily";
     if (dailyScoresPanel) dailyScoresPanel.hidden = selectedView !== "scores";
     if (messageBarPanel) messageBarPanel.hidden = selectedView !== "messages";
+    if (medalAdminPanel) medalAdminPanel.hidden = selectedView !== "medals";
     if (searchInput) searchInput.hidden = selectedView !== "players";
     playersTab?.setAttribute("aria-pressed", String(selectedView === "players"));
     completionsTab?.setAttribute("aria-pressed", String(selectedView === "completions"));
@@ -786,11 +805,13 @@
     dailyPracticeTab?.setAttribute("aria-pressed", String(selectedView === "daily"));
     dailyScoresTab?.setAttribute("aria-pressed", String(selectedView === "scores"));
     messageBarTab?.setAttribute("aria-pressed", String(selectedView === "messages"));
+    medalAdminTab?.setAttribute("aria-pressed", String(selectedView === "medals"));
     if (selectedView === "completions") renderCompletions();
     if (selectedView === "hall") loadHallOfFame();
     if (selectedView === "daily") loadPreparedDailies();
     if (selectedView === "scores") loadDailyScores();
     if (selectedView === "messages") loadSiteMessages();
+    if (selectedView === "medals") loadMedalAdmin();
   }
   function ukCompletionDate(timestamp) {
     if (!Number(timestamp)) return "Original date unavailable";
@@ -1480,6 +1501,108 @@
     }
   });
 
+  function medalChoiceImage(draft) {
+    if (draft.kind === 'official-preview') return officialMedalOptions.find(m => m.id === draft.medalId)?.image || '';
+    return draft.image;
+  }
+  function medalChoiceTitle(draft) {
+    return draft.kind === 'official-preview'
+      ? officialMedalOptions.find(m => m.id === draft.medalId)?.title || 'Official medal'
+      : draft.title;
+  }
+  function refreshMedalPreview() {
+    const official = medalAdminKind?.value === 'official-preview';
+    for (const id of ['medalAdminOfficialField']) document.getElementById(id).hidden = !official;
+    for (const id of ['medalAdminImageField','medalAdminTitleField','medalAdminMessageField']) {
+      const field = document.getElementById(id);
+      field.hidden = official;
+      field.querySelectorAll('input,textarea,select').forEach(input => { input.disabled = official; });
+    }
+    const image = official ? officialMedalOptions.find(m => m.id === medalAdminOfficial?.value)?.image : medalAdminImage?.value;
+    if (medalAdminPreview && image) medalAdminPreview.src = '/' + image;
+    const medal = officialMedalOptions.find(m => m.id === medalAdminOfficial?.value);
+    document.getElementById('medalAdminPreviewTitle').textContent = official ? medal?.title || 'Medal preview' : medalAdminTitle?.value || 'Medal preview';
+    document.getElementById('medalAdminPreviewMessage').textContent = official ? medal?.message || '' : medalAdminMessage?.value || '';
+  }
+  function renderMedalDrafts() {
+    medalAdminBatch.innerHTML = medalDrafts.length ? medalDrafts.map((draft,index) => `
+      <div class="medal-admin-row"><img src="/${escapeHtml(medalChoiceImage(draft))}" alt="" width="64" height="64">
+      <span><strong>${escapeHtml(medalChoiceTitle(draft))}</strong>
+      <small>${escapeHtml(draft.kind === 'official-preview' ? 'Official medal test copy' : draft.message)}</small></span>
+      <button type="button" data-medal-drop="${index}">REMOVE</button></div>`).join('') : 'No medals queued.';
+    medalAdminSend.disabled = !medalDrafts.length;
+  }
+  async function loadMedalAdmin() {
+    setStatus(medalAdminStatus,'LOADING MEDALS…');
+    try {
+      const {response,data} = await api('',{action:'medal_state'});
+      if (response.status === 401) { showLogin(); return; }
+      if (!response.ok) throw new Error(data.error || 'Could not load medals.');
+      medalArtwork = data.artwork || [];
+      officialMedalOptions = data.official || [];
+      medalAdminImage.innerHTML = medalArtwork.map(item => `<option value="${escapeHtml(item.image)}">${escapeHtml(item.label)}</option>`).join('');
+      medalAdminOfficial.innerHTML = officialMedalOptions.map(item => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.title)}</option>`).join('');
+      refreshMedalPreview();
+      medalAdminRecent.innerHTML = (data.grants || []).length ? data.grants.map(item => `
+        <div class="medal-admin-row"><img src="/${escapeHtml(item.image)}" alt="" width="50" height="50">
+        <span><strong>${escapeHtml(item.username)} — ${escapeHtml(item.title)}</strong><small>${escapeHtml(dateTime(item.awardedAt))}</small></span>
+        <button type="button" data-medal-revoke-user="${escapeHtml(item.userId)}" data-medal-revoke-id="${escapeHtml(item.medalId)}">REVOKE</button></div>`).join('')
+        : '<p class="table-hint">No Basement grants yet.</p>';
+      setStatus(medalAdminStatus,'READY','success');
+    } catch (error) { setStatus(medalAdminStatus,error.message || 'Could not load medals.','error'); }
+  }
+  medalAdminKind?.addEventListener('change', refreshMedalPreview);
+  medalAdminImage?.addEventListener('change', refreshMedalPreview);
+  medalAdminOfficial?.addEventListener('change', refreshMedalPreview);
+  medalAdminTitle?.addEventListener('input', refreshMedalPreview);
+  medalAdminMessage?.addEventListener('input', refreshMedalPreview);
+  medalAdminRefresh?.addEventListener('click',loadMedalAdmin);
+  medalAdminForm?.addEventListener('submit', event => {
+    event.preventDefault();
+    if (medalDrafts.length >= 8) { setStatus(medalAdminStatus,'Maximum eight medals per batch.','error'); return; }
+    const official = medalAdminKind.value === 'official-preview';
+    const draft = official ? {kind:'official-preview',medalId:medalAdminOfficial.value}
+      : {kind:'custom',image:medalAdminImage.value,title:medalAdminTitle.value.trim(),message:medalAdminMessage.value.trim()};
+    if ((!official && (!draft.title || !draft.message || !draft.image)) || (official && !draft.medalId)) return;
+    medalDrafts.push(draft);
+    renderMedalDrafts();
+    setStatus(medalAdminStatus,`${medalDrafts.length} MEDAL${medalDrafts.length === 1 ? '' : 'S'} IN BATCH`);
+  });
+  medalAdminBatch?.addEventListener('click', event => {
+    const remove = event.target.closest('[data-medal-drop]');
+    if (!remove) return;
+    medalDrafts.splice(Number(remove.dataset.medalDrop),1);
+    renderMedalDrafts();
+  });
+  medalAdminSend?.addEventListener('click', async () => {
+    const usernames = [...new Set(String(medalAdminRecipients?.value || '').split(/[,;\n]+/).map(value => value.trim()).filter(Boolean))];
+    if (!usernames.length || usernames.length > 10 || !medalDrafts.length) {
+      setStatus(medalAdminStatus,'Enter 1–10 usernames and add medals to the batch.','error'); return;
+    }
+    if (!window.confirm(`Award ${medalDrafts.length} medal(s) to ${usernames.join(', ')}? These are real permanent grants until revoked.`)) return;
+    medalAdminSend.disabled = true;
+    setStatus(medalAdminStatus,'AWARDING MEDALS…');
+    try {
+      const {response,data} = await api('',{action:'medal_grant',usernames,awards:medalDrafts});
+      if (!response.ok) throw new Error(data.error || 'Could not grant medals.');
+      medalDrafts=[];
+      renderMedalDrafts();
+      await loadMedalAdmin();
+      setStatus(medalAdminStatus,`${data.awards.length} MEDAL(S) SENT TO ${data.recipients.join(', ')}. PLAYERS SEE THEM ON NEXT ACCOUNT REFRESH.`, 'success');
+    } catch (error) { setStatus(medalAdminStatus,error.message || 'Grant failed.','error'); }
+    finally { medalAdminSend.disabled = !medalDrafts.length; }
+  });
+  medalAdminRecent?.addEventListener('click', async event => {
+    const button = event.target.closest('[data-medal-revoke-id]');
+    if (!button || !window.confirm('Revoke this Basement medal grant?')) return;
+    try {
+      const {response,data} = await api('',{action:'medal_revoke',userId:button.dataset.medalRevokeUser,medalId:button.dataset.medalRevokeId});
+      if (!response.ok || !data.removed) throw new Error(data.error || 'Grant no longer exists.');
+      await loadMedalAdmin();
+      setStatus(medalAdminStatus,'MEDAL GRANT REVOKED. PLAYER REFRESH REQUIRED.','success');
+    } catch(error) { setStatus(medalAdminStatus,error.message || 'Could not revoke.','error'); }
+  });
+
   siteMessageAudience?.addEventListener('change', updateSiteMessageAudienceVisibility);
   siteMessageAction?.addEventListener('change', () => { updateSiteMessageActionValueVisibility(); updateSiteMessagePreview(); });
   [siteMessageText,siteMessageBackground,siteMessageTextColour,siteMessageButtonLabel].forEach(element => element?.addEventListener('input', updateSiteMessagePreview));
@@ -1557,6 +1680,7 @@
   dailyPracticeTab?.addEventListener("click", () => setView("daily"));
   dailyScoresTab?.addEventListener("click", () => setView("scores"));
   messageBarTab?.addEventListener("click", () => setView("messages"));
+  medalAdminTab?.addEventListener("click", () => setView("medals"));
   if (completionPackSelect) {
     completionPackSelect.innerHTML = '<option value="">ALL LEVEL PACKS</option>';
     completionPackSelect.addEventListener("change", renderCompletions);

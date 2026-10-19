@@ -1879,12 +1879,15 @@
     ? window.BOXXY_CONTENT_CATALOG.specialMedals : []);
   const SPECIAL_MEDALS_BY_ID = new Map(SPECIAL_MEDALS.map(medal => [medal.id, medal]));
   let serverSpecialMedals = [];
+  let adminSpecialMedals = [];
   let specialMedalServerOwner = "";
+  const specialDefinition = id => SPECIAL_MEDALS_BY_ID.get(id)
+    || adminSpecialMedals.find(medal => medal.id === id);
   function earnedSpecialMedals() {
     const completions = readDailyCompletions();
     const official = specialMedalServerOwner === String(window.BOXXYAccountIdentity?.id || "")
       ? new Set(serverSpecialMedals) : new Set();
-    return SPECIAL_MEDALS.filter(medal => {
+    const earned = SPECIAL_MEDALS.filter(medal => {
       if (official.has(medal.id)) return true;
       const rule = medal.award;
       if (rule?.kind !== "daily-completion" || Date.now() < Date.parse(rule.startUtc)) return false;
@@ -1893,6 +1896,8 @@
       return Number.isSafeInteger(stamp) && stamp >= Date.parse(rule.startUtc)
         && stamp < Date.parse(rule.endUtc);
     });
+    return earned.concat(specialMedalServerOwner === String(window.BOXXYAccountIdentity?.id || "")
+      ? adminSpecialMedals : []);
   }
   window.BoxxySpecialMedals = Object.freeze({ earned: earnedSpecialMedals });
   const DAILY_STREAK_KEY = "boxxy-daily-streak-v1";
@@ -4991,7 +4996,8 @@
     }
   }
 
-  function renderPlayerProfileTrophies(packIds, dailyGoldCount = 0, monthlyMedals = [], specialMedals = []) {
+  function renderPlayerProfileTrophies(packIds, dailyGoldCount = 0, monthlyMedals = [], specialMedals = [], profileAdminMedals = []) {
+    const profileDefinitions = new Map((Array.isArray(profileAdminMedals) ? profileAdminMedals : []).map(medal => [medal.id, medal]));
     if (!playerProfileTrophies) return;
     playerProfileTrophies.replaceChildren();
     const ids = [...new Set((Array.isArray(packIds) ? packIds : []).map(value => String(value || "")))];
@@ -5038,11 +5044,11 @@
       rendered++;
     });
     (Array.isArray(specialMedals) ? specialMedals : []).forEach(id => {
-      const medal = SPECIAL_MEDALS_BY_ID.get(id);
+      const medal = SPECIAL_MEDALS_BY_ID.get(id) || profileDefinitions.get(id);
       if (!medal) return;
       const badge = document.createElement("span");
       badge.className = "player-profile-trophy player-profile-month-medal";
-      badge.dataset.tooltip = `${medal.title} special medal`;
+      badge.dataset.tooltip = `${medal.title} medal`;
       badge.setAttribute("role", "img");
       badge.setAttribute("aria-label", badge.dataset.tooltip);
       const image = document.createElement("img");
@@ -5134,7 +5140,8 @@
       renderPlayerProfileBio(String(profile.bio || ""), resolvedUsername);
       renderPlayerProfileLocation(profile.location, resolvedUsername);
       renderPlayerProfileStreak(profile.dailyStreak);
-      renderPlayerProfileTrophies(profile.completedPackIds, profile.dailyGoldMedals, profile.completedDailyMonths, profile.specialMedals);
+      renderPlayerProfileTrophies(profile.completedPackIds, profile.dailyGoldMedals, profile.completedDailyMonths,
+        [...(profile.specialMedals || []), ...(profile.adminMedals || []).map(medal => medal.id)], profile.adminMedals);
       if (playerProfileLevels) playerProfileLevels.textContent = Math.max(0, Math.trunc(Number(profile.levelsCompleted) || 0)).toLocaleString("en-GB");
       if (playerProfileDailys) playerProfileDailys.textContent = Math.max(0, Math.trunc(Number(profile.dailyCompleted) || 0)).toLocaleString("en-GB");
       if (playerProfileMoves) playerProfileMoves.textContent = Math.max(0, Math.trunc(Number(profile.totalMoves) || 0)).toLocaleString("en-GB");
@@ -5927,7 +5934,7 @@
     const previousMonths = new Set(readAwardNotices(MONTH_MEDAL_NOTICES_KEY, "months",
       month => MONTH_MEDAL_MONTHS.includes(month)));
     const previousSpecial = new Set(readAwardNotices(SPECIAL_MEDAL_NOTICES_KEY, "ids",
-      id => SPECIAL_MEDALS_BY_ID.has(id)));
+      id => Boolean(specialDefinition(id)) || /^admin-[0-9a-f-]{36}$/.test(id)));
     const special = earnedSpecialMedals().filter(medal => !previousSpecial.has(medal.id))
       .map(medal => ({ category:"special", id:medal.id, title:medal.title,
         image:medal.image, message:medal.message }));
@@ -5966,7 +5973,7 @@
     const key = isMonth ? MONTH_MEDAL_NOTICES_KEY : SPECIAL_MEDAL_NOTICES_KEY;
     const field = isMonth ? "months" : "ids";
     const valid = isMonth ? value => MONTH_MEDAL_MONTHS.includes(value)
-      : value => SPECIAL_MEDALS_BY_ID.has(value);
+      : value => Boolean(specialDefinition(value)) || /^admin-[0-9a-f-]{36}$/.test(value);
     const values = new Set(readAwardNotices(key, field, valid));
     values.add(award.id);
     try { localStorage.setItem(key, JSON.stringify({owner:medalAwardOwner(),[field]:[...values].sort()})); }
@@ -6035,6 +6042,9 @@
     specialMedalServerOwner = identity;
     serverSpecialMedals = identity && Array.isArray(event.detail.specialMedals)
       ? event.detail.specialMedals.filter(id => SPECIAL_MEDALS_BY_ID.has(id)) : [];
+    adminSpecialMedals = identity && Array.isArray(event.detail.adminMedals)
+      ? event.detail.adminMedals.filter(medal => /^admin-[0-9a-f-]{36}$/.test(String(medal?.id || ''))
+          && typeof medal.title === 'string' && typeof medal.image === 'string') : [];
     window.dispatchEvent(new Event("boxxyspecialmedalsupdated"));
     buildTrophyCabinet();
     scheduleHeaderAwardsLayout();
@@ -6288,7 +6298,7 @@
       const award = document.createElement("button");
       award.type = "button";
       award.className = "trophy-cabinet-award";
-      award.setAttribute("aria-label", `View ${medal.title} special medal`);
+      award.setAttribute("aria-label", `View ${medal.title} medal`);
       award.addEventListener("click", () => {
         if (!openTrophyDetails(medal.title.toUpperCase())) return;
         const image = document.createElement("img");

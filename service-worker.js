@@ -1,3 +1,4 @@
+/* BOXXY v492: Basement-selected special medals and award presenter refresh. */
 /* BOXXY v491: first special medal and shared medal award presenter. */
 /* BOXXY v490: repair public-profile streak artwork by sharing tier mapping with other streak displays. */
 /* BOXXY v489: refresh offline game for public /dailyN links to published Daily puzzles. */

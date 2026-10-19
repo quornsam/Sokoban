@@ -7,3 +7,4 @@ export const OFFICIAL_PACKS = Object.freeze(Array.isArray(catalog.packs) ? catal
 export const OFFICIAL_DAILY_MONTHS = Object.freeze(Array.isArray(catalog.dailyMonths) ? catalog.dailyMonths : []);
 export const OFFICIAL_PACK_BY_ID = new Map(OFFICIAL_PACKS.map(pack => [pack.id, pack]));
 export const OFFICIAL_SPECIAL_MEDALS = Object.freeze(Array.isArray(catalog.specialMedals) ? catalog.specialMedals : []);
+export const OFFICIAL_MONTHLY_MEDALS = Object.freeze(Array.isArray(catalog.monthlyMedals) ? catalog.monthlyMedals : []);

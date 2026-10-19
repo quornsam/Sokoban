@@ -34,6 +34,7 @@ import { ensureAttemptHistorySchema, readAttemptOverview, readLevelAttemptHistor
 import { ensureDailyLeaderboardVisibilitySchema, setDailyLeaderboardVisibility, cleanDailyLeaderboardVisibility } from '../_lib/daily-leaderboard-visibility.js';
 import { cleanPublicAvatarStyle, ensureSyntheticAvatarColumn, randomPublicAvatarStyle } from '../_lib/public-profile.js';
 import { ensureSiteAnnouncementsSchema, cleanSiteAnnouncementDate, cleanSiteAnnouncementColour, cleanSiteAnnouncementAction, cleanSiteAnnouncementValue, cleanSiteAnnouncementAudience, mappedSiteAnnouncement } from '../_lib/site-announcements.js';
+import { adminMedalState, adminGrantMedals, adminRevokeGrant } from '../_lib/special-medals.js';
 import { readOriginalsHallOfFame, saveOriginalsHallOfFameEntry, deleteOriginalsHallOfFameEntry, setOriginalsHallOfFamePosterShipped } from '../_lib/originals-hall-of-fame.js';
 
 const INSTANT_MOVE_FEATURE_KEY = "instant_move";
@@ -734,6 +735,15 @@ export async function onRequest(context) {
       if (action === "hall_of_fame_save") return await saveHallOfFame(context, body);
       if (action === "hall_of_fame_shipped") return await setHallOfFameShipped(context, body);
       if (action === "hall_of_fame_delete") return await deleteHallOfFame(context, body);
+      if (action === "medal_state") return json({ok:true,authenticated:true,...await adminMedalState(db)});
+      if (action === "medal_grant") {
+        try { return json({ok:true,...await adminGrantMedals(db,body)}); }
+        catch (error) { return json({ok:false,error:String(error?.message || error)},400); }
+      }
+      if (action === "medal_revoke") {
+        const removed = await adminRevokeGrant(db,String(body.userId || ''),String(body.medalId || ''));
+        return json({ok:true,removed});
+      }
       if (action === "site_message_state") return await siteMessageState(context);
       if (action === "site_message_save") return await saveSiteMessage(context, body);
       if (action === "site_message_delete") return await deleteSiteMessage(context, body);
