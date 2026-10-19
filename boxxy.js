@@ -1875,6 +1875,26 @@
   }
 
   window.BoxxyMonthlyMedals = Object.freeze({ earned: earnedMonthlyMedals, image: monthMedalImage });
+  const SPECIAL_MEDALS = Object.freeze(Array.isArray(window.BOXXY_CONTENT_CATALOG?.specialMedals)
+    ? window.BOXXY_CONTENT_CATALOG.specialMedals : []);
+  const SPECIAL_MEDALS_BY_ID = new Map(SPECIAL_MEDALS.map(medal => [medal.id, medal]));
+  let serverSpecialMedals = [];
+  let specialMedalServerOwner = "";
+  function earnedSpecialMedals() {
+    const completions = readDailyCompletions();
+    const official = specialMedalServerOwner === String(window.BOXXYAccountIdentity?.id || "")
+      ? new Set(serverSpecialMedals) : new Set();
+    return SPECIAL_MEDALS.filter(medal => {
+      if (official.has(medal.id)) return true;
+      const rule = medal.award;
+      if (rule?.kind !== "daily-completion" || Date.now() < Date.parse(rule.startUtc)) return false;
+      const completion = completions[rule.date];
+      const stamp = Number(completion?.firstCompletedAt || completion?.completedAt);
+      return Number.isSafeInteger(stamp) && stamp >= Date.parse(rule.startUtc)
+        && stamp < Date.parse(rule.endUtc);
+    });
+  }
+  window.BoxxySpecialMedals = Object.freeze({ earned: earnedSpecialMedals });
   const DAILY_STREAK_KEY = "boxxy-daily-streak-v1";
   const DAILY_INVITE_SEEN_PREFIX = "boxxy-daily-invite-seen-";
   const DAILY_QUOTE_DISMISSED_PREFIX = "boxxy-daily-quote-dismissed-";
@@ -2022,7 +2042,9 @@
       moves: fewestMoves ?? attempt.moves,
       pushes: fewestPushes ?? attempt.pushes,
       seconds: fastest ?? attempt.seconds,
-      completedAt: Math.max(Number(previous?.completedAt) || 0, attempt.completedAt)
+      completedAt: Math.max(Number(previous?.completedAt) || 0, attempt.completedAt),
+      firstCompletedAt: Math.min(...[previous?.firstCompletedAt, previous?.completedAt, attempt.completedAt]
+        .map(Number).filter(value => Number.isSafeInteger(value) && value > 0))
     };
     if (improvedMovesRun && attempt.seconds > 0) {
       completions[key].bestMovesSeconds = attempt.seconds;
@@ -4969,7 +4991,7 @@
     }
   }
 
-  function renderPlayerProfileTrophies(packIds, dailyGoldCount = 0, monthlyMedals = []) {
+  function renderPlayerProfileTrophies(packIds, dailyGoldCount = 0, monthlyMedals = [], specialMedals = []) {
     if (!playerProfileTrophies) return;
     playerProfileTrophies.replaceChildren();
     const ids = [...new Set((Array.isArray(packIds) ? packIds : []).map(value => String(value || "")))];
@@ -5013,6 +5035,21 @@
       image.alt = "";
       medal.appendChild(image);
       playerProfileTrophies.appendChild(medal);
+      rendered++;
+    });
+    (Array.isArray(specialMedals) ? specialMedals : []).forEach(id => {
+      const medal = SPECIAL_MEDALS_BY_ID.get(id);
+      if (!medal) return;
+      const badge = document.createElement("span");
+      badge.className = "player-profile-trophy player-profile-month-medal";
+      badge.dataset.tooltip = `${medal.title} special medal`;
+      badge.setAttribute("role", "img");
+      badge.setAttribute("aria-label", badge.dataset.tooltip);
+      const image = document.createElement("img");
+      image.src = medal.image;
+      image.alt = "";
+      badge.appendChild(image);
+      playerProfileTrophies.appendChild(badge);
       rendered++;
     });
     const goldCount = Math.max(0, Math.trunc(Number(dailyGoldCount) || 0));
@@ -5097,7 +5134,7 @@
       renderPlayerProfileBio(String(profile.bio || ""), resolvedUsername);
       renderPlayerProfileLocation(profile.location, resolvedUsername);
       renderPlayerProfileStreak(profile.dailyStreak);
-      renderPlayerProfileTrophies(profile.completedPackIds, profile.dailyGoldMedals, profile.completedDailyMonths);
+      renderPlayerProfileTrophies(profile.completedPackIds, profile.dailyGoldMedals, profile.completedDailyMonths, profile.specialMedals);
       if (playerProfileLevels) playerProfileLevels.textContent = Math.max(0, Math.trunc(Number(profile.levelsCompleted) || 0)).toLocaleString("en-GB");
       if (playerProfileDailys) playerProfileDailys.textContent = Math.max(0, Math.trunc(Number(profile.dailyCompleted) || 0)).toLocaleString("en-GB");
       if (playerProfileMoves) playerProfileMoves.textContent = Math.max(0, Math.trunc(Number(profile.totalMoves) || 0)).toLocaleString("en-GB");
@@ -5864,80 +5901,161 @@
     }, millisecondsUntilNextLocalMidnight());
   }
 
-  const monthlyMedalModal = document.getElementById("monthlyMedalModal");
-  const monthlyMedalImageEl = document.getElementById("monthlyMedalImage");
-  const monthlyMedalMessage = document.getElementById("monthlyMedalMessage");
-  const monthlyMedalContinue = document.getElementById("monthlyMedalContinue");
-  let monthlyMedalCheckTimer = 0;
-  let currentMonthlyMedal = "";
+  // Single award presenter for both monthly and special medals. Closing the
+  // current medal always advances the queue; dialogs never stack.
+  const medalAwardModal = document.getElementById("medalAwardModal");
+  const medalAwardTitle = document.getElementById("medalAwardTitle");
+  const medalAwardImageEl = document.getElementById("medalAwardImage");
+  const medalAwardMessage = document.getElementById("medalAwardMessage");
+  const medalAwardContinue = document.getElementById("medalAwardContinue");
+  const SPECIAL_MEDAL_NOTICES_KEY = "boxxy-special-medal-notices-v1";
+  let awardCheckTimer = 0;
+  let currentAward = null;
+  let awardAnimating = false;
 
-  function monthlyMedalOwner() {
+  function medalAwardOwner() {
     return String(window.BOXXYAccountIdentity?.id || "guest");
   }
-
-  function readMonthlyMedalNotices() {
+  function readAwardNotices(key, field, valid) {
     try {
-      const value = JSON.parse(localStorage.getItem(MONTH_MEDAL_NOTICES_KEY) || "null");
-      return value?.owner === monthlyMedalOwner() && Array.isArray(value.months)
-        ? value.months.filter(month => MONTH_MEDAL_MONTHS.includes(month)) : [];
+      const value = JSON.parse(localStorage.getItem(key) || "null");
+      return value?.owner === medalAwardOwner() && Array.isArray(value[field])
+        ? value[field].filter(valid) : [];
     } catch (_) { return []; }
   }
-
-  function deferMonthlyMedalNotices(delay = 300) {
-    if (window.BOXXY_PRIVATE_PRACTICE || makerTesting || sharedPuzzleMode) return;
-    clearTimeout(monthlyMedalCheckTimer);
-    monthlyMedalCheckTimer = setTimeout(showNextMonthlyMedal, delay);
+  function pendingMedalAwards() {
+    const previousMonths = new Set(readAwardNotices(MONTH_MEDAL_NOTICES_KEY, "months",
+      month => MONTH_MEDAL_MONTHS.includes(month)));
+    const previousSpecial = new Set(readAwardNotices(SPECIAL_MEDAL_NOTICES_KEY, "ids",
+      id => SPECIAL_MEDALS_BY_ID.has(id)));
+    const special = earnedSpecialMedals().filter(medal => !previousSpecial.has(medal.id))
+      .map(medal => ({ category:"special", id:medal.id, title:medal.title,
+        image:medal.image, message:medal.message }));
+    const monthly = earnedMonthlyMedals().filter(month => !previousMonths.has(month))
+      .map(month => ({ category:"month", id:month, title:`${dailyMonthHeading(month)} Dailys`,
+        image:monthMedalImage(month),
+        message:`Well done! You have completed all of ${dailyMonthHeading(month)} BOXXY Dailys. Your medal is ready for your trophy cabinet.` }));
+    return [...special, ...monthly];
   }
-
-  function showNextMonthlyMedal() {
-    if (!monthlyMedalModal || !monthlyMedalModal.hidden) return;
-    // Wait for the existing account check to complete before choosing the
-    // acknowledgement owner. Otherwise a slow login saves it as "guest".
+  function deferMedalAwards(delay = 300) {
+    if (window.BOXXY_PRIVATE_PRACTICE || makerTesting || sharedPuzzleMode) return;
+    clearTimeout(awardCheckTimer);
+    awardCheckTimer = setTimeout(showNextMedalAward, delay);
+  }
+  function showNextMedalAward() {
+    if (!medalAwardModal || !medalAwardModal.hidden || awardAnimating) return;
     if (window.BOXXYAccountIdentity && !window.BOXXYAccountIdentity.ready) return;
-    const next = earnedMonthlyMedals().find(month => !readMonthlyMedalNotices().includes(month));
+    const next = pendingMedalAwards()[0];
     if (!next) return;
-    // Congratulate returning players even when the ordinary Daily invitation is open.
-    // More important dialogs (account, game completion, settings) take priority.
+    // A normal completion screen always finishes first; it cannot be covered.
     if (Array.from(document.querySelectorAll(".modal:not([hidden])"))
-      .some(dialog => dialog !== monthlyMedalModal && dialog.id !== "dailyInviteModal")) {
-      deferMonthlyMedalNotices(1200);
+      .some(dialog => dialog !== medalAwardModal)) {
+      deferMedalAwards(1000);
       return;
     }
-    currentMonthlyMedal = next;
-    monthlyMedalImageEl.src = monthMedalImage(next);
-    monthlyMedalImageEl.alt = `${dailyMonthHeading(next)} completion medal`;
-    monthlyMedalMessage.textContent = `Well done! You have completed all of ${dailyMonthHeading(next)} BOXXY Dailys. You have been awarded a medal, which you can find in your trophy cabinet.`;
-    monthlyMedalModal.hidden = false;
-    monthlyMedalContinue?.focus({ preventScroll:true });
+    currentAward = next;
+    medalAwardTitle.textContent = next.title.toUpperCase();
+    medalAwardImageEl.src = next.image;
+    medalAwardImageEl.alt = `${next.title} medal`;
+    medalAwardMessage.textContent = next.message;
+    medalAwardModal.hidden = false;
+    medalAwardContinue?.focus({ preventScroll:true });
   }
-
-  function collectMonthlyMedal() {
-    if (monthlyMedalModal?.hidden || !currentMonthlyMedal) return;
-    const notices = new Set(readMonthlyMedalNotices());
-    notices.add(currentMonthlyMedal);
-    try { localStorage.setItem(MONTH_MEDAL_NOTICES_KEY, JSON.stringify({
-      owner: monthlyMedalOwner(), months: [...notices].sort()
-    })); } catch (_) {}
-    currentMonthlyMedal = "";
-    monthlyMedalModal.hidden = true;
-    buildTrophyCabinet();
-    window.dispatchEvent(new CustomEvent("boxxymonthmedalsupdated"));
-    window.dispatchEvent(new CustomEvent("boxxymonthmedalcollected"));
-    deferMonthlyMedalNotices(100);
+  function saveAwardNotice(award) {
+    const isMonth = award.category === "month";
+    const key = isMonth ? MONTH_MEDAL_NOTICES_KEY : SPECIAL_MEDAL_NOTICES_KEY;
+    const field = isMonth ? "months" : "ids";
+    const valid = isMonth ? value => MONTH_MEDAL_MONTHS.includes(value)
+      : value => SPECIAL_MEDALS_BY_ID.has(value);
+    const values = new Set(readAwardNotices(key, field, valid));
+    values.add(award.id);
+    try { localStorage.setItem(key, JSON.stringify({owner:medalAwardOwner(),[field]:[...values].sort()})); }
+    catch (_) {}
   }
-
-  monthlyMedalContinue?.addEventListener("click", collectMonthlyMedal);
-  monthlyMedalModal?.addEventListener("click", event => {
-    if (event.target === monthlyMedalModal) collectMonthlyMedal();
+  async function animateMedalIntoCabinet() {
+    const source = medalAwardImageEl?.getBoundingClientRect();
+    const target = trophyCabinetBtn?.getBoundingClientRect();
+    if (!source?.width || !target?.width || !medalAwardImageEl?.animate ||
+        window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches) return;
+    const fromX = source.left + source.width/2, fromY = source.top + source.height/2;
+    const toX = target.left + target.width/2, toY = target.top + target.height/2;
+    const dx = toX - fromX, dy = toY - fromY;
+    if (!Number.isFinite(dx) || !Number.isFinite(dy)) return;
+    const ghost = medalAwardImageEl.cloneNode(false);
+    ghost.removeAttribute("id");
+    ghost.className = "medal-award-flight";
+    ghost.style.left = `${source.left}px`;
+    ghost.style.top = `${source.top}px`;
+    ghost.style.width = `${source.width}px`;
+    ghost.style.height = `${source.height}px`;
+    ghost.setAttribute("aria-hidden", "true");
+    document.body.appendChild(ghost);
+    const scale = Math.min(0.28, Math.max(0.1, target.width / source.width));
+    medalAwardImageEl.style.visibility = "hidden";
+    try {
+      const animation = ghost.animate([
+        {transform:"translate(0,0) scale(1)",opacity:1},
+        {transform:`translate(${dx}px, ${dy}px) scale(${scale})`,opacity:0.2}
+      ],{duration:560,easing:"cubic-bezier(.22,.8,.25,1)",fill:"forwards"});
+      await animation.finished.catch(() => {});
+    } finally {
+      ghost.remove();
+      medalAwardImageEl.style.visibility = "";
+    }
+  }
+  async function collectMedalAward() {
+    if (medalAwardModal?.hidden || !currentAward || awardAnimating) return;
+    awardAnimating = true;
+    medalAwardContinue.disabled = true;
+    const award = currentAward;
+    try { await animateMedalIntoCabinet(); } finally {
+      saveAwardNotice(award);
+      currentAward = null;
+      medalAwardModal.hidden = true;
+      medalAwardContinue.disabled = false;
+      awardAnimating = false;
+      buildTrophyCabinet();
+      window.dispatchEvent(new CustomEvent("boxxymonthmedalsupdated"));
+      window.dispatchEvent(new CustomEvent(award.category === "month"
+        ? "boxxymonthmedalcollected" : "boxxyspecialmedalcollected"));
+      deferMedalAwards(100);
+    }
+  }
+  medalAwardContinue?.addEventListener("click", collectMedalAward);
+  medalAwardModal?.addEventListener("click", event => {
+    if (event.target === medalAwardModal) collectMedalAward();
   });
   window.addEventListener("boxxymonthmedalsupdated", () => {
     buildTrophyCabinet();
-    deferMonthlyMedalNotices();
+    deferMedalAwards();
   });
-  window.addEventListener("boxxyaccountready", () => deferMonthlyMedalNotices(100));
-  window.addEventListener("boxxyaccountawards", () => deferMonthlyMedalNotices(700));
-  window.addEventListener("boxxydailycompletionrecorded", () => deferMonthlyMedalNotices(900));
-  deferMonthlyMedalNotices(1300);
+  window.addEventListener("boxxyaccountready", () => deferMedalAwards(100));
+  window.addEventListener("boxxyaccountawards", event => {
+    const identity = event.detail?.loggedIn ? String(event.detail.userId || "") : "";
+    specialMedalServerOwner = identity;
+    serverSpecialMedals = identity && Array.isArray(event.detail.specialMedals)
+      ? event.detail.specialMedals.filter(id => SPECIAL_MEDALS_BY_ID.has(id)) : [];
+    window.dispatchEvent(new Event("boxxyspecialmedalsupdated"));
+    buildTrophyCabinet();
+    scheduleHeaderAwardsLayout();
+    deferMedalAwards(700);
+  });
+  window.addEventListener("boxxyspecialmedals", event => {
+    if (String(event.detail?.ownerId || "") !== String(window.BOXXYAccountIdentity?.id || "")) return;
+    specialMedalServerOwner = event.detail.ownerId;
+    serverSpecialMedals = Array.isArray(event.detail.ids) ? event.detail.ids : [];
+    window.dispatchEvent(new Event("boxxyspecialmedalsupdated"));
+    buildTrophyCabinet();
+    scheduleHeaderAwardsLayout();
+    deferMedalAwards(200);
+  });
+  window.addEventListener("boxxydailycompletionrecorded", () => {
+    window.dispatchEvent(new Event("boxxyspecialmedalsupdated"));
+    buildTrophyCabinet();
+    scheduleHeaderAwardsLayout();
+    deferMedalAwards(500);
+  });
+  deferMedalAwards(1300);
 
   let headerAwardsLayoutFrame = 0;
   let dailyGoldMedalsEarned = 0;
@@ -5979,7 +6097,7 @@
     if (!trophyDetailModal || trophyDetailModal.hidden) return;
     trophyDetailModal.hidden = true;
     trophyCabinetCloseBtn?.focus({ preventScroll:true });
-    deferMonthlyMedalNotices(200);
+    deferMedalAwards(200);
   }
 
   function trophyDetailLine(text, className = "") {
@@ -6164,6 +6282,40 @@
       slot.append(award, status);
       fragment.appendChild(slot);
     });
+    earnedSpecialMedals().forEach(medal => {
+      const slot = document.createElement("div");
+      slot.className = "trophy-cabinet-slot is-earned";
+      const award = document.createElement("button");
+      award.type = "button";
+      award.className = "trophy-cabinet-award";
+      award.setAttribute("aria-label", `View ${medal.title} special medal`);
+      award.addEventListener("click", () => {
+        if (!openTrophyDetails(medal.title.toUpperCase())) return;
+        const image = document.createElement("img");
+        image.className = "trophy-detail-month-medal";
+        image.src = medal.image;
+        image.alt = medal.title;
+        image.width = 160;
+        image.height = 160;
+        trophyDetailContent.appendChild(image);
+        trophyDetailLine(medal.message);
+      });
+      const icon = document.createElement("span");
+      icon.className = "trophy-cabinet-award-icon";
+      const image = document.createElement("img");
+      image.src = medal.image;
+      image.alt = "";
+      icon.appendChild(image);
+      const name = document.createElement("strong");
+      name.className = "trophy-cabinet-slot-name";
+      name.textContent = medal.title;
+      const status = document.createElement("span");
+      status.className = "trophy-cabinet-slot-status";
+      status.textContent = "EARNED";
+      award.append(icon, name);
+      slot.append(award, status);
+      fragment.appendChild(slot);
+    });
     if (dailyGoldMedalsEarned > 0) {
       const slot = document.createElement("div");
       slot.className = "trophy-cabinet-slot is-earned daily-gold-cabinet-slot";
@@ -6216,7 +6368,7 @@
     if (window.matchMedia("(max-width: 760px)").matches) {
       packButtons.forEach(button => { button.hidden = true; });
       const hiddenCount = packButtons.length;
-      trophyCabinetBtn.hidden = !(hiddenCount || dailyGoldMedalsEarned || earnedMonthlyMedals().length);
+      trophyCabinetBtn.hidden = !(hiddenCount || dailyGoldMedalsEarned || earnedMonthlyMedals().length || earnedSpecialMedals().length);
       if (trophyCabinetMoreCount) trophyCabinetMoreCount.textContent = hiddenCount ? `+${hiddenCount}` : "";
       const label = hiddenCount
         ? `View trophy cabinet, ${hiddenCount} pack ${hiddenCount === 1 ? "award" : "awards"}`
@@ -6227,7 +6379,7 @@
     }
 
     packButtons.forEach(button => { button.hidden = false; });
-    trophyCabinetBtn.hidden = true;
+    trophyCabinetBtn.hidden = !(earnedMonthlyMedals().length || earnedSpecialMedals().length);
     if (trophyCabinetMoreCount) trophyCabinetMoreCount.textContent = "";
 
     const row = completedPackStars.closest(".title-word-row");
@@ -6249,7 +6401,7 @@
     const allPackWidth = packWidths.reduce((sum, width) => sum + width, 0) + packGap * Math.max(0, packButtons.length - 1);
     const fullWidth = baseAwardsWidth + (packButtons.length ? railGap + allPackWidth : 0);
 
-    if (!packButtons.length || fullWidth <= available + 0.5) return;
+    if (!packButtons.length || (fullWidth <= available + 0.5 && trophyCabinetBtn.hidden)) return;
 
     trophyCabinetBtn.hidden = false;
     const cabinetWidth = trophyCabinetBtn.getBoundingClientRect().width;
@@ -12964,8 +13116,8 @@
   document.addEventListener("pointerdown", retryMusicAfterInteraction, { capture: true });
   document.addEventListener("keydown", retryMusicAfterInteraction, { capture: true });
   window.addEventListener("keydown", event => {
-    if (event.key === "Escape" && monthlyMedalModal && !monthlyMedalModal.hidden) {
-      collectMonthlyMedal(); return;
+    if (event.key === "Escape" && medalAwardModal && !medalAwardModal.hidden) {
+      collectMedalAward(); return;
     }
     if (event.key === "Escape" && phoneZenModeActive()) { setPhoneZenMode(false); return; }
     if (event.key === "Escape" && dailyInviteModal && !dailyInviteModal.hidden) { closeDailyInvite(); return; }

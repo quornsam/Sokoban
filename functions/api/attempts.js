@@ -3,6 +3,7 @@
 import {json,requireDatabase,refreshAuthenticatedSession} from '../_lib/auth.js';
 import {ensureAttemptHistorySchema,writeAttemptHistory,readAttemptOverview,readLevelAttemptHistory} from '../_lib/attempt-history.js';
 import {backfillDailyGoldMedalsIfNeeded,dailyGoldMedalCount,processSubmittedDailyGoldRuns} from '../_lib/daily-gold-medals.js';
+import { reconcileSpecialMedals, specialMedalsForUser } from '../_lib/special-medals.js';
 export async function onRequest(context) {
   try {
     const db = requireDatabase(context.env);
@@ -28,7 +29,9 @@ export async function onRequest(context) {
       await backfillDailyGoldMedalsIfNeeded(db);
       const awardedGoldRunIds = await processSubmittedDailyGoldRuns(db,session.user.id,ids);
       const dailyGoldMedals = await dailyGoldMedalCount(db,session.user.id,{backfill:false});
-      return json({ok:true,ids,awardedGoldRunIds,dailyGoldMedals},200,headers);
+      await reconcileSpecialMedals(db, session.user.id, session.user.progress_json);
+      const specialMedals = await specialMedalsForUser(db, session.user.id);
+      return json({ok:true,ids,awardedGoldRunIds,dailyGoldMedals,specialMedals},200,headers);
     }
     return json({ok:false,error:'Method not allowed.'},405);
   } catch(error) {

@@ -2,6 +2,7 @@
 import { json, requireDatabase } from "../_lib/auth.js";
 import { loadDailyMonth } from "../_lib/daily-practice-catalog.js";
 import { dailyGoldMedalCount } from "../_lib/daily-gold-medals.js";
+import { reconcileSpecialMedals, specialMedalsForUser } from "../_lib/special-medals.js";
 import {
   avatarFromProgress,
   cleanPublicAvatarStyle,
@@ -55,10 +56,12 @@ export async function onRequestGet(context) {
     `).bind(username).first();
 
     if (real) {
-      const [bio, location, dailyGoldMedals] = await Promise.all([
+      await reconcileSpecialMedals(db, real.id, real.progress_json);
+      const [bio, location, dailyGoldMedals, specialMedals] = await Promise.all([
         readPublicBio(db, real.id),
         readPublicLocation(db, real.id),
-        dailyGoldMedalCount(db, real.id)
+        dailyGoldMedalCount(db, real.id),
+        specialMedalsForUser(db, real.id)
       ]);
       return json({
         ok:true,
@@ -67,6 +70,7 @@ export async function onRequestGet(context) {
           bio,
           location,
           dailyGoldMedals,
+          specialMedals,
           avatar:avatarFromProgress(real.progress_json),
           ...publicStatsFromProgress(real.progress_json)
         }
@@ -111,7 +115,8 @@ export async function onRequestGet(context) {
             totalMoves,
             totalPushes,
             dailyStreak,
-            dailyGoldMedals:0
+            dailyGoldMedals:0,
+            specialMedals:[]
           }
         });
       }

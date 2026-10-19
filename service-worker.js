@@ -1,3 +1,4 @@
+/* BOXXY v491: first special medal and shared medal award presenter. */
 /* BOXXY v490: repair public-profile streak artwork by sharing tier mapping with other streak displays. */
 /* BOXXY v489: refresh offline game for public /dailyN links to published Daily puzzles. */
 /* BOXXY v488: report actual first-valid-move attempts to PostHog for regular and Daily levels. */
@@ -97,6 +98,7 @@ const ASSETS = [
   "/starry-night.js",
   "/assets/data/release.js",
   "/assets/data/content-catalog.js",
+  "/assets/medals/boxxy-special-halloween-2026.png",
   "/assets/audio/Fading-into-Gold-296KB.mp3",
   "/assets/audio/Starry-Night-Lullaby-281KB.mp3",
   "/assets/audio/Tetris-Piano-293KB.mp3",

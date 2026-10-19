@@ -8560,13 +8560,16 @@ html.touch-ui .dpad button {touch-action:none;-webkit-touch-callout:none;-webkit
 }
 
 /* v472 — Monthly Daily medals and one-time award announcements. */
-.monthly-medal-modal{z-index:10600}
+.medal-award-modal{z-index:10600}
 .trophy-cabinet-month .trophy-cabinet-award-icon img,
 .player-profile-month-medal img {width:100%;height:100%;object-fit:contain}
 .account-month-medal{width:var(--header-badge-size,46px);height:var(--header-badge-size,46px);object-fit:contain;filter:drop-shadow(2px 2px 0 rgba(23,23,25,.25))}
-.monthly-medal-card{width:min(440px,94vw);max-height:90dvh;overflow:auto;padding:25px;text-align:center;background:var(--paper2);border:2px solid var(--ink);box-shadow:9px 9px 0 var(--yellow)}
-.monthly-medal-card h2{margin:13px 0 8px;font-size:clamp(26px,7vw,38px);line-height:1.05;letter-spacing:-.05em}
-.monthly-medal-card img{width:min(180px,48vw);height:min(180px,48vw);object-fit:contain;display:block;margin:12px auto}
-.monthly-medal-card p{font-size:14px;line-height:1.5;max-width:350px;margin:12px auto 20px}
-.monthly-medal-card button{border:2px solid var(--ink);background:var(--yellow);padding:12px 18px;font:900 13px/1.1 Inter,ui-sans-serif,sans-serif;cursor:pointer}
-.monthly-medal-card button:focus-visible{outline:3px solid var(--blue);outline-offset:3px}
+.medal-award-card{width:min(440px,94vw);max-height:90dvh;overflow:auto;padding:25px;text-align:center;background:var(--paper2);border:2px solid var(--ink);box-shadow:9px 9px 0 var(--yellow)}
+.medal-award-card h2{margin:13px 0 8px;font-size:clamp(26px,7vw,38px);line-height:1.05;letter-spacing:-.05em}
+.medal-award-card img{width:min(180px,48vw);height:min(180px,48vw);object-fit:contain;display:block;margin:12px auto}
+.medal-award-card p{font-size:14px;line-height:1.5;max-width:350px;margin:12px auto 20px}
+.medal-award-card button{border:2px solid var(--ink);background:var(--yellow);padding:12px 18px;font:900 13px/1.1 Inter,ui-sans-serif,sans-serif;cursor:pointer}
+.medal-award-card button:focus-visible{outline:3px solid var(--blue);outline-offset:3px}
+
+/* v491: short, unobtrusive flight from earned medal to cabinet. */
+.medal-award-flight{position:fixed;z-index:20000;pointer-events:none;object-fit:contain;transform-origin:center center;filter:drop-shadow(2px 2px 0 rgba(23,23,25,.2))}

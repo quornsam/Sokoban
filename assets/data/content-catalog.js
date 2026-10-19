@@ -72,8 +72,18 @@
   // still requires every Daily in that month to exist, be completed, and the month to have ended.
   const monthlyMedals = ["2026-08", "2026-09", "2026-10", "2026-11", "2026-12", "2027-01", "2027-02", "2027-03", "2027-04", "2027-05", "2027-06", "2027-07", "2027-08", "2027-09", "2027-10", "2027-11", "2027-12"];
 
+  // Permanent awards independent of packs/months/gold; dates are the UK Daily
+  // publication window (Halloween falls after the October clock change).
+  const specialMedals = [{
+    id: "halloween-2026", category: "special", title: "Halloween 2026",
+    image: "assets/medals/boxxy-special-halloween-2026.png",
+    message: "You completed the Halloween BOXXY Daily on 31 October! Your pumpkin medal is ready for your trophy cabinet.",
+    award: { kind: "daily-completion", date: "2026-10-31",
+      startUtc: "2026-10-31T00:00:00.000Z", endUtc: "2026-11-01T00:00:00.000Z" }
+  }];
+
   const legal = { dailyCollectionName: "BOXXY Dailys" };
 
-  const catalog = freeze({ version: 2, packs, dailyMonths, monthlyMedals, legal });
+  const catalog = freeze({ version: 3, packs, dailyMonths, monthlyMedals, specialMedals, legal });
   globalThis.BOXXY_CONTENT_CATALOG = catalog;
 })();

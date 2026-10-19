@@ -283,3 +283,13 @@ CREATE TABLE IF NOT EXISTS originals_hall_of_fame_meta (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_originals_hall_of_fame_user
   ON originals_hall_of_fame(user_id)
   WHERE user_id IS NOT NULL AND user_id <> '';
+
+-- v491: permanent, unique, account-bound special medal grants.
+CREATE TABLE IF NOT EXISTS user_special_medals (
+  user_id TEXT NOT NULL,
+  medal_id TEXT NOT NULL,
+  awarded_at INTEGER NOT NULL,
+  source TEXT NOT NULL,
+  PRIMARY KEY (user_id, medal_id),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);

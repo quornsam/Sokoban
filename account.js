@@ -47,6 +47,7 @@
     "boxxy-additional-packs-unlocked-v1",
     "boxxy-daily-completions-v1",
     "boxxy-daily-month-medal-notices-v1",
+    "boxxy-special-medal-notices-v1",
     "boxxy-daily-streak-v1",
     "boxxy-sound-v1",
     "boxxy-music-track-v1",
@@ -143,7 +144,9 @@
     window.BOXXYAttemptHistory?.flush?.();
   });
   window.addEventListener("boxxymonthmedalsupdated", () => renderMedals());
+  window.addEventListener("boxxyspecialmedalsupdated", () => renderMedals());
   window.addEventListener("boxxymonthmedalcollected", () => { if (account) syncNow(true); });
+  window.addEventListener("boxxyspecialmedalcollected", () => { if (account) syncNow(true); });
   window.addEventListener('boxxyhistorysynced',event=>{
     if (accountPlayHistory?.open && account?.id === event.detail?.userId) historyBrowser?.refresh?.();
   });
@@ -198,7 +201,8 @@
       detail: {
         loggedIn: Boolean(account),
         userId: account ? String(account.id || "") : "",
-        dailyGoldMedals: account ? Math.max(0, Math.trunc(Number(account.dailyGoldMedals) || 0)) : 0
+        dailyGoldMedals: account ? Math.max(0, Math.trunc(Number(account.dailyGoldMedals) || 0)) : 0,
+        specialMedals: account && Array.isArray(account.specialMedals) ? account.specialMedals : []
       }
     }));
   }
@@ -590,7 +594,7 @@
         const key = localStorage.key(index);
         if (!key || !shouldSyncKey(key)) continue;
         const value = localStorage.getItem(key);
-        if (key === "boxxy-daily-month-medal-notices-v1" &&
+        if (["boxxy-daily-month-medal-notices-v1", "boxxy-special-medal-notices-v1"].includes(key) &&
           (!account?.id || parseJson(value, null)?.owner !== account.id)) continue;
         if (value !== null) state[key] = value;
       }
@@ -794,6 +798,9 @@
       delete merged.bestMovesInstantMove;
     }
     merged.completedAt = Math.max(leftCompletedAt, rightCompletedAt);
+    const firstStamps = [left.firstCompletedAt, right.firstCompletedAt, leftCompletedAt, rightCompletedAt]
+      .map(Number).filter(value => Number.isSafeInteger(value) && value > 0);
+    if (firstStamps.length) merged.firstCompletedAt = Math.min(...firstStamps);
     if (!Number(merged.sequence)) merged.sequence = Number(older.sequence) || 0;
 
     const hasTrackedLeaderboard = left.leaderboardTracked === true || right.leaderboardTracked === true;
@@ -1014,10 +1021,18 @@
         const valid = value => {
           const parsed = parseJson(value, null);
           return parsed?.owner === account?.id && Array.isArray(parsed.months)
-            ? parsed.months.filter(month => /^2026-(08|09|10|11|12)$/.test(month)) : [];
+            ? parsed.months.filter(month => (window.BOXXY_CONTENT_CATALOG?.monthlyMedals || []).includes(month)) : [];
         };
         merged[key] = JSON.stringify({ owner: account.id,
           months: [...new Set([...valid(left), ...valid(right)])].sort() });
+      } else if (key === "boxxy-special-medal-notices-v1") {
+        const valid = value => {
+          const parsed = parseJson(value, null);
+          return parsed?.owner === account?.id && Array.isArray(parsed.ids)
+            ? parsed.ids.filter(id => (window.BOXXY_CONTENT_CATALOG?.specialMedals || []).some(medal => medal.id === id)) : [];
+        };
+        merged[key] = JSON.stringify({ owner:account.id,
+          ids:[...new Set([...valid(left),...valid(right)])].sort() });
       } else if (key === "boxxy-daily-streak-v1") {
         merged[key] = mergeStreak(left, right);
       } else if (/-position-\d+-v1$/.test(key)) {
@@ -1345,6 +1360,15 @@
       const icon = document.createElement("img");
       icon.src = monthly.image(month);
       icon.alt = `${month} Daily completion medal`;
+      icon.className = "account-month-medal";
+      medals.appendChild(icon);
+      earned++;
+    });
+
+    window.BoxxySpecialMedals?.earned?.().forEach(medal => {
+      const icon = document.createElement("img");
+      icon.src = medal.image;
+      icon.alt = `${medal.title} special medal`;
       icon.className = "account-month-medal";
       medals.appendChild(icon);
       earned++;

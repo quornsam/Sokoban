@@ -217,6 +217,11 @@
           detail:{ count:Math.max(0,Math.trunc(Number(result.dailyGoldMedals)||0)), awardedRunIds:[...goldRunIds] }
         }));
       }
+      if (Array.isArray(result.specialMedals)) {
+        window.dispatchEvent(new CustomEvent('boxxyspecialmedals', {
+          detail:{ ids:result.specialMedals, ownerId:userId }
+        }));
+      }
       // Never remove a locally updated record merely because its earlier start was acknowledged.
       const current = json(keyFor(userId));
       const sent = new Map(batch.map(entry => [entry.id, JSON.stringify(entry)]));
