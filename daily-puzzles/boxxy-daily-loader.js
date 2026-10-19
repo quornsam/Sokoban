@@ -3,7 +3,7 @@
   "use strict";
 
   const launchDate = "2026-08-30";
-  const scheduleRevision = "357";
+  const scheduleRevision = "493";
   const validDate = value => /^\d{4}-\d{2}-\d{2}$/.test(String(value || ""));
   const localDateKey = (date = new Date()) => {
     const year = date.getFullYear();
@@ -43,7 +43,17 @@
   months.forEach(monthKey => {
     document.write('<script>window.BOXXY_DAILY_SCHEDULE=null;<\/script>');
     document.write(`<script src="daily-puzzles/boxxy-daily-puzzles-${monthKey}.js?v=${scheduleRevision}"><\/script>`);
-    document.write(`<script>(function(){var schedule=window.BOXXY_DAILY_SCHEDULE;if(schedule&&schedule.frontEndEnabled!==false&&window.BOXXY_DAILY_SCHEDULES){window.BOXXY_DAILY_SCHEDULES.push(schedule);}})();<\/script>`);
+    document.write(`<script>(function(){
+      var schedule=window.BOXXY_DAILY_SCHEDULE;
+      if(!schedule||schedule.frontEndEnabled===false||!window.BOXXY_DAILY_SCHEDULES)return;
+      var defaultAuthor=window.BOXXY_CONTENT_CATALOG?.dailyDefaultAuthor||"";
+      window.BOXXY_DAILY_SCHEDULES.push({
+        ...schedule,
+        puzzles:schedule.puzzles.map(function(puzzle){
+          return {...puzzle,author:puzzle.author||defaultAuthor};
+        })
+      });
+    })();<\/script>`);
   });
 
   document.write(`<script>(function(){var schedules=Array.isArray(window.BOXXY_DAILY_SCHEDULES)?window.BOXXY_DAILY_SCHEDULES:[];window.BOXXY_DAILY_SCHEDULES=Object.freeze(schedules.slice());window.BOXXY_DAILY_SCHEDULE=schedules.find(function(schedule){return String(schedule&&schedule.month||"")==="${targetMonth}";})||schedules[schedules.length-1]||null;})();<\/script>`);

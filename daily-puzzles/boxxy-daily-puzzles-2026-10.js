@@ -142,6 +142,7 @@ window.BOXXY_DAILY_SCHEDULE = Object.freeze({
       "publishAtUtc": "2026-10-04T23:00:00.000Z",
       "timezone": "Europe/London",
       "name": "Jordi1",
+      "author": "Jordi Domenech",
       "solution": "rruLdlluuururrdLdddlluuuluRRlddddrrrluuuLulDrrddLruuruLL",
       "layout": [
         "#######",

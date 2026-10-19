@@ -8,3 +8,4 @@ export const OFFICIAL_DAILY_MONTHS = Object.freeze(Array.isArray(catalog.dailyMo
 export const OFFICIAL_PACK_BY_ID = new Map(OFFICIAL_PACKS.map(pack => [pack.id, pack]));
 export const OFFICIAL_SPECIAL_MEDALS = Object.freeze(Array.isArray(catalog.specialMedals) ? catalog.specialMedals : []);
 export const OFFICIAL_MONTHLY_MEDALS = Object.freeze(Array.isArray(catalog.monthlyMedals) ? catalog.monthlyMedals : []);
+export const OFFICIAL_DAILY_DEFAULT_AUTHOR = String(catalog.dailyDefaultAuthor || "");

@@ -1,5 +1,6 @@
 /* BOXXY v465 — all server-side Daily tools read the canonical monthly puzzle files. */
 /* No second catalogue: a newly uploaded month is visible to Basement automatically. */
+import { OFFICIAL_DAILY_DEFAULT_AUTHOR } from "./content-catalog.js";
 const FIRST_MONTH = "2026-08";
 const MONTH_LIMIT = 120;
 
@@ -39,6 +40,7 @@ function parseMonthlySchedule(source, month) {
       date,
       sequence: puzzle.sequence,
       name: String(puzzle.name || "Daily Boxxy"),
+      author: String(puzzle.author || OFFICIAL_DAILY_DEFAULT_AUTHOR),
       solution: puzzle.solution,
       layout: puzzle.layout,
       preparedFor,
