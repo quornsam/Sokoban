@@ -32,9 +32,12 @@ import { findDailyPuzzle } from "../_lib/daily-practice-catalog.js";
 import { analyseDailySolution, generateDailySyntheticRoute } from "../_lib/synthetic-daily-moves.js";
 import { ensureAttemptHistorySchema, readAttemptOverview, readLevelAttemptHistory } from '../_lib/attempt-history.js';
 import { ensureDailyLeaderboardVisibilitySchema, setDailyLeaderboardVisibility, cleanDailyLeaderboardVisibility } from '../_lib/daily-leaderboard-visibility.js';
-import { cleanPublicAvatarStyle, ensureSyntheticAvatarColumn, randomPublicAvatarStyle } from '../_lib/public-profile.js';
+import { cleanPublicAvatarStyle, ensureSyntheticAvatarColumn, randomPublicAvatarStyle,
+  publicStatsFromProgress } from '../_lib/public-profile.js';
 import { ensureSiteAnnouncementsSchema, cleanSiteAnnouncementDate, cleanSiteAnnouncementColour, cleanSiteAnnouncementAction, cleanSiteAnnouncementValue, cleanSiteAnnouncementAudience, mappedSiteAnnouncement } from '../_lib/site-announcements.js';
-import { adminMedalState, adminGrantMedals, adminRevokeGrant } from '../_lib/special-medals.js';
+import { adminMedalState, adminGrantMedals, adminRevokeGrant,
+  specialAwardsForUsers } from '../_lib/special-medals.js';
+import { ensureDailyGoldMedalSchema } from '../_lib/daily-gold-medals.js';
 import { readOriginalsHallOfFame, saveOriginalsHallOfFameEntry, deleteOriginalsHallOfFameEntry, setOriginalsHallOfFamePosterShipped } from '../_lib/originals-hall-of-fame.js';
 
 const INSTANT_MOVE_FEATURE_KEY = "instant_move";
@@ -576,10 +579,34 @@ function mappedUser(user, includeProgress = false) {
     progressUpdatedAt: Number(user.progress_updated_at) || 0,
     instantMoveEnabled: Boolean(Number(user.instant_move_enabled) || 0),
     instantMoveUpdatedAt: Math.max(0, Number(user.instant_move_updated_at) || 0),
-    summary: canonicalAdminSummary(progressSummary(user.progress_json), user.progress_json)
+    summary: {
+      ...canonicalAdminSummary(progressSummary(user.progress_json), user.progress_json),
+      completedDailyMonths: publicStatsFromProgress(user.progress_json).completedDailyMonths,
+      dailyGoldMedals: 0,
+      specialMedals: [],
+      adminMedals: []
+    }
   };
   if (includeProgress) value.progress = parseProgress(user.progress_json);
   return value;
+}
+
+// Read already-awarded golds and special medals for the existing Basement player
+// summary. Reuse the same special-award reader as the account and public profile.
+async function attachMedalSummaries(db, users, userId = "") {
+  if (!users.length) return;
+  await ensureDailyGoldMedalSchema(db);
+  const goldStatement = db.prepare(`SELECT user_id AS userId, COUNT(*) AS total
+    FROM daily_gold_medals ${userId ? "WHERE user_id = ?" : ""} GROUP BY user_id`);
+  const [goldRows, byUser] = await Promise.all([
+    userId ? goldStatement.bind(userId).all() : goldStatement.all(),
+    specialAwardsForUsers(db, userId)
+  ]);
+  const gold = new Map((goldRows.results || []).map(row => [String(row.userId), Number(row.total) || 0]));
+  for (const user of users) {
+    user.summary.dailyGoldMedals = gold.get(String(user.id)) || 0;
+    Object.assign(user.summary, byUser.get(String(user.id)) || {});
+  }
 }
 
 // Aggregate only live server sessions, not a guess based on last activity.
@@ -674,6 +701,7 @@ async function listUsers(context) {
   )));
   const evidenceUsers = rows.map((row,index) => ({...users[index],progress:parseProgress(row.progress_json)}));
   const records = await readPackCompletions(db);
+  await attachMedalSummaries(db, users);
   return json({ ok: true, authenticated: true, users,
     completions: completionRecordsForUsers(evidenceUsers, records) });
 }
@@ -707,6 +735,7 @@ async function userDetail(context, id) {
   const mapped = mappedUser(attachSessionStats(
     user, stats.get(String(user.id)), firstLogins.get(String(user.id))
   ), true);
+  await attachMedalSummaries(db, [mapped], String(user.id));
   await ensureAttemptHistorySchema(db);
   const history = await readAttemptOverview(db,id,user.progress_json);
   return json({ ok: true, authenticated: true, user: mapped, sessions, history,

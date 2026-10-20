@@ -76,24 +76,36 @@ export function availableMedalArtwork() {
   return options;
 }
 
-export async function specialAwardsForUser(db, userId) {
+// Reuse the exact same award lookup for accounts, profiles and the Basement user list.
+// An unrestricted call returns all grants in one D1 read, not one request per player.
+export async function specialAwardsForUsers(db, userId = "") {
   await ensureSpecialMedalSchema(db);
-  // One read retrieves official IDs and Basement artwork/wording together.
-  const rows = await db.prepare(`SELECT m.medal_id AS id, d.title, d.message, d.image
-    FROM user_special_medals m LEFT JOIN admin_special_medal_definitions d ON d.id = m.medal_id
-    WHERE m.user_id = ? ORDER BY m.awarded_at ASC, m.medal_id ASC`).bind(userId).all();
+  const statement = db.prepare(`SELECT m.user_id AS userId, m.medal_id AS id,
+      d.title, d.message, d.image
+    FROM user_special_medals m
+    LEFT JOIN admin_special_medal_definitions d ON d.id = m.medal_id
+    ${userId ? "WHERE m.user_id = ?" : ""}
+    ORDER BY m.awarded_at ASC, m.medal_id ASC`);
+  const rows = await (userId ? statement.bind(userId) : statement).all();
   const official = new Set(OFFICIAL_SPECIAL_MEDALS.map(medal => medal.id));
   const images = new Set(availableMedalArtwork().map(item => item.image));
-  const specialMedals = [];
-  const adminMedals = [];
+  const byUser = new Map();
   for (const row of rows.results || []) {
-    if (official.has(row.id)) specialMedals.push(String(row.id));
+    const key = String(row.userId);
+    if (!byUser.has(key)) byUser.set(key, {specialMedals:[], adminMedals:[]});
+    const earned = byUser.get(key);
+    if (official.has(row.id)) earned.specialMedals.push(String(row.id));
     else if (/^admin-[0-9a-f-]{36}$/.test(String(row.id)) && images.has(row.image)) {
-      adminMedals.push({ id:String(row.id), category:'special', title:String(row.title),
+      earned.adminMedals.push({ id:String(row.id), category:"special", title:String(row.title),
         message:String(row.message), image:String(row.image) });
     }
   }
-  return {specialMedals, adminMedals};
+  return byUser;
+}
+
+export async function specialAwardsForUser(db, userId) {
+  const byUser = await specialAwardsForUsers(db, userId);
+  return byUser.get(String(userId)) || {specialMedals:[], adminMedals:[]};
 }
 
 // These functions are invoked only after the Basement session has been checked.

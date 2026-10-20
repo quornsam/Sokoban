@@ -135,20 +135,9 @@
   const practiceCards = document.getElementById("practiceCards");
   const practiceStatus = document.getElementById("practiceStatus");
   const practiceCount = document.getElementById("practiceCount");
-  const practiceModal = document.getElementById("practiceModal");
-  const practiceModalTitle = document.getElementById("practiceModalTitle");
-  const practiceClose = document.getElementById("practiceClose");
-  const practiceFrame = document.getElementById("practiceFrame");
-  const practiceLoadStatus=document.getElementById("practiceLoadStatus");
-  const practiceLoadMessage=document.getElementById("practiceLoadMessage");
-  const practiceRetry=document.getElementById("practiceRetry");
-  let practiceSession=null;
-  let practiceTimeout=0;
   let preparedDailies = [];
   let practiceLoaded = false;
   let practiceBusy = false;
-  let practiceRequest = 0;
-  let lastPracticeFocus = null;
   let users = [];
   let completions = [];
   let hallOfFameEntries = [];
@@ -552,6 +541,22 @@
       if (standardMedals.has(id) || !packIsComplete(summary,{id})) continue;
       const name=String(entry.name||id);
       medals.push(`<span class="basement-medal" title="${escapeHtml(name)} completed" style="--medal-colour:#2f8f5b">${STAR_SVG}</span>`);
+    }
+    for (const month of summary?.completedDailyMonths || []) {
+      if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) continue;
+      medals.push(`<span class="basement-medal basement-medal-image" title="${escapeHtml(month)} Daily completion medal"><img src="/assets/medals/boxxy-medal-${month}.png" alt=""></span>`);
+    }
+    const gold = Math.max(0, Math.trunc(Number(summary?.dailyGoldMedals) || 0));
+    if (gold) medals.push(`<span class="basement-medal basement-gold-medal" title="Daily Fastest Times gold medals: ${gold}" aria-label="${gold} Daily Fastest Times gold medals">🥇${gold > 1 ? ` ×${gold}` : ""}</span>`);
+    const official = new Map((window.BOXXY_CONTENT_CATALOG?.specialMedals || []).map(item => [item.id, item]));
+    for (const id of summary?.specialMedals || []) {
+      const medal = official.get(id);
+      if (!medal) continue;
+      medals.push(`<span class="basement-medal basement-medal-image" title="${escapeHtml(medal.title)}"><img src="/${escapeHtml(medal.image)}" alt=""></span>`);
+    }
+    for (const medal of summary?.adminMedals || []) {
+      if (!medal?.image || !medal?.title) continue;
+      medals.push(`<span class="basement-medal basement-medal-image" title="${escapeHtml(medal.title)}"><img src="/${escapeHtml(medal.image)}" alt=""></span>`);
     }
     return medals.length ? `<div class="basement-medals" aria-label="Earned medals and badges">${medals.join("")}</div>` : "";
   }
@@ -985,7 +990,7 @@
         <div class="practice-preview"><canvas data-practice-date="${escapeHtml(item.date)}" role="img" aria-label="Preview of Daily ${Number(item.sequence)||"?"}"></canvas></div>
         <div class="practice-card-name">${escapeHtml(item.name||"Daily Boxxy")}</div>
         <div class="practice-card-meta">${width} × ${rows.length} · ${boxes} ${boxes===1?"box":"boxes"}</div>
-        <button type="button" data-practice-open="${escapeHtml(item.date)}">PRACTISE →</button></article>`;
+        <a class="practice-open" href="/?dailyDate=${encodeURIComponent(item.date)}" target="_blank" rel="noopener">PRACTISE →</a></article>`;
     }).join("");
     if(!list.length&&practiceCards)practiceCards.innerHTML='<p>No prepared puzzles match those filters.</p>';
     practiceCards?.querySelectorAll("canvas[data-practice-date]").forEach(canvas=>{
@@ -1011,113 +1016,8 @@
     }catch(error){setStatus(practiceStatus,error.message||"Could not load Daily puzzles.","error");}
     finally{practiceBusy=false;}
   }
-  // The private iframe has an opaque origin. The existing character renderer
-  // must receive origin-clean spritesheets before it draws them to canvas.
-  // Public image assets are fetched by the authenticated parent and reused
-  // across practice sessions. No browser storage or account data is copied.
-  const PRIVATE_CHARACTER_ASSETS=[
-    ...["boy","girl"].flatMap(body=>
-      ["base","hair","shoes","skin","trousers","tshirt"].map(layer=>`assets/characters/${body}/${layer}.png`)),
-    ...Object.keys(FIXED_AVATAR_CHARACTERS).map(body=>`assets/characters/${body}/base.png`)
-  ];
-  let privateImageAssetsPromise=null;
-  function loadPrivateImageAssets() {
-    if(privateImageAssetsPromise)return privateImageAssetsPromise;
-    privateImageAssetsPromise=Promise.all(PRIVATE_CHARACTER_ASSETS.map(async path=>{
-      const response=await fetch(`/${path}`,{credentials:"same-origin",cache:"force-cache"});
-      if(!response.ok)throw new Error(`Could not load practice artwork: ${path}`);
-      const blob=await response.blob();
-      const dataUrl=await new Promise((resolve,reject)=>{
-        const reader=new FileReader();
-        reader.onload=()=>resolve(reader.result);
-        reader.onerror=()=>reject(new Error(`Could not prepare practice artwork: ${path}`));
-        reader.readAsDataURL(blob);
-      });
-      return [path,dataUrl];
-    })).then(entries=>Object.fromEntries(entries)).catch(error=>{privateImageAssetsPromise=null;throw error;});
-    return privateImageAssetsPromise;
-  }
-  function practiceLoading(message, error=false) {
-    if (!practiceLoadStatus) return;
-    practiceLoadStatus.hidden=false;
-    practiceLoadMessage.textContent=message;
-    practiceRetry.hidden=!error;
-  }
-  async function openPractice(date) {
-    const puzzle=preparedDailies.find(item=>item.date===date);
-    if(!puzzle||!practiceModal||!practiceFrame)return;
-    if(practiceModal.hidden)lastPracticeFocus=document.activeElement;
-    clearTimeout(practiceTimeout);
-    practiceSession?.controller?.abort();
-    const requestId=crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
-    const controller=new AbortController();
-    practiceSession={date,requestId,controller};
-    practiceModalTitle.textContent=`DAILY #${Number(puzzle.sequence)||"?"} · ${puzzle.date}`;
-    practiceModal.hidden=false;
-    practiceFrame.hidden=false;
-    practiceFrame.srcdoc="";
-    practiceLoading("Preparing private Daily practice…");
-    practiceTimeout=setTimeout(()=>{
-      if(practiceSession?.requestId===requestId)practiceLoading("The practice window did not finish loading. Please retry.",true);
-    },50000);
-    requestAnimationFrame(()=>practiceClose?.focus());
-    try {
-      // The authenticated parent makes the request. An opaque sandboxed
-      // iframe cannot reliably send a SameSite=Lax Basement session cookie.
-      const response=await fetch(`/basement/practice?date=${encodeURIComponent(date)}&requestId=${encodeURIComponent(requestId)}&v=357`,{
-        credentials:"same-origin",cache:"no-store",signal:controller.signal,
-        headers:{Accept:"text/html"}
-      });
-      const source=await response.text();
-      if(practiceSession?.requestId!==requestId)return;
-      if(!response.ok)throw new Error(source.slice(0,400)||`Practice request failed (${response.status}).`);
-      if(!response.headers.get("content-type")?.includes("text/html") || !source.includes('practice-runtime.js?v=357'))
-        throw new Error("The practice page is missing or incompatible. Re-upload the complete replacement.");
-      practiceLoading("Preparing private character artwork…");
-      const privateAssets=await loadPrivateImageAssets();
-      if(practiceSession?.requestId!==requestId)return;
-      if(!source.includes("__BOXXY_PRIVATE_ASSET_DATA__"))throw new Error("The private practice page is incompatible.");
-      const assetPayload=JSON.stringify(privateAssets).replace(/</g,"\\u003c").replace(/>/g,"\\u003e").replace(/&/g,"\\u0026");
-      practiceLoading("Loading the private game…");
-      practiceFrame.srcdoc=source.replace("__BOXXY_PRIVATE_ASSET_DATA__",assetPayload);
-    } catch(error) {
-      if(practiceSession?.requestId!==requestId||error.name==="AbortError")return;
-      clearTimeout(practiceTimeout);
-      practiceLoading(error.message||"Could not load private practice.",true);
-    }
-  }
-  function closePractice() {
-    if(!practiceModal||practiceModal.hidden)return;
-    clearTimeout(practiceTimeout);
-    practiceSession?.controller?.abort();
-    practiceSession=null;
-    if(practiceFrame)practiceFrame.srcdoc="";
-    practiceFrame?.removeAttribute("src");
-    practiceFrame.hidden=true;
-    practiceLoadStatus.hidden=true;
-    practiceModal.hidden=true;
-    if(lastPracticeFocus?.isConnected)lastPracticeFocus.focus();
-    lastPracticeFocus=null;
-  }
-  window.addEventListener("message",event=>{
-    if(event.source!==practiceFrame?.contentWindow||event.origin!=="null"||!practiceSession||practiceModal.hidden)return;
-    const data=event.data;
-    if(!data||typeof data!=="object"||data.requestId!==practiceSession.requestId||data.date!==practiceSession.date)return;
-    if(data.type==="BOXXY_PRACTICE_READY"){
-      clearTimeout(practiceTimeout);practiceLoadStatus.hidden=true;practiceFrame.hidden=false;
-      practiceFrame.focus();
-    } else if(data.type==="BOXXY_PRACTICE_ERROR"){
-      clearTimeout(practiceTimeout);practiceLoading(String(data.message||"Could not load private practice.").slice(0,500),true);
-    } else if(data.type==="BOXXY_PRACTICE_RETRY")openPractice(practiceSession.date);
-  });
-  practiceRetry?.addEventListener("click",()=>{if(practiceSession)openPractice(practiceSession.date);});
   practiceSearch?.addEventListener("input",renderPracticeCards);
   practiceFilter?.addEventListener("change",renderPracticeCards);
-  practiceCards?.addEventListener("click",event=>{
-    const button=event.target.closest("[data-practice-open]");if(button)openPractice(button.dataset.practiceOpen);
-  });
-  practiceClose?.addEventListener("click",closePractice);
-  document.addEventListener("keydown",event=>{if(event.key==="Escape"&&!practiceModal?.hidden){event.preventDefault();closePractice();}});
   function filteredUsers() {
     const query = String(searchInput?.value || "").trim().toLowerCase();
     const list = query ? users.filter(user => [user.username, user.email, user.googleEmail, user.signupIp, user.lastIp, user.summary?.clickPushCode, ...(user.summary?.clickPushCodes || [])].some(value => String(value || "").toLowerCase().includes(query))) : users;

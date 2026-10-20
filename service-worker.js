@@ -1,3 +1,4 @@
+/* BOXXY v494: Basement award display and use existing Daily preview instead of duplicate practice runtime. */
 /* BOXXY v492: Basement-selected special medals and award presenter refresh. */
 /* BOXXY v491: first special medal and shared medal award presenter. */
 /* BOXXY v490: repair public-profile streak artwork by sharing tier mapping with other streak displays. */

@@ -13205,13 +13205,16 @@
     const publishedAt = Date.parse(linkedDaily?.publishAtUtc || "");
     const publishedDaily = Boolean(linkedDaily && linkedDaily.date >= DAILY_LAUNCH_DATE
       && Number.isFinite(publishedAt) && Date.now() >= publishedAt);
-    captureBoxxyAnalytics("game_opened", {
+    const previewDaily = DAILY_DATE_OVERRIDE ? DAILY_PUZZLE_BY_DATE.get(DAILY_DATE_OVERRIDE) : null;
+    if (!previewDaily) captureBoxxyAnalytics("game_opened", {
       initial_pack_id: publishedDaily ? "daily-boxxy" : String(activePack?.id || ""),
       initial_pack_name: publishedDaily ? "Daily Boxxy" : String(activePack?.displayName || activePack?.title || ""),
       initial_level_number: publishedDaily ? dailySequence : Number(levelIndex) + 1
     });
-    loadLevel(levelIndex, false, false, publishedDaily);
-    if (dailyRoute) {
+    loadLevel(levelIndex, false, false, publishedDaily || Boolean(previewDaily));
+    if (previewDaily) {
+      loadDailyPuzzle(previewDaily);
+    } else if (dailyRoute) {
       if (publishedDaily) loadDailyPuzzle(linkedDaily);
       else if (thoughtText) thoughtText.textContent = "That Daily puzzle is not available yet.";
     } else {
