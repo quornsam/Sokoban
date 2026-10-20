@@ -3062,6 +3062,10 @@
   const settingsTouchPushToggle = document.getElementById("settingsTouchPushToggle");
   const settingsTouchPushLeaderboardWarning = document.getElementById("settingsTouchPushLeaderboardWarning");
   const settingsSolutionDataToggle = document.getElementById("settingsSolutionDataToggle");
+  const settingsZenStatsToggle = document.getElementById("settingsZenStatsToggle");
+  const zenStats = document.getElementById("zenStats");
+  const zenStatsMoves = document.getElementById("zenStatsMoves");
+  const zenStatsTime = document.getElementById("zenStatsTime");
   const clickPushAccessModal = document.getElementById("clickPushAccessModal");
   const clickPushAccessForm = document.getElementById("clickPushAccessForm");
   const clickPushAccessPassword = document.getElementById("clickPushAccessPassword");
@@ -3501,6 +3505,9 @@
   const ZEN_ZOOM_LEVELS = Object.freeze([1, 2, 4, 8]);
   const ZEN_CONTROL_SIZES = Object.freeze(["small", "medium", "large", "full"]);
   const ZEN_CONTROL_SIZE_KEY = "boxxy-zen-control-size-v1";
+  const ZEN_STATS_KEY = "boxxy-zen-stats-v1";
+  let zenStatsEnabled = false;
+  try { zenStatsEnabled = localStorage.getItem(ZEN_STATS_KEY) === "on"; } catch (_) {}
   const ZEN_IPHONE_FULLSCREEN_HINT_KEY = "boxxy-iphone-fullscreen-hint-v1";
   const ZEN_ZOOM_TARGET_VISIBLE_CELLS = 10;
   const ZEN_CAMERA_FOLLOW_DEAD_ZONE_X = 0.52;
@@ -7741,6 +7748,24 @@
     return phoneZenModeActive() || desktopZenModeActive();
   }
 
+  function syncZenStats() {
+    document.body.classList.toggle("zen-stats-enabled", zenStatsEnabled);
+    if (zenStats) zenStats.hidden = !(zenStatsEnabled && zenModeActive());
+    if (settingsZenStatsToggle) {
+      settingsZenStatsToggle.setAttribute("aria-pressed", String(zenStatsEnabled));
+      settingsZenStatsToggle.textContent = zenStatsEnabled ? "ON" : "OFF";
+    }
+    if (zenStatsMoves) zenStatsMoves.textContent = movesEl.textContent;
+    if (zenStatsTime) zenStatsTime.textContent = timeEl.textContent;
+  }
+
+  function setZenStatsEnabled(enabled) {
+    zenStatsEnabled = Boolean(enabled);
+    try { localStorage.setItem(ZEN_STATS_KEY, zenStatsEnabled ? "on" : "off"); } catch (_) {}
+    syncZenStats();
+    if (zenModeActive()) scheduleBoardResize();
+  }
+
   function availableZenZoomLevels() {
     if (!width || !height) return [1];
     const shortSideCells = Math.max(1, Math.min(width, height));
@@ -7987,6 +8012,8 @@
     const enabled = Boolean(active);
     document.documentElement.classList.toggle("desktop-zen-mode", enabled);
     document.body.classList.toggle("desktop-zen-mode", enabled);
+    syncZenStats();
+    if (wasEnabled !== enabled) scheduleBoardResize();
     if (wasEnabled && !enabled) resetZenZoom();
     else {
       updateZenZoomButton();
@@ -8174,6 +8201,7 @@
     const enabled = Boolean(active && phoneFullscreenLayout());
     document.documentElement.classList.toggle("phone-zen-mode", enabled);
     document.body.classList.toggle("phone-zen-mode", enabled);
+    syncZenStats();
     if (zenControlPanel) zenControlPanel.hidden = !enabled || legacyZenArrows;
 
     if (enabled) {
@@ -8458,6 +8486,7 @@
     updateSettingsMouseButton();
     updateSettingsTouchPushButton();
     updateSettingsSolutionDataButton();
+    syncZenStats();
     applyLegacyZenArrows(legacyZenArrowMode, false);
   }
 
@@ -10046,6 +10075,7 @@
     if (anim === "idle") boardStepMotion = null;
 
     movesEl.textContent = moves;
+    if (zenStatsMoves) zenStatsMoves.textContent = String(moves);
     pushesEl.textContent = pushes;
     levelCount.textContent = sharedPuzzleMode ? "SHARED" : makerTesting ? "MAKER" : dailyMode ? `DAILY #${Number(dailyPuzzle?.sequence) || ""}` : `${levelIndex + 1} / ${LEVELS.length}`;
     const best = (makerTesting || sharedPuzzleMode) ? null : dailyMode ? dailyBestMoves(dailyPuzzle) : readBest(levelData);
@@ -10135,6 +10165,7 @@
     pieceLayer.appendChild(playerPiece);
 
     movesEl.textContent = moves;
+    if (zenStatsMoves) zenStatsMoves.textContent = String(moves);
     pushesEl.textContent = pushes;
     levelCount.textContent = sharedPuzzleMode ? "SHARED" : makerTesting ? "MAKER" : dailyMode ? `DAILY #${Number(dailyPuzzle?.sequence) || ""}` : `${levelIndex + 1} / ${LEVELS.length}`;
     const best = (makerTesting || sharedPuzzleMode) ? null : dailyMode ? dailyBestMoves(dailyPuzzle) : readBest(levelData);
@@ -10149,10 +10180,11 @@
   function updateTime() {
     if (!startedAt) {
       timeEl.textContent = "00:00";
-      return;
+    } else {
+      const seconds = Math.floor((Date.now() - startedAt) / 1000);
+      timeEl.textContent = `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
     }
-    const seconds = Math.floor((Date.now() - startedAt) / 1000);
-    timeEl.textContent = `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
+    if (zenStatsTime) zenStatsTime.textContent = timeEl.textContent;
   }
 
   function startLevelTimerIfNeeded() {
@@ -11003,6 +11035,7 @@
     }
     completionSolveData = (levelSolutionAvailable && !makerTesting && !sharedPuzzleMode) ? canonicalCompletedSolveData() : "";
     setPreciseClockContent(timeEl, completionSeconds);
+    if (zenStatsTime) zenStatsTime.textContent = timeEl.textContent;
     if (!makerTesting && !sharedPuzzleMode && !dailyMode) clearCurrentCheckpoint();
 
     if (dailyMode && dailyPuzzle) {
@@ -12615,6 +12648,7 @@
   settingsMouseToggle?.addEventListener("click", () => setSettingsMouseSupport(!mouseSupportEnabled));
   settingsTouchPushToggle?.addEventListener("click", () => setSettingsTouchClickPush(!touchClickPushEnabled));
   settingsSolutionDataToggle?.addEventListener("click", () => setLevelSolutionAvailable(!levelSolutionAvailable));
+  settingsZenStatsToggle?.addEventListener("click", () => setZenStatsEnabled(!zenStatsEnabled));
   copySolveDataBtn?.addEventListener("click", copyCompletionSolveData);
   clickPushAccessForm?.addEventListener("submit", event => {
     event.preventDefault();

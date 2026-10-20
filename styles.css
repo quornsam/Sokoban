@@ -7541,6 +7541,64 @@ body.desktop-zen-mode .zen-camera-mode-btn:not([hidden]){display:grid}
   }
 }
 
+/* v495 — Optional borderless Zen statistics in a map-free top strip.
+   Both normal fitting and zoom cameras already honour board-wrap padding. */
+.zen-stats{display:none!important}
+body:is(.phone-zen-mode,.desktop-zen-mode).zen-stats-enabled .zen-stats:not([hidden]){
+  position:absolute;
+  top:calc(max(12px,env(safe-area-inset-top)) + 3px);
+  left:50%;
+  transform:translateX(-50%);
+  z-index:5;
+  display:flex!important;
+  align-items:baseline;
+  justify-content:center;
+  gap:clamp(14px,3vw,32px);
+  width:max-content;
+  max-width:calc(100% - 28px);
+  color:#27221d;
+  font-size:clamp(11px,1.3vw,14px);
+  font-weight:700;
+  letter-spacing:.07em;
+  white-space:nowrap;
+  font-variant-numeric:tabular-nums;
+  line-height:1.5;
+  pointer-events:none;
+}
+.zen-stats strong{font-weight:950;letter-spacing:0;margin-left:4px}
+/* Prevent decorative shapes crossing behind the text. The underlying Zen
+   gradient remains uninterrupted: this is not a boxed badge or overlay. */
+body:is(.phone-zen-mode,.desktop-zen-mode).zen-stats-enabled .bg-decor{
+  clip-path:inset(64px 0 0 0);
+}
+@media (min-width:761px) and (hover:hover) and (pointer:fine){
+  body.desktop-zen-mode.zen-stats-enabled .board-wrap{
+    padding-top:max(84px,11dvh);
+  }
+}
+@media (max-width:760px) and (pointer:coarse),
+       (max-height:520px) and (orientation:landscape) and (pointer:coarse){
+  body.phone-zen-mode.zen-stats-enabled .board-wrap{
+    padding-top:calc(max(8px,env(safe-area-inset-top)) + 58px)!important;
+  }
+  body.phone-zen-mode.zen-stats-enabled .zen-stats:not([hidden]){
+    font-size:11px;
+    gap:12px;
+  }
+  body.phone-zen-mode.zen-stats-enabled .bg-decor{
+    clip-path:inset(calc(max(8px,env(safe-area-inset-top)) + 54px) 0 0 0);
+  }
+}
+
+/* Portrait controls occupy the top-right corner, especially when zoomed.
+   Keep the optional readout on the opposite side on narrow touch screens. */
+@media (max-width:760px) and (pointer:coarse) and (orientation:portrait){
+  body.phone-zen-mode.zen-stats-enabled .zen-stats:not([hidden]){
+    left:max(12px,env(safe-area-inset-left));
+    transform:none;
+  }
+}
+
 /* BOXXY v352 — level-pack discovery and wardrobe access without adding gameplay clutter. */
 .settings-attire-link{
   margin-top:12px;
@@ -8573,3 +8631,4 @@ html.touch-ui .dpad button {touch-action:none;-webkit-touch-callout:none;-webkit
 
 /* v491: short, unobtrusive flight from earned medal to cabinet. */
 .medal-award-flight{position:fixed;z-index:20000;pointer-events:none;object-fit:contain;transform-origin:center center;filter:drop-shadow(2px 2px 0 rgba(23,23,25,.2))}
+
