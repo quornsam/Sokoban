@@ -8090,12 +8090,10 @@
     const centreLeft = Math.min(maxLeft, Math.max(minLeft, contentLeft + (contentWidth - boardWidth) / 2));
     const centreTop = Math.min(maxTop, Math.max(minTop, contentTop + (contentHeight - boardHeight) / 2));
 
-    // With the Zen readout enabled, leave only the board-wrap's top padding
-    // between the map and the readout. Vertical centring unnecessarily pushes
-    // narrow/tall puzzles down; the existing keypad collision search still runs.
-    const preferredTop = zenStatsEnabled ? minTop : centreTop;
+    // Preserve the centred map preference. The viewport fitting above already
+    // accounts for the HUD and (when appropriate) bottom-docked controls.
     let bestLeft = centreLeft;
-    let bestTop = preferredTop;
+    let bestTop = centreTop;
 
     if (zenControlPanel && !zenControlPanel.hidden && !zenControlPanel.classList.contains("is-minimised")) {
       const panelRect = zenControlPanel.getBoundingClientRect();
@@ -8109,9 +8107,9 @@
       const clampLeft = value => Math.min(maxLeft, Math.max(minLeft, value));
       const clampTop = value => Math.min(maxTop, Math.max(minTop, value));
       const candidates = [
-        [centreLeft, preferredTop],
-        [clampLeft(zone.left - boardWidth), preferredTop],
-        [clampLeft(zone.right), preferredTop],
+        [centreLeft, centreTop],
+        [clampLeft(zone.left - boardWidth), centreTop],
+        [clampLeft(zone.right), centreTop],
         [centreLeft, clampTop(zone.top - boardHeight)],
         [centreLeft, clampTop(zone.bottom)]
       ];
@@ -8119,7 +8117,7 @@
       for (const [left, top] of candidates) {
         const overlap = phoneZenBoardOverlapArea(left, top, boardWidth, boardHeight, zone);
         const dx = left - centreLeft;
-        const dy = top - preferredTop;
+        const dy = top - centreTop;
         const score = overlap * 1000000 + dx * dx + dy * dy;
         if (score < bestScore) {
           bestScore = score;
@@ -8338,6 +8336,25 @@
 
   function resizeBoard() {
     if (!boardWrap || !width || !height) return;
+    // With the optional Zen readout visible, a bottom-docked floating keypad
+    // occupies actual playing space. Reserve that region in the existing board
+    // viewport so fitting, centring and zoom all use the same geometry.
+    // Legacy arrows already reserve their own lower area in CSS, and a moved
+    // or minimised floating keypad keeps the original collision-avoidance path.
+    boardWrap.style.removeProperty("--zen-stats-pad-bottom");
+    if (zenStatsEnabled && phoneZenModeActive() && !legacyZenArrows &&
+        zenControlPanel && !zenControlPanel.hidden &&
+        !zenControlPanel.classList.contains("is-minimised") &&
+        window.matchMedia("(orientation: portrait)").matches) {
+      const viewport = boardWrap.getBoundingClientRect();
+      const controls = zenControlPanel.getBoundingClientRect();
+      const lowerControls = controls.top > viewport.top + viewport.height * 0.48 &&
+        controls.bottom > viewport.top + viewport.height * 0.74;
+      if (lowerControls) {
+        const bottomReserve = Math.ceil(Math.max(12, viewport.bottom - controls.top + 16));
+        boardWrap.style.setProperty("--zen-stats-pad-bottom", `${bottomReserve}px`);
+      }
+    }
     const wrapStyle = getComputedStyle(boardWrap);
     const horizontalPadding = parseFloat(wrapStyle.paddingLeft) + parseFloat(wrapStyle.paddingRight);
     const verticalPadding = parseFloat(wrapStyle.paddingTop) + parseFloat(wrapStyle.paddingBottom);
@@ -12570,7 +12587,10 @@
       zenControlPanel?.classList.remove("is-dragging");
       try { zenControlDragHandle?.releasePointerCapture?.(event.pointerId); } catch (_) {}
       clampZenControlPanel();
-      schedulePhoneZenBoardLayout();
+      // Refit once after a drag: the panel may now occupy or vacate the
+      // bottom of the HUD-enabled play area. No per-move resizing is needed.
+      if (zenStatsEnabled) scheduleBoardResize();
+      else schedulePhoneZenBoardLayout();
     };
 
     zenControlDragHandle?.addEventListener("pointerdown", event => {

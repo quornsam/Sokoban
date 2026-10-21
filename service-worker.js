@@ -1,4 +1,5 @@
-/* BOXXY v498: align Zen HUD maps to the top of their reserved viewport. */
+/* BOXXY v499: keep Zen board centring inside a control-aware HUD viewport. */
+/* BOXXY v498: Zen HUD spacing experiment superseded by v499 centring restoration. */
 /* BOXXY v497: touch swipe-anywhere outside Zen and tap-to-dismiss fullscreen hint. */
 /* BOXXY v496: Zen HUD outside the actual board viewport; no overlap in camera/zoom modes. */
 /* BOXXY v495: optional unboxed Zen moves/time HUD with reserved map-free space. */
