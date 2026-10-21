@@ -7541,21 +7541,24 @@ body.desktop-zen-mode .zen-camera-mode-btn:not([hidden]){display:grid}
   }
 }
 
-/* v495 — Optional borderless Zen statistics in a map-free top strip.
-   Both normal fitting and zoom cameras already honour board-wrap padding. */
+/* v496 — Zen HUD lives alongside the board viewport, never over the map.
+   Reduce the actual board-wrap viewport: board fitting and both zoom camera modes
+   therefore share the same boundary without a separate overlay or camera patch. */
 .zen-stats{display:none!important}
+body:is(.phone-zen-mode,.desktop-zen-mode).zen-stats-enabled .play-area{
+  --zen-stats-clearance:calc(env(safe-area-inset-top, 0px) + 74px);
+  background:linear-gradient(135deg,#f4ebdd,#eadcca);
+}
 body:is(.phone-zen-mode,.desktop-zen-mode).zen-stats-enabled .zen-stats:not([hidden]){
-  position:absolute;
-  top:calc(max(12px,env(safe-area-inset-top)) + 3px);
-  left:50%;
-  transform:translateX(-50%);
-  z-index:5;
+  position:fixed;
+  top:calc(env(safe-area-inset-top, 0px) + 18px);
+  left:max(100px,env(safe-area-inset-left, 0px));
+  right:max(100px,env(safe-area-inset-right, 0px));
+  z-index:8502;
   display:flex!important;
   align-items:baseline;
   justify-content:center;
-  gap:clamp(14px,3vw,32px);
-  width:max-content;
-  max-width:calc(100% - 28px);
+  gap:clamp(26px,6vw,88px);
   color:#27221d;
   font-size:clamp(11px,1.3vw,14px);
   font-weight:700;
@@ -7566,39 +7569,34 @@ body:is(.phone-zen-mode,.desktop-zen-mode).zen-stats-enabled .zen-stats:not([hid
   pointer-events:none;
 }
 .zen-stats strong{font-weight:950;letter-spacing:0;margin-left:4px}
-/* Prevent decorative shapes crossing behind the text. The underlying Zen
-   gradient remains uninterrupted: this is not a boxed badge or overlay. */
-body:is(.phone-zen-mode,.desktop-zen-mode).zen-stats-enabled .bg-decor{
-  clip-path:inset(64px 0 0 0);
+body:is(.phone-zen-mode,.desktop-zen-mode).zen-stats-enabled .board-wrap{
+  top:var(--zen-stats-clearance)!important;
+  height:calc(100% - var(--zen-stats-clearance))!important;
+  padding-top:clamp(12px,2.8dvh,30px)!important;
+  background:transparent!important;
 }
-@media (min-width:761px) and (hover:hover) and (pointer:fine){
-  body.desktop-zen-mode.zen-stats-enabled .board-wrap{
-    padding-top:max(84px,11dvh);
-  }
-}
+/* The board and all floating decorations are clipped by this reduced viewport.
+   No colour restrictions are necessary: even black shapes cannot cross the HUD. */
 @media (max-width:760px) and (pointer:coarse),
        (max-height:520px) and (orientation:landscape) and (pointer:coarse){
-  body.phone-zen-mode.zen-stats-enabled .board-wrap{
-    padding-top:calc(max(8px,env(safe-area-inset-top)) + 58px)!important;
-  }
   body.phone-zen-mode.zen-stats-enabled .zen-stats:not([hidden]){
+    left:max(78px,env(safe-area-inset-left, 0px));
+    right:max(78px,env(safe-area-inset-right, 0px));
     font-size:11px;
-    gap:12px;
-  }
-  body.phone-zen-mode.zen-stats-enabled .bg-decor{
-    clip-path:inset(calc(max(8px,env(safe-area-inset-top)) + 54px) 0 0 0);
+    gap:clamp(20px,6vw,40px);
   }
 }
-
-/* Portrait controls occupy the top-right corner, especially when zoomed.
-   Keep the optional readout on the opposite side on narrow touch screens. */
-@media (max-width:760px) and (pointer:coarse) and (orientation:portrait){
+@media (max-height:520px) and (orientation:landscape) and (pointer:coarse){
+  body.phone-zen-mode.zen-stats-enabled .play-area{
+    --zen-stats-clearance:calc(env(safe-area-inset-top, 0px) + 58px);
+  }
+  /* Landscape controls move to the left; keep the readout clear of both. */
   body.phone-zen-mode.zen-stats-enabled .zen-stats:not([hidden]){
-    left:max(12px,env(safe-area-inset-left));
-    transform:none;
+    top:calc(env(safe-area-inset-top, 0px) + 12px);
+    left:max(126px,env(safe-area-inset-left, 0px));
+    right:max(126px,env(safe-area-inset-right, 0px));
   }
 }
-
 /* BOXXY v352 — level-pack discovery and wardrobe access without adding gameplay clutter. */
 .settings-attire-link{
   margin-top:12px;
