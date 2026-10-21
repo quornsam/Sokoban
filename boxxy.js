@@ -8090,8 +8090,12 @@
     const centreLeft = Math.min(maxLeft, Math.max(minLeft, contentLeft + (contentWidth - boardWidth) / 2));
     const centreTop = Math.min(maxTop, Math.max(minTop, contentTop + (contentHeight - boardHeight) / 2));
 
+    // With the Zen readout enabled, leave only the board-wrap's top padding
+    // between the map and the readout. Vertical centring unnecessarily pushes
+    // narrow/tall puzzles down; the existing keypad collision search still runs.
+    const preferredTop = zenStatsEnabled ? minTop : centreTop;
     let bestLeft = centreLeft;
-    let bestTop = centreTop;
+    let bestTop = preferredTop;
 
     if (zenControlPanel && !zenControlPanel.hidden && !zenControlPanel.classList.contains("is-minimised")) {
       const panelRect = zenControlPanel.getBoundingClientRect();
@@ -8105,9 +8109,9 @@
       const clampLeft = value => Math.min(maxLeft, Math.max(minLeft, value));
       const clampTop = value => Math.min(maxTop, Math.max(minTop, value));
       const candidates = [
-        [centreLeft, centreTop],
-        [clampLeft(zone.left - boardWidth), centreTop],
-        [clampLeft(zone.right), centreTop],
+        [centreLeft, preferredTop],
+        [clampLeft(zone.left - boardWidth), preferredTop],
+        [clampLeft(zone.right), preferredTop],
         [centreLeft, clampTop(zone.top - boardHeight)],
         [centreLeft, clampTop(zone.bottom)]
       ];
@@ -8115,7 +8119,7 @@
       for (const [left, top] of candidates) {
         const overlap = phoneZenBoardOverlapArea(left, top, boardWidth, boardHeight, zone);
         const dx = left - centreLeft;
-        const dy = top - centreTop;
+        const dy = top - preferredTop;
         const score = overlap * 1000000 + dx * dx + dy * dy;
         if (score < bestScore) {
           bestScore = score;

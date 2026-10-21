@@ -7541,12 +7541,12 @@ body.desktop-zen-mode .zen-camera-mode-btn:not([hidden]){display:grid}
   }
 }
 
-/* v496 — Zen HUD lives alongside the board viewport, never over the map.
-   Reduce the actual board-wrap viewport: board fitting and both zoom camera modes
-   therefore share the same boundary without a separate overlay or camera patch. */
+/* v498 — Zen HUD reserves its own slim strip outside the board viewport.
+   The fitting viewport and zoom camera still share one map-safe boundary;
+   boards use the top of it rather than leaving tall puzzles vertically centred. */
 .zen-stats{display:none!important}
 body:is(.phone-zen-mode,.desktop-zen-mode).zen-stats-enabled .play-area{
-  --zen-stats-clearance:calc(env(safe-area-inset-top, 0px) + 74px);
+  --zen-stats-clearance:calc(env(safe-area-inset-top, 0px) + 52px);
   background:linear-gradient(135deg,#f4ebdd,#eadcca);
 }
 body:is(.phone-zen-mode,.desktop-zen-mode).zen-stats-enabled .zen-stats:not([hidden]){
@@ -7572,9 +7572,13 @@ body:is(.phone-zen-mode,.desktop-zen-mode).zen-stats-enabled .zen-stats:not([hid
 body:is(.phone-zen-mode,.desktop-zen-mode).zen-stats-enabled .board-wrap{
   top:var(--zen-stats-clearance)!important;
   height:calc(100% - var(--zen-stats-clearance))!important;
-  padding-top:clamp(12px,2.8dvh,30px)!important;
+  padding-top:8px!important;
   background:transparent!important;
 }
+/* The ordinary Zen board is grid-centred; with a readout it should sit near
+   that readout instead of floating in the middle of leftover screen height.
+   Phone Zen's absolutely positioned board is aligned by layoutPhoneZenBoard(). */
+body.desktop-zen-mode.zen-stats-enabled .board-wrap{align-items:start}
 /* The board and all floating decorations are clipped by this reduced viewport.
    No colour restrictions are necessary: even black shapes cannot cross the HUD. */
 @media (max-width:760px) and (pointer:coarse),
@@ -7588,7 +7592,7 @@ body:is(.phone-zen-mode,.desktop-zen-mode).zen-stats-enabled .board-wrap{
 }
 @media (max-height:520px) and (orientation:landscape) and (pointer:coarse){
   body.phone-zen-mode.zen-stats-enabled .play-area{
-    --zen-stats-clearance:calc(env(safe-area-inset-top, 0px) + 58px);
+    --zen-stats-clearance:calc(env(safe-area-inset-top, 0px) + 52px);
   }
   /* Landscape controls move to the left; keep the readout clear of both. */
   body.phone-zen-mode.zen-stats-enabled .zen-stats:not([hidden]){
