@@ -1,3 +1,7 @@
+/* BOXXY v499: keep Zen board centring inside a control-aware HUD viewport. */
+/* BOXXY v498: Zen HUD spacing experiment superseded by v499 centring restoration. */
+/* BOXXY v497: touch swipe-anywhere outside Zen and tap-to-dismiss fullscreen hint. */
+/* BOXXY v496: Zen HUD outside the actual board viewport; no overlap in camera/zoom modes. */
 /* BOXXY v495: optional unboxed Zen moves/time HUD with reserved map-free space. */
 /* BOXXY v494: Basement award display and use existing Daily preview instead of duplicate practice runtime. */
 /* BOXXY v492: Basement-selected special medals and award presenter refresh. */
