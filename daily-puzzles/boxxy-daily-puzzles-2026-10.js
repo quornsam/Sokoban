@@ -418,14 +418,14 @@ window.BOXXY_DAILY_SCHEDULE = Object.freeze({
       "name": "easy1",
       "solution": "urrDDrdulDrdLulDruuuulldRurDDDuuurDD",
       "layout": [
-        " ######",
-        " #    #",
-        " #@$$$#",
-        " ###  #",
-        "  #  .#",
-        "  # . #",
-        "  #.###",
-        "  ###"
+        "######",
+        "#    #",
+        "#@$$$#",
+        "###  #",
+        " #  .#",
+        " # . #",
+        " #.###",
+        " ###"
       ]
     },
     {
