@@ -8030,7 +8030,7 @@
   const ZEN_SCREEN_SWIPE_THRESHOLD = 22;
   const ZEN_CONTROL_INTENT_DELAY_MS = 80;
 
-  function zenSwipeMove(dx, dy, animate = true) {
+  function performSwipeMove(dx, dy, animate = true) {
     mouseSupportIgnoreClickUntil = Date.now() + 260;
     if (Math.abs(dx) > Math.abs(dy)) move(dx > 0 ? 1 : -1, 0, animate);
     else move(0, dy > 0 ? 1 : -1, animate);
@@ -8248,6 +8248,15 @@
     clearTimeout(showMobileFullscreenHint.timer);
     showMobileFullscreenHint.timer = setTimeout(() => hint.classList.remove("show"), 5600);
   }
+
+  // Reuse the existing fade-out whether the hint times out or the user taps.
+  // Listen on the page because the hint itself deliberately has pointer-events:none.
+  document.addEventListener("pointerdown", () => {
+    const hint = document.getElementById("mobileFullscreenHint");
+    if (!hint?.classList.contains("show")) return;
+    clearTimeout(showMobileFullscreenHint.timer);
+    hint.classList.remove("show");
+  }, { capture:true });
 
   function updateFullscreenButton() {
     const supported = fullscreenSupported();
@@ -12346,7 +12355,7 @@
       event.preventDefault();
       clearZenIntent();
       zenPress.swiped = true;
-      zenSwipeMove(dx, dy, true);
+      performSwipeMove(dx, dy, true);
     }, { passive: false });
 
     const releaseDirectionButton = event => {
@@ -13032,7 +13041,7 @@
     if (zenScreenSwipe.triggered) return;
     stopZenUndoHold(zenScreenSwipe);
     zenScreenSwipe.triggered = true;
-    zenSwipeMove(dx, dy, true);
+    performSwipeMove(dx, dy, true);
   }, { capture: true, passive: false });
 
   document.addEventListener("pointerup", event => {
@@ -13049,7 +13058,7 @@
     if (!swiped && !gesture.holdCommitted && distance >= ZEN_SCREEN_SWIPE_THRESHOLD) {
       event.preventDefault();
       swiped = true;
-      zenSwipeMove(dx, dy, false);
+      performSwipeMove(dx, dy, false);
     }
 
     if (swiped) {
@@ -13091,17 +13100,74 @@
     zenSuppressedClick = null;
   }, true);
 
+  // Non-Zen touch movement uses the same one-swipe/one-step rule as the board,
+  // but starts anywhere in the ordinary game that isn't an interactive control.
+  // Leave mouse/pen board gestures and Zen's separate control handling intact.
+  let normalTouchSwipe = null;
+  const standardTouchGameplay = () => !zenModeActive() && !firstPersonMode &&
+    window.matchMedia("(pointer: coarse)").matches;
+  const standardTouchSwipeTarget = target => target instanceof Element &&
+    Boolean(target.closest(".app")) &&
+    !target.closest("button, a, input, select, textarea, label, [role='button'], [contenteditable], [data-dir], .dpad, .top-actions, .bottom-actions, .level-picker, .modal, .zen-control-panel");
+  const trackedTouch = event => [...event.changedTouches].find(touch => touch.identifier === normalTouchSwipe?.id);
+
+  document.addEventListener("touchstart", event => {
+    // A second finger cancels the swipe rather than resuming it later.
+    if (event.touches.length !== 1) normalTouchSwipe = null;
+    if (!standardTouchGameplay() || event.touches.length !== 1 ||
+        !standardTouchSwipeTarget(event.target) ||
+        document.querySelector(".modal:not([hidden])")) return;
+    const touch = event.changedTouches[0];
+    normalTouchSwipe = { id:touch.identifier, x:touch.clientX, y:touch.clientY, triggered:false };
+    ensureAudio();
+  }, { capture:true, passive:true });
+
+  document.addEventListener("touchmove", event => {
+    if (!normalTouchSwipe || !standardTouchGameplay() || event.touches.length !== 1) return;
+    const touch = trackedTouch(event);
+    if (!touch) return;
+    const dx = touch.clientX - normalTouchSwipe.x;
+    const dy = touch.clientY - normalTouchSwipe.y;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < ZEN_SCREEN_SWIPE_THRESHOLD) return;
+    if (event.cancelable) event.preventDefault();
+    if (normalTouchSwipe.triggered) return;
+    normalTouchSwipe.triggered = true;
+    performSwipeMove(dx, dy, true);
+  }, { capture:true, passive:false });
+
+  document.addEventListener("touchend", event => {
+    if (!normalTouchSwipe) return;
+    const touch = trackedTouch(event);
+    if (!touch) return;
+    const gesture = normalTouchSwipe;
+    normalTouchSwipe = null;
+    const dx = touch.clientX - gesture.x;
+    const dy = touch.clientY - gesture.y;
+    if (gesture.triggered || Math.max(Math.abs(dx), Math.abs(dy)) >= ZEN_SCREEN_SWIPE_THRESHOLD) {
+      if (event.cancelable) event.preventDefault();
+      if (!gesture.triggered) performSwipeMove(dx, dy, false);
+    }
+    releaseBlockedPush();
+  }, { capture:true, passive:false });
+  document.addEventListener("touchcancel", () => {
+    if (!normalTouchSwipe) return;
+    normalTouchSwipe = null;
+    releaseBlockedPush();
+  }, { capture:true });
+
   let swipe = null;
   pieceLayer.addEventListener("dragstart", event => event.preventDefault());
 
   board.addEventListener("pointerdown", event => {
-    if (firstPersonMode || phoneZenTouchPointer(event)) return;
+    if (firstPersonMode || phoneZenTouchPointer(event) ||
+        (event.pointerType === "touch" && standardTouchGameplay())) return;
     ensureAudio();
     swipe = { x: event.clientX, y: event.clientY, id: event.pointerId, triggered: false };
     board.setPointerCapture?.(event.pointerId);
   });
   board.addEventListener("pointermove", event => {
-    if (firstPersonMode || phoneZenTouchPointer(event)) return;
+    if (firstPersonMode || phoneZenTouchPointer(event) ||
+        (event.pointerType === "touch" && standardTouchGameplay())) return;
     if (!swipe || swipe.id !== event.pointerId || swipe.triggered) return;
     const dx = event.clientX - swipe.x;
     const dy = event.clientY - swipe.y;
@@ -13112,7 +13178,8 @@
     else move(0, dy > 0 ? 1 : -1, true);
   });
   board.addEventListener("pointerup", event => {
-    if (firstPersonMode || phoneZenTouchPointer(event)) return;
+    if (firstPersonMode || phoneZenTouchPointer(event) ||
+        (event.pointerType === "touch" && standardTouchGameplay())) return;
     if (!swipe || swipe.id !== event.pointerId) return;
     const dx = event.clientX - swipe.x;
     const dy = event.clientY - swipe.y;
