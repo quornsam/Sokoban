@@ -1,4 +1,4 @@
-/* BOXXY v501 — Rainbow Mode demonstration uses the real board and Indi sprites. */
+/* BOXXY v502 — calmer Rainbow showcase and fly-to-help dismissal. */
 .rainbow-intro-modal{z-index:12010}
 .rainbow-intro-card{
   width:min(840px,calc(100vw - 24px));
@@ -26,7 +26,7 @@
   flex:none;
   touch-action:auto;
 }
-.rainbow-demo-box, .rainbow-demo-indi{transition:left .15s linear,top .15s linear}
+.rainbow-demo-box, .rainbow-demo-indi{transition:left .25s linear,top .25s linear}
 .rainbow-intro-copy{
   max-width:690px;
   text-align:center;

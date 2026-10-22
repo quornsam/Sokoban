@@ -1,4 +1,4 @@
-/* BOXXY v501 — first Rainbow Daily introduction; independent of scoring/gameplay. */
+/* BOXXY v502 — smoother Rainbow demonstration and fly-to-help dismissal. */
 (() => {
   "use strict";
 
@@ -11,8 +11,8 @@
     "#############"
   ]);
   const ROUTE = "RRRRRRRRurrdLLLLLLLLdllu";
-  // Matches the existing Konami showcase's 220 ms normal-speed playback.
-  const STEP_MS = 220;
+  // A calmer pace gives coloured box sprites time to remain visually legible.
+  const STEP_MS = 360;
   const COLOURS = window.BoxxyGoalColours;
   if (!COLOURS?.decodeTextChar || !COLOURS?.spritePath) return;
 
@@ -29,6 +29,7 @@
   let runId = 0;
   let splashObserver = null;
   let pendingOpen = false;
+  let closing = false;
   const targets = new Map();
   const walls = new Set();
   const posKey = (x, y) => `${x},${y}`;
@@ -76,7 +77,8 @@
       : `url("${path}")`;
   }
   function setIndiFrame(mode, facing) {
-    indi.src = framePath(mode, facing);
+    const src = framePath(mode, facing);
+    if (indi.getAttribute("src") !== src) indi.src = src;
   }
   function resetDemo() {
     player = { x: 1, y: 2 };
@@ -116,17 +118,21 @@
       if (modal?.hidden || step !== thisStep) return;
       figure.classList.remove("push", "walk");
       setIndiFrame("player", delta.facing);
-    }, Math.min(STEP_MS - 30, 190));
+    }, Math.round(STEP_MS * 0.78));
   }
   function stop() {
     clearInterval(timer);
     timer = 0;
     runId += 1;
   }
+  const spriteCache = new Map();
   function loadSprite(path) {
     return new Promise(resolve => {
+      // Retain preloaded images and decode them before the first colour change.
       const img = new Image();
+      spriteCache.set(path, img);
       let done = false;
+      let decoding = false;
       const timeout = window.setTimeout(() => finish(false), 6000);
       function finish(ok) {
         if (done) return;
@@ -135,10 +141,20 @@
         img.onload = img.onerror = null;
         resolve({ path, ok });
       }
-      img.onload = () => finish(img.naturalWidth > 0);
+      async function loaded() {
+        if (done || decoding) return;
+        decoding = true;
+        if (typeof img.decode === "function") {
+          try { await img.decode(); } catch (_) { /* The loaded image may still render. */ }
+        }
+        finish(img.naturalWidth > 0);
+      }
+      img.onload = loaded;
       img.onerror = () => finish(false);
       img.src = path;
-      if (img.complete) queueMicrotask(() => { if (img.complete) finish(img.naturalWidth > 0); });
+      if (img.complete) queueMicrotask(() => {
+        if (img.complete) (img.naturalWidth > 0 ? loaded() : finish(false));
+      });
     });
   }
   const preloadPaths = [defaultBox];
@@ -235,16 +251,53 @@
       }
     }, { capture: true });
   }
-  function close() {
-    if (!modal || modal.hidden) return;
+  async function close() {
+    if (!modal || modal.hidden || closing) return;
+    closing = true;
     stop();
     markSeen();
-    modal.hidden = true;
-    modal.setAttribute("aria-hidden", "true");
-    document.body.classList.remove("rainbow-intro-open");
-    lastFocus?.focus?.({ preventScroll: true });
+    const help = document.getElementById("howToPlayBtn");
+    const card = modal.querySelector(".rainbow-intro-card");
+    const from = card?.getBoundingClientRect();
+    const to = help?.getBoundingClientRect();
+    // Uses the existing medal-to-cabinet approach: translate and scale the
+    // visible item towards its destination. Do not animate if ? is offscreen.
+    const canFly = card?.animate && from?.width > 0 && to?.width > 0 &&
+      to.height > 0 && to.right > 0 && to.bottom > 0 &&
+      to.left < innerWidth && to.top < innerHeight &&
+      !window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    try {
+      if (canFly) {
+        const dx = to.left + to.width / 2 - from.left - from.width / 2;
+        const dy = to.top + to.height / 2 - from.top - from.height / 2;
+        const scale = Math.min(to.width / from.width, to.height / from.height);
+        if (Number.isFinite(dx) && Number.isFinite(dy) && scale > 0) {
+          // Cancel only the card's entry animation, not unrelated animations.
+          card.getAnimations().forEach(animation => animation.cancel());
+          const flight = card.animate([
+            { transform: "translate(0,0) scale(1)", opacity: 1 },
+            { transform: `translate(${dx}px, ${dy}px) scale(${scale})`, opacity: 0.15 }
+          ], { duration: 560, easing: "cubic-bezier(.22,.8,.25,1)", fill: "forwards" });
+          const shade = modal.animate([
+            { backgroundColor: "rgba(18,18,20,.66)" },
+            { backgroundColor: "rgba(18,18,20,0)" }
+          ], { duration: 560, easing: "ease-out", fill: "forwards" });
+          await Promise.all([flight.finished, shade.finished].map(p => p.catch(() => {})));
+          flight.cancel();
+          shade.cancel();
+        }
+      }
+    } finally {
+      modal.hidden = true;
+      modal.setAttribute("aria-hidden", "true");
+      document.body.classList.remove("rainbow-intro-open");
+      closing = false;
+      const focusTarget = help?.isConnected ? help : lastFocus;
+      focusTarget?.focus?.({ preventScroll: true });
+    }
   }
   function open() {
+    if (closing) return;
     createModal();
     stop();
     lastFocus = document.activeElement;
@@ -289,7 +342,7 @@
     if (window.BOXXY_ACTIVE_RAINBOW_DAILY && !seen()) open();
   }
   function onRainbowDailyOpened() {
-    if (seen() || (modal && !modal.hidden)) return;
+    if (closing || seen() || (modal && !modal.hidden)) return;
     openWhenSplashClears();
   }
 
