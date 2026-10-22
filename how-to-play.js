@@ -448,6 +448,13 @@
     copy.appendChild(el("span", "tutorial-step-label", `${slides.length} / ${slides.length}`));
     copy.appendChild(el("h3", "", "READY TO PLAY"));
     copy.appendChild(el("p", "", slide.copy));
+    const rainbowButton = el("button", "tutorial-rainbow-review", "SEE HOW RAINBOW MODE WORKS");
+    rainbowButton.type = "button";
+    rainbowButton.addEventListener("click", () => {
+      dismissTutorial();
+      window.BoxxyRainbowIntro?.open();
+    });
+    copy.appendChild(rainbowButton);
     final.append(art, copy);
     stage.appendChild(final);
     nextButton.disabled = false;

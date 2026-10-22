@@ -312,6 +312,8 @@ const ASSETS = [
   "/daily-puzzles/boxxy-daily-puzzles.js",
   "/how-to-play.css",
   "/how-to-play.js",
+  "/rainbow-intro.css",
+  "/rainbow-intro.js",
   OFFLINE_ENTRY,
   "/legal.html",
   "/legal.js",

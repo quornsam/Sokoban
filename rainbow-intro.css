@@ -1,0 +1,57 @@
+/* BOXXY v502 — calmer Rainbow showcase and fly-to-help dismissal. */
+.rainbow-intro-modal{z-index:12010}
+.rainbow-intro-card{
+  width:min(840px,calc(100vw - 24px));
+  height:auto;
+  min-height:0;
+  max-height:calc(100dvh - 24px);
+  grid-template-rows:auto minmax(0,1fr) auto;
+}
+.rainbow-intro-head{grid-template-columns:1fr;min-height:64px}
+.rainbow-intro-head .how-to-play-title h2{font-size:clamp(21px,3.2vw,34px);line-height:1}
+.rainbow-intro-content{
+  display:grid;
+  align-content:center;
+  justify-items:center;
+  gap:clamp(15px,3dvh,26px);
+  min-width:0;
+  min-height:0;
+  overflow:auto;
+  padding:clamp(14px,3vw,28px);
+}
+.rainbow-demo-board{
+  width:min(100%,710px);
+  height:auto;
+  max-height:none;
+  flex:none;
+  touch-action:auto;
+}
+.rainbow-demo-box, .rainbow-demo-indi{transition:left .25s linear,top .25s linear}
+.rainbow-intro-copy{
+  max-width:690px;
+  text-align:center;
+  margin:0;
+  font-size:clamp(14px,2.1vw,21px);
+  line-height:1.4;
+  font-weight:750;
+}
+.rainbow-intro-foot{display:flex;justify-content:center}
+.rainbow-intro-ack{width:min(100%,560px);min-width:0;font-size:clamp(11px,1.65vw,14px)!important}
+body.rainbow-intro-open{overflow:hidden}
+@media(max-width:600px){
+  .rainbow-intro-card{width:calc(100vw - 12px);max-height:calc(100dvh - 12px)}
+  .rainbow-intro-modal{padding:6px}
+  .rainbow-intro-content{padding:14px 8px;gap:17px}
+  .rainbow-intro-head{padding:12px 12px 11px 17px}
+  .rainbow-intro-copy{font-size:14px}
+  .rainbow-intro-foot{padding:10px}
+  .rainbow-intro-ack{white-space:normal;line-height:1.3;min-height:48px}
+}
+@media(max-height:520px){
+  .rainbow-intro-head{min-height:48px;padding-block:7px}
+  .rainbow-intro-content{padding:8px;gap:8px}
+  .rainbow-demo-board{width:min(100%,420px)}
+  .rainbow-intro-copy{font-size:13px}
+  .rainbow-intro-foot{padding:7px}
+  .rainbow-intro-ack{min-height:36px}
+}

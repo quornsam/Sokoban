@@ -1233,3 +1233,20 @@ body.how-to-play-open{overflow:hidden}
     margin-bottom:9px;
   }
 }
+
+/* Rainbow demonstration is available again from the end of the standard tutorial. */
+.tutorial-rainbow-review{
+  display:block;
+  width:100%;
+  margin-top:18px;
+  padding:11px 12px;
+  border:2px solid var(--ink);
+  background:var(--yellow);
+  color:var(--ink);
+  font-size:clamp(10px,1.4vw,13px);
+  font-weight:950;
+  cursor:pointer;
+  box-shadow:3px 3px 0 var(--ink);
+}
+.tutorial-rainbow-review:focus-visible{outline:3px solid var(--blue);outline-offset:3px}
+@media (max-width:600px){.tutorial-rainbow-review{margin-top:10px;padding:8px 10px;font-size:10px}}
