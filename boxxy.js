@@ -3321,6 +3321,7 @@
     sharedPuzzleName = isShared ? String(options.sharedName || "") : "";
     dailyMode = isDaily;
     dailyPuzzle = isDaily ? (options.dailyPuzzle || null) : null;
+    window.BOXXY_ACTIVE_RAINBOW_DAILY = Boolean(isDaily && dailyPuzzle?.rainbowMode);
     dailyScoringEnabled = next === GAMEPLAY_CONTEXT.DAILY
       && Boolean(dailyPuzzle)
       && !DAILY_PREVIEW_MODE
@@ -10473,6 +10474,14 @@
         levelName: String(puzzle.date || "Daily Boxxy")
       });
       captureBoxxyAnalytics("daily_puzzle_started", currentLevelAnalytics());
+    }
+    if (puzzle.rainbowMode) {
+      // On a Daily opened after startup, the splash-screen asset check has
+      // already finished. Reuse its loader for this puzzle's coloured artwork.
+      void Promise.all(currentBoardAssetPaths().map(ensureBoardAsset)).then(() => {
+        if (dailyMode && dailyPuzzle?.date === puzzle.date) refreshBoardArtwork();
+      });
+      window.dispatchEvent(new CustomEvent("boxxyrainbowdailyopened"));
     }
     return true;
   }
