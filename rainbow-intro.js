@@ -1,4 +1,4 @@
-/* BOXXY v502 — smoother Rainbow demonstration and fly-to-help dismissal. */
+/* BOXXY v504 — continuous Rainbow pushing poses and brief end pauses. */
 (() => {
   "use strict";
 
@@ -13,6 +13,9 @@
   const ROUTE = "RRRRRRRRurrdLLLLLLLLdllu";
   // A calmer pace gives coloured box sprites time to remain visually legible.
   const STEP_MS = 360;
+  const END_PAUSE_MS = 500;
+  // The eight rightward pushes end at step 8; the eight leftward pushes at 20.
+  const PUSH_ENDS = new Set([8, 20]);
   const COLOURS = window.BoxxyGoalColours;
   if (!COLOURS?.decodeTextChar || !COLOURS?.spritePath) return;
 
@@ -90,18 +93,21 @@
     setIndiFrame("player", "front");
   }
   function advance() {
-    if (!modal || modal.hidden || document.hidden) return;
+    if (!modal || modal.hidden) return;
+    if (document.hidden) {
+      timer = window.setTimeout(advance, STEP_MS);
+      return;
+    }
     if (step === ROUTE.length) resetDemo();
     const command = ROUTE[step++];
     const delta = directions[command.toLowerCase()];
-    if (!delta) return;
+    if (!delta) { stop(); return; }
     const next = { x: player.x + delta.x, y: player.y + delta.y };
-    const nextKey = posKey(next.x, next.y);
-    if (walls.has(nextKey)) return;
+    if (walls.has(posKey(next.x, next.y))) { stop(); return; }
     const pushing = next.x === crate.x && next.y === crate.y;
     if (pushing) {
       const destination = { x: crate.x + delta.x, y: crate.y + delta.y };
-      if (walls.has(posKey(destination.x, destination.y))) return;
+      if (walls.has(posKey(destination.x, destination.y))) { stop(); return; }
       crate = destination;
       positionPiece(piece, crate.x, crate.y);
       setBoxColour();
@@ -112,16 +118,24 @@
     figure.classList.toggle("push", pushing);
     figure.classList.toggle("walk", !pushing);
     setIndiFrame(pushing ? "push" : "walk", delta.facing);
-    // Reset the transient push/walk pose without replacing the pieces or artwork.
-    const thisStep = step;
-    window.setTimeout(() => {
-      if (modal?.hidden || step !== thisStep) return;
-      figure.classList.remove("push", "walk");
-      setIndiFrame("player", delta.facing);
-    }, Math.round(STEP_MS * 0.78));
+    const atEnd = pushing && PUSH_ENDS.has(step);
+    // Retain the push sprite across consecutive pushes rather than briefly
+    // switching to a standing sprite between each coloured target.
+    // Standing poses still appear during normal walking and at each end pause.
+    if (!pushing || atEnd) {
+      const thisStep = step;
+      const token = runId;
+      window.setTimeout(() => {
+        if (token !== runId || modal?.hidden || step !== thisStep) return;
+        figure.classList.remove("push", "walk");
+        setIndiFrame("player", delta.facing);
+      }, Math.round(STEP_MS * 0.78));
+    }
+    // One timer owns playback; each end receives an additional 500 ms rest.
+    timer = window.setTimeout(advance, STEP_MS + (atEnd ? END_PAUSE_MS : 0));
   }
   function stop() {
-    clearInterval(timer);
+    window.clearTimeout(timer);
     timer = 0;
     runId += 1;
   }
@@ -320,7 +334,7 @@
         if (art) art.style.backgroundImage = `radial-gradient(circle, ${COLOURS.PALETTE[colour].hex} 0 39%, white 40% 48%, #262626 49% 55%, transparent 56%)`;
       });
       // Start with all sprite colours preloaded, avoiding flashes as the box moves.
-      timer = window.setInterval(advance, STEP_MS);
+      timer = window.setTimeout(advance, STEP_MS);
     });
   }
   function openWhenSplashClears() {
