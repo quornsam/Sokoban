@@ -768,22 +768,26 @@
       const ownTime = bestDailyStat([record.bestMovesSeconds]);
       const matchedFastest = Number(record.leaderboardMoves) === moves
         ? bestDailyStat([record.leaderboardSeconds]) : null;
-      return ownTime !== null
-        ? {
-            seconds: ownTime,
-            device: cleanDailyLeaderboardDevice(record.bestMovesDevice),
-            mouseOrClickPush: record.bestMovesMouseOrClickPush === true,
-            instantMove: record.bestMovesInstantMove === true
-          }
-        : matchedFastest !== null
-          ? {
-              seconds: matchedFastest,
-              device: cleanDailyLeaderboardDevice(record.leaderboardDevice),
-              mouseOrClickPush: false,
-              instantMove: false
-            }
-          : null;
-    }).filter(Boolean).sort((a,b) => a.seconds-b.seconds)[0];
+      return [
+        ...(ownTime !== null ? [{
+          seconds: ownTime,
+          device: cleanDailyLeaderboardDevice(record.bestMovesDevice),
+          mouseOrClickPush: record.bestMovesMouseOrClickPush === true,
+          instantMove: record.bestMovesInstantMove === true
+        }] : []),
+        ...(record.leaderboardTracked === true && matchedFastest !== null ? [{
+          seconds: matchedFastest,
+          device: cleanDailyLeaderboardDevice(record.leaderboardDevice),
+          mouseOrClickPush: false,
+          instantMove: false
+        }] : [])
+      ];
+    }).flat().sort((a,b) => {
+      // A legitimate tied-moves run must not be displaced by a faster assisted run.
+      const eligible = run => !run.mouseOrClickPush && !run.instantMove
+        && (moves <= 1 || (moves - 1) / run.seconds <= 15);
+      return Number(eligible(b)) - Number(eligible(a)) || a.seconds - b.seconds;
+    })[0];
     if (moveRun) {
       merged.bestMovesSeconds = moveRun.seconds;
       if (moveRun.device) merged.bestMovesDevice = moveRun.device;

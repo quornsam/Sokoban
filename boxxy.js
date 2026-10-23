@@ -2037,9 +2037,18 @@
     const fewestMoves = dailyBestNumber([previous?.moves, attempt.moves], { allowZero: true });
     const fewestPushes = dailyBestNumber([previous?.pushes, attempt.pushes], { allowZero: true });
     const previousBestMovesTime = dailyBestNumber([previous?.bestMovesSeconds]);
+    // Among runs tied on fewest moves, retain the fastest eligible time.
+    // Mouse/Click Push, Instant Move and implausibly fast runs still count for moves.
+    const attemptTimeEligible = result.mouseOrClickPushUsed !== true && result.instantMoveUsed !== true
+      && attempt.seconds > 0 && (attempt.moves <= 1 || (attempt.moves - 1) / attempt.seconds <= DAILY_MAX_PUBLIC_MOVES_PER_SECOND);
+    const previousTimeEligible = previousBestMovesTime !== null
+      && previous?.bestMovesMouseOrClickPush !== true && previous?.bestMovesInstantMove !== true
+      && (fewestMoves <= 1 || (fewestMoves - 1) / previousBestMovesTime <= DAILY_MAX_PUBLIC_MOVES_PER_SECOND);
     const improvedMovesRun = attempt.moves === fewestMoves && (
       dailyBestNumber([previous?.moves], { allowZero: true }) !== fewestMoves
-      || previousBestMovesTime === null || attempt.seconds < previousBestMovesTime
+      || previousBestMovesTime === null
+      || (attemptTimeEligible && !previousTimeEligible)
+      || (attemptTimeEligible === previousTimeEligible && attempt.seconds < previousBestMovesTime)
     );
     completions[key] = {
       ...previous,
@@ -5370,6 +5379,17 @@
     }
     const usernameKey = String(localEntry.username || "").trim().toLocaleLowerCase();
     if (!usernameKey) return sortDailyLeaderboardEntries(values, mode);
+    const serverEntry = values.find(item => String(item?.username || "").trim().toLocaleLowerCase() === usernameKey);
+    if (mode === "moves" && serverEntry) {
+      // Don't let a stale local assisted result hide a legitimate D1 history time.
+      const serverMoves = serverEntry.bestMoves ?? Infinity;
+      const localMoves = localEntry.bestMoves ?? Infinity;
+      if (serverMoves < localMoves || (serverMoves === localMoves
+        && serverEntry.bestMovesSeconds !== null
+        && (localEntry.bestMovesSeconds === null || serverEntry.bestMovesSeconds <= localEntry.bestMovesSeconds))) {
+        return sortDailyLeaderboardEntries(values, mode);
+      }
+    }
     const merged = values.filter(item => String(item?.username || "").trim().toLocaleLowerCase() !== usernameKey);
     merged.push(localEntry);
     return sortDailyLeaderboardEntries(merged, mode);
@@ -5496,9 +5516,16 @@
     const instantMoveRun = result.bestMovesInstantMove === true;
     const movesPerSecond = Number.isFinite(rawBestMovesSeconds) && rawBestMovesSeconds > 0 && bestMoves !== null && bestMoves > 1
       ? (bestMoves - 1) / rawBestMovesSeconds : 0;
-    const bestMovesSeconds = Number.isFinite(rawBestMovesSeconds) && rawBestMovesSeconds > 0
-      && !mouseOrClickPushRun && !instantMoveRun && movesPerSecond <= DAILY_MAX_PUBLIC_MOVES_PER_SECOND
-      ? Math.round(rawBestMovesSeconds * 100) / 100 : null;
+    const savedEligible = Number.isFinite(rawBestMovesSeconds) && rawBestMovesSeconds > 0
+      && !mouseOrClickPushRun && !instantMoveRun && movesPerSecond <= DAILY_MAX_PUBLIC_MOVES_PER_SECOND;
+    const trackedSeconds = Number(result.leaderboardSeconds);
+    const trackedEligible = result.leaderboardTracked === true && Number(result.leaderboardMoves) === bestMoves
+      && Number.isFinite(trackedSeconds) && trackedSeconds > 0;
+    const candidates = [
+      ...(savedEligible ? [{ seconds: rawBestMovesSeconds, device: result.bestMovesDevice }] : []),
+      ...(trackedEligible ? [{ seconds: trackedSeconds, device: result.leaderboardDevice }] : [])
+    ].sort((a,b) => a.seconds - b.seconds);
+    const bestMovesSeconds = candidates.length ? Math.round(candidates[0].seconds * 100) / 100 : null;
     if (seconds === null && bestMoves === null) return null;
     return {
       username,
@@ -5506,7 +5533,7 @@
       moves,
       bestMoves,
       bestMovesSeconds,
-      bestMovesDevice:bestMovesSeconds !== null ? normaliseDailyLeaderboardDevice(result.bestMovesDevice) : null,
+      bestMovesDevice:candidates.length ? normaliseDailyLeaderboardDevice(candidates[0].device) : null,
       device:normaliseDailyLeaderboardDevice(result.leaderboardDevice),
       avatar:window.CharacterStyler?.style || null
     };

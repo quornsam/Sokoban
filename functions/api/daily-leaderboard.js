@@ -180,36 +180,37 @@ export async function onRequestGet(context) {
           END AS leaderboard_device
         FROM daily_records
       )
-      , real_scores AS (
+      , real_candidates AS (
         SELECT d.user_id AS player_id, 'real' AS player_kind,
           d.username, d.avatar_json, d.seconds, d.moves, d.best_moves, d.leaderboard_device,
           CASE WHEN d.leaderboard_webdriver_detected = 1 THEN 1 ELSE 0 END AS webdriver_detected,
-          CASE WHEN d.best_moves_webdriver_detected = 1 THEN 1 ELSE 0 END AS best_moves_run_webdriver_detected,
-          CASE WHEN d.best_moves_seconds > 0 AND d.best_moves_mouse_or_click_push = 1 THEN 1 ELSE 0 END
-            AS best_moves_run_mouse_or_click_push,
-          CASE WHEN d.best_moves_seconds > 0 AND d.best_moves_instant_move = 1 THEN 1 ELSE 0 END
-            AS best_moves_run_instant_move,
-          COALESCE(
-            CASE WHEN d.best_moves_seconds > 0 THEN d.best_moves_seconds END,
-            CASE WHEN d.best_moves = d.moves THEN d.seconds END,
-            h.seconds
-          ) AS best_moves_run_seconds,
-          COALESCE(
-            CASE WHEN d.best_moves_seconds > 0 THEN NULLIF(d.best_moves_device,'') END,
-            CASE WHEN d.best_moves = d.moves AND
-              (d.best_moves_seconds IS NULL OR d.best_moves_seconds <= 0 OR
-               ABS(d.best_moves_seconds - d.seconds) < 0.015)
-              THEN NULLIF(d.leaderboard_device,'') END
-          ) AS saved_moves_device,
-          h.seconds AS history_seconds, NULLIF(h.device,'') AS history_device
+          h.seconds AS history_seconds, NULLIF(h.device,'') AS history_device,
+          h.webdriver_detected AS history_webdriver_detected,
+          CASE WHEN d.best_moves_seconds > 0 AND COALESCE(d.best_moves_mouse_or_click_push,0) = 0
+            AND COALESCE(d.best_moves_instant_move,0) = 0
+            AND (d.best_moves <= 1 OR (d.best_moves - 1.0) / d.best_moves_seconds <= ${MAX_PUBLIC_MOVES_PER_SECOND})
+            THEN d.best_moves_seconds END AS saved_seconds,
+          NULLIF(d.best_moves_device,'') AS saved_device,
+          d.best_moves_webdriver_detected AS saved_webdriver_detected,
+          CASE WHEN d.best_moves = d.moves THEN d.seconds END AS tracked_seconds,
+          NULLIF(d.leaderboard_device,'') AS tracked_device,
+          d.leaderboard_webdriver_detected AS tracked_webdriver_detected
         FROM daily_times d
-        -- One indexed lookup selects an actual completed run; its time and
-        -- device must always come from that same run.
+        -- Find the fastest eligible run with exactly the player's fewest moves.
+        -- A saved assisted personal-best time must not hide a separate valid run.
         LEFT JOIN level_attempt_history h ON h.id = (
           SELECT run.id FROM level_attempt_history run
           WHERE run.user_id = d.user_id AND run.pack_id = 'daily-boxxy'
             AND run.level_token = ? AND run.completed = 1 AND run.assisted = 0
             AND run.moves = d.best_moves AND run.seconds > 0
+            AND run.mouse_or_click_push = 0 AND run.instant_move = 0
+            AND (run.moves <= 1 OR (run.moves - 1.0) / run.seconds <= ${MAX_PUBLIC_MOVES_PER_SECOND})
+            -- Historical runs predating per-attempt control flags can appear unassisted.
+            -- Do not relabel the exact run explicitly flagged in the saved record.
+            AND NOT (
+              (COALESCE(d.best_moves_mouse_or_click_push,0) = 1 OR COALESCE(d.best_moves_instant_move,0) = 1)
+              AND COALESCE(d.best_moves_seconds,0) > 0 AND ABS(run.seconds - d.best_moves_seconds) < 0.015
+            )
           ORDER BY run.seconds ASC, run.started_at ASC, run.id ASC LIMIT 1
         )
         WHERE
@@ -230,15 +231,22 @@ export async function onRequestGet(context) {
               AND ABS(((d.leaderboard_completed_at - d.leaderboard_started_at) / 1000.0) - d.seconds) <= ?
             )
           )
+      ), real_best AS (
+        SELECT c.*, MIN(COALESCE(c.history_seconds, 1.0e99),
+          COALESCE(c.saved_seconds, 1.0e99), COALESCE(c.tracked_seconds, 1.0e99)) AS winning_seconds
+        FROM real_candidates c
       ), real_paired AS (
         SELECT player_id, player_kind, username, avatar_json, seconds, moves, best_moves, leaderboard_device,
-          webdriver_detected, best_moves_run_webdriver_detected,
-          best_moves_run_seconds, best_moves_run_mouse_or_click_push, best_moves_run_instant_move,
-          COALESCE(saved_moves_device,
-            CASE WHEN history_seconds > 0
-              AND ABS(best_moves_run_seconds - history_seconds) < 0.015
-              THEN history_device END) AS best_moves_run_device
-        FROM real_scores
+          webdriver_detected,
+          CASE WHEN winning_seconds = history_seconds THEN COALESCE(history_webdriver_detected,0)
+            WHEN winning_seconds = saved_seconds THEN COALESCE(saved_webdriver_detected,0)
+            ELSE COALESCE(tracked_webdriver_detected,0) END AS best_moves_run_webdriver_detected,
+          NULLIF(winning_seconds, 1.0e99) AS best_moves_run_seconds,
+          CASE WHEN winning_seconds = history_seconds THEN history_device
+            WHEN winning_seconds = saved_seconds THEN saved_device
+            WHEN winning_seconds = tracked_seconds THEN tracked_device END AS best_moves_run_device,
+          0 AS best_moves_run_mouse_or_click_push, 0 AS best_moves_run_instant_move
+        FROM real_best
       ), synthetic_scores AS (
         SELECT s.user_id AS player_id, 'synthetic' AS player_kind,
           u.username AS username, NULLIF(u.avatar_json,'') AS avatar_json, s.seconds AS seconds, s.moves AS moves,
