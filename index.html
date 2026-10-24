@@ -163,7 +163,7 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=499">
+<link rel="stylesheet" href="styles.css?v=505">
 <link rel="stylesheet" href="how-to-play.css?v=501">
 <link rel="stylesheet" href="rainbow-intro.css?v=502">
 <link rel="preload" as="image" href="assets/board/boxes/box-default-yellow.png?v=226">
@@ -234,6 +234,7 @@
         <div id="goalLayer" class="layer"></div>
         <div id="mouseSupportLayer" class="layer mouse-support-layer" hidden aria-hidden="true"></div>
         <div id="pieceLayer" class="layer"></div>
+        <div id="dailyGhostLayer" class="layer" aria-hidden="true"></div>
         <div id="celebration" class="celebration" aria-hidden="true"></div>
       </div>
       <div class="desktop-board-actions" aria-label="Desktop puzzle actions">
@@ -1007,6 +1008,7 @@
         <div id="dailyCompletionActions" class="completion-action-set daily-completion-actions" hidden>
           <button id="dailyCompletePackBtn" class="complete-primary daily-complete-choice daily-complete-pack-choice" type="button"><span>LEVEL PACK SELECTOR</span><b aria-hidden="true">→</b></button>
           <button id="dailyCompleteArchiveBtn" class="complete-primary daily-complete-choice daily-complete-archive-choice" type="button"><span>DAILY BOXXYS</span><b aria-hidden="true">→</b></button>
+          <button id="dailyGhostRaceBtn" class="complete-primary daily-complete-choice daily-ghost-race-choice" type="button" hidden><span>PLAY AGAINST YOUR OWN GHOST — BETA MODE</span><b aria-hidden="true">↻</b></button>
         </div>
         <div id="standardCompletionActions" class="completion-action-set standard-completion-actions">
           <button id="nextBtn" class="complete-primary"><span>NEXT LEVEL</span><b aria-hidden="true">→</b></button>
@@ -1654,7 +1656,7 @@
 <script src="starry-night.js?v=302"></script>
 <script src="static-noise.js?v=476"></script>
 <script src="four-leaf-clover.js?v=482"></script>
-<script src="boxxy.js?v=503"></script>
+<script src="boxxy.js?v=505"></script>
 <script src="attempt-history.js?v=492"></script>
 <script src="attempt-history-ui.js?v=484"></script>
 <script src="account.js?v=503"></script>

@@ -4790,6 +4790,9 @@ body.maker-editor-fullscreen{overflow:hidden}
 
 .complete-card.daily-complete .complete-actions{width:min(620px,100%)}
 .daily-complete-choice{width:100%;min-width:0}
+.daily-ghost-race-choice{grid-column:1/-1;background:#38586b;color:white;box-shadow:6px 6px 0 var(--yellow)}
+.daily-ghost-race-choice b{background:white;color:#38586b}
+.daily-ghost-race-choice[hidden]{display:none!important}
 .daily-complete-pack-choice{background:var(--ink);color:#fff;box-shadow:6px 6px 0 var(--red)}
 .daily-complete-archive-choice{background:var(--green);color:#fff;box-shadow:6px 6px 0 var(--yellow)}
 .daily-complete-archive-choice b{background:#fff;color:var(--green)}
@@ -8635,3 +8638,9 @@ html.touch-ui .dpad button {touch-action:none;-webkit-touch-callout:none;-webkit
 /* v491: short, unobtrusive flight from earned medal to cabinet. */
 .medal-award-flight{position:fixed;z-index:20000;pointer-events:none;object-fit:contain;transform-origin:center center;filter:drop-shadow(2px 2px 0 rgba(23,23,25,.2))}
 
+
+/* Daily ghost beta: independent, non-interactive replay layer. */
+#dailyGhostLayer{z-index:3050;overflow:visible;pointer-events:none}
+#dailyGhostLayer .daily-ghost-player{pointer-events:none!important;opacity:.44;transition:left var(--boxxy-ghost-step-ms,.17s) linear,top var(--boxxy-ghost-step-ms,.17s) linear;filter:grayscale(1)}
+#dailyGhostLayer .daily-ghost-player::before{display:none}
+#dailyGhostLayer .daily-ghost-player img{pointer-events:none}
