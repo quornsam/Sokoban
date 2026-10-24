@@ -1,3 +1,4 @@
+/* BOXXY v506: cache The Staircase pack, artwork, medal and updated published catalogue. */
 /* BOXXY v499: keep Zen board centring inside a control-aware HUD viewport. */
 /* BOXXY v498: Zen HUD spacing experiment superseded by v499 centring restoration. */
 /* BOXXY v497: touch swipe-anywhere outside Zen and tap-to-dismiss fullscreen hint. */
@@ -102,6 +103,7 @@ const ASSETS = [
   "/attempt-history.css",
   "/static-noise.js",
   "/four-leaf-clover.js",
+  "/the-staircase.js",
   "/starry-night.js",
   "/assets/data/release.js",
   "/assets/data/content-catalog.js",
@@ -254,6 +256,9 @@ const ASSETS = [
   "/assets/pack-art/four-leaf-clover-mobile.webp",
   "/assets/pack-art/starry-night-banner.webp",
   "/assets/pack-art/starry-night-mobile.webp",
+  "/assets/pack-art/the-staircase-banner.webp",
+  "/assets/pack-art/the-staircase-mobile.webp",
+  "/assets/medals/the-staircase.png",
   "/assets/medals/static-noise-tv.png",
   "/assets/medals/four-leaf-clover.png",
   "/assets/medals/boxxy-medal-2026-08.png",

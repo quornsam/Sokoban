@@ -4054,16 +4054,18 @@
     ],
     moon: PACK_STARRY_NIGHT_AWARD_MESSAGES,
     television: [packName => `An old-school television medal has been added to your BOXXY trophy cabinet for completing “${packName}”.`],
-    clover: [packName => `A four-leaf clover medal has been added to your BOXXY trophy cabinet for completing “${packName}”.`]
+    clover: [packName => `A four-leaf clover medal has been added to your BOXXY trophy cabinet for completing “${packName}”.`],
+    staircase: [packName => `Your Staircase medal has been added to your BOXXY trophy cabinet for completing “${packName}”.`]
   });
   const PACK_AWARD_ARIA_LABELS = Object.freeze({
     jigsaw: "Pack completion jigsaw puzzle piece awarded",
     alphabet: "Pack completion A badge awarded",
     moon: "Pack completion crescent moon badge awarded",
     television: "Pack completion television medal awarded",
-    clover: "Pack completion four-leaf clover medal awarded"
+    clover: "Pack completion four-leaf clover medal awarded",
+    staircase: "Pack completion Staircase medal awarded"
   });
-  const lastPackAwardMessage = { star: -1, jigsaw: -1, alphabet: -1, moon: -1, television: -1, clover: -1 };
+  const lastPackAwardMessage = { star: -1, jigsaw: -1, alphabet: -1, moon: -1, television: -1, clover: -1, staircase: -1 };
 
   function packRewardKind(pack) {
     return String(packRewardDefinition(pack)?.kind || (pack?.id === JIGSAW_PACK_ID ? "jigsaw" : "star"));

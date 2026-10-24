@@ -56,6 +56,12 @@
       collectionLabel: "Four Leaf Clover", headerHtml: "FOUR LEAF<br>CLOVER", accent: "black",
       artwork: { desktop: "assets/pack-art/four-leaf-clover-banner.webp", mobile: "assets/pack-art/four-leaf-clover-mobile.webp", alt: "BOXXY character holding a four-leaf clover in a field of clovers" },
       reward: { kind: "clover", src: "assets/medals/four-leaf-clover.png" }
+    },
+    {
+      id: "the-staircase", original: true, name: "The Staircase", levels: 30,
+      collectionLabel: "The Staircase", headerHtml: "THE<br>STAIRCASE", accent: "black",
+      artwork: { desktop: "assets/pack-art/the-staircase-banner.webp", mobile: "assets/pack-art/the-staircase-mobile.webp", alt: "A BOXXY character facing a dark stone staircase lined with wooden crates" },
+      reward: { kind: "staircase", src: "assets/medals/the-staircase.png" }
     }
   ];
 
