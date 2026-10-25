@@ -12364,6 +12364,36 @@
   let keyboardMoveRepeatDelay = 0;
   let keyboardMoveRepeatTimer = 0;
   let keyboardMoveRepeatKey = "";
+  let keyboardUndoRepeatDelay = 0;
+  let keyboardUndoRepeatTimer = 0;
+  let keyboardUndoRepeatKey = "";
+
+  function clearKeyboardUndoRepeat() {
+    window.clearTimeout(keyboardUndoRepeatDelay);
+    window.clearInterval(keyboardUndoRepeatTimer);
+    keyboardUndoRepeatDelay = 0;
+    keyboardUndoRepeatTimer = 0;
+    keyboardUndoRepeatKey = "";
+  }
+
+  function startKeyboardUndo(key) {
+    clearKeyboardUndoRepeat();
+    if (autoplayRunning || !history.length || completed) return;
+    keyboardUndoRepeatKey = key;
+    undo();
+    // Match the existing press-and-hold Undo button without depending on the
+    // laptop/OS key-repeat settings. One keypress still undoes exactly once.
+    keyboardUndoRepeatDelay = window.setTimeout(() => {
+      const repeatUndo = () => {
+        if (autoplayRunning || !history.length || completed) {
+          clearKeyboardUndoRepeat();
+          return;
+        }
+        undo();
+      };
+      keyboardUndoRepeatTimer = window.setInterval(repeatUndo, 105);
+    }, 330);
+  }
 
   function clearKeyboardMoveRepeat() {
     window.clearTimeout(keyboardMoveRepeatDelay);
@@ -12467,7 +12497,7 @@
       startKeyboardMove(event.code || event.key, directionMap[event.key]);
     } else if (event.key === "z" || event.key === "Z" || event.key === "u" || event.key === "U") {
       event.preventDefault();
-      if (!event.repeat) undo();
+      if (!event.repeat) startKeyboardUndo(event.code || event.key);
     } else if (event.key === "Shift") {
       event.preventDefault();
       if (!event.repeat) redo();
@@ -12479,6 +12509,9 @@
   });
 
   document.addEventListener("keyup", event => {
+    if (event.key === "z" || event.key === "Z" || event.key === "u" || event.key === "U") {
+      if (keyboardUndoRepeatKey === (event.code || event.key)) clearKeyboardUndoRepeat();
+    }
     if (!directionMap[event.key]) return;
     if (!keyboardMoveRepeatKey || keyboardMoveRepeatKey === (event.code || event.key)) {
       clearKeyboardMoveRepeat();
@@ -12487,6 +12520,7 @@
   });
   window.addEventListener("blur", () => {
     clearKeyboardMoveRepeat();
+    clearKeyboardUndoRepeat();
     releaseBlockedPush();
   });
 
