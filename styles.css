@@ -7101,8 +7101,11 @@ body.large-level-performance .instruction .thought-text{
 /* v381: mutually exclusive leaderboard sorting, confined to the full Daily modal. */
 .daily-leaderboard-section-head{align-items:center;flex-wrap:wrap}
 .daily-leaderboard-sort{display:grid;justify-items:end;gap:3px;min-width:0}
-.daily-leaderboard-sort-buttons{display:flex;border:2px solid var(--ink);background:#e2d8c9}
+/* Sort is one segmented control: round its outer edge, never the shared seam. */
+.daily-leaderboard-sort-buttons{--boxxy-modal-button-radius:0;display:flex;border:2px solid var(--ink);border-radius:6px;background:#e2d8c9}
 .daily-leaderboard-sort-buttons button{min-height:29px;padding:6px 9px;border:0;background:transparent;color:var(--ink);font-family:inherit;font-size:9px;font-weight:1000;line-height:1;letter-spacing:.035em;white-space:nowrap;cursor:pointer}
+.daily-leaderboard-sort-buttons button:first-child{border-radius:4px 0 0 4px}
+.daily-leaderboard-sort-buttons button:last-child{border-radius:0 4px 4px 0}
 .daily-leaderboard-sort-buttons button+button{border-left:2px solid var(--ink)}
 .daily-leaderboard-sort-buttons button.is-active{background:var(--yellow);box-shadow:inset 0 -3px 0 var(--ink)}
 .daily-leaderboard-sort-buttons button:focus-visible{outline:3px solid var(--blue);outline-offset:2px;position:relative;z-index:1}
