@@ -3143,6 +3143,7 @@
   const dailyLeaderboardActions = document.getElementById("dailyLeaderboardActions");
   const dailyLeaderboardShareBtn = document.getElementById("dailyLeaderboardShareBtn");
   const dailyLeaderboardPlayBtn = document.getElementById("dailyLeaderboardPlayBtn");
+  const dailyLeaderboardGhostBtn = document.getElementById("dailyLeaderboardGhostBtn");
   const dailyLeaderboardPlayLabel = document.getElementById("dailyLeaderboardPlayLabel");
   const dailyLeaderboardStatus = document.getElementById("dailyLeaderboardStatus");
   const dailyLeaderboardPlayerStats = document.getElementById("dailyLeaderboardPlayerStats");
@@ -3207,6 +3208,10 @@
   const dailyCompletePackBtn = document.getElementById("dailyCompletePackBtn");
   const dailyCompleteArchiveBtn = document.getElementById("dailyCompleteArchiveBtn");
   const dailyGhostRaceBtn = document.getElementById("dailyGhostRaceBtn");
+  const dailyGhostConfirmModal = document.getElementById("dailyGhostConfirmModal");
+  const dailyGhostConfirmBestTime = document.getElementById("dailyGhostConfirmBestTime");
+  const dailyGhostConfirmCancel = document.getElementById("dailyGhostConfirmCancel");
+  const dailyGhostConfirmPlay = document.getElementById("dailyGhostConfirmPlay");
   const dailyGhostLayer = document.getElementById("dailyGhostLayer");
   const completeCloseBtn = document.getElementById("completeCloseBtn");
   const nextBtnLabel = nextBtn?.querySelector("span");
@@ -3435,6 +3440,51 @@
   function updateDailyGhostButton(puzzle = dailyPuzzle) {
     if (!dailyGhostRaceBtn) return;
     dailyGhostRaceBtn.hidden = !(dailyScoringAllowedFor(puzzle) && readDailyGhost(puzzle));
+  }
+
+  // A ghost can be selected from the archive even when a different Daily (or
+  // no Daily) is currently loaded. Playback eligibility is checked AFTER the
+  // requested Daily is loaded into the normal scoring context.
+  function availableDailyGhost(puzzle) {
+    return !DAILY_PREVIEW_MODE && !window.BOXXY_PRIVATE_PRACTICE ? readDailyGhost(puzzle) : null;
+  }
+
+  let pendingDailyGhostPuzzle = null;
+  let dailyGhostConfirmReturnButton = null;
+
+  // Both Daily entry points share one confirmation; none changes gameplay until
+  // the player explicitly chooses PLAY YOUR GHOST.
+  function openDailyGhostConfirmation(puzzle, sourceButton) {
+    if (!dailyGhostConfirmModal) return;
+    const ghost = availableDailyGhost(puzzle);
+    if (!ghost) return;
+    pendingDailyGhostPuzzle = puzzle;
+    dailyGhostConfirmReturnButton = sourceButton || null;
+    const personalTime = dailyBestNumber([dailyCompletion(puzzle.date)?.seconds]);
+    if (dailyGhostConfirmBestTime) dailyGhostConfirmBestTime.textContent = formatClockDuration(personalTime ?? ghost.seconds);
+    dailyGhostConfirmModal.hidden = false;
+    dailyGhostConfirmPlay?.focus({ preventScroll:true });
+  }
+
+  function closeDailyGhostConfirmation({ restoreFocus = true } = {}) {
+    if (dailyGhostConfirmModal) dailyGhostConfirmModal.hidden = true;
+    const returnButton = dailyGhostConfirmReturnButton;
+    pendingDailyGhostPuzzle = null;
+    dailyGhostConfirmReturnButton = null;
+    if (restoreFocus && returnButton && !returnButton.hidden) returnButton.focus({ preventScroll:true });
+  }
+
+  function confirmDailyGhostRace() {
+    const puzzle = pendingDailyGhostPuzzle;
+    const ghost = availableDailyGhost(puzzle);
+    if (!ghost) {
+      closeDailyGhostConfirmation();
+      return;
+    }
+    closeDailyGhostConfirmation({ restoreFocus:false });
+    if (dailyLeaderboardModal && !dailyLeaderboardModal.hidden) closeDailyLeaderboard({ restoreOrigin:false });
+    if (!loadDailyPuzzle(puzzle)) return;
+    prepareDailyGhost(ghost, puzzle);
   }
 
   function stopDailyGhost() {
@@ -5756,7 +5806,10 @@
       dailyLeaderboardShareBtn.textContent = "SHARE";
       dailyLeaderboardShareBtn.setAttribute("aria-label", `Share result for Daily Boxxy #${Number(puzzle.sequence) || ""}`);
     }
+    const ghostAvailable = Boolean(availableDailyGhost(puzzle));
+    if (dailyLeaderboardGhostBtn) dailyLeaderboardGhostBtn.hidden = !ghostAvailable;
     dailyLeaderboardActions?.classList.toggle("single", !result);
+    dailyLeaderboardActions?.classList.toggle("has-ghost", ghostAvailable);
     if (dailyLeaderboardStatus) dailyLeaderboardStatus.textContent = result ? "COMPLETED" : "NOT YET COMPLETED";
     renderDailyPlayerStats(result);
     updateDailyLeaderboardAccountNote();
@@ -12981,6 +13034,14 @@
   dailyLeaderboardPlayBtn?.addEventListener("click", () => {
     if (dailyLeaderboardActivePuzzle) dailyArchivePlayPuzzle(dailyLeaderboardActivePuzzle);
   });
+  dailyLeaderboardGhostBtn?.addEventListener("click", () => {
+    if (dailyLeaderboardActivePuzzle) openDailyGhostConfirmation(dailyLeaderboardActivePuzzle, dailyLeaderboardGhostBtn);
+  });
+  dailyGhostConfirmPlay?.addEventListener("click", confirmDailyGhostRace);
+  dailyGhostConfirmCancel?.addEventListener("click", () => closeDailyGhostConfirmation());
+  dailyGhostConfirmModal?.addEventListener("click", event => {
+    if (event.target === dailyGhostConfirmModal) closeDailyGhostConfirmation();
+  });
   dailyLeaderboardModal?.addEventListener("click", event => { if (event.target === dailyLeaderboardModal) closeDailyLeaderboard(); });
   dailyLeaderboardSortTime?.addEventListener("click", () => selectDailyLeaderboardSort("time", { persist: true }));
   dailyLeaderboardSortMoves?.addEventListener("click", () => selectDailyLeaderboardSort("moves", { persist: true }));
@@ -13034,11 +13095,7 @@
     openDailyArchive();
   });
   dailyGhostRaceBtn?.addEventListener("click", () => {
-    const puzzle = dailyPuzzle;
-    const ghost = readDailyGhost(puzzle);
-    if (!ghost || !dailyScoringAllowedFor(puzzle)) return;
-    if (!loadDailyPuzzle(puzzle)) return;
-    prepareDailyGhost(ghost, puzzle);
+    openDailyGhostConfirmation(dailyPuzzle, dailyGhostRaceBtn);
   });
   themeCloseBtn?.addEventListener("click", closeThemeModal);
   themeChoices.forEach(button => button.addEventListener("click", () => { applyTheme(button.dataset.themeChoice); closeThemeModal(); }));
@@ -13446,6 +13503,9 @@
   document.addEventListener("pointerdown", retryMusicAfterInteraction, { capture: true });
   document.addEventListener("keydown", retryMusicAfterInteraction, { capture: true });
   window.addEventListener("keydown", event => {
+    if (event.key === "Escape" && dailyGhostConfirmModal && !dailyGhostConfirmModal.hidden) {
+      closeDailyGhostConfirmation(); return;
+    }
     if (event.key === "Escape" && medalAwardModal && !medalAwardModal.hidden) {
       collectMedalAward(); return;
     }
