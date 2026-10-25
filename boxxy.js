@@ -3143,6 +3143,7 @@
   const dailyLeaderboardActions = document.getElementById("dailyLeaderboardActions");
   const dailyLeaderboardShareBtn = document.getElementById("dailyLeaderboardShareBtn");
   const dailyLeaderboardPlayBtn = document.getElementById("dailyLeaderboardPlayBtn");
+  const dailyLeaderboardGhostBtn = document.getElementById("dailyLeaderboardGhostBtn");
   const dailyLeaderboardPlayLabel = document.getElementById("dailyLeaderboardPlayLabel");
   const dailyLeaderboardStatus = document.getElementById("dailyLeaderboardStatus");
   const dailyLeaderboardPlayerStats = document.getElementById("dailyLeaderboardPlayerStats");
@@ -3206,6 +3207,12 @@
   const copySolveDataBtn = document.getElementById("copySolveDataBtn");
   const dailyCompletePackBtn = document.getElementById("dailyCompletePackBtn");
   const dailyCompleteArchiveBtn = document.getElementById("dailyCompleteArchiveBtn");
+  const dailyGhostRaceBtn = document.getElementById("dailyGhostRaceBtn");
+  const dailyGhostConfirmModal = document.getElementById("dailyGhostConfirmModal");
+  const dailyGhostConfirmBestTime = document.getElementById("dailyGhostConfirmBestTime");
+  const dailyGhostConfirmCancel = document.getElementById("dailyGhostConfirmCancel");
+  const dailyGhostConfirmPlay = document.getElementById("dailyGhostConfirmPlay");
+  const dailyGhostLayer = document.getElementById("dailyGhostLayer");
   const completeCloseBtn = document.getElementById("completeCloseBtn");
   const nextBtnLabel = nextBtn?.querySelector("span");
   const nextBtnIcon = nextBtn?.querySelector("b");
@@ -3322,6 +3329,7 @@
     const isShared = next === GAMEPLAY_CONTEXT.SHARED;
 
     clearPendingRestart();
+    if (next !== GAMEPLAY_CONTEXT.DAILY) stopDailyGhost();
     gameplayContext = next;
     makerTesting = isMaker;
     makerDailyPractice = isPractice;
@@ -3379,6 +3387,190 @@
   let persistentPlayerPiece = null;
   let persistentPlayerImage = null;
   let persistentLastAnimatedBoxIndex = -1;
+
+  // Daily ghost beta. Only an eligible, completed route and its total time are
+  // saved to browser storage; no new cloud payload, database writes or timings.
+  // The ghost deliberately has no collision or effect on the actual puzzle.
+  const DAILY_GHOST_PREFIX = "boxxy-daily-ghost-v1";
+  const DAILY_GHOST_MAX_MOVES = 20000;
+  const GHOST_DELTAS = Object.freeze({ U:[0,-1], D:[0,1], L:[-1,0], R:[1,0] });
+  let ghostRace = null;
+  let ghostTimeout = 0;
+  let ghostPiece = null;
+  let ghostImage = null;
+
+  function dailyGhostKey(date) {
+    const identity = String(window.BOXXYAccountIdentity?.id || "guest");
+    return `${DAILY_GHOST_PREFIX}:${identity}:${date}`;
+  }
+
+  function readDailyGhost(puzzle) {
+    if (!puzzle?.date || !Array.isArray(puzzle.layout)) return null;
+    try {
+      const ghost = JSON.parse(localStorage.getItem(dailyGhostKey(puzzle.date)) || "null");
+      if (!ghost || ghost.date !== puzzle.date || !Number.isFinite(ghost.seconds) || ghost.seconds <= 0
+        || !Number.isInteger(ghost.moves) || ghost.moves < 1 || ghost.moves > DAILY_GHOST_MAX_MOVES
+        || typeof ghost.route !== "string" || ghost.route.length !== ghost.moves
+        || /[^UDLRudlr]/.test(ghost.route)) return null;
+      // No playback of a solution tied to a changed puzzle: the existing route
+      // verifier checks both legal pushes and successful completion.
+      const checked = window.BoxxyRouteVerifier?.verify?.(puzzle.layout.join("\n"), ghost.route);
+      return checked?.valid && checked.solved && checked.moves === ghost.moves ? ghost : null;
+    } catch (_) { return null; }
+  }
+
+  function saveDailyGhost(puzzle, seconds) {
+    const route = String(playedRoute || "").toUpperCase();
+    if (!puzzle?.date || !Number.isFinite(seconds) || seconds <= 0 || moves < 1
+      || moves > DAILY_GHOST_MAX_MOVES || route.length !== moves || /[^UDLR]/.test(route)) return false;
+    const checked = window.BoxxyRouteVerifier?.verify?.(puzzle.layout.join("\n"), route);
+    if (!checked?.valid || !checked.solved || checked.moves !== moves) return false;
+    const previous = readDailyGhost(puzzle);
+    if (previous && previous.seconds <= seconds) return false;
+    try {
+      // The verifier's canonical case encodes pushes (uppercase) and steps
+      // (lowercase). This costs no extra bytes and selects the real sprite pose.
+      localStorage.setItem(dailyGhostKey(puzzle.date), JSON.stringify({
+        date: puzzle.date, seconds, moves, route: checked.route
+      }));
+      return true;
+    } catch (_) { return false; }
+  }
+
+  function updateDailyGhostButton(puzzle = dailyPuzzle) {
+    if (!dailyGhostRaceBtn) return;
+    dailyGhostRaceBtn.hidden = !(dailyScoringAllowedFor(puzzle) && readDailyGhost(puzzle));
+  }
+
+  // A ghost can be selected from the archive even when a different Daily (or
+  // no Daily) is currently loaded. Playback eligibility is checked AFTER the
+  // requested Daily is loaded into the normal scoring context.
+  function availableDailyGhost(puzzle) {
+    return !DAILY_PREVIEW_MODE && !window.BOXXY_PRIVATE_PRACTICE ? readDailyGhost(puzzle) : null;
+  }
+
+  let pendingDailyGhostPuzzle = null;
+  let dailyGhostConfirmReturnButton = null;
+
+  // Both Daily entry points share one confirmation; none changes gameplay until
+  // the player explicitly chooses PLAY YOUR GHOST.
+  function openDailyGhostConfirmation(puzzle, sourceButton) {
+    if (!dailyGhostConfirmModal) return;
+    const ghost = availableDailyGhost(puzzle);
+    if (!ghost) return;
+    pendingDailyGhostPuzzle = puzzle;
+    dailyGhostConfirmReturnButton = sourceButton || null;
+    const personalTime = dailyBestNumber([dailyCompletion(puzzle.date)?.seconds]);
+    if (dailyGhostConfirmBestTime) dailyGhostConfirmBestTime.textContent = formatClockDuration(personalTime ?? ghost.seconds);
+    dailyGhostConfirmModal.hidden = false;
+    dailyGhostConfirmPlay?.focus({ preventScroll:true });
+  }
+
+  function closeDailyGhostConfirmation({ restoreFocus = true } = {}) {
+    if (dailyGhostConfirmModal) dailyGhostConfirmModal.hidden = true;
+    const returnButton = dailyGhostConfirmReturnButton;
+    pendingDailyGhostPuzzle = null;
+    dailyGhostConfirmReturnButton = null;
+    if (restoreFocus && returnButton && !returnButton.hidden) returnButton.focus({ preventScroll:true });
+  }
+
+  function confirmDailyGhostRace() {
+    const puzzle = pendingDailyGhostPuzzle;
+    const ghost = availableDailyGhost(puzzle);
+    if (!ghost) {
+      closeDailyGhostConfirmation();
+      return;
+    }
+    closeDailyGhostConfirmation({ restoreFocus:false });
+    if (dailyLeaderboardModal && !dailyLeaderboardModal.hidden) closeDailyLeaderboard({ restoreOrigin:false });
+    if (!loadDailyPuzzle(puzzle)) return;
+    prepareDailyGhost(ghost, puzzle);
+  }
+
+  function stopDailyGhost() {
+    clearTimeout(ghostTimeout);
+    ghostTimeout = 0;
+    ghostRace = null;
+    ghostPiece?.remove();
+    ghostPiece = null;
+    ghostImage = null;
+  }
+
+  function prepareDailyGhost(ghost, puzzle) {
+    stopDailyGhost();
+    if (!dailyGhostLayer || !ghost || !puzzle || !dailyScoringAllowedFor(puzzle)) return false;
+    const parsed = parseLayout(puzzle.layout, puzzle.goalColours || {});
+    const start = parsed.player;
+    ghostRace = {
+      ghost, date:puzzle.date, index:0, position:[...start],
+      startedAt:null, stepMs:ghost.seconds * 1000 / ghost.moves
+    };
+    ghostPiece = document.createElement("div");
+    ghostPiece.className = "piece player daily-ghost-player facing-front";
+    ghostPiece.style.cssText = posStyle(start[0], start[1], depth(start[1], "player"));
+    ghostPiece.style.setProperty("--boxxy-ghost-step-ms", `${Math.min(ghostRace.stepMs, 170)}ms`);
+    ghostImage = document.createElement("img");
+    ghostImage.alt = "";
+    ghostImage.draggable = false;
+    ghostImage.setAttribute("aria-hidden", "true");
+    ghostImage.dataset.characterFrame = "player-front";
+    ghostPiece.appendChild(ghostImage);
+    dailyGhostLayer.appendChild(ghostPiece);
+    window.CharacterStyler?.drawImage?.(ghostImage, "player-front");
+    return true;
+  }
+
+  function advanceDailyGhost() {
+    ghostTimeout = 0;
+    const race = ghostRace;
+    if (!race || race.startedAt === null || race.date !== dailyPuzzle?.date || !dailyScoringAllowedFor(dailyPuzzle)) {
+      stopDailyGhost(); return;
+    }
+    const elapsed = Math.max(0, performance.now() - race.startedAt);
+    const due = Math.min(race.ghost.moves, Math.floor(elapsed / race.stepMs));
+    let face = null;
+    let stepMode = "walk";
+    const skipped = due - race.index > 1;
+    for (; race.index < due; race.index++) {
+      const direction = race.ghost.route[race.index];
+      const delta = GHOST_DELTAS[direction.toUpperCase()];
+      stepMode = direction === direction.toUpperCase() ? "push" : "walk";
+      race.position[0] += delta[0];
+      race.position[1] += delta[1];
+      face = direction === "U" ? "back" : direction === "D" ? "front" : direction === "L" ? "left" : "right";
+    }
+    if (face && ghostPiece && ghostImage) {
+      // If the tab was suspended, catch up without sweeping across the board.
+      if (skipped) ghostPiece.style.transition = "none";
+      ghostPiece.style.setProperty("--x", race.position[0]);
+      ghostPiece.style.setProperty("--y", race.position[1]);
+      ghostPiece.style.setProperty("--z", depth(race.position[1], "player"));
+      if (!skipped) ghostPiece.style.transition = "";
+      ghostPiece.className = `piece player daily-ghost-player facing-${face} ${stepMode === "push" ? "pushing" : "walking"}`;
+      const frame = characterFrameName(stepMode, face);
+      if (ghostImage.dataset.characterFrame !== frame) {
+        ghostImage.dataset.characterFrame = frame;
+        window.CharacterStyler?.drawImage?.(ghostImage, frame);
+      }
+    }
+    if (due >= race.ghost.moves) return;
+    const nextDue = race.startedAt + (race.index + 1) * race.stepMs;
+    ghostTimeout = setTimeout(advanceDailyGhost, Math.max(1, nextDue - performance.now()));
+  }
+
+  function startDailyGhostOnFirstMove() {
+    if (!ghostRace || ghostRace.startedAt !== null) return;
+    ghostRace.startedAt = performance.now();
+    ghostTimeout = setTimeout(advanceDailyGhost, Math.max(1, ghostRace.stepMs));
+  }
+
+  function resetDailyGhostOnRestart() {
+    if (!ghostRace) return;
+    clearTimeout(ghostTimeout);
+    const saved = ghostRace.ghost;
+    const puzzle = dailyPuzzle;
+    prepareDailyGhost(saved, puzzle);
+  }
 
   function updatePackCollectionLabels(pack = activePack) {
     const label = dailyMode ? "Boxxy Dailys" : packCollectionLabel(pack);
@@ -3912,16 +4104,18 @@
     ],
     moon: PACK_STARRY_NIGHT_AWARD_MESSAGES,
     television: [packName => `An old-school television medal has been added to your BOXXY trophy cabinet for completing “${packName}”.`],
-    clover: [packName => `A four-leaf clover medal has been added to your BOXXY trophy cabinet for completing “${packName}”.`]
+    clover: [packName => `A four-leaf clover medal has been added to your BOXXY trophy cabinet for completing “${packName}”.`],
+    staircase: [packName => `Your Staircase medal has been added to your BOXXY trophy cabinet for completing “${packName}”.`]
   });
   const PACK_AWARD_ARIA_LABELS = Object.freeze({
     jigsaw: "Pack completion jigsaw puzzle piece awarded",
     alphabet: "Pack completion A badge awarded",
     moon: "Pack completion crescent moon badge awarded",
     television: "Pack completion television medal awarded",
-    clover: "Pack completion four-leaf clover medal awarded"
+    clover: "Pack completion four-leaf clover medal awarded",
+    staircase: "Pack completion Staircase medal awarded"
   });
-  const lastPackAwardMessage = { star: -1, jigsaw: -1, alphabet: -1, moon: -1, television: -1, clover: -1 };
+  const lastPackAwardMessage = { star: -1, jigsaw: -1, alphabet: -1, moon: -1, television: -1, clover: -1, staircase: -1 };
 
   function packRewardKind(pack) {
     return String(packRewardDefinition(pack)?.kind || (pack?.id === JIGSAW_PACK_ID ? "jigsaw" : "star"));
@@ -5612,7 +5806,10 @@
       dailyLeaderboardShareBtn.textContent = "SHARE";
       dailyLeaderboardShareBtn.setAttribute("aria-label", `Share result for Daily Boxxy #${Number(puzzle.sequence) || ""}`);
     }
+    const ghostAvailable = Boolean(availableDailyGhost(puzzle));
+    if (dailyLeaderboardGhostBtn) dailyLeaderboardGhostBtn.hidden = !ghostAvailable;
     dailyLeaderboardActions?.classList.toggle("single", !result);
+    dailyLeaderboardActions?.classList.toggle("has-ghost", ghostAvailable);
     if (dailyLeaderboardStatus) dailyLeaderboardStatus.textContent = result ? "COMPLETED" : "NOT YET COMPLETED";
     renderDailyPlayerStats(result);
     updateDailyLeaderboardAccountNote();
@@ -6591,21 +6788,47 @@
     const calendar = document.createElement("i");
     calendar.className = "daily-pack-calendar";
     calendar.setAttribute("aria-hidden", "true");
-    const streak = currentDailyStreak();
-    const promptText = streak > 0
-      ? `Go on, see if you can complete today’s to add to your ${streak} day streak.`
-      : "Play today’s Boxxy Daily to start your streak.";
+    // The pack prompt reflects actual completion, not just an active streak.
+    // Both desktop and mobile reuse the same DOM content and existing flame tier.
+    const todayKey = localDateKey();
+    const completedToday = DAILY_PUZZLE_BY_DATE.has(todayKey) && Boolean(dailyCompletion(todayKey));
+    const streak = currentDailyStreak(todayKey);
     const artPrompt = document.createElement("strong");
     artPrompt.className = "daily-pack-prompt daily-pack-prompt-art";
-    artPrompt.textContent = promptText;
+    if (completedToday) {
+      if (streak > 0) {
+        artPrompt.append(document.createTextNode("Well done on completing today’s Boxxy, you now have a "));
+        const badge = document.createElement("span");
+        badge.className = "daily-streak-badge daily-pack-streak-badge";
+        badge.dataset.tier = dailyStreakTier(streak);
+        badge.dataset.digits = String(Math.min(5, String(streak).length));
+        badge.setAttribute("role", "img");
+        badge.setAttribute("aria-label", String(streak));
+        const flame = document.createElement("span");
+        flame.className = "daily-streak-flame";
+        flame.setAttribute("aria-hidden", "true");
+        const number = document.createElement("span");
+        number.className = "daily-streak-number";
+        number.setAttribute("aria-hidden", "true");
+        number.textContent = String(streak);
+        badge.append(flame, number);
+        artPrompt.append(badge, document.createTextNode(" day streak. Come back tomorrow or play again."));
+      } else {
+        // Completion can sync independently of the local streak counter.
+        artPrompt.textContent = "Well done on completing today’s Boxxy. Come back tomorrow or play again.";
+      }
+    } else {
+      artPrompt.textContent = streak > 0
+        ? `Go on, see if you can complete today’s to add to your ${streak} day streak.`
+        : "Play today’s Boxxy Daily to start your streak.";
+    }
     art.append(calendar, artPrompt);
 
     const name = document.createElement("span");
     name.className = "final-pack-name";
     name.append(document.createTextNode("BOXXY DAILYS"));
-    const mobilePrompt = document.createElement("strong");
+    const mobilePrompt = artPrompt.cloneNode(true);
     mobilePrompt.className = "daily-pack-prompt daily-pack-prompt-mobile";
-    mobilePrompt.textContent = promptText;
     name.appendChild(mobilePrompt);
     const meta = document.createElement("small");
     meta.textContent = DAILY_DATE_OVERRIDE
@@ -10257,6 +10480,7 @@
     }
     if (startedAt) return;
     startedAt = Date.now();
+    startDailyGhostOnFirstMove();
     clearInterval(timer);
     timer = setInterval(updateTime, 250);
     updateTime();
@@ -10402,6 +10626,7 @@
   }
 
   function loadDailyPuzzle(puzzle = dailyPuzzleForToday(), preserveBackground = false, options = {}) {
+    stopDailyGhost();
     const guidedRestart = Boolean(options.guidedRestart);
     if (konamiShowcaseActive) { konamiShowcaseActive = false; stopKonamiMusic(); }
     resetMouseSupportInteraction();
@@ -10861,6 +11086,7 @@
     facing = "front";
     playedRoute = "";
     makerCompletedRoute = "";
+    resetDailyGhostOnRestart();
     guidedSolveUsed = false;
     dailyPointControlUsed = false;
     mouseOrClickPushUsedThisLevel = false;
@@ -11119,6 +11345,9 @@
       const leaderboardEligible = scoringDailySession && !dailyPointControlUsed && !inhumanPublicSpeed;
 
       if (scoringDailySession && !solvedWithGuidedRoute) {
+        if (leaderboardEligible && !mouseOrClickPushUsedThisLevel && !instantMoveUsedThisLevel) {
+          saveDailyGhost(dailyPuzzle, completionSeconds);
+        }
         recordDailyCompletion(dailyPuzzle, {
           moves,
           pushes,
@@ -11185,6 +11414,8 @@
         loadDailyLeaderboardInto(dailyCompletionLeaderboardList, dailyPuzzle, 3);
       }
       setCompletionActionMode("daily");
+      updateDailyGhostButton(dailyPuzzle);
+      stopDailyGhost();
       updateDailyStreak();
       updateDailyQuotePrompt();
       refreshLevelButtons();
@@ -12829,6 +13060,14 @@
   dailyLeaderboardPlayBtn?.addEventListener("click", () => {
     if (dailyLeaderboardActivePuzzle) dailyArchivePlayPuzzle(dailyLeaderboardActivePuzzle);
   });
+  dailyLeaderboardGhostBtn?.addEventListener("click", () => {
+    if (dailyLeaderboardActivePuzzle) openDailyGhostConfirmation(dailyLeaderboardActivePuzzle, dailyLeaderboardGhostBtn);
+  });
+  dailyGhostConfirmPlay?.addEventListener("click", confirmDailyGhostRace);
+  dailyGhostConfirmCancel?.addEventListener("click", () => closeDailyGhostConfirmation());
+  dailyGhostConfirmModal?.addEventListener("click", event => {
+    if (event.target === dailyGhostConfirmModal) closeDailyGhostConfirmation();
+  });
   dailyLeaderboardModal?.addEventListener("click", event => { if (event.target === dailyLeaderboardModal) closeDailyLeaderboard(); });
   dailyLeaderboardSortTime?.addEventListener("click", () => selectDailyLeaderboardSort("time", { persist: true }));
   dailyLeaderboardSortMoves?.addEventListener("click", () => selectDailyLeaderboardSort("moves", { persist: true }));
@@ -12880,6 +13119,9 @@
   dailyCompleteArchiveBtn?.addEventListener("click", () => {
     closeCompleteModal();
     openDailyArchive();
+  });
+  dailyGhostRaceBtn?.addEventListener("click", () => {
+    openDailyGhostConfirmation(dailyPuzzle, dailyGhostRaceBtn);
   });
   themeCloseBtn?.addEventListener("click", closeThemeModal);
   themeChoices.forEach(button => button.addEventListener("click", () => { applyTheme(button.dataset.themeChoice); closeThemeModal(); }));
@@ -13287,6 +13529,9 @@
   document.addEventListener("pointerdown", retryMusicAfterInteraction, { capture: true });
   document.addEventListener("keydown", retryMusicAfterInteraction, { capture: true });
   window.addEventListener("keydown", event => {
+    if (event.key === "Escape" && dailyGhostConfirmModal && !dailyGhostConfirmModal.hidden) {
+      closeDailyGhostConfirmation(); return;
+    }
     if (event.key === "Escape" && medalAwardModal && !medalAwardModal.hidden) {
       collectMedalAward(); return;
     }

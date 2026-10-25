@@ -163,7 +163,7 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=499">
+<link rel="stylesheet" href="styles.css?v=510">
 <link rel="stylesheet" href="how-to-play.css?v=501">
 <link rel="stylesheet" href="rainbow-intro.css?v=502">
 <link rel="preload" as="image" href="assets/board/boxes/box-default-yellow.png?v=226">
@@ -234,6 +234,7 @@
         <div id="goalLayer" class="layer"></div>
         <div id="mouseSupportLayer" class="layer mouse-support-layer" hidden aria-hidden="true"></div>
         <div id="pieceLayer" class="layer"></div>
+        <div id="dailyGhostLayer" class="layer" aria-hidden="true"></div>
         <div id="celebration" class="celebration" aria-hidden="true"></div>
       </div>
       <div class="desktop-board-actions" aria-label="Desktop puzzle actions">
@@ -377,6 +378,19 @@
     <div class="palette" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
   </aside>
 </main>
+
+<div id="dailyGhostConfirmModal" class="modal daily-ghost-confirm-modal" hidden>
+  <section class="daily-ghost-confirm-card" role="dialog" aria-modal="true" aria-labelledby="dailyGhostConfirmTitle" aria-describedby="dailyGhostConfirmTime dailyGhostConfirmDescription">
+    <span class="complete-kicker">BOXXY DAILYS</span>
+    <h2 id="dailyGhostConfirmTitle">Play your ghost 👻 <small>Beta feature</small></h2>
+    <p id="dailyGhostConfirmTime">Your current fastest time on this level is <strong id="dailyGhostConfirmBestTime">—</strong>.</p>
+    <p id="dailyGhostConfirmDescription">This is a beta feature and as such we're still making improvements. Send a message via Contact Boxxy if you have any suggestions or feedback.</p>
+    <div class="daily-ghost-confirm-actions">
+      <button id="dailyGhostConfirmCancel" type="button">CANCEL</button>
+      <button id="dailyGhostConfirmPlay" type="button">PLAY YOUR GHOST 👻</button>
+    </div>
+  </section>
+</div>
 
 <div id="dailyInviteModal" class="modal daily-invite-modal" hidden>
   <section class="daily-invite-card" role="dialog" aria-modal="true" aria-labelledby="dailyInviteTitle" aria-describedby="dailyInviteText">
@@ -860,6 +874,7 @@
         <div id="dailyLeaderboardActions" class="daily-detail-actions">
           <button id="dailyLeaderboardShareBtn" class="daily-detail-share" type="button" hidden>SHARE</button>
           <button id="dailyLeaderboardPlayBtn" class="daily-detail-play" type="button"><span id="dailyLeaderboardPlayLabel">PLAY</span></button>
+          <button id="dailyLeaderboardGhostBtn" class="daily-detail-ghost" type="button" aria-label="Play your ghost 👻 Beta feature" title="Play your ghost 👻 Beta feature" hidden>👻</button>
         </div>
       </div>
     </div>
@@ -1007,6 +1022,7 @@
         <div id="dailyCompletionActions" class="completion-action-set daily-completion-actions" hidden>
           <button id="dailyCompletePackBtn" class="complete-primary daily-complete-choice daily-complete-pack-choice" type="button"><span>LEVEL PACK SELECTOR</span><b aria-hidden="true">→</b></button>
           <button id="dailyCompleteArchiveBtn" class="complete-primary daily-complete-choice daily-complete-archive-choice" type="button"><span>DAILY BOXXYS</span><b aria-hidden="true">→</b></button>
+          <button id="dailyGhostRaceBtn" class="complete-primary daily-complete-choice daily-ghost-race-choice" type="button" hidden><span>Play your ghost 👻 Beta feature</span></button>
         </div>
         <div id="standardCompletionActions" class="completion-action-set standard-completion-actions">
           <button id="nextBtn" class="complete-primary"><span>NEXT LEVEL</span><b aria-hidden="true">→</b></button>
@@ -1647,14 +1663,15 @@
 <audio id="bgMusic" src="assets/audio/cracked-ivory-drift.mp3" preload="auto" loop playsinline></audio>
 
 <script src="assets/data/release.js"></script>
-<script src="assets/data/content-catalog.js?v=493"></script>
+<script src="assets/data/content-catalog.js?v=506"></script>
 <script src="legal.js?v=486"></script>
 <script src="daily-puzzles/boxxy-daily-loader.js?v=493"></script>
 <script src="levels.js?v=372"></script>
 <script src="starry-night.js?v=302"></script>
 <script src="static-noise.js?v=476"></script>
 <script src="four-leaf-clover.js?v=482"></script>
-<script src="boxxy.js?v=503"></script>
+<script src="the-staircase.js?v=506"></script>
+<script src="boxxy.js?v=510"></script>
 <script src="attempt-history.js?v=492"></script>
 <script src="attempt-history-ui.js?v=484"></script>
 <script src="account.js?v=503"></script>
