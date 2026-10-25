@@ -6788,21 +6788,47 @@
     const calendar = document.createElement("i");
     calendar.className = "daily-pack-calendar";
     calendar.setAttribute("aria-hidden", "true");
-    const streak = currentDailyStreak();
-    const promptText = streak > 0
-      ? `Go on, see if you can complete today’s to add to your ${streak} day streak.`
-      : "Play today’s Boxxy Daily to start your streak.";
+    // The pack prompt reflects actual completion, not just an active streak.
+    // Both desktop and mobile reuse the same DOM content and existing flame tier.
+    const todayKey = localDateKey();
+    const completedToday = DAILY_PUZZLE_BY_DATE.has(todayKey) && Boolean(dailyCompletion(todayKey));
+    const streak = currentDailyStreak(todayKey);
     const artPrompt = document.createElement("strong");
     artPrompt.className = "daily-pack-prompt daily-pack-prompt-art";
-    artPrompt.textContent = promptText;
+    if (completedToday) {
+      if (streak > 0) {
+        artPrompt.append(document.createTextNode("Well done on completing today’s Boxxy, you now have a "));
+        const badge = document.createElement("span");
+        badge.className = "daily-streak-badge daily-pack-streak-badge";
+        badge.dataset.tier = dailyStreakTier(streak);
+        badge.dataset.digits = String(Math.min(5, String(streak).length));
+        badge.setAttribute("role", "img");
+        badge.setAttribute("aria-label", String(streak));
+        const flame = document.createElement("span");
+        flame.className = "daily-streak-flame";
+        flame.setAttribute("aria-hidden", "true");
+        const number = document.createElement("span");
+        number.className = "daily-streak-number";
+        number.setAttribute("aria-hidden", "true");
+        number.textContent = String(streak);
+        badge.append(flame, number);
+        artPrompt.append(badge, document.createTextNode(" day streak. Come back tomorrow or play again."));
+      } else {
+        // Completion can sync independently of the local streak counter.
+        artPrompt.textContent = "Well done on completing today’s Boxxy. Come back tomorrow or play again.";
+      }
+    } else {
+      artPrompt.textContent = streak > 0
+        ? `Go on, see if you can complete today’s to add to your ${streak} day streak.`
+        : "Play today’s Boxxy Daily to start your streak.";
+    }
     art.append(calendar, artPrompt);
 
     const name = document.createElement("span");
     name.className = "final-pack-name";
     name.append(document.createTextNode("BOXXY DAILYS"));
-    const mobilePrompt = document.createElement("strong");
+    const mobilePrompt = artPrompt.cloneNode(true);
     mobilePrompt.className = "daily-pack-prompt daily-pack-prompt-mobile";
-    mobilePrompt.textContent = promptText;
     name.appendChild(mobilePrompt);
     const meta = document.createElement("small");
     meta.textContent = DAILY_DATE_OVERRIDE

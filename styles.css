@@ -5815,6 +5815,14 @@ body.first-person-mode .board::after{
   text-shadow:0 1px 1px rgba(0,0,0,.16);
 }
 .daily-pack-prompt-mobile{display:none}
+/* Reuse the same streak flame and number as the Daily badge, scaled inline. */
+.daily-pack-streak-badge{
+  --daily-streak-badge-size:32px;
+  display:inline-block;
+  vertical-align:middle;
+  margin:0 .15em;
+  pointer-events:none;
+}
 
 @media(max-width:620px){
   .pack-selector-medal-desktop{display:none}
@@ -5831,6 +5839,7 @@ body.first-person-mode .board::after{
   }
   .pack-selector-medal svg{filter:drop-shadow(1px 2px 0 rgba(23,23,25,.34))}
   .daily-pack-prompt-art{display:none}
+  .daily-pack-streak-badge{--daily-streak-badge-size:21px}
   .daily-pack-prompt-mobile{
     display:block;
     margin:4px 0 2px;
@@ -5844,7 +5853,7 @@ body.first-person-mode .board::after{
 
 @media(max-width:620px){
   .daily-pack-option{min-height:92px}
-  .daily-pack-option .daily-pack-art{height:92px}
+  .daily-pack-option .daily-pack-art{height:100%;min-height:92px}
   .daily-pack-option .daily-pack-calendar{top:20px}
 }
 
