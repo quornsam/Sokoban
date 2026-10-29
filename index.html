@@ -163,7 +163,7 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=513">
+<link rel="stylesheet" href="styles.css?v=514">
 <link rel="stylesheet" href="how-to-play.css?v=501">
 <link rel="stylesheet" href="rainbow-intro.css?v=502">
 <link rel="preload" as="image" href="assets/board/boxes/box-default-yellow.png?v=226">
@@ -636,7 +636,10 @@
         <div><span>REDO</span><strong>SHIFT</strong></div>
         <div class="settings-key-restart">
           <div class="settings-key-restart-label"><span>RESTART / REVERT</span><strong>R</strong></div>
-          <button id="settingsKeyboardRevertToggle" class="settings-mini-toggle" type="button" aria-label="Revert with R" aria-pressed="true" title="ON: pressing R again reverts a restart. OFF: R always restarts.">ON</button>
+          <div class="settings-key-revert-option">
+            <span>REVERT WITH R</span>
+            <button id="settingsKeyboardRevertToggle" class="settings-mini-toggle" type="button" aria-label="Revert with R" aria-pressed="true" title="ON: pressing R again reverts a restart. OFF: R always restarts.">ON</button>
+          </div>
         </div>
         <div><span>NEXT LEVEL</span><strong>ENTER / SPACE</strong></div>
         <div><span>CLOSE FINISH SCREEN</span><strong>X</strong></div>
