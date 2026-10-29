@@ -163,7 +163,7 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=511">
+<link rel="stylesheet" href="styles.css?v=513">
 <link rel="stylesheet" href="how-to-play.css?v=501">
 <link rel="stylesheet" href="rainbow-intro.css?v=502">
 <link rel="preload" as="image" href="assets/board/boxes/box-default-yellow.png?v=226">
@@ -634,16 +634,12 @@
         <div><span>MOVE</span><strong>ARROW KEYS / WASD</strong></div>
         <div><span>UNDO</span><strong>U / Z</strong></div>
         <div><span>REDO</span><strong>SHIFT</strong></div>
-        <div><span>RESTART / REVERT</span><strong>R</strong></div>
+        <div class="settings-key-restart">
+          <div class="settings-key-restart-label"><span>RESTART / REVERT</span><strong>R</strong></div>
+          <button id="settingsKeyboardRevertToggle" class="settings-mini-toggle" type="button" aria-label="Revert with R" aria-pressed="true" title="ON: pressing R again reverts a restart. OFF: R always restarts.">ON</button>
+        </div>
         <div><span>NEXT LEVEL</span><strong>ENTER / SPACE</strong></div>
         <div><span>CLOSE FINISH SCREEN</span><strong>X</strong></div>
-      </div>
-      <div class="settings-option-row">
-        <div>
-          <strong>REVERT WITH R</strong>
-          <small>ON: press R again to revert a restart. OFF: R restarts without Revert. On-screen controls are unchanged.</small>
-        </div>
-        <button id="settingsKeyboardRevertToggle" class="settings-mini-toggle" type="button" aria-label="Revert with R" aria-pressed="true">ON</button>
       </div>
     </div>
 

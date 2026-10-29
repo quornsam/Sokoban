@@ -6054,6 +6054,9 @@ body.first-person-mode .board::after{
 .settings-key-list>div{min-height:66px;padding:11px 12px;border-right:1px solid var(--ink);border-bottom:1px solid var(--ink);display:flex;flex-direction:column;justify-content:center;gap:5px;background:#fffaf1}
 .settings-key-list>div:nth-child(2n){border-right:0}.settings-key-list>div:nth-last-child(-n+2){border-bottom:0}
 .settings-key-list span{color:#71685e;font-size:8px;font-weight:850;letter-spacing:.1em}.settings-key-list strong{font-size:11px;letter-spacing:.04em}
+/* Keyboard-only Revert preference belongs to its shortcut cell, not another settings row. */
+.settings-key-list>div.settings-key-restart{flex-direction:row;align-items:center;justify-content:space-between;gap:12px}
+.settings-key-restart-label{min-width:0;display:flex;flex-direction:column;gap:5px}
 .settings-footer{padding:10px 18px;border-top:2px solid var(--ink);background:#efe6d9;text-align:center;color:#6b6257;font-size:8px;font-weight:800;letter-spacing:.04em}
 body.settings-touch-device .desktop-settings-only{display:none!important}
 body{--boxxy-step-transition:.17s;--boxxy-motion-duration:.105s}
