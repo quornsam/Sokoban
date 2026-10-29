@@ -3060,6 +3060,7 @@
   const settingsAccountView = document.getElementById("settingsAccountView");
   const settingsKeyboardBtn = document.getElementById("settingsKeyboardBtn");
   const settingsKeyboardBackBtn = document.getElementById("settingsKeyboardBackBtn");
+  const settingsKeyboardRevertToggle = document.getElementById("settingsKeyboardRevertToggle");
   const settingsMusicTrack = document.getElementById("settingsMusicTrack");
   const settingsSpeedSelect = document.getElementById("settingsSpeedSelect");
   const settingsLegacyArrowsRow = document.getElementById("settingsLegacyArrowsRow");
@@ -3299,6 +3300,16 @@
   let history = [];
   let redoHistory = [];
   let pendingRestart = null;
+  // Only the keyboard R shortcut is configurable. All other Restart/Revert
+  // controls continue to use the existing shared reversible-restart logic.
+  const KEYBOARD_REVERT_KEY = "boxxy-keyboard-revert-v1";
+  let keyboardRevertEnabled = true;
+  try { keyboardRevertEnabled = localStorage.getItem(KEYBOARD_REVERT_KEY) !== "off"; } catch (_) {}
+  function syncKeyboardRevertToggle() {
+    if (!settingsKeyboardRevertToggle) return;
+    settingsKeyboardRevertToggle.textContent = keyboardRevertEnabled ? "ON" : "OFF";
+    settingsKeyboardRevertToggle.setAttribute("aria-pressed", String(keyboardRevertEnabled));
+  }
   let facing = "front";
   let completed = false;
   let makerTesting = false;
@@ -12504,7 +12515,14 @@
     } else if (event.key === "r" || event.key === "R") {
       event.preventDefault();
       if (event.repeat) return;
-      toggleRestart("keyboard");
+      if (keyboardRevertEnabled) {
+        toggleRestart("keyboard");
+      } else {
+        // Committing an existing pending restart must not accidentally
+        // restore its saved position when Revert is disabled for the R key.
+        if (!pendingRestart) toggleRestart("keyboard");
+        commitRestart();
+      }
     }
   });
 
@@ -12955,6 +12973,12 @@
   settingsKeyboardBackBtn?.addEventListener("click", () => {
     showSettingsMainView();
     settingsKeyboardBtn?.focus?.({ preventScroll: true });
+  });
+  syncKeyboardRevertToggle();
+  settingsKeyboardRevertToggle?.addEventListener("click", () => {
+    keyboardRevertEnabled = !keyboardRevertEnabled;
+    try { localStorage.setItem(KEYBOARD_REVERT_KEY, keyboardRevertEnabled ? "on" : "off"); } catch (_) {}
+    syncKeyboardRevertToggle();
   });
   settingsMusicTrack?.addEventListener("change", event => {
     const next = String(event.currentTarget.value || "ivory");

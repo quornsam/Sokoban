@@ -634,9 +634,16 @@
         <div><span>MOVE</span><strong>ARROW KEYS / WASD</strong></div>
         <div><span>UNDO</span><strong>U / Z</strong></div>
         <div><span>REDO</span><strong>SHIFT</strong></div>
-        <div><span>RESTART</span><strong>R</strong></div>
+        <div><span>RESTART / REVERT</span><strong>R</strong></div>
         <div><span>NEXT LEVEL</span><strong>ENTER / SPACE</strong></div>
         <div><span>CLOSE FINISH SCREEN</span><strong>X</strong></div>
+      </div>
+      <div class="settings-option-row">
+        <div>
+          <strong>REVERT WITH R</strong>
+          <small>ON: press R again to revert a restart. OFF: R restarts without Revert. On-screen controls are unchanged.</small>
+        </div>
+        <button id="settingsKeyboardRevertToggle" class="settings-mini-toggle" type="button" aria-label="Revert with R" aria-pressed="true">ON</button>
       </div>
     </div>
 
@@ -1671,7 +1678,7 @@
 <script src="static-noise.js?v=476"></script>
 <script src="four-leaf-clover.js?v=482"></script>
 <script src="the-staircase.js?v=506"></script>
-<script src="boxxy.js?v=511"></script>
+<script src="boxxy.js?v=512"></script>
 <script src="attempt-history.js?v=492"></script>
 <script src="attempt-history-ui.js?v=484"></script>
 <script src="account.js?v=503"></script>
