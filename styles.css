@@ -8684,6 +8684,6 @@ html.touch-ui .dpad button {touch-action:none;-webkit-touch-callout:none;-webkit
 
 /* Daily ghost beta: independent, non-interactive replay layer. */
 #dailyGhostLayer{z-index:3050;overflow:visible;pointer-events:none}
-#dailyGhostLayer .daily-ghost-player{pointer-events:none!important;opacity:.44;transition:left var(--boxxy-ghost-step-ms,.17s) linear,top var(--boxxy-ghost-step-ms,.17s) linear;filter:grayscale(1)}
+#dailyGhostLayer .daily-ghost-player{pointer-events:none!important;opacity:.26;transition:none;filter:grayscale(1)}
 #dailyGhostLayer .daily-ghost-player::before{display:none}
 #dailyGhostLayer .daily-ghost-player img{pointer-events:none}

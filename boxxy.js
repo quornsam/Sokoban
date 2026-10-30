@@ -3406,7 +3406,7 @@
   const DAILY_GHOST_MAX_MOVES = 20000;
   const GHOST_DELTAS = Object.freeze({ U:[0,-1], D:[0,1], L:[-1,0], R:[1,0] });
   let ghostRace = null;
-  let ghostTimeout = 0;
+  let ghostFrame = 0;
   let ghostPiece = null;
   let ghostImage = null;
 
@@ -3499,8 +3499,8 @@
   }
 
   function stopDailyGhost() {
-    clearTimeout(ghostTimeout);
-    ghostTimeout = 0;
+    cancelAnimationFrame(ghostFrame);
+    ghostFrame = 0;
     ghostRace = null;
     ghostPiece?.remove();
     ghostPiece = null;
@@ -3519,7 +3519,6 @@
     ghostPiece = document.createElement("div");
     ghostPiece.className = "piece player daily-ghost-player facing-front";
     ghostPiece.style.cssText = posStyle(start[0], start[1], depth(start[1], "player"));
-    ghostPiece.style.setProperty("--boxxy-ghost-step-ms", `${Math.min(ghostRace.stepMs, 170)}ms`);
     ghostImage = document.createElement("img");
     ghostImage.alt = "";
     ghostImage.draggable = false;
@@ -3531,53 +3530,53 @@
     return true;
   }
 
-  function advanceDailyGhost() {
-    ghostTimeout = 0;
+  function advanceDailyGhost(now) {
+    ghostFrame = 0;
     const race = ghostRace;
     if (!race || race.startedAt === null || race.date !== dailyPuzzle?.date || !dailyScoringAllowedFor(dailyPuzzle)) {
       stopDailyGhost(); return;
     }
-    const elapsed = Math.max(0, performance.now() - race.startedAt);
-    const due = Math.min(race.ghost.moves, Math.floor(elapsed / race.stepMs));
-    let face = null;
-    let stepMode = "walk";
-    const skipped = due - race.index > 1;
-    for (; race.index < due; race.index++) {
-      const direction = race.ghost.route[race.index];
-      const delta = GHOST_DELTAS[direction.toUpperCase()];
-      stepMode = direction === direction.toUpperCase() ? "push" : "walk";
+    // Render against the original clock, not the previous frame. The ghost
+    // travels continuously between tiles and still finishes at its saved time.
+    // When a tab resumes after suspension, advance directly to the correct
+    // part of the route rather than animating a backlog of delayed steps.
+    const elapsed = Math.max(0, now - race.startedAt);
+    const completed = Math.min(race.ghost.moves, Math.floor(elapsed / race.stepMs));
+    for (; race.index < completed; race.index++) {
+      const delta = GHOST_DELTAS[race.ghost.route[race.index].toUpperCase()];
       race.position[0] += delta[0];
       race.position[1] += delta[1];
-      face = direction === "U" ? "back" : direction === "D" ? "front" : direction === "L" ? "left" : "right";
     }
-    if (face && ghostPiece && ghostImage) {
-      // If the tab was suspended, catch up without sweeping across the board.
-      if (skipped) ghostPiece.style.transition = "none";
-      ghostPiece.style.setProperty("--x", race.position[0]);
-      ghostPiece.style.setProperty("--y", race.position[1]);
-      ghostPiece.style.setProperty("--z", depth(race.position[1], "player"));
-      if (!skipped) ghostPiece.style.transition = "";
-      ghostPiece.className = `piece player daily-ghost-player facing-${face} ${stepMode === "push" ? "pushing" : "walking"}`;
-      const frame = characterFrameName(stepMode, face);
+    const activeStep = race.ghost.route[Math.min(completed, race.ghost.moves - 1)];
+    const direction = activeStep.toUpperCase();
+    const delta = GHOST_DELTAS[direction];
+    const fraction = completed < race.ghost.moves
+      ? Math.min(1, Math.max(0, (elapsed - completed * race.stepMs) / race.stepMs)) : 0;
+    const x = race.position[0] + delta[0] * fraction;
+    const y = race.position[1] + delta[1] * fraction;
+    const face = direction === "U" ? "back" : direction === "D" ? "front" : direction === "L" ? "left" : "right";
+    const mode = activeStep === direction ? "push" : "walk";
+    if (ghostPiece && ghostImage) {
+      ghostPiece.style.setProperty("--x", x);
+      ghostPiece.style.setProperty("--y", y);
+      ghostPiece.style.setProperty("--z", depth(Math.floor(y), "player"));
+      const frame = characterFrameName(mode, face);
       if (ghostImage.dataset.characterFrame !== frame) {
-        ghostImage.dataset.characterFrame = frame;
+        ghostPiece.className = `piece player daily-ghost-player facing-${face} ${mode === "push" ? "pushing" : "walking"}`;
         window.CharacterStyler?.drawImage?.(ghostImage, frame);
       }
     }
-    if (due >= race.ghost.moves) return;
-    const nextDue = race.startedAt + (race.index + 1) * race.stepMs;
-    ghostTimeout = setTimeout(advanceDailyGhost, Math.max(1, nextDue - performance.now()));
+    if (completed < race.ghost.moves) ghostFrame = requestAnimationFrame(advanceDailyGhost);
   }
 
   function startDailyGhostOnFirstMove() {
     if (!ghostRace || ghostRace.startedAt !== null) return;
     ghostRace.startedAt = performance.now();
-    ghostTimeout = setTimeout(advanceDailyGhost, Math.max(1, ghostRace.stepMs));
+    ghostFrame = requestAnimationFrame(advanceDailyGhost);
   }
 
   function resetDailyGhostOnRestart() {
     if (!ghostRace) return;
-    clearTimeout(ghostTimeout);
     const saved = ghostRace.ghost;
     const puzzle = dailyPuzzle;
     prepareDailyGhost(saved, puzzle);
