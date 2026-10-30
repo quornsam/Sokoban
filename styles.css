@@ -8687,5 +8687,3 @@ html.touch-ui .dpad button {touch-action:none;-webkit-touch-callout:none;-webkit
 #dailyGhostLayer .daily-ghost-player{pointer-events:none!important;opacity:.26;transition:none;filter:grayscale(1)}
 #dailyGhostLayer .daily-ghost-player::before{display:none}
 #dailyGhostLayer .daily-ghost-player img{pointer-events:none}
-/* Two existing rendered poses blend briefly; positioning stays on the parent. */
-#dailyGhostLayer .daily-ghost-player .daily-ghost-sprite{transition:opacity 90ms linear}
