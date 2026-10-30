@@ -3409,6 +3409,51 @@
   let ghostFrame = 0;
   let ghostPiece = null;
   let ghostImage = null;
+  let ghostOtherImage = null;
+  let ghostPoseFrame = null;
+  let ghostPoseRequest = 0;
+  let ghostBlendFrame = 0;
+
+  // Crossfade only when the animation state changes. Both sprite images live
+  // on the same moving piece, so this adds no per-move timer or position work.
+  function showDailyGhostPose(frame, stepMs, face, mode) {
+    if (frame === ghostPoseFrame) return;
+    ghostPoseFrame = frame;
+    const request = ++ghostPoseRequest;
+    const outgoing = ghostImage;
+    const incoming = ghostOtherImage;
+    if (!outgoing || !incoming) return;
+    cancelAnimationFrame(ghostBlendFrame);
+    ghostBlendFrame = 0;
+    incoming.style.transition = "none";
+    incoming.style.opacity = "0";
+    Promise.resolve(window.CharacterStyler?.drawImage?.(incoming, frame)).then(() => {
+      if (request !== ghostPoseRequest || !ghostRace || !ghostPiece?.isConnected) return;
+      ghostPiece.className = `piece player daily-ghost-player facing-${face} ${mode === "push" ? "pushing" : "walking"}`;
+      // A transition cannot occupy more than a fraction of one move. Very
+      // rapid ghosts snap poses instead of stacking unfinished blends.
+      const duration = Math.min(90, stepMs * .35);
+      if (duration < 25) {
+        outgoing.style.transition = "none";
+        outgoing.style.opacity = "0";
+        incoming.style.opacity = "1";
+        ghostImage = incoming;
+        ghostOtherImage = outgoing;
+        return;
+      }
+      ghostBlendFrame = requestAnimationFrame(() => {
+        ghostBlendFrame = 0;
+        if (request !== ghostPoseRequest || !ghostRace) return;
+        const transition = `opacity ${duration}ms linear`;
+        outgoing.style.transition = transition;
+        incoming.style.transition = transition;
+        outgoing.style.opacity = "0";
+        incoming.style.opacity = "1";
+        ghostImage = incoming;
+        ghostOtherImage = outgoing;
+      });
+    });
+  }
 
   function dailyGhostKey(date) {
     const identity = String(window.BOXXYAccountIdentity?.id || "guest");
@@ -3500,11 +3545,16 @@
 
   function stopDailyGhost() {
     cancelAnimationFrame(ghostFrame);
+    cancelAnimationFrame(ghostBlendFrame);
     ghostFrame = 0;
+    ghostBlendFrame = 0;
+    ++ghostPoseRequest;
+    ghostPoseFrame = null;
     ghostRace = null;
     ghostPiece?.remove();
     ghostPiece = null;
     ghostImage = null;
+    ghostOtherImage = null;
   }
 
   function prepareDailyGhost(ghost, puzzle) {
@@ -3524,8 +3574,13 @@
     ghostImage.draggable = false;
     ghostImage.setAttribute("aria-hidden", "true");
     ghostImage.dataset.characterFrame = "player-front";
-    ghostPiece.appendChild(ghostImage);
+    ghostImage.className = "daily-ghost-sprite";
+    ghostImage.style.opacity = "1";
+    ghostOtherImage = ghostImage.cloneNode(false);
+    ghostOtherImage.style.opacity = "0";
+    ghostPiece.append(ghostImage, ghostOtherImage);
     dailyGhostLayer.appendChild(ghostPiece);
+    ghostPoseFrame = "player-front";
     window.CharacterStyler?.drawImage?.(ghostImage, "player-front");
     return true;
   }
@@ -3560,11 +3615,7 @@
       ghostPiece.style.setProperty("--x", x);
       ghostPiece.style.setProperty("--y", y);
       ghostPiece.style.setProperty("--z", depth(Math.floor(y), "player"));
-      const frame = characterFrameName(mode, face);
-      if (ghostImage.dataset.characterFrame !== frame) {
-        ghostPiece.className = `piece player daily-ghost-player facing-${face} ${mode === "push" ? "pushing" : "walking"}`;
-        window.CharacterStyler?.drawImage?.(ghostImage, frame);
-      }
+      showDailyGhostPose(characterFrameName(mode, face), race.stepMs, face, mode);
     }
     if (completed < race.ghost.moves) ghostFrame = requestAnimationFrame(advanceDailyGhost);
   }
