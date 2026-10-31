@@ -10380,12 +10380,13 @@
   }
 
   function render(anim = "idle") {
-    /* Rendering strategy is independent of artwork colour. Normal boards use
-       the normal renderer whether their sprites are yellow/red, a custom
-       standard palette, or Rainbow. The cached renderer is reserved for the
-       v298/v338 performance cases and Turbo idle updates. */
+    /* Keep Rainbow pieces mounted between moves. Recreating every coloured
+       box on each move can flash on iOS WebKit; the existing persistent renderer
+       already updates only moved boxes and boxes whose goal colour changes.
+       Ordinary boards retain their established rendering path. */
     syncStandardBoardArtworkVariables();
     const useCachedPieceRenderer = largeLevelPerformanceMode
+      || levelUsesRainbowStyle(levelData)
       || (boxxyInstantSpeedActive() && anim === "idle");
     if (useCachedPieceRenderer) {
       renderPersistentPieces(anim);
