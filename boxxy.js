@@ -10755,7 +10755,7 @@
     setGameplayContext(GAMEPLAY_CONTEXT.NORMAL);
     if (completedPackHeading) completedPackHeading.textContent = "";
     if (collectionBtn) collectionBtn.disabled = false;
-    document.title = "BOXXY — Pushbox Puzzle";
+    document.title = "BOXXY";
     makerLayout = null;
     makerGoalColours = {};
     makerSolution = "";
