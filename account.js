@@ -159,6 +159,7 @@
   const offlineBtn = document.getElementById("accountOfflineBtn");
   const offlineHelp = document.getElementById("accountOfflineHelp");
   const offlineGuide = document.getElementById("accountOfflineGuide");
+  const hideScoresInput = document.getElementById("accountHideScores");
   const completeAccountPrompt = document.getElementById("completeAccountPrompt");
   const completeCloseBtn = document.getElementById("completeCloseBtn");
   const settingsBtn = document.getElementById("settingsBtn");
@@ -216,7 +217,7 @@
 
   function setBusy(next) {
     busy = Boolean(next);
-    [createSubmit, loginSubmit, googleCreateSubmit, googleDisconnectBtn, logoutBtn, deletePasswordConfirm, bioSubmit].forEach(button => {
+    [createSubmit, loginSubmit, googleCreateSubmit, googleDisconnectBtn, logoutBtn, deletePasswordConfirm, bioSubmit, hideScoresInput].forEach(button => {
       if (button) button.disabled = busy;
     });
   }
@@ -1421,6 +1422,7 @@
       if (pushesValue) pushesValue.textContent = lifetimeStat(ALL_TIME_PUSHES_KEY).toLocaleString("en-GB");
       if (bioInput && !bioDirty && document.activeElement !== bioInput) bioInput.value = String(account.bio || "");
       if (bioForm) bioForm.hidden = false;
+      if (hideScoresInput) hideScoresInput.checked = account.features?.hidePublicScores === true;
       updateBioCounter();
       if (avatarCanvas) window.CharacterStyler?.draw?.(avatarCanvas, "player-front");
       renderMedals();
@@ -1621,6 +1623,28 @@
   entryBtn.addEventListener("click", openAccount);
   backBtn?.addEventListener("click", closeAccount);
   offlineBtn?.addEventListener("click", beginOfflineSetup);
+  hideScoresInput?.addEventListener("change", async () => {
+    if (!account || busy) {
+      if (hideScoresInput) hideScoresInput.checked = account?.features?.hidePublicScores === true;
+      return;
+    }
+    const requested = hideScoresInput.checked;
+    setBusy(true);
+    setStatus("SAVING SCORE PRIVACY…");
+    try {
+      const { response, data } = await requestAccount({ action:"score_visibility", hidden:requested });
+      if (!response.ok) throw new Error(data.error || "Could not update score privacy.");
+      account.features = { ...(account.features || {}), hidePublicScores:data.hidden === true };
+      render();
+      window.dispatchEvent(new CustomEvent("boxxyscorevisibilitychanged"));
+      setStatus(data.hidden ? "YOUR DAILY SCORES ARE NOW PRIVATE" : "YOUR DAILY SCORES ARE NOW PUBLIC", "success");
+    } catch (error) {
+      if (hideScoresInput) hideScoresInput.checked = account?.features?.hidePublicScores === true;
+      setStatus(error.message || "Could not save score privacy.", "error");
+    } finally {
+      setBusy(false);
+    }
+  });
 
   bioInput?.addEventListener("input", () => {
     bioDirty = true;

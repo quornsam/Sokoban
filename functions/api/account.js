@@ -74,18 +74,22 @@ function preserveLegacyWorkshop(existingValue, progress) {
 }
 
 const INSTANT_MOVE_FEATURE_KEY = "instant_move";
+const HIDE_PUBLIC_SCORES_FEATURE_KEY = "hide_public_scores";
 
 async function accountFeatureState(db, userId) {
   await ensureUserFeatureFlagsSchema(db);
-  const row = await db.prepare(`
-    SELECT enabled, updated_at
+  const result = await db.prepare(`
+    SELECT feature_key, enabled, updated_at
     FROM user_feature_flags
-    WHERE user_id = ? AND feature_key = ?
-    LIMIT 1
-  `).bind(userId, INSTANT_MOVE_FEATURE_KEY).first();
+    WHERE user_id = ? AND feature_key IN (?, ?)
+  `).bind(userId, INSTANT_MOVE_FEATURE_KEY, HIDE_PUBLIC_SCORES_FEATURE_KEY).all();
+  const flags = new Map((result.results || []).map(row => [String(row.feature_key), row]));
+  const instant = flags.get(INSTANT_MOVE_FEATURE_KEY);
+  const scorePrivacy = flags.get(HIDE_PUBLIC_SCORES_FEATURE_KEY);
   return {
-    instantMove: Boolean(Number(row?.enabled) || 0),
-    instantMoveUpdatedAt: Math.max(0, Number(row?.updated_at) || 0)
+    instantMove: Boolean(Number(instant?.enabled) || 0),
+    instantMoveUpdatedAt: Math.max(0, Number(instant?.updated_at) || 0),
+    hidePublicScores: Boolean(Number(scorePrivacy?.enabled) || 0)
   };
 }
 
@@ -554,6 +558,25 @@ async function handleDisconnectGoogle(context) {
   return json(await accountPayload(db, user));
 }
 
+async function handleScoreVisibility(context, body) {
+  const db = requireDatabase(context.env);
+  const user = await authenticatedUser(context.env, context.request);
+  if (!user) return json({ ok:false, authenticated:false, error:"Please sign in again." }, 401);
+  if (typeof body.hidden !== "boolean") return json({ ok:false, error:"Invalid score visibility setting." }, 400);
+
+  await ensureUserFeatureFlagsSchema(db);
+  if (body.hidden) {
+    await db.prepare(`INSERT INTO user_feature_flags (user_id, feature_key, enabled, updated_at)
+      VALUES (?, ?, 1, ?)
+      ON CONFLICT(user_id, feature_key) DO UPDATE SET enabled = 1, updated_at = excluded.updated_at`)
+      .bind(user.id, HIDE_PUBLIC_SCORES_FEATURE_KEY, Date.now()).run();
+  } else {
+    await db.prepare("DELETE FROM user_feature_flags WHERE user_id = ? AND feature_key = ?")
+      .bind(user.id, HIDE_PUBLIC_SCORES_FEATURE_KEY).run();
+  }
+  return json({ ok:true, hidden:body.hidden }, 200, {"cache-control":"no-store"});
+}
+
 async function handlePublicBio(context, body) {
   const { env, request } = context;
   const db = requireDatabase(env);
@@ -671,6 +694,7 @@ export async function onRequest(context) {
     if (action === "google_register") return await handleGoogleRegister(context, body);
     if (action === "link_google") return await handleLinkGoogle(context, body);
     if (action === "disconnect_google") return await handleDisconnectGoogle(context);
+    if (action === "score_visibility") return await handleScoreVisibility(context, body);
     if (action === "public_bio") return await handlePublicBio(context, body);
     if (action === "public_location") return await handlePublicLocation(context, body);
     if (action === "sync") return await handleSync(context, body);

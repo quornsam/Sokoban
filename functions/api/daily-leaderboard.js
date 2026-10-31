@@ -84,12 +84,20 @@ export async function onRequestGet(context) {
 
     let viewerScoreVisibility = null;
     if (viewerUserId) {
-      const visibilityRow = await db.prepare(`SELECT visibility FROM daily_leaderboard_visibility
-        WHERE date_key = ? AND player_kind = 'real' AND player_id = ? LIMIT 1`)
-        .bind(dateKey, viewerUserId).first();
-      viewerScoreVisibility = visibilityRow
+      const visibilityRow = await db.prepare(`
+        SELECT v.visibility, COALESCE(f.enabled, 0) AS hide_scores
+        FROM users u
+        LEFT JOIN daily_leaderboard_visibility v ON v.date_key = ?
+          AND v.player_kind = 'real' AND v.player_id = u.id
+        LEFT JOIN user_feature_flags f ON f.user_id = u.id
+          AND f.feature_key = 'hide_public_scores'
+        WHERE u.id = ? LIMIT 1
+      `).bind(dateKey, viewerUserId).first();
+      const perDailyVisibility = visibilityRow?.visibility
         ? cleanDailyLeaderboardVisibility(visibilityRow.visibility)
         : "public";
+      viewerScoreVisibility = perDailyVisibility === "public" && Number(visibilityRow?.hide_scores) === 1
+        ? "owner" : perDailyVisibility;
     }
 
     const publicOrderSql = requestedSort === "moves" ? `
@@ -132,14 +140,16 @@ export async function onRequestGet(context) {
     const statement = db.prepare(`
       WITH daily_records AS (
         SELECT
-          id AS user_id, username,
-          json_extract(progress_json, '$."boxxy-daily-completions-v1"') AS daily_json,
-          json_extract(progress_json, '$."push-bauhaus-character-style-v51"') AS avatar_json
-        FROM users
+          u.id AS user_id, u.username, COALESCE(f.enabled, 0) AS hide_scores,
+          json_extract(u.progress_json, '$."boxxy-daily-completions-v1"') AS daily_json,
+          json_extract(u.progress_json, '$."push-bauhaus-character-style-v51"') AS avatar_json
+        FROM users u
+        LEFT JOIN user_feature_flags f ON f.user_id = u.id
+          AND f.feature_key = 'hide_public_scores' 
       ),
       daily_times AS (
         SELECT
-          user_id, username, avatar_json,
+          user_id, username, avatar_json, hide_scores,
           CASE
             WHEN json_extract(daily_json, ?) = 1 THEN
               CAST(json_extract(daily_json, ?) AS REAL)
@@ -182,7 +192,7 @@ export async function onRequestGet(context) {
       )
       , real_candidates AS (
         SELECT d.user_id AS player_id, 'real' AS player_kind,
-          d.username, d.avatar_json, d.seconds, d.moves, d.best_moves, d.leaderboard_device,
+          d.username, d.avatar_json, d.seconds, d.moves, d.best_moves, d.leaderboard_device, d.hide_scores,
           CASE WHEN d.leaderboard_webdriver_detected = 1 THEN 1 ELSE 0 END AS webdriver_detected,
           h.seconds AS history_seconds, NULLIF(h.device,'') AS history_device,
           h.webdriver_detected AS history_webdriver_detected,
@@ -236,7 +246,7 @@ export async function onRequestGet(context) {
           COALESCE(c.saved_seconds, 1.0e99), COALESCE(c.tracked_seconds, 1.0e99)) AS winning_seconds
         FROM real_candidates c
       ), real_paired AS (
-        SELECT player_id, player_kind, username, avatar_json, seconds, moves, best_moves, leaderboard_device,
+        SELECT player_id, player_kind, username, avatar_json, seconds, moves, best_moves, leaderboard_device, hide_scores,
           webdriver_detected,
           CASE WHEN winning_seconds = history_seconds THEN COALESCE(history_webdriver_detected,0)
             WHEN winning_seconds = saved_seconds THEN COALESCE(saved_webdriver_detected,0)
@@ -251,7 +261,7 @@ export async function onRequestGet(context) {
         SELECT s.user_id AS player_id, 'synthetic' AS player_kind,
           u.username AS username, NULLIF(u.avatar_json,'') AS avatar_json, s.seconds AS seconds, s.moves AS moves,
           s.moves AS best_moves, s.device AS leaderboard_device,
-          0 AS webdriver_detected, 0 AS best_moves_run_webdriver_detected,
+          0 AS hide_scores, 0 AS webdriver_detected, 0 AS best_moves_run_webdriver_detected,
           s.seconds AS best_moves_run_seconds, s.device AS best_moves_run_device,
           0 AS best_moves_run_mouse_or_click_push, 0 AS best_moves_run_instant_move
         FROM synthetic_daily_scores s
@@ -259,18 +269,20 @@ export async function onRequestGet(context) {
         WHERE s.date_key = ? AND s.seconds > 0
           AND NOT EXISTS (SELECT 1 FROM users r WHERE lower(r.username) = lower(u.username))
       ), all_scores AS (
-        SELECT player_id, player_kind, username, avatar_json, seconds, moves, best_moves, leaderboard_device,
+        SELECT player_id, player_kind, username, avatar_json, seconds, moves, best_moves, leaderboard_device, hide_scores,
           webdriver_detected, best_moves_run_webdriver_detected,
           best_moves_run_seconds, best_moves_run_device,
           best_moves_run_mouse_or_click_push, best_moves_run_instant_move FROM real_paired
         UNION ALL
-        SELECT player_id, player_kind, username, avatar_json, seconds, moves, best_moves, leaderboard_device,
+        SELECT player_id, player_kind, username, avatar_json, seconds, moves, best_moves, leaderboard_device, hide_scores,
           webdriver_detected, best_moves_run_webdriver_detected,
           best_moves_run_seconds, best_moves_run_device,
           best_moves_run_mouse_or_click_push, best_moves_run_instant_move FROM synthetic_scores
       ), scored_with_visibility AS (
         SELECT a.*,
-          COALESCE(v.visibility, 'public') AS visibility
+          CASE WHEN a.player_kind = 'real' AND a.hide_scores = 1
+            AND COALESCE(v.visibility, 'public') = 'public' THEN 'owner'
+            ELSE COALESCE(v.visibility, 'public') END AS visibility
         FROM all_scores a
         LEFT JOIN daily_leaderboard_visibility v
           ON v.date_key = ? AND v.player_kind = a.player_kind AND v.player_id = a.player_id

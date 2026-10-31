@@ -4690,6 +4690,13 @@
   }
 
   const dailyLeaderboardCache = new Map();
+  window.addEventListener("boxxyscorevisibilitychanged", () => {
+    dailyLeaderboardCache.clear();
+    dailyLeaderboardInFlight.clear();
+    if (dailyLeaderboardActivePuzzle?.date && dailyLeaderboardModal?.hidden === false) {
+      void loadDailyLeaderboardInto(dailyLeaderboardList, dailyLeaderboardActivePuzzle, 0, { force:true });
+    }
+  });
   const dailyLeaderboardInFlight = new Map();
   const dailyLeaderboardRefreshAt = new Map();
   const DAILY_LEADERBOARD_PAGE_SIZE = 30;

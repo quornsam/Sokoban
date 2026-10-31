@@ -579,6 +579,7 @@ function mappedUser(user, includeProgress = false) {
     progressUpdatedAt: Number(user.progress_updated_at) || 0,
     instantMoveEnabled: Boolean(Number(user.instant_move_enabled) || 0),
     instantMoveUpdatedAt: Math.max(0, Number(user.instant_move_updated_at) || 0),
+    hidePublicScores: Boolean(Number(user.hide_public_scores) || 0),
     summary: {
       ...canonicalAdminSummary(progressSummary(user.progress_json), user.progress_json),
       completedDailyMonths: publicStatsFromProgress(user.progress_json).completedDailyMonths,
@@ -682,7 +683,8 @@ async function listUsers(context) {
            u.progress_json, u.progress_updated_at,
            ai.provider_subject AS google_sub, ai.provider_email AS google_email,
            uas.password_enabled AS password_enabled,
-           imf.enabled AS instant_move_enabled, imf.updated_at AS instant_move_updated_at
+           imf.enabled AS instant_move_enabled, imf.updated_at AS instant_move_updated_at,
+           COALESCE(spf.enabled, 0) AS hide_public_scores
     FROM users u
     LEFT JOIN auth_identities ai
       ON ai.user_id = u.id AND ai.provider = 'google'
@@ -690,6 +692,8 @@ async function listUsers(context) {
       ON uas.user_id = u.id
     LEFT JOIN user_feature_flags imf
       ON imf.user_id = u.id AND imf.feature_key = 'instant_move'
+    LEFT JOIN user_feature_flags spf
+      ON spf.user_id = u.id AND spf.feature_key = 'hide_public_scores'
     ORDER BY u.last_seen_at DESC, u.created_at DESC
   `).all();
   const rows = result.results || [];
@@ -717,7 +721,8 @@ async function userDetail(context, id) {
            u.progress_json, u.progress_updated_at,
            ai.provider_subject AS google_sub, ai.provider_email AS google_email,
            uas.password_enabled AS password_enabled,
-           imf.enabled AS instant_move_enabled, imf.updated_at AS instant_move_updated_at
+           imf.enabled AS instant_move_enabled, imf.updated_at AS instant_move_updated_at,
+           COALESCE(spf.enabled, 0) AS hide_public_scores
     FROM users u
     LEFT JOIN auth_identities ai
       ON ai.user_id = u.id AND ai.provider = 'google'
@@ -725,6 +730,8 @@ async function userDetail(context, id) {
       ON uas.user_id = u.id
     LEFT JOIN user_feature_flags imf
       ON imf.user_id = u.id AND imf.feature_key = 'instant_move'
+    LEFT JOIN user_feature_flags spf
+      ON spf.user_id = u.id AND spf.feature_key = 'hide_public_scores'
     WHERE u.id = ? LIMIT 1
   `).bind(id).first();
   if (!user) return json({ ok: false, error: "User not found." }, 404);

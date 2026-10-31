@@ -8687,3 +8687,14 @@ html.touch-ui .dpad button {touch-action:none;-webkit-touch-callout:none;-webkit
 #dailyGhostLayer .daily-ghost-player{pointer-events:none!important;opacity:.26;transition:none;filter:grayscale(1)}
 #dailyGhostLayer .daily-ghost-player::before{display:none}
 #dailyGhostLayer .daily-ghost-player img{pointer-events:none}
+
+/* BOXXY v525 — signed-in Daily leaderboard privacy controls. */
+.account-score-privacy-card{margin:12px 0 0;padding:12px;border:2px solid var(--ink);background:#f7f0e5}
+.account-score-privacy-heading{display:block;margin:0 0 8px;color:#71685e;font-size:7px;font-weight:1000;letter-spacing:.1em}
+.account-score-privacy-label{display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer}
+.account-score-privacy-label span{font-size:9px;font-weight:950;line-height:1.4;letter-spacing:.035em}
+.account-score-privacy-label input{flex:0 0 auto;width:23px;height:23px;margin:0;accent-color:var(--blue);cursor:pointer}
+.account-score-privacy-label input:disabled{opacity:.5;cursor:wait}
+#accountScorePrivacyHelp{margin:9px 0 0;color:#6b6257;font-size:8px;line-height:1.45;font-weight:750}
+@media(max-width:760px){.account-score-privacy-card{padding:10px;margin-top:10px}.account-score-privacy-heading{font-size:8.5px}.account-score-privacy-label span,#accountScorePrivacyHelp{font-size:9px}}
+@media(max-height:520px) and (orientation:landscape){.account-score-privacy-card{padding:8px;margin-top:8px}}

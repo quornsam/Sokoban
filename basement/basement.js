@@ -1177,6 +1177,7 @@
           <div><span>BROWSER / DEVICE</span><strong>${escapeHtml(browserDevice(user.userAgent))}</strong></div>
           <div><span>CLICK-PUSH BETA</span><strong>${clickPushDetail(user.summary)}</strong></div>
           <div><span>INSTANT MOVE ACCESS</span><strong>${user.instantMoveEnabled ? "ENABLED" : "DISABLED"}</strong></div>
+          <div><span>PUBLIC DAILY SCORES</span><strong>${user.hidePublicScores ? "HIDDEN" : "PUBLIC"}</strong></div>
         </div>
         <section><h3>LOGIN / SESSION HISTORY</h3>${sessionHistoryHtml(data.sessions)}</section>
         <section class="admin-feature-access">
