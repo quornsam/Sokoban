@@ -1,11 +1,11 @@
-/* BOXXY v526: isolated front-end localisation. English remains the source UI. */
+/* BOXXY v527: complete dynamic UI localisation coverage and localised thought/tip pools. */
 (() => {
   "use strict";
 
   const STORAGE_KEY = "boxxy-language-v1";
   const COUNTRY_KEY = "boxxy-first-country-v1";
   const CATALOG_BASE = "/locales/";
-  const TRANSLATED_ATTRIBUTES = ["aria-label", "title", "placeholder", "alt"];
+  const TRANSLATED_ATTRIBUTES = ["aria-label", "title", "placeholder", "alt", "data-tooltip"];
   const LANGUAGES = Object.freeze({
     en:    { label:"English",   flag:"🇬🇧", html:"en-GB" },
     fr:    { label:"Français",  flag:"🇫🇷", html:"fr" },
@@ -20,9 +20,12 @@
 
   let storedLanguage = validLanguage(readStorage(STORAGE_KEY));
   let currentLanguage = storedLanguage || "en";
+  document.documentElement.lang = LANGUAGES[currentLanguage]?.html || "en-GB";
   let currentCatalog = null;
   let currentStrings = new Map();
   let compiledTemplates = [];
+  let currentThoughts = [];
+  const lastCatalogSelection = new Map();
   let accountUserId = "";
   let accountLocaleLoading = false;
   let observer = null;
@@ -86,6 +89,18 @@
     const templates = currentCatalog?.templates && typeof currentCatalog.templates === "object"
       ? currentCatalog.templates : {};
     compiledTemplates = Object.entries(templates).map(([source,target]) => compileTemplate(normaliseLookup(source),target));
+    currentThoughts = Array.isArray(currentCatalog?.thoughts) ? currentCatalog.thoughts.map(String).filter(Boolean) : [];
+    lastCatalogSelection.clear();
+  }
+
+  function randomCatalogLine(kind, entries) {
+    if (currentLanguage === "en" || !Array.isArray(entries) || !entries.length) return "";
+    const previous = lastCatalogSelection.get(kind);
+    let choices = entries;
+    if (entries.length > 1 && previous) choices = entries.filter(value => value !== previous);
+    const selected = choices[Math.floor(Math.random() * choices.length)] || entries[0] || "";
+    if (selected) lastCatalogSelection.set(kind, selected);
+    return selected;
   }
 
   function translateNormalised(source, depth = 0) {
@@ -215,7 +230,7 @@
 
   async function loadCatalog(language) {
     if (language === "en") return null;
-    const response = await fetch(`${CATALOG_BASE}${encodeURIComponent(language)}.json?v=526`, { cache:"force-cache" });
+    const response = await fetch(`${CATALOG_BASE}${encodeURIComponent(language)}.json?v=527`, { cache:"force-cache" });
     if (!response.ok) throw new Error(`Could not load ${language} language file.`);
     const data = await response.json();
     if (!data || data.language !== language || typeof data.strings !== "object") throw new Error("Invalid language file.");
@@ -397,6 +412,7 @@
     get firstCountry() { return normaliseCountry(readStorage(COUNTRY_KEY)); },
     languages: LANGUAGES,
     translate: value => translateNormalised(normaliseLookup(value)),
+    randomThought: () => randomCatalogLine("thought", currentThoughts),
     apply: language => applyLanguage(language)
   });
 })();

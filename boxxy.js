@@ -1,3 +1,4 @@
+/* BOXXY v527: close localisation gaps in dynamic UI, tooltips and the footer thought/tip system. */
 /* BOXXY v488: PostHog receives a first-valid-move event for every counted gameplay attempt. */
 /* BOXXY v487: keep the large once-daily invitation independent of site announcements. */
 /* BOXXY v486: canonical release/legal metadata and 2027 monthly Daily medal assets. */
@@ -1940,7 +1941,7 @@
     const date = parseDateKey(dateKey);
     if (!date) return String(dateKey || "");
     try {
-      return new Intl.DateTimeFormat("en-GB", {
+      return new Intl.DateTimeFormat(document.documentElement.lang || "en-GB", {
         weekday: options.weekday ? (options.compact ? "short" : "long") : undefined,
         day: "numeric",
         month: options.long ? "long" : "short",
@@ -4265,7 +4266,7 @@
     const date = String(value || "").trim();
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return "";
     try {
-      return new Intl.DateTimeFormat("en-GB", { day:"numeric", month:"short", year:"numeric", timeZone:"UTC" }).format(new Date(`${date}T00:00:00Z`));
+      return new Intl.DateTimeFormat(document.documentElement.lang || "en-GB", { day:"numeric", month:"short", year:"numeric", timeZone:"UTC" }).format(new Date(`${date}T00:00:00Z`));
     } catch (_) { return date; }
   }
 
@@ -4649,7 +4650,7 @@
     if (!match) return String(monthKey || "").toUpperCase();
     const date = new Date(Number(match[1]), Number(match[2]) - 1, 1, 12);
     try {
-      return new Intl.DateTimeFormat("en-GB", { month: "long", year: "numeric" }).format(date).toUpperCase();
+      return new Intl.DateTimeFormat(document.documentElement.lang || "en-GB", { month: "long", year: "numeric" }).format(date).toUpperCase();
     } catch (_) {
       return String(monthKey || "").toUpperCase();
     }
@@ -7803,6 +7804,33 @@
       "Completely wedged? You can ask for help through Menu → Contact Us.",
       "If a puzzle has you beaten, try Menu → Contact Us and send a message."
     ]);
+    if (window.BOXXYAccountIdentity?.id) {
+      add("language", [
+        "Logged-in players can change language settings in Menu → Signed in as."
+      ]);
+      add("cloud-save", [
+        "Signed-in progress can follow you to another device."
+      ]);
+    } else {
+      add("account", [
+        "Create an account in Menu if you want your progress to follow you to another device."
+      ]);
+    }
+    add("daily-tip", [
+      "There is a new BOXXY Daily every day."
+    ]);
+    add("level-tip", [
+      "Use Level to revisit completed puzzles or jump to another unlocked level."
+    ]);
+    add("save-tip", [
+      "Save Position lets you return to a tricky spot after a restart."
+    ]);
+    add("zen-tip", [
+      "Zen Mode clears away most of the interface when you want a quieter board."
+    ]);
+    add("trophy-tip", [
+      "Completed pack awards stay in your Trophy Cabinet."
+    ]);
 
     return items;
   }
@@ -7814,12 +7842,15 @@
     if (!available.length) available = candidates;
     const selected = available[Math.floor(Math.random() * available.length)];
     lastThoughtFactKey = selected.key;
-    return selected.text;
+    return window.BoxxyLocalisation?.translate?.(selected.text) || selected.text;
   }
 
   function composeCharacterThought(options = {}) {
     const includeFact = options.preferFact === true || Math.random() < THOUGHT_FACT_CHANCE;
     let thought = includeFact ? generateThoughtFact() : "";
+    if (!thought) {
+      thought = window.BoxxyLocalisation?.randomThought?.() || "";
+    }
     if (!thought) {
       for (let attempt = 0; attempt < 30; attempt++) {
         thought = generateThoughtCandidate();

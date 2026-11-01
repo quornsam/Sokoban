@@ -1,3 +1,4 @@
+/* BOXXY v527: refresh localised dynamic labels, tooltips and footer thought/tip catalogues. */
 /* BOXXY v526: isolated localisation, seven language catalogues and account locale preference. */
 /* BOXXY v506: cache The Staircase pack, artwork, medal and updated published catalogue. */
 /* BOXXY v499: keep Zen board centring inside a control-aware HUD viewport. */
