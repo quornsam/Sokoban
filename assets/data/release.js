@@ -2,7 +2,7 @@
 (() => {
   "use strict";
   globalThis.BOXXY_RELEASE = Object.freeze({
-    version: "527",
+    version: "528",
     lastUpdated: "2026-11-01"
   });
 })();

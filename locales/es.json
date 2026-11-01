@@ -1127,7 +1127,16 @@
     "Use Level to revisit completed puzzles or jump to another unlocked level.": "Usa Nivel para volver a puzles completados o saltar a otro nivel desbloqueado.",
     "Save Position lets you return to a tricky spot after a restart.": "Guardar posición te permite volver a un punto difícil después de reiniciar.",
     "Zen Mode clears away most of the interface when you want a quieter board.": "El modo Zen despeja casi toda la interfaz cuando quieres un tablero más tranquilo.",
-    "Completed pack awards stay in your Trophy Cabinet.": "Los premios de packs completados se quedan en tu vitrina de trofeos."
+    "Completed pack awards stay in your Trophy Cabinet.": "Los premios de packs completados se quedan en tu vitrina de trofeos.",
+    "PREPARING PUZZLE…": "PREPARANDO PUZLE…",
+    "LOADING CHARACTER…": "CARGANDO PERSONAJE…",
+    "BUILDING BOARD…": "CONSTRUYENDO TABLERO…",
+    "FINALISING…": "FINALIZANDO…",
+    "READY": "LISTO",
+    "Moves": "Movimientos",
+    "COMPLETED": "COMPLETADO",
+    "Completed": "Completado",
+    "Complete": "Completado"
   },
   "templates": {
     "COMPLETED {0}": "COMPLETADO {0}",

@@ -1,4 +1,4 @@
-/* BOXXY v527: complete dynamic UI localisation coverage and localised thought/tip pools. */
+/* BOXXY v528: resolve startup language before revealing splash text and expose localisation readiness. */
 (() => {
   "use strict";
 
@@ -29,6 +29,9 @@
   let accountUserId = "";
   let accountLocaleLoading = false;
   let observer = null;
+  let bootComplete = false;
+  let resolveReady;
+  const ready = new Promise(resolve => { resolveReady = resolve; });
 
   const textState = new WeakMap();
   const attributeState = new WeakMap();
@@ -230,7 +233,7 @@
 
   async function loadCatalog(language) {
     if (language === "en") return null;
-    const response = await fetch(`${CATALOG_BASE}${encodeURIComponent(language)}.json?v=527`, { cache:"force-cache" });
+    const response = await fetch(`${CATALOG_BASE}${encodeURIComponent(language)}.json?v=528`, { cache:"force-cache" });
     if (!response.ok) throw new Error(`Could not load ${language} language file.`);
     const data = await response.json();
     if (!data || data.language !== language || typeof data.strings !== "object") throw new Error("Invalid language file.");
@@ -386,21 +389,34 @@
     });
   }
 
+  function finishBoot() {
+    if (bootComplete) return;
+    bootComplete = true;
+    const splashProgress = document.getElementById("splashProgressText");
+    if (splashProgress) splashProgress.style.visibility = "";
+    resolveReady?.(true);
+    window.dispatchEvent(new CustomEvent("boxxylocalisationready", { detail:{ language:currentLanguage } }));
+  }
+
   async function boot() {
-    observeTranslations();
-    bindLanguageControl();
     try {
-      await applyLanguage(currentLanguage,{persist:false,announce:false});
-    } catch (_) {
-      currentLanguage = "en";
-      setCatalog(null);
-      document.documentElement.lang = "en-GB";
-      translateTree(document.documentElement);
-      renderLanguageControl();
+      observeTranslations();
+      bindLanguageControl();
+      try {
+        await applyLanguage(currentLanguage,{persist:false,announce:false});
+      } catch (_) {
+        currentLanguage = "en";
+        setCatalog(null);
+        document.documentElement.lang = "en-GB";
+        translateTree(document.documentElement);
+        renderLanguageControl();
+      }
+      await detectFirstVisitLanguage();
+      const loggedIn = Boolean(window.BOXXYAccountIdentity?.id);
+      updateSignedInControl(loggedIn);
+    } finally {
+      finishBoot();
     }
-    await detectFirstVisitLanguage();
-    const loggedIn = Boolean(window.BOXXYAccountIdentity?.id);
-    updateSignedInControl(loggedIn);
   }
 
   window.addEventListener("boxxyaccountfeatures", event => updateSignedInControl(Boolean(event.detail?.loggedIn)));
@@ -413,6 +429,8 @@
     languages: LANGUAGES,
     translate: value => translateNormalised(normaliseLookup(value)),
     randomThought: () => randomCatalogLine("thought", currentThoughts),
+    get isReady() { return bootComplete; },
+    ready,
     apply: language => applyLanguage(language)
   });
 })();

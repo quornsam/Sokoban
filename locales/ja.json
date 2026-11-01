@@ -1127,7 +1127,16 @@
     "Use Level to revisit completed puzzles or jump to another unlocked level.": "「レベル」からクリア済みパズルを遊び直したり、解放済みレベルへ移動できます。",
     "Save Position lets you return to a tricky spot after a restart.": "「位置を保存」を使えば、再スタート後に難しい場所へ戻れます。",
     "Zen Mode clears away most of the interface when you want a quieter board.": "静かな画面で遊びたいときは、Zen モードでほとんどの UI を隠せます。",
-    "Completed pack awards stay in your Trophy Cabinet.": "パック完了のアワードはトロフィー棚に残ります。"
+    "Completed pack awards stay in your Trophy Cabinet.": "パック完了のアワードはトロフィー棚に残ります。",
+    "PREPARING PUZZLE…": "パズルを準備中…",
+    "LOADING CHARACTER…": "キャラクターを読み込み中…",
+    "BUILDING BOARD…": "ボードを構築中…",
+    "FINALISING…": "仕上げ中…",
+    "READY": "準備完了",
+    "Moves": "手数",
+    "COMPLETED": "完了",
+    "Completed": "完了",
+    "Complete": "完了"
   },
   "templates": {
     "COMPLETED {0}": "クリア {0}",

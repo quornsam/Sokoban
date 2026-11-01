@@ -1127,7 +1127,16 @@
     "Use Level to revisit completed puzzles or jump to another unlocked level.": "Через «Уровень» можно вернуться к пройденным головоломкам или перейти к другому открытому уровню.",
     "Save Position lets you return to a tricky spot after a restart.": "«Сохранить позицию» позволяет вернуться к сложному месту после перезапуска.",
     "Zen Mode clears away most of the interface when you want a quieter board.": "Режим Zen убирает почти весь интерфейс, если хочется более спокойного поля.",
-    "Completed pack awards stay in your Trophy Cabinet.": "Награды за завершённые наборы остаются в вашем шкафу трофеев."
+    "Completed pack awards stay in your Trophy Cabinet.": "Награды за завершённые наборы остаются в вашем шкафу трофеев.",
+    "PREPARING PUZZLE…": "ПОДГОТОВКА ГОЛОВОЛОМКИ…",
+    "LOADING CHARACTER…": "ЗАГРУЗКА ПЕРСОНАЖА…",
+    "BUILDING BOARD…": "СОЗДАНИЕ ПОЛЯ…",
+    "FINALISING…": "ЗАВЕРШЕНИЕ…",
+    "READY": "ГОТОВО",
+    "Moves": "Ходы",
+    "COMPLETED": "ЗАВЕРШЕНО",
+    "Completed": "Завершено",
+    "Complete": "Завершено"
   },
   "templates": {
     "COMPLETED {0}": "ЗАВЕРШЕНО {0}",

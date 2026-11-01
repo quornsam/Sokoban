@@ -1,4 +1,4 @@
-/* BOXXY v527: close localisation gaps in dynamic UI, tooltips and the footer thought/tip system. */
+/* BOXXY v528: localise splash stages and prevent the first footer thought from racing locale startup. */
 /* BOXXY v488: PostHog receives a first-valid-move event for every counted gameplay attempt. */
 /* BOXXY v487: keep the large once-daily invitation independent of site announcements. */
 /* BOXXY v486: canonical release/legal metadata and 2027 monthly Daily medal assets. */
@@ -7167,7 +7167,9 @@
   function setSplashProgress(percent, label) {
     const value = Math.max(0, Math.min(100, Number(percent) || 0));
     if (splashProgressBar) splashProgressBar.style.transform = `scaleX(${value / 100})`;
-    if (splashProgressText && label) splashProgressText.textContent = label;
+    if (splashProgressText && label) {
+      splashProgressText.textContent = window.BoxxyLocalisation?.translate?.(label) || label;
+    }
   }
 
   function hideSplashScreen() {
@@ -7385,6 +7387,7 @@
 
   async function completeStartupSplash() {
     if (!splashScreen || splashDismissed) return;
+    await Promise.resolve(window.BoxxyLocalisation?.ready);
     setSplashProgress(16, "LOADING BOXXY…");
     const splashImage = splashScreen.querySelector("img");
     await waitForImage(splashImage);
@@ -10867,7 +10870,18 @@
     render("idle");
     updateTime();
     scheduleIdle();
-    showCharacterThought(null, !thoughtReady);
+    if (!thoughtReady && window.BoxxyLocalisation?.ready && !window.BoxxyLocalisation.isReady) {
+      const expectedPackId = activePack.id;
+      const expectedLevelIndex = levelIndex;
+      window.BoxxyLocalisation.ready.then(() => {
+        if (!thoughtReady && !dailyMode && !makerTesting && !sharedPuzzleMode
+          && activePack.id === expectedPackId && levelIndex === expectedLevelIndex) {
+          showCharacterThought(null, true);
+        }
+      });
+    } else {
+      showCharacterThought(null, !thoughtReady);
+    }
     refreshLevelButtons();
     if (!preserveAutoplay && !quietReturn) {
       armLevelAttempt(activePack.id, String(levelIndex + 1), {

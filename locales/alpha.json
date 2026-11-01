@@ -1127,7 +1127,16 @@
     "Use Level to revisit completed puzzles or jump to another unlocked level.": "Use Level to replay clears or jump to another unlocked puzzle.",
     "Save Position lets you return to a tricky spot after a restart.": "Save Position is clutch when you want to come back after a restart.",
     "Zen Mode clears away most of the interface when you want a quieter board.": "Zen Mode deletes most of the UI when you want maximum focus.",
-    "Completed pack awards stay in your Trophy Cabinet.": "Pack rewards stay in your Trophy Cabinet. Permanent W."
+    "Completed pack awards stay in your Trophy Cabinet.": "Pack rewards stay in your Trophy Cabinet. Permanent W.",
+    "PREPARING PUZZLE…": "PREPPING PUZZLE…",
+    "LOADING CHARACTER…": "LOADING YOUR MAIN…",
+    "BUILDING BOARD…": "BUILDING THE BOARD…",
+    "FINALISING…": "LOCKING IT IN…",
+    "READY": "READY FR",
+    "Moves": "Moves fr",
+    "COMPLETED": "COOKED",
+    "Completed": "Cooked",
+    "Complete": "Cooked"
   },
   "templates": {
     "COMPLETED {0}": "COOKED {0}",

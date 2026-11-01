@@ -1127,7 +1127,16 @@
     "Use Level to revisit completed puzzles or jump to another unlocked level.": "使用“关卡”可以重玩已完成谜题，或跳到其他已解锁关卡。",
     "Save Position lets you return to a tricky spot after a restart.": "“保存位置”可以让你在重开后回到棘手的位置。",
     "Zen Mode clears away most of the interface when you want a quieter board.": "想要更安静的棋盘时，禅模式会隐藏大部分界面。",
-    "Completed pack awards stay in your Trophy Cabinet.": "完成关卡包获得的奖励会一直保留在你的奖杯柜中。"
+    "Completed pack awards stay in your Trophy Cabinet.": "完成关卡包获得的奖励会一直保留在你的奖杯柜中。",
+    "PREPARING PUZZLE…": "正在准备谜题…",
+    "LOADING CHARACTER…": "正在加载角色…",
+    "BUILDING BOARD…": "正在构建棋盘…",
+    "FINALISING…": "正在完成…",
+    "READY": "准备就绪",
+    "Moves": "步数",
+    "COMPLETED": "已完成",
+    "Completed": "已完成",
+    "Complete": "完成"
   },
   "templates": {
     "COMPLETED {0}": "已完成 {0}",
