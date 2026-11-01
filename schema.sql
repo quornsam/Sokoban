@@ -304,3 +304,14 @@ CREATE TABLE IF NOT EXISTS admin_special_medal_definitions (
   image TEXT NOT NULL,
   created_at INTEGER NOT NULL
 );
+
+-- v526: account-wide language preference and the country recorded on the
+-- browser's first BOXXY visit. Anonymous first-visit country stays in the
+-- browser/cookie and is only attached to an account after sign-in.
+CREATE TABLE IF NOT EXISTS user_locale_preferences (
+  user_id TEXT PRIMARY KEY,
+  language TEXT NOT NULL DEFAULT 'en',
+  first_country TEXT NOT NULL DEFAULT '',
+  updated_at INTEGER NOT NULL DEFAULT 0,
+  FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+);

@@ -39,6 +39,7 @@ import { adminMedalState, adminGrantMedals, adminRevokeGrant,
   specialAwardsForUsers } from '../_lib/special-medals.js';
 import { ensureDailyGoldMedalSchema } from '../_lib/daily-gold-medals.js';
 import { readOriginalsHallOfFame, saveOriginalsHallOfFameEntry, deleteOriginalsHallOfFameEntry, setOriginalsHallOfFamePosterShipped } from '../_lib/originals-hall-of-fame.js';
+import { ensureUserLocaleSchema } from '../_lib/locale.js';
 
 const INSTANT_MOVE_FEATURE_KEY = "instant_move";
 
@@ -580,6 +581,8 @@ function mappedUser(user, includeProgress = false) {
     instantMoveEnabled: Boolean(Number(user.instant_move_enabled) || 0),
     instantMoveUpdatedAt: Math.max(0, Number(user.instant_move_updated_at) || 0),
     hidePublicScores: Boolean(Number(user.hide_public_scores) || 0),
+    language: String(user.language || ""),
+    firstCountry: String(user.first_country || ""),
     summary: {
       ...canonicalAdminSummary(progressSummary(user.progress_json), user.progress_json),
       completedDailyMonths: publicStatsFromProgress(user.progress_json).completedDailyMonths,
@@ -676,6 +679,7 @@ async function listUsers(context) {
   const db = requireDatabase(context.env);
   await backfillLegacySessions(db);
   await ensureUserFeatureFlagsSchema(db);
+  await ensureUserLocaleSchema(db);
   const now = Date.now();
   const result = await db.prepare(`
     SELECT u.id, u.username, u.email, u.created_at, u.last_login_at, u.last_seen_at,
@@ -684,7 +688,8 @@ async function listUsers(context) {
            ai.provider_subject AS google_sub, ai.provider_email AS google_email,
            uas.password_enabled AS password_enabled,
            imf.enabled AS instant_move_enabled, imf.updated_at AS instant_move_updated_at,
-           COALESCE(spf.enabled, 0) AS hide_public_scores
+           COALESCE(spf.enabled, 0) AS hide_public_scores,
+           ulp.language AS language, ulp.first_country AS first_country
     FROM users u
     LEFT JOIN auth_identities ai
       ON ai.user_id = u.id AND ai.provider = 'google'
@@ -694,6 +699,8 @@ async function listUsers(context) {
       ON imf.user_id = u.id AND imf.feature_key = 'instant_move'
     LEFT JOIN user_feature_flags spf
       ON spf.user_id = u.id AND spf.feature_key = 'hide_public_scores'
+    LEFT JOIN user_locale_preferences ulp
+      ON ulp.user_id = u.id
     ORDER BY u.last_seen_at DESC, u.created_at DESC
   `).all();
   const rows = result.results || [];
@@ -714,6 +721,7 @@ async function userDetail(context, id) {
   const db = requireDatabase(context.env);
   await backfillLegacySessions(db);
   await ensureUserFeatureFlagsSchema(db);
+  await ensureUserLocaleSchema(db);
   const now = Date.now();
   const user = await db.prepare(`
     SELECT u.id, u.username, u.email, u.created_at, u.last_login_at, u.last_seen_at,
@@ -722,7 +730,8 @@ async function userDetail(context, id) {
            ai.provider_subject AS google_sub, ai.provider_email AS google_email,
            uas.password_enabled AS password_enabled,
            imf.enabled AS instant_move_enabled, imf.updated_at AS instant_move_updated_at,
-           COALESCE(spf.enabled, 0) AS hide_public_scores
+           COALESCE(spf.enabled, 0) AS hide_public_scores,
+           ulp.language AS language, ulp.first_country AS first_country
     FROM users u
     LEFT JOIN auth_identities ai
       ON ai.user_id = u.id AND ai.provider = 'google'
@@ -732,6 +741,8 @@ async function userDetail(context, id) {
       ON imf.user_id = u.id AND imf.feature_key = 'instant_move'
     LEFT JOIN user_feature_flags spf
       ON spf.user_id = u.id AND spf.feature_key = 'hide_public_scores'
+    LEFT JOIN user_locale_preferences ulp
+      ON ulp.user_id = u.id
     WHERE u.id = ? LIMIT 1
   `).bind(id).first();
   if (!user) return json({ ok: false, error: "User not found." }, 404);
