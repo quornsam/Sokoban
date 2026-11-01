@@ -6343,8 +6343,9 @@
   let goldDatesForAccount = "";
   let goldDatesCache = null;
 
-  function openTrophyDetails(title) {
+  function openTrophyDetails(title, detailType = "") {
     if (!trophyDetailModal || !trophyDetailTitle || !trophyDetailContent) return false;
+    trophyDetailModal.dataset.detailType = String(detailType || "");
     trophyDetailTitle.textContent = title;
     trophyDetailContent.replaceChildren();
     trophyDetailModal.hidden = false;
@@ -6410,7 +6411,7 @@
   }
 
   async function showGoldTrophyDetails() {
-    if (!openTrophyDetails("DAILY GOLD MEDALS")) return;
+    if (!openTrophyDetails("DAILY GOLD MEDALS", "daily-gold")) return;
     trophyDetailLine(`${dailyGoldMedalsEarned} fastest-time gold ${dailyGoldMedalsEarned === 1 ? "medal" : "medals"}.`);
     const accountId = String(window.BOXXYAccountIdentity?.id || "");
     if (!accountId) {
@@ -6435,7 +6436,7 @@
         if (String(window.BOXXYAccountIdentity?.id || "") !== accountId) return;
         goldDatesCache = data.dates.filter(date => /^\d{4}-\d{2}-\d{2}$/.test(String(date)));
       }
-      if (trophyDetailModal.hidden || trophyDetailTitle.textContent !== "DAILY GOLD MEDALS" ||
+      if (trophyDetailModal.hidden || trophyDetailModal.dataset.detailType !== "daily-gold" ||
           String(window.BOXXYAccountIdentity?.id || "") !== accountId) return;
       loading.remove();
       if (!goldDatesCache.length) {
@@ -6467,7 +6468,7 @@
       });
       trophyDetailContent.appendChild(list);
     } catch(error) {
-      if (!trophyDetailModal.hidden && trophyDetailTitle.textContent === "DAILY GOLD MEDALS")
+      if (!trophyDetailModal.hidden && trophyDetailModal.dataset.detailType === "daily-gold")
         loading.textContent = "Medal dates unavailable. Please try again later.";
     }
   }

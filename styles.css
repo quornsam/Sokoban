@@ -8698,3 +8698,60 @@ html.touch-ui .dpad button {touch-action:none;-webkit-touch-callout:none;-webkit
 #accountScorePrivacyHelp{margin:9px 0 0;color:#6b6257;font-size:8px;line-height:1.45;font-weight:750}
 @media(max-width:760px){.account-score-privacy-card{padding:10px;margin-top:10px}.account-score-privacy-heading{font-size:8.5px}.account-score-privacy-label span,#accountScorePrivacyHelp{font-size:9px}}
 @media(max-height:520px) and (orientation:landscape){.account-score-privacy-card{padding:8px;margin-top:8px}}
+
+/* BOXXY v526 — signed-in language control is isolated from the account/game layout. */
+.account-nav-row{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  margin:0 0 18px;
+}
+.account-nav-row .settings-back{margin:0}
+.account-language-button{
+  min-width:46px;
+  height:36px;
+  padding:4px 8px;
+  border:2px solid var(--ink);
+  background:#f7f0e5;
+  color:var(--ink);
+  box-shadow:2px 2px 0 var(--ink);
+  font:inherit;
+  font-size:21px;
+  line-height:1;
+  cursor:pointer;
+}
+.account-language-button[hidden],.account-language-menu[hidden]{display:none!important}
+.account-language-button:focus-visible,.account-language-menu button:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.account-language-menu{
+  width:min(100%,420px);
+  margin:-8px 0 18px auto;
+  padding:6px;
+  border:2px solid var(--ink);
+  background:#fffaf1;
+  box-shadow:3px 3px 0 var(--ink);
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:5px;
+}
+.account-language-menu button{
+  min-height:38px;
+  padding:6px 8px;
+  border:1px solid var(--ink);
+  background:#f7f0e5;
+  color:var(--ink);
+  display:grid;
+  grid-template-columns:28px minmax(0,1fr);
+  align-items:center;
+  gap:6px;
+  text-align:left;
+  font:inherit;
+  cursor:pointer;
+}
+.account-language-menu button[aria-checked="true"]{background:var(--yellow);box-shadow:1px 1px 0 var(--ink)}
+.account-language-menu button span{font-size:19px;line-height:1}
+.account-language-menu button b{font-size:9px;line-height:1.15;letter-spacing:.04em;overflow-wrap:anywhere}
+@media(max-width:760px){
+  .account-nav-row{margin-bottom:12px}
+  .account-language-menu{grid-template-columns:1fr 1fr;margin-bottom:12px}
+}

@@ -375,6 +375,25 @@
   const STAR_SVG = '<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M50 6 62.7 34.2 93.5 37.5 70.5 58.3 77 88.5 50 73 23 88.5 29.5 58.3 6.5 37.5 37.3 34.2Z"/></svg>';
   const JIGSAW_SVG = '<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M8 26H34C34 14 40 6 50 6S66 14 66 26H82V38C82 42 84 44 88 44C94 44 98 48 98 54S94 66 88 66C84 66 82 68 82 72V90H64C64 78 58 72 50 72S36 78 36 90H8V64C20 64 28 58 28 50S20 36 8 36Z"/></svg>';
   const AVATAR_DEFAULT = Object.freeze({ bodyType:"boy", tshirt:"#df3526", trousers:"#292829", hair:"#292727", skin:"#ee9a60", shoes:"#292829" });
+  const LANGUAGE_LABELS = Object.freeze({
+    en:"English", fr:"French", es:"Spanish", de:"German", zh:"Chinese", ja:"Japanese", ru:"Russian", alpha:"Gen Alpha"
+  });
+  const LANGUAGE_FLAGS = Object.freeze({
+    en:"🇬🇧", fr:"🇫🇷", es:"🇪🇸", de:"🇩🇪", zh:"🇨🇳", ja:"🇯🇵", ru:"🇷🇺", alpha:"🏁"
+  });
+  function countryFlag(code) {
+    const value = String(code || "").trim().toUpperCase();
+    if (!/^[A-Z]{2}$/.test(value)) return "";
+    return String.fromCodePoint(...[...value].map(letter => 127397 + letter.charCodeAt(0)));
+  }
+  function localeLanguageLabel(code) {
+    const value = String(code || "").trim().toLowerCase();
+    return value && LANGUAGE_LABELS[value] ? `${LANGUAGE_FLAGS[value]} ${LANGUAGE_LABELS[value]}` : "—";
+  }
+  function firstCountryLabel(code) {
+    const value = String(code || "").trim().toUpperCase();
+    return value ? `${countryFlag(value)} ${value}`.trim() : "—";
+  }
   const AVATAR_CATEGORIES = Object.freeze(["tshirt", "trousers", "hair", "skin", "shoes"]);
   const FIXED_AVATAR_CHARACTERS = Object.freeze({
     lincoln:"LINCOLN", beverley:"BEVERLEY", harry:"HARRY", stuart:"STUART", davido:"DAVIDO", samantha:"SAMANTHA",
@@ -1020,7 +1039,7 @@
   practiceFilter?.addEventListener("change",renderPracticeCards);
   function filteredUsers() {
     const query = String(searchInput?.value || "").trim().toLowerCase();
-    const list = query ? users.filter(user => [user.username, user.email, user.googleEmail, user.signupIp, user.lastIp, user.summary?.clickPushCode, ...(user.summary?.clickPushCodes || [])].some(value => String(value || "").toLowerCase().includes(query))) : users;
+    const list = query ? users.filter(user => [user.username, user.email, user.googleEmail, user.signupIp, user.lastIp, user.firstCountry, user.language, user.summary?.clickPushCode, ...(user.summary?.clickPushCodes || [])].some(value => String(value || "").toLowerCase().includes(query))) : users;
     return list.slice().sort(compareUsers);
   }
   function sessionBadge(user) {
@@ -1172,6 +1191,8 @@
           <div><span>TOTAL TIME ONLINE</span><strong>${escapeHtml(duration(user.totalActiveSeconds))}</strong></div>
           <div><span>SIGNUP IP</span><strong>${escapeHtml(user.signupIp || "—")}</strong></div>
           <div><span>LAST IP</span><strong>${escapeHtml(user.lastIp || "—")}</strong></div>
+          <div><span>FIRST VISIT COUNTRY</span><strong>${escapeHtml(firstCountryLabel(user.firstCountry))}</strong></div>
+          <div><span>LANGUAGE</span><strong>${escapeHtml(localeLanguageLabel(user.language))}</strong></div>
           <div><span>ACTIVE PACK</span><strong>${escapeHtml(user.summary?.activePack || "—")}</strong></div>
           <div><span>LAST CLOUD SAVE</span><strong>${escapeHtml(dateTime(user.progressUpdatedAt))}</strong></div>
           <div><span>BROWSER / DEVICE</span><strong>${escapeHtml(browserDevice(user.userAgent))}</strong></div>

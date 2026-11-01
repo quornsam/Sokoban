@@ -1,3 +1,4 @@
+/* BOXXY v526: isolated localisation, seven language catalogues and account locale preference. */
 /* BOXXY v506: cache The Staircase pack, artwork, medal and updated published catalogue. */
 /* BOXXY v499: keep Zen board centring inside a control-aware HUD viewport. */
 /* BOXXY v498: Zen HUD spacing experiment superseded by v499 centring restoration. */
@@ -321,6 +322,14 @@ const ASSETS = [
   "/rainbow-intro.js",
   OFFLINE_ENTRY,
   "/legal.html",
+  "/locales/localisation.js",
+  "/locales/fr.json",
+  "/locales/es.json",
+  "/locales/de.json",
+  "/locales/zh.json",
+  "/locales/ja.json",
+  "/locales/ru.json",
+  "/locales/alpha.json",
   "/legal.js",
   "/levels.js",
   "/pack-builder.js",
