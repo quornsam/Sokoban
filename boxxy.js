@@ -1,3 +1,4 @@
+/* BOXXY v530: localise the Daily leaderboard move-count unit at its runtime rendering source. */
 /* BOXXY v528: localise splash stages and prevent the first footer thought from racing locale startup. */
 /* BOXXY v488: PostHog receives a first-valid-move event for every counted gameplay attempt. */
 /* BOXXY v487: keep the large once-daily invitation independent of site announcements. */
@@ -5534,9 +5535,10 @@
       const moves = document.createElement("span");
       const moveScore = byMoves ? entry.bestMoves : entry.moves;
       moves.className = "daily-leaderboard-moves";
+      const moveUnit = window.BoxxyLocalisation?.translate?.("MOVES") || "MOVES";
       moves.textContent = moveScore !== null && moveScore !== undefined && Number.isFinite(Number(moveScore))
-        ? `${Math.max(0, Math.trunc(Number(moveScore)))}${byMoves ? " m" : " MOVES"}`
-        : byMoves ? "— m" : "— MOVES";
+        ? `${Math.max(0, Math.trunc(Number(moveScore)))}${byMoves ? " m" : ` ${moveUnit}`}`
+        : byMoves ? "— m" : `— ${moveUnit}`;
       const time = document.createElement("b");
       time.className = "daily-leaderboard-time";
       const runSeconds = byMoves ? entry.bestMovesSeconds : entry.seconds;
