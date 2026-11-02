@@ -1,3 +1,4 @@
+/* BOXXY v532: use one fixed Undo hold cadence across keyboard, mobile controls and phone Zen, independent of gameplay speed. */
 /* BOXXY v530: localise the Daily leaderboard move-count unit at its runtime rendering source. */
 /* BOXXY v528: localise splash stages and prevent the first footer thought from racing locale startup. */
 /* BOXXY v488: PostHog receives a first-valid-move event for every counted gameplay attempt. */
@@ -8334,6 +8335,8 @@
 
   const ZEN_SCREEN_SWIPE_THRESHOLD = 22;
   const ZEN_CONTROL_INTENT_DELAY_MS = 80;
+  const UNDO_REPEAT_ARM_DELAY_MS = 330;
+  const UNDO_REPEAT_INTERVAL_MS = 105;
 
   function performSwipeMove(dx, dy, animate = true) {
     mouseSupportIgnoreClickUntil = Date.now() + 260;
@@ -12457,8 +12460,8 @@
         }
         undo();
       };
-      keyboardUndoRepeatTimer = window.setInterval(repeatUndo, 105);
-    }, 330);
+      keyboardUndoRepeatTimer = window.setInterval(repeatUndo, UNDO_REPEAT_INTERVAL_MS);
+    }, UNDO_REPEAT_ARM_DELAY_MS);
   }
 
   function clearKeyboardMoveRepeat() {
@@ -12907,10 +12910,11 @@
       control.setPointerCapture?.(event.pointerId);
       performUndo();
 
-      // Match held direction controls: pause briefly, then repeat while held.
+      // Undo uses one fixed hold cadence on every control. Gameplay movement
+      // speed must not turn a normal press into multiple Undos.
       repeatDelay = window.setTimeout(() => {
-        repeatTimer = window.setInterval(performUndo, 105);
-      }, 330);
+        repeatTimer = window.setInterval(performUndo, UNDO_REPEAT_INTERVAL_MS);
+      }, UNDO_REPEAT_ARM_DELAY_MS);
     });
 
     const releaseUndoButton = event => {
@@ -13402,12 +13406,12 @@
     gesture.holdCommitted = true;
     performZenUndo(gesture);
 
-    // Match BOXXY's normal held-control cadence: one deliberate Undo, then
-    // continuous Undo until the finger is released.
+    // Use the same fixed Undo cadence as the normal controls. Zen's movement
+    // speed affects movement only, never how quickly Undo begins repeating.
     const elapsed = Math.max(0, performance.now() - gesture.downAt);
-    const remaining = Math.max(0, scaledBoxxyDelay(330) - elapsed);
+    const remaining = Math.max(0, UNDO_REPEAT_ARM_DELAY_MS - elapsed);
     gesture.undoRepeatDelay = window.setTimeout(() => {
-      gesture.undoRepeatTimer = window.setInterval(() => performZenUndo(gesture), scaledBoxxyDelay(105));
+      gesture.undoRepeatTimer = window.setInterval(() => performZenUndo(gesture), UNDO_REPEAT_INTERVAL_MS);
     }, remaining);
   };
 
