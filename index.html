@@ -163,7 +163,7 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=526">
+<link rel="stylesheet" href="styles.css?v=531">
 <link rel="stylesheet" href="how-to-play.css?v=501">
 <link rel="stylesheet" href="rainbow-intro.css?v=502">
 <link rel="preload" as="image" href="assets/board/boxes/box-default-yellow.png?v=226">
@@ -353,6 +353,7 @@
       <button id="desktopHistoryBtn" class="action small desktop-history" type="button" aria-label="Open game history"><span aria-hidden="true">↺</span><b>HISTORY</b></button>
       <button id="desktopTrophiesBtn" class="action small desktop-trophies" type="button" aria-label="Open trophy cabinet"><span class="desktop-trophy-star" aria-hidden="true"><svg viewBox="0 0 100 100" focusable="false"><path d="M50 6 62.7 34.2 93.5 37.5 70.5 58.3 77 88.5 50 73 23 88.5 29.5 58.3 6.5 37.5 37.3 34.2Z"/></svg></span><b>TROPHIES</b></button>
       <button id="desktopDailyBtn" class="action small desktop-daily" type="button" aria-label="Open Daily Boxxy"><span id="desktopDailyStreak" class="desktop-daily-streak-icon" data-tier="zero" data-digits="1" data-qualified-today="false" aria-hidden="true"><i class="desktop-daily-streak-flame"></i><em id="desktopDailyStreakNumber">0</em></span><b>DAILY</b></button>
+      <a id="desktopRedditBtn" class="action small desktop-reddit" href="https://www.reddit.com/r/boxxygame/" target="_blank" rel="noopener noreferrer"><img class="reddit-button-icon" src="assets/ui/reddit-icon.webp" alt="" aria-hidden="true"><b>REDDIT</b></a>
     </section>
     </div>
 
@@ -610,6 +611,10 @@
               <div id="settingsTargetColourChoices" class="settings-board-style-swatches" role="group" aria-label="Target and box-on-target colour"></div>
             </div>
           </div>
+        </section>
+
+        <section class="settings-panel settings-reddit-panel compact-settings-only">
+          <a class="settings-link-button settings-reddit-link compact-settings-only" href="https://www.reddit.com/r/boxxygame/" target="_blank" rel="noopener noreferrer"><span class="settings-reddit-icon" aria-hidden="true"><img src="assets/ui/reddit-icon.webp" alt=""></span><b>REDDIT</b><i aria-hidden="true">↗</i></a>
         </section>
 
         <section id="settingsControlsPanel" class="settings-panel desktop-settings-only">

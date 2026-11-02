@@ -1,3 +1,4 @@
+/* BOXXY v531: cache the Reddit community icon used by desktop and compact Menu links. */
 /* BOXXY v527: refresh localised dynamic labels, tooltips and footer thought/tip catalogues. */
 /* BOXXY v526: isolated localisation, seven language catalogues and account locale preference. */
 /* BOXXY v506: cache The Staircase pack, artwork, medal and updated published catalogue. */
@@ -284,6 +285,7 @@ const ASSETS = [
   "/assets/ui/starry-night-badge.png",
   "/assets/ui/boxxy-prize-poster-lowres.jpg",
   "/assets/ui/boxxy-splash.png",
+  "/assets/ui/reddit-icon.webp",
   "/assets/ui/completion/happy-boxxy-sprites-1.png",
   "/assets/ui/completion/happy-boxxy-sprites-2.png",
   "/assets/ui/completion/happy-sprites-350-grid.png",

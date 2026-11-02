@@ -8053,6 +8053,16 @@ html.touch-ui .dpad button {touch-action:none;-webkit-touch-callout:none;-webkit
   }
 }
 
+
+/* BOXXY v531 — Reddit community link in the desktop utility tray and compact Menu. */
+.reddit-button-icon{display:block;width:30px;height:30px;object-fit:contain}
+.settings-reddit-link{text-decoration:none}
+.settings-reddit-icon{width:30px;height:30px;display:grid!important;place-items:center!important;font-size:0!important;line-height:0!important}
+.settings-reddit-icon img{display:block;width:27px;height:27px;object-fit:contain}
+.compact-settings-only{display:none!important}
+@media(max-width:820px){.compact-settings-only{display:grid!important}}
+html.touch-ui .compact-settings-only{display:grid!important}
+
 /* BOXXY v435 — desktop tools are an independent slide-over tray above the map; fixed header/footer chrome never participates. */
 .desktop-utility-toggle,
 .desktop-board-actions,
@@ -8248,7 +8258,7 @@ html.touch-ui .dpad button {touch-action:none;-webkit-touch-callout:none;-webkit
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-utility-tray .top-actions #restartBtn,
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-utility-tray .move-zone .dpad{display:none!important}
 
-  /* Fixed two-column order: Save/Style, Levels/Packs, Prev/Next, Music/Audio, Profile/History, Daily/Trophies; Menu/Full Screen anchored at the bottom. */
+  /* Fixed two-column order: Save/Style, Levels/Packs, Prev/Next, Music/Audio, Profile/History, Daily/Trophies, then Reddit beneath Daily; Menu/Full Screen anchored at the bottom. */
   html:not(.touch-ui):not(.desktop-zen-mode) #savePositionBtn{grid-column:1;grid-row:1}
   html:not(.touch-ui):not(.desktop-zen-mode) #styleBtn{grid-column:2;grid-row:1}
   html:not(.touch-ui):not(.desktop-zen-mode) #levelBtn{grid-column:1;grid-row:2}
@@ -8261,6 +8271,7 @@ html.touch-ui .dpad button {touch-action:none;-webkit-touch-callout:none;-webkit
   html:not(.touch-ui):not(.desktop-zen-mode) #desktopHistoryBtn{grid-column:2;grid-row:5}
   html:not(.touch-ui):not(.desktop-zen-mode) #desktopDailyBtn{grid-column:1;grid-row:6}
   html:not(.touch-ui):not(.desktop-zen-mode) #desktopTrophiesBtn{grid-column:2;grid-row:6}
+  html:not(.touch-ui):not(.desktop-zen-mode) #desktopRedditBtn{grid-column:1;grid-row:7;text-decoration:none}
   html:not(.touch-ui):not(.desktop-zen-mode) #settingsBtn{grid-column:1;grid-row:8}
   html:not(.touch-ui):not(.desktop-zen-mode) #fullscreenBtn{grid-column:2;grid-row:8}
 
@@ -8317,6 +8328,8 @@ html.touch-ui .dpad button {touch-action:none;-webkit-touch-callout:none;-webkit
   }
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-utility-tray .attire-action .style-outfit-icon{width:25px;height:25px}
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-utility-tray .fullscreen-action b{max-width:52px!important}
+  html:not(.touch-ui):not(.desktop-zen-mode) .desktop-reddit{color:var(--ink)}
+  html:not(.touch-ui):not(.desktop-zen-mode) .desktop-reddit .reddit-button-icon{width:31px;height:31px}
 
   /* Purpose-built rail icons: Indi, the BOXXY Originals star, and the player's live Daily streak flame. */
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-profile-indi{
