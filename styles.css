@@ -8258,7 +8258,7 @@ html.touch-ui .compact-settings-only{display:grid!important}
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-utility-tray .top-actions #restartBtn,
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-utility-tray .move-zone .dpad{display:none!important}
 
-  /* Fixed two-column order: Save/Style, Levels/Packs, Prev/Next, Music/Audio, Profile/History, Daily/Trophies, then Reddit beneath Daily; Menu/Full Screen anchored at the bottom. */
+  /* Fixed two-column order: Save/Style, Levels/Packs, Prev/Next, Music/Audio, Profile/History, Daily/Trophies, Reddit/Language, then Menu/Full Screen. */
   html:not(.touch-ui):not(.desktop-zen-mode) #savePositionBtn{grid-column:1;grid-row:1}
   html:not(.touch-ui):not(.desktop-zen-mode) #styleBtn{grid-column:2;grid-row:1}
   html:not(.touch-ui):not(.desktop-zen-mode) #levelBtn{grid-column:1;grid-row:2}
@@ -8272,6 +8272,7 @@ html.touch-ui .compact-settings-only{display:grid!important}
   html:not(.touch-ui):not(.desktop-zen-mode) #desktopDailyBtn{grid-column:1;grid-row:6}
   html:not(.touch-ui):not(.desktop-zen-mode) #desktopTrophiesBtn{grid-column:2;grid-row:6}
   html:not(.touch-ui):not(.desktop-zen-mode) #desktopRedditBtn{grid-column:1;grid-row:7;text-decoration:none}
+  html:not(.touch-ui):not(.desktop-zen-mode) #desktopLanguageBtn{grid-column:2;grid-row:7}
   html:not(.touch-ui):not(.desktop-zen-mode) #settingsBtn{grid-column:1;grid-row:8}
   html:not(.touch-ui):not(.desktop-zen-mode) #fullscreenBtn{grid-column:2;grid-row:8}
 
@@ -8330,6 +8331,7 @@ html.touch-ui .compact-settings-only{display:grid!important}
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-utility-tray .fullscreen-action b{max-width:52px!important}
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-reddit{color:var(--ink)}
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-reddit .reddit-button-icon{width:31px;height:31px}
+  html:not(.touch-ui):not(.desktop-zen-mode) .desktop-language-flag{font-size:29px!important;line-height:1!important}
 
   /* Purpose-built rail icons: Indi, the BOXXY Originals star, and the player's live Daily streak flame. */
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-profile-indi{
@@ -8712,59 +8714,73 @@ html.touch-ui .compact-settings-only{display:grid!important}
 @media(max-width:760px){.account-score-privacy-card{padding:10px;margin-top:10px}.account-score-privacy-heading{font-size:8.5px}.account-score-privacy-label span,#accountScorePrivacyHelp{font-size:9px}}
 @media(max-height:520px) and (orientation:landscape){.account-score-privacy-card{padding:8px;margin-top:8px}}
 
-/* BOXXY v526 — signed-in language control is isolated from the account/game layout. */
+/* BOXXY v534 — public language chooser shared by desktop and touch/mobile controls. */
 .account-nav-row{
   display:flex;
   align-items:flex-start;
-  justify-content:space-between;
-  gap:12px;
+  justify-content:flex-start;
   margin:0 0 18px;
 }
 .account-nav-row .settings-back{margin:0}
-.account-language-button{
-  min-width:46px;
-  height:36px;
-  padding:4px 8px;
-  border:2px solid var(--ink);
+
+.language-card{
+  width:min(520px,92vw);
+  padding:20px;
+  text-align:left;
   background:#f7f0e5;
-  color:var(--ink);
-  box-shadow:2px 2px 0 var(--ink);
-  font:inherit;
-  font-size:21px;
-  line-height:1;
+}
+.language-modal-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  margin:0 0 16px;
+}
+.language-modal-head h2{margin:0;font-size:clamp(24px,4vw,36px);line-height:1}
+.language-modal-close{
+  width:38px;
+  height:38px;
+  padding:0!important;
+  display:grid;
+  place-items:center;
+  border:2px solid var(--ink)!important;
+  background:#ece4d7!important;
+  color:var(--ink)!important;
+  font:950 24px/1 Inter,ui-sans-serif,sans-serif!important;
   cursor:pointer;
 }
-.account-language-button[hidden],.account-language-menu[hidden]{display:none!important}
-.account-language-button:focus-visible,.account-language-menu button:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
-.account-language-menu{
-  width:min(100%,420px);
-  margin:-8px 0 18px auto;
-  padding:6px;
-  border:2px solid var(--ink);
-  background:#fffaf1;
-  box-shadow:3px 3px 0 var(--ink);
+.language-modal-options{
   display:grid;
-  grid-template-columns:repeat(2,minmax(0,1fr));
-  gap:5px;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:8px;
 }
-.account-language-menu button{
-  min-height:38px;
-  padding:6px 8px;
-  border:1px solid var(--ink);
-  background:#f7f0e5;
-  color:var(--ink);
+.language-modal-options button{
+  min-height:58px;
+  padding:8px 10px!important;
+  border:2px solid var(--ink)!important;
+  background:#fffaf1!important;
+  color:var(--ink)!important;
   display:grid;
-  grid-template-columns:28px minmax(0,1fr);
+  grid-template-columns:34px minmax(0,1fr);
   align-items:center;
-  gap:6px;
+  gap:8px;
   text-align:left;
   font:inherit;
   cursor:pointer;
 }
-.account-language-menu button[aria-checked="true"]{background:var(--yellow);box-shadow:1px 1px 0 var(--ink)}
-.account-language-menu button span{font-size:19px;line-height:1}
-.account-language-menu button b{font-size:9px;line-height:1.15;letter-spacing:.04em;overflow-wrap:anywhere}
-@media(max-width:760px){
+.language-modal-options button[aria-checked="true"]{background:var(--yellow)!important;box-shadow:2px 2px 0 var(--ink)}
+.language-modal-options button:disabled{opacity:.6;cursor:wait}
+.language-modal-options button:focus-visible,.language-modal-close:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.language-option-flag{font-size:26px;line-height:1}
+.language-modal-options b{font-size:11px;line-height:1.15;letter-spacing:.02em;overflow-wrap:anywhere}
+.language-modal-status{margin:14px 0 0;color:var(--red);font-size:11px;font-weight:850;line-height:1.35}
+
+@media(max-width:600px){
   .account-nav-row{margin-bottom:12px}
-  .account-language-menu{grid-template-columns:1fr 1fr;margin-bottom:12px}
+  .language-card{width:min(94vw,430px);padding:14px}
+  .language-modal-head{margin-bottom:12px}
+  .language-modal-options{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+  .language-modal-options button{min-height:50px;padding:6px 8px!important;grid-template-columns:30px minmax(0,1fr);gap:6px}
+  .language-option-flag{font-size:22px}
+  .language-modal-options b{font-size:9px}
 }

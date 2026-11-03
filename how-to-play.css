@@ -20,25 +20,38 @@
   height:var(--quote-control-size);
   border-radius:9px 9px 9px 2px;
 }
-.how-to-play-trigger{
-  grid-column:3;
+
+:is(.how-to-play-trigger,.mobile-language-trigger){
   width:var(--quote-control-size);
   height:var(--quote-control-size);
   margin:0;
   padding:0;
-  display:grid;
   place-items:center;
   border:0;
   border-radius:9px 9px 2px 9px;
   background:var(--yellow);
   color:var(--ink);
   box-shadow:4px 4px 0 rgba(23,23,25,.16);
-  font:950 clamp(17px,2.5dvh,24px)/1 Inter,ui-sans-serif,sans-serif;
   cursor:pointer;
 }
-.how-to-play-trigger:hover{transform:translate(-1px,-1px);box-shadow:5px 5px 0 rgba(23,23,25,.16)}
-.how-to-play-trigger:active{transform:translate(2px,2px);box-shadow:1px 1px 0 rgba(23,23,25,.16)}
-.how-to-play-trigger:focus-visible{outline:3px solid var(--blue);outline-offset:3px}
+.how-to-play-trigger{
+  grid-column:3;
+  display:grid;
+  font:950 clamp(17px,2.5dvh,24px)/1 Inter,ui-sans-serif,sans-serif;
+}
+.mobile-language-trigger{
+  display:none;
+  font:400 clamp(17px,2.5dvh,24px)/1 system-ui,sans-serif;
+}
+:is(.how-to-play-trigger,.mobile-language-trigger):hover{transform:translate(-1px,-1px);box-shadow:5px 5px 0 rgba(23,23,25,.16)}
+:is(.how-to-play-trigger,.mobile-language-trigger):active{transform:translate(2px,2px);box-shadow:1px 1px 0 rgba(23,23,25,.16)}
+:is(.how-to-play-trigger,.mobile-language-trigger):focus-visible{outline:3px solid var(--blue);outline-offset:3px}
+
+html.touch-ui .instruction{
+  grid-template-columns:var(--quote-control-size) minmax(0,1fr) var(--quote-control-size) var(--quote-control-size);
+}
+html.touch-ui .mobile-language-trigger{display:grid;grid-column:3}
+html.touch-ui .how-to-play-trigger{grid-column:4}
 
 /* Modal shell */
 .how-to-play-modal{
@@ -512,7 +525,9 @@ body.how-to-play-open{overflow:hidden}
 
 @media(max-width:600px){
   .instruction{--quote-control-size:25px;gap:8px;padding-inline:10px}
-  .how-to-play-trigger{font-size:15px;border-radius:7px 7px 2px 7px}
+  :is(.how-to-play-trigger,.mobile-language-trigger){border-radius:7px 7px 2px 7px}
+  .how-to-play-trigger{font-size:15px}
+  .mobile-language-trigger{font-size:15px}
   .instruction .info{border-radius:7px 7px 7px 2px}
   .how-to-play-modal{padding:4px}
   .how-to-play-card{width:calc(100vw - 8px);max-height:calc(100dvh - 8px);border-width:2px;box-shadow:5px 5px 0 rgba(23,23,25,.28)}
@@ -551,6 +566,7 @@ body.how-to-play-open{overflow:hidden}
 @media(max-height:560px) and (orientation:landscape){
   .instruction{--quote-control-size:20px;gap:6px;padding-inline:10px}
   .how-to-play-trigger{font-size:12px}
+  .mobile-language-trigger{font-size:12px}
   .how-to-play-card{width:97vw;max-height:96dvh;min-height:0}
   .how-to-play-head{min-height:52px;padding-block:7px}
   .how-to-play-title h2{font-size:22px}

@@ -1,4 +1,4 @@
-/* BOXXY v533: add Hindi and build the signed-in language menu from the language registry. */
+/* BOXXY v534: shared public language modal with desktop and mobile flag controls. */
 (() => {
   "use strict";
 
@@ -234,28 +234,38 @@
 
   async function loadCatalog(language) {
     if (language === "en") return null;
-    const response = await fetch(`${CATALOG_BASE}${encodeURIComponent(language)}.json?v=533`, { cache:"force-cache" });
+    const response = await fetch(`${CATALOG_BASE}${encodeURIComponent(language)}.json?v=534`, { cache:"force-cache" });
     if (!response.ok) throw new Error(`Could not load ${language} language file.`);
     const data = await response.json();
     if (!data || data.language !== language || typeof data.strings !== "object") throw new Error("Invalid language file.");
     return data;
   }
 
-  function languageButton() { return document.getElementById("languageMenuBtn"); }
-  function languageFlag() { return document.getElementById("languageMenuFlag"); }
-  function languageMenu() { return document.getElementById("languageMenu"); }
+  function languageButtons() {
+    return [document.getElementById("desktopLanguageBtn"), document.getElementById("mobileLanguageBtn")].filter(Boolean);
+  }
 
-  function populateLanguageMenu() {
-    const menu = languageMenu();
-    if (!menu || menu.dataset.populated === "true") return;
+  function languageFlags() {
+    return [document.getElementById("desktopLanguageFlag"), document.getElementById("mobileLanguageFlag")].filter(Boolean);
+  }
+
+  function languageModal() { return document.getElementById("languageModal"); }
+  function languageOptions() { return document.getElementById("languageModalOptions"); }
+  function languageStatus() { return document.getElementById("languageModalStatus"); }
+  let previousLanguageFocus = null;
+
+  function populateLanguageModal() {
+    const options = languageOptions();
+    if (!options || options.dataset.populated === "true") return;
     const fragment = document.createDocumentFragment();
     Object.entries(LANGUAGES).forEach(([key, meta]) => {
       const option = document.createElement("button");
       option.type = "button";
-      option.setAttribute("role", "menuitemradio");
+      option.setAttribute("role", "radio");
       option.dataset.boxxyLanguage = key;
       option.setAttribute("aria-checked", String(key === currentLanguage));
       const flag = document.createElement("span");
+      flag.className = "language-option-flag";
       flag.setAttribute("aria-hidden", "true");
       flag.textContent = meta.flag;
       const label = document.createElement("b");
@@ -264,24 +274,51 @@
       option.append(flag, label);
       fragment.append(option);
     });
-    menu.replaceChildren(fragment);
-    menu.dataset.populated = "true";
+    options.replaceChildren(fragment);
+    options.dataset.populated = "true";
   }
 
   function renderLanguageControl() {
     const meta = LANGUAGES[currentLanguage] || LANGUAGES.en;
-    const button = languageButton();
-    const flag = languageFlag();
-    if (flag) flag.textContent = meta.flag;
-    if (button) {
+    languageFlags().forEach(flag => { flag.textContent = meta.flag; });
+    languageButtons().forEach(button => {
       button.setAttribute("aria-label", `Change language. Current: ${meta.label}`);
       button.title = `Change language. Current: ${meta.label}`;
-    }
-    languageMenu()?.querySelectorAll?.("[data-boxxy-language]").forEach(option => {
+      translateAttribute(button,"aria-label");
+      translateAttribute(button,"title");
+    });
+    languageOptions()?.querySelectorAll?.("[data-boxxy-language]").forEach(option => {
       option.setAttribute("aria-checked", String(option.dataset.boxxyLanguage === currentLanguage));
     });
-    translateAttribute(button,"aria-label");
-    translateAttribute(button,"title");
+  }
+
+  function setLanguageStatus(message) {
+    const status = languageStatus();
+    if (!status) return;
+    const text = String(message || "");
+    status.hidden = !text;
+    status.textContent = text;
+    if (text) translateTextNode(status.firstChild);
+  }
+
+  function closeLanguageModal({ restoreFocus=true } = {}) {
+    const modal = languageModal();
+    if (!modal || modal.hidden) return;
+    modal.hidden = true;
+    setLanguageStatus("");
+    if (restoreFocus) previousLanguageFocus?.focus?.({ preventScroll:true });
+    previousLanguageFocus = null;
+  }
+
+  function openLanguageModal(trigger) {
+    const modal = languageModal();
+    if (!modal) return;
+    previousLanguageFocus = trigger || document.activeElement;
+    setLanguageStatus("");
+    modal.hidden = false;
+    requestAnimationFrame(() => {
+      languageOptions()?.querySelector?.(`[data-boxxy-language="${currentLanguage}"]`)?.focus?.({ preventScroll:true });
+    });
   }
 
   async function applyLanguage(language, { persist=true, announce=true } = {}) {
@@ -346,71 +383,70 @@
     }
   }
 
-  function updateSignedInControl(loggedIn) {
-    const button = languageButton();
-    if (button) button.hidden = !loggedIn;
+  function updateAccountLocaleSync(loggedIn) {
     if (!loggedIn) {
       accountUserId = "";
-      const menu = languageMenu();
-      if (menu) menu.hidden = true;
-      button?.setAttribute("aria-expanded","false");
       return;
     }
-    renderLanguageControl();
     syncSignedInLocale();
   }
 
   async function chooseLanguage(language) {
     const next = validLanguage(language);
-    if (!next || !window.BOXXYAccountIdentity?.id) return;
-    const menu = languageMenu();
-    const button = languageButton();
-    menu?.querySelectorAll?.("button").forEach(item => { item.disabled = true; });
+    if (!next) return;
+    const options = languageOptions();
+    options?.querySelectorAll?.("button").forEach(item => { item.disabled = true; });
     try {
-      const response = await fetch("/api/locale", {
-        method:"POST",
-        credentials:"same-origin",
-        cache:"no-store",
-        headers:{"content-type":"application/json"},
-        body:JSON.stringify({language:next})
-      });
-      const data = await response.json();
-      if (!response.ok || !data?.ok) throw new Error(data?.error || "Could not save language preference.");
-      const country = normaliseCountry(data.firstCountry);
-      if (country) writeStorage(COUNTRY_KEY,country);
-      await applyLanguage(validLanguage(data.language) || next,{persist:true,announce:true});
-      if (menu) menu.hidden = true;
-      button?.setAttribute("aria-expanded","false");
-      setAccountStatus("LANGUAGE SAVED","success");
+      if (window.BOXXYAccountIdentity?.id) {
+        const response = await fetch("/api/locale", {
+          method:"POST",
+          credentials:"same-origin",
+          cache:"no-store",
+          headers:{"content-type":"application/json"},
+          body:JSON.stringify({language:next})
+        });
+        const data = await response.json();
+        if (!response.ok || !data?.ok) throw new Error(data?.error || "Could not save language preference.");
+        const country = normaliseCountry(data.firstCountry);
+        if (country) writeStorage(COUNTRY_KEY,country);
+        await applyLanguage(validLanguage(data.language) || next,{persist:true,announce:true});
+        setAccountStatus("LANGUAGE SAVED","success");
+      } else {
+        await applyLanguage(next,{persist:true,announce:true});
+      }
+      closeLanguageModal({ restoreFocus:true });
     } catch (error) {
-      setAccountStatus(error?.message || "Could not save language preference.","error");
+      setLanguageStatus(error?.message || "Could not save language preference.");
     } finally {
-      menu?.querySelectorAll?.("button").forEach(item => { item.disabled = false; });
+      options?.querySelectorAll?.("button").forEach(item => { item.disabled = false; });
     }
   }
 
   function bindLanguageControl() {
-    populateLanguageMenu();
-    const button = languageButton();
-    const menu = languageMenu();
-    if (!button || !menu || button.dataset.bound === "true") return;
-    button.dataset.bound = "true";
-    button.addEventListener("click", () => {
-      if (button.hidden) return;
-      const open = menu.hidden;
-      menu.hidden = !open;
-      button.setAttribute("aria-expanded",String(open));
-      if (open) menu.querySelector(`[data-boxxy-language="${currentLanguage}"]`)?.focus?.({preventScroll:true});
+    populateLanguageModal();
+    const modal = languageModal();
+    const options = languageOptions();
+    const close = document.getElementById("languageModalClose");
+    const buttons = languageButtons();
+    if (!modal || !options || !buttons.length || modal.dataset.bound === "true") return;
+    modal.dataset.bound = "true";
+    buttons.forEach(button => {
+      button.addEventListener("click", () => openLanguageModal(button));
     });
-    menu.addEventListener("click", event => {
+    options.addEventListener("click", event => {
       const option = event.target.closest?.("[data-boxxy-language]");
       if (!option) return;
       chooseLanguage(option.dataset.boxxyLanguage);
     });
-    document.addEventListener("click", event => {
-      if (menu.hidden || event.target.closest?.("#languageMenu,#languageMenuBtn")) return;
-      menu.hidden = true;
-      button.setAttribute("aria-expanded","false");
+    close?.addEventListener("click", () => closeLanguageModal({ restoreFocus:true }));
+    modal.addEventListener("pointerdown", event => {
+      if (event.target === modal) closeLanguageModal({ restoreFocus:true });
+    });
+    document.addEventListener("keydown", event => {
+      if (event.key === "Escape" && !modal.hidden) {
+        event.preventDefault();
+        closeLanguageModal({ restoreFocus:true });
+      }
     });
   }
 
@@ -438,14 +474,14 @@
       }
       await detectFirstVisitLanguage();
       const loggedIn = Boolean(window.BOXXYAccountIdentity?.id);
-      updateSignedInControl(loggedIn);
+      updateAccountLocaleSync(loggedIn);
     } finally {
       finishBoot();
     }
   }
 
-  window.addEventListener("boxxyaccountfeatures", event => updateSignedInControl(Boolean(event.detail?.loggedIn)));
-  window.addEventListener("boxxyaccountready", () => updateSignedInControl(Boolean(window.BOXXYAccountIdentity?.id)));
+  window.addEventListener("boxxyaccountfeatures", event => updateAccountLocaleSync(Boolean(event.detail?.loggedIn)));
+  window.addEventListener("boxxyaccountready", () => updateAccountLocaleSync(Boolean(window.BOXXYAccountIdentity?.id)));
   document.addEventListener("DOMContentLoaded", boot, { once:true });
 
   window.BoxxyLocalisation = Object.freeze({
