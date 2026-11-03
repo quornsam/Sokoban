@@ -61,6 +61,22 @@
     return COUNTRY_LANGUAGE[normaliseCountry(country)] || "en";
   }
 
+  function browserPreferredLanguage() {
+    const preferences = [];
+    if (Array.isArray(navigator.languages)) preferences.push(...navigator.languages);
+    if (navigator.language) preferences.push(navigator.language);
+    const seen = new Set();
+    for (const value of preferences) {
+      const tag = String(value || "").trim().toLowerCase().replace(/_/g,"-");
+      if (!tag || seen.has(tag)) continue;
+      seen.add(tag);
+      const base = tag.split("-")[0];
+      const language = validLanguage(base);
+      if (language && language !== "alpha") return language;
+    }
+    return "";
+  }
+
   function normaliseLookup(value) {
     return String(value || "").replace(/\s+/g, " ").trim();
   }
@@ -234,7 +250,7 @@
 
   async function loadCatalog(language) {
     if (language === "en") return null;
-    const response = await fetch(`${CATALOG_BASE}${encodeURIComponent(language)}.json?v=534`, { cache:"force-cache" });
+    const response = await fetch(`${CATALOG_BASE}${encodeURIComponent(language)}.json?v=535`, { cache:"force-cache" });
     if (!response.ok) throw new Error(`Could not load ${language} language file.`);
     const data = await response.json();
     if (!data || data.language !== language || typeof data.strings !== "object") throw new Error("Invalid language file.");
@@ -347,17 +363,36 @@
     translateTextNode(status.firstChild);
   }
 
-  async function detectFirstVisitLanguage() {
-    if (validLanguage(readStorage(STORAGE_KEY))) return;
+  async function fetchFirstVisitLocale() {
     try {
       const response = await fetch("/api/locale", { credentials:"same-origin", cache:"no-store" });
       const data = await response.json();
-      if (!response.ok || !data?.ok) return;
+      if (!response.ok || !data?.ok) return null;
       const country = normaliseCountry(data.firstCountry);
       if (country) writeStorage(COUNTRY_KEY,country);
-      const language = validLanguage(data.language) || defaultLanguageForCountry(country);
-      await applyLanguage(language,{persist:true,announce:true});
-    } catch (_) {}
+      return { country, countryLanguage:validLanguage(data.language) || defaultLanguageForCountry(country) };
+    } catch (_) {
+      return null;
+    }
+  }
+
+  async function detectFirstVisitLanguage() {
+    const saved = validLanguage(readStorage(STORAGE_KEY));
+    if (saved) {
+      if (!normaliseCountry(readStorage(COUNTRY_KEY))) void fetchFirstVisitLocale();
+      return;
+    }
+
+    const browserLanguage = browserPreferredLanguage();
+    if (browserLanguage) {
+      await applyLanguage(browserLanguage,{persist:true,announce:true});
+      void fetchFirstVisitLocale();
+      return;
+    }
+
+    const firstVisit = await fetchFirstVisitLocale();
+    const fallbackLanguage = validLanguage(firstVisit?.countryLanguage) || "en";
+    await applyLanguage(fallbackLanguage,{persist:true,announce:true});
   }
 
   async function syncSignedInLocale() {
@@ -365,7 +400,7 @@
     if (!id || accountLocaleLoading || accountUserId === id) return;
     accountLocaleLoading = true;
     try {
-      const candidate = storedLanguage || "";
+      const candidate = storedLanguage || browserPreferredLanguage() || currentLanguage || "en";
       const response = await fetch(`/api/locale?account=1&candidate=${encodeURIComponent(candidate)}`, {
         credentials:"same-origin", cache:"no-store"
       });
