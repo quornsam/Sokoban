@@ -1,4 +1,4 @@
-/* BOXXY v529: refresh the deliberately overcooked Gen Alpha catalogue without changing localisation behaviour. */
+/* BOXXY v533: add Hindi and build the signed-in language menu from the language registry. */
 (() => {
   "use strict";
 
@@ -14,9 +14,10 @@
     zh:    { label:"中文",       flag:"🇨🇳", html:"zh-CN" },
     ja:    { label:"日本語",     flag:"🇯🇵", html:"ja" },
     ru:    { label:"Русский",   flag:"🇷🇺", html:"ru" },
+    hi:    { label:"हिन्दी",     flag:"🇮🇳", html:"hi" },
     alpha: { label:"Gen Alpha", flag:"🏁", html:"en" }
   });
-  const COUNTRY_LANGUAGE = Object.freeze({ FR:"fr", ES:"es", MX:"es", AR:"es", BO:"es", CL:"es", CO:"es", CR:"es", CU:"es", DO:"es", EC:"es", SV:"es", GT:"es", HN:"es", NI:"es", PA:"es", PY:"es", PE:"es", PR:"es", UY:"es", VE:"es", DE:"de", AT:"de", LI:"de", CN:"zh", TW:"zh", HK:"zh", MO:"zh", JP:"ja", RU:"ru" });
+  const COUNTRY_LANGUAGE = Object.freeze({ FR:"fr", ES:"es", MX:"es", AR:"es", BO:"es", CL:"es", CO:"es", CR:"es", CU:"es", DO:"es", EC:"es", SV:"es", GT:"es", HN:"es", NI:"es", PA:"es", PY:"es", PE:"es", PR:"es", UY:"es", VE:"es", DE:"de", AT:"de", LI:"de", CN:"zh", TW:"zh", HK:"zh", MO:"zh", JP:"ja", RU:"ru", IN:"hi" });
 
   let storedLanguage = validLanguage(readStorage(STORAGE_KEY));
   let currentLanguage = storedLanguage || "en";
@@ -233,7 +234,7 @@
 
   async function loadCatalog(language) {
     if (language === "en") return null;
-    const response = await fetch(`${CATALOG_BASE}${encodeURIComponent(language)}.json?v=529`, { cache:"force-cache" });
+    const response = await fetch(`${CATALOG_BASE}${encodeURIComponent(language)}.json?v=533`, { cache:"force-cache" });
     if (!response.ok) throw new Error(`Could not load ${language} language file.`);
     const data = await response.json();
     if (!data || data.language !== language || typeof data.strings !== "object") throw new Error("Invalid language file.");
@@ -243,6 +244,29 @@
   function languageButton() { return document.getElementById("languageMenuBtn"); }
   function languageFlag() { return document.getElementById("languageMenuFlag"); }
   function languageMenu() { return document.getElementById("languageMenu"); }
+
+  function populateLanguageMenu() {
+    const menu = languageMenu();
+    if (!menu || menu.dataset.populated === "true") return;
+    const fragment = document.createDocumentFragment();
+    Object.entries(LANGUAGES).forEach(([key, meta]) => {
+      const option = document.createElement("button");
+      option.type = "button";
+      option.setAttribute("role", "menuitemradio");
+      option.dataset.boxxyLanguage = key;
+      option.setAttribute("aria-checked", String(key === currentLanguage));
+      const flag = document.createElement("span");
+      flag.setAttribute("aria-hidden", "true");
+      flag.textContent = meta.flag;
+      const label = document.createElement("b");
+      label.dataset.boxxyI18nIgnore = "";
+      label.textContent = meta.label;
+      option.append(flag, label);
+      fragment.append(option);
+    });
+    menu.replaceChildren(fragment);
+    menu.dataset.populated = "true";
+  }
 
   function renderLanguageControl() {
     const meta = LANGUAGES[currentLanguage] || LANGUAGES.en;
@@ -366,6 +390,7 @@
   }
 
   function bindLanguageControl() {
+    populateLanguageMenu();
     const button = languageButton();
     const menu = languageMenu();
     if (!button || !menu || button.dataset.bound === "true") return;

@@ -376,10 +376,10 @@
   const JIGSAW_SVG = '<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M8 26H34C34 14 40 6 50 6S66 14 66 26H82V38C82 42 84 44 88 44C94 44 98 48 98 54S94 66 88 66C84 66 82 68 82 72V90H64C64 78 58 72 50 72S36 78 36 90H8V64C20 64 28 58 28 50S20 36 8 36Z"/></svg>';
   const AVATAR_DEFAULT = Object.freeze({ bodyType:"boy", tshirt:"#df3526", trousers:"#292829", hair:"#292727", skin:"#ee9a60", shoes:"#292829" });
   const LANGUAGE_LABELS = Object.freeze({
-    en:"English", fr:"French", es:"Spanish", de:"German", zh:"Chinese", ja:"Japanese", ru:"Russian", alpha:"Gen Alpha"
+    en:"English", fr:"French", es:"Spanish", de:"German", zh:"Chinese", ja:"Japanese", ru:"Russian", hi:"Hindi", alpha:"Gen Alpha"
   });
   const LANGUAGE_FLAGS = Object.freeze({
-    en:"🇬🇧", fr:"🇫🇷", es:"🇪🇸", de:"🇩🇪", zh:"🇨🇳", ja:"🇯🇵", ru:"🇷🇺", alpha:"🏁"
+    en:"🇬🇧", fr:"🇫🇷", es:"🇪🇸", de:"🇩🇪", zh:"🇨🇳", ja:"🇯🇵", ru:"🇷🇺", hi:"🇮🇳", alpha:"🏁"
   });
   function countryFlag(code) {
     const value = String(code || "").trim().toUpperCase();

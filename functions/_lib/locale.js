@@ -1,5 +1,5 @@
 /* BOXXY v526: isolated language preference and first-visit country storage. */
-const SUPPORTED_LANGUAGES = new Set(["en", "fr", "es", "de", "zh", "ja", "ru", "alpha"]);
+const SUPPORTED_LANGUAGES = new Set(["en", "fr", "es", "de", "zh", "ja", "ru", "hi", "alpha"]);
 const FIRST_COUNTRY_COOKIE = "boxxy_first_country";
 const FIRST_COUNTRY_MAX_AGE = 2 * 365 * 24 * 60 * 60;
 let localeSchemaPromise = null;
@@ -11,7 +11,8 @@ const COUNTRY_LANGUAGE = Object.freeze({
   DE: "de", AT: "de", LI: "de",
   CN: "zh", TW: "zh", HK: "zh", MO: "zh",
   JP: "ja",
-  RU: "ru"
+  RU: "ru",
+  IN: "hi"
 });
 
 function parseCookies(request) {
