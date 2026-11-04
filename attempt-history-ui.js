@@ -5,8 +5,8 @@
 /* BOXXY v395 — compact fixed Play History sort buttons and control-mode markers. */
 (() => {
   'use strict';
-  const date = ms => ms ? new Date(Number(ms)).toLocaleString('en-GB', { dateStyle:'medium',timeStyle:'short' }) : '—';
-  const time = sec => sec == null ? '—' : `${Number(sec).toFixed(2)}s`;
+  const date = ms => ms ? new Date(Number(ms)).toLocaleString('en-GB', { dateStyle:'medium',timeStyle:'short' }) : '...';
+  const time = sec => sec == null ? '...' : `${Number(sec).toFixed(2)}s`;
   const el = (tag,label,className='') => {
     const node=document.createElement(tag);
     if (label != null) node.textContent=String(label);
@@ -150,7 +150,7 @@
     });
   }
   function appendCell(tr,value,{missing=false,best=false,title=''}={}) {
-    const td=el('td',value==null?'—':value);
+    const td=el('td',value==null?'...':value);
     if(missing||value==null) td.classList.add('history-missing');
     if(best) {td.classList.add('history-best');td.title=title;}
     tr.appendChild(td);

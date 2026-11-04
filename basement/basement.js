@@ -211,9 +211,9 @@
   }
   function setStatus(element, text = "", kind = "") { if (element) { element.textContent = text; element.dataset.kind = kind; } }
   function dateTime(timestamp) {
-    if (!Number(timestamp)) return "—";
+    if (!Number(timestamp)) return "...";
     try { return new Intl.DateTimeFormat("en-GB", { dateStyle:"medium", timeStyle:"short" }).format(new Date(Number(timestamp))); }
-    catch (_) { return "—"; }
+    catch (_) { return "..."; }
   }
   function duration(seconds) {
     const value = Math.max(0, Math.trunc(Number(seconds) || 0));
@@ -224,7 +224,7 @@
   }
   function browserDevice(userAgent) {
     const ua = String(userAgent || "");
-    if (!ua) return "—";
+    if (!ua) return "...";
     let browser = "Browser";
     let match = ua.match(/OPR\/([\d.]+)/);
     if (match) browser = `Opera ${match[1].split(".")[0]}`;
@@ -388,11 +388,11 @@
   }
   function localeLanguageLabel(code) {
     const value = String(code || "").trim().toLowerCase();
-    return value && LANGUAGE_LABELS[value] ? `${LANGUAGE_FLAGS[value]} ${LANGUAGE_LABELS[value]}` : "—";
+    return value && LANGUAGE_LABELS[value] ? `${LANGUAGE_FLAGS[value]} ${LANGUAGE_LABELS[value]}` : "...";
   }
   function firstCountryLabel(code) {
     const value = String(code || "").trim().toUpperCase();
-    return value ? `${countryFlag(value)} ${value}`.trim() : "—";
+    return value ? `${countryFlag(value)} ${value}`.trim() : "...";
   }
   const AVATAR_CATEGORIES = Object.freeze(["tshirt", "trousers", "hair", "skin", "shoes"]);
   const FIXED_AVATAR_CHARACTERS = Object.freeze({
@@ -719,8 +719,8 @@
               : "";
             return `<div class="daily-score-row">
               <span>${index + 1}</span><strong class="daily-score-player">${escapeHtml(entry.username)}${entry.webdriverDetected === true ? '<b class="webdriver-badge" title="navigator.webdriver was true for this saved fastest-time run">WEBDRIVER</b>' : ''}</strong>
-              <span>${Number(entry.seconds).toFixed(2)}s</span><span>${entry.moves == null ? "—" : `${Number(entry.moves)} moves`}</span>
-              <span>${escapeHtml(String(entry.device || "—").toUpperCase())}</span>
+              <span>${Number(entry.seconds).toFixed(2)}s</span><span>${entry.moves == null ? "..." : `${Number(entry.moves)} moves`}</span>
+              <span>${escapeHtml(String(entry.device || "...").toUpperCase())}</span>
               <span>${kind === "synthetic" ? "ARTIFICIAL" : "REAL"}</span>
               <select data-daily-score-visibility="${escapeHtml(entry.username)}" aria-label="Leaderboard visibility for ${escapeHtml(entry.username)}">
                 <option value="public"${visibility === "public" ? " selected" : ""}>PUBLIC</option>
@@ -906,7 +906,7 @@
     const list=orderedCompletions(),ranks=completionRankMap();
     renderCompletionPackCards();
     if(completionRows) completionRows.innerHTML=list.map(item=>{
-      const rank=item.historical||item.needsReview ? "—" : ranks.get(`${item.userId}\u0000${item.packId}`)||"—";
+      const rank=item.historical||item.needsReview ? "..." : ranks.get(`${item.userId}\u0000${item.packId}`)||"...";
       const date=item.needsReview ? "Not verified" : ukCompletionDate(item.completedAt);
       const previous=item.needsReview&&item.previousRecord
         ? `<div class="muted">Previous ledger entry retained for review. Recorded ${escapeHtml(dateTime(item.previousRecord.recordedAt))}.</div>` : "";
@@ -1061,7 +1061,7 @@
           <div>STARTED <strong>${escapeHtml(dateTime(s.startedAt))}</strong></div>
           <div>LAST CONFIRMED CONTACT <strong>${s.legacy && s.lastSeenAt === s.startedAt ? "Not recorded before v363" : escapeHtml(dateTime(s.lastSeenAt))}</strong></div>
           <div>ENDED <strong>${s.valid ? "Still valid" : escapeHtml(dateTime(endedAt))}${reason}</strong></div>
-          <div>IP <strong>${escapeHtml(s.ip || "—")}</strong></div></div>`;
+          <div>IP <strong>${escapeHtml(s.ip || "...")}</strong></div></div>`;
       }).join("")}</div>`;
   }
   function googleBadge(user) {
@@ -1083,7 +1083,7 @@
   }
 
   function clickPushDetail(summary) {
-    if (!summary?.clickPushUnlocked) return "—";
+    if (!summary?.clickPushUnlocked) return "...";
     const codes = Array.isArray(summary?.clickPushCodes) ? summary.clickPushCodes.filter(Boolean) : [];
     const codeText = codes.length ? codes.map(escapeHtml).join(" / ") : escapeHtml(String(summary?.clickPushCode || ""));
     const deviceCount = Math.max(0, Number(summary?.clickPushDeviceCount) || 0);
@@ -1092,7 +1092,7 @@
   }
   function emailCell(user) {
     const google = user?.googleLinked
-      ? `<div class="google-email-line">${googleBadge(user)}<span>${escapeHtml(user.googleEmail || "—")}</span></div>`
+      ? `<div class="google-email-line">${googleBadge(user)}<span>${escapeHtml(user.googleEmail || "...")}</span></div>`
       : "";
     return `<div>${escapeHtml(user.email)}</div>${google}`;
   }
@@ -1179,8 +1179,8 @@
         <div class="detail-grid">
           <div><span>USERNAME</span><strong>${escapeHtml(user.username)}</strong></div>
           <div><span>EMAIL</span><strong>${escapeHtml(user.email)}</strong></div>
-          <div><span>GOOGLE SIGN-IN</span><strong>${user.googleLinked ? '<span class="google-badge">GOOGLE</span> LINKED' : '—'}</strong></div>
-          <div><span>GOOGLE EMAIL</span><strong>${user.googleLinked ? escapeHtml(user.googleEmail || "—") : "—"}</strong></div>
+          <div><span>GOOGLE SIGN-IN</span><strong>${user.googleLinked ? '<span class="google-badge">GOOGLE</span> LINKED' : '...'}</strong></div>
+          <div><span>GOOGLE EMAIL</span><strong>${user.googleLinked ? escapeHtml(user.googleEmail || "...") : "..."}</strong></div>
           <div><span>ACCOUNT ID</span><strong>${escapeHtml(user.id)}</strong></div>
           <div><span>JOINED</span><strong>${escapeHtml(dateTime(user.createdAt))}</strong></div>
           <div><span>LAST LOGIN</span><strong>${escapeHtml(dateTime(user.lastLoginAt))}</strong></div>
@@ -1189,11 +1189,11 @@
           <div><span>NEWEST VALID SESSION STARTED</span><strong>${escapeHtml(dateTime(user.latestSessionStartedAt))}</strong></div>
           <div><span>LAST ACTIVE</span><strong>${escapeHtml(dateTime(user.lastSeenAt))}</strong></div>
           <div><span>TOTAL TIME ONLINE</span><strong>${escapeHtml(duration(user.totalActiveSeconds))}</strong></div>
-          <div><span>SIGNUP IP</span><strong>${escapeHtml(user.signupIp || "—")}</strong></div>
-          <div><span>LAST IP</span><strong>${escapeHtml(user.lastIp || "—")}</strong></div>
+          <div><span>SIGNUP IP</span><strong>${escapeHtml(user.signupIp || "...")}</strong></div>
+          <div><span>LAST IP</span><strong>${escapeHtml(user.lastIp || "...")}</strong></div>
           <div><span>FIRST VISIT COUNTRY</span><strong>${escapeHtml(firstCountryLabel(user.firstCountry))}</strong></div>
           <div><span>LANGUAGE</span><strong>${escapeHtml(localeLanguageLabel(user.language))}</strong></div>
-          <div><span>ACTIVE PACK</span><strong>${escapeHtml(user.summary?.activePack || "—")}</strong></div>
+          <div><span>ACTIVE PACK</span><strong>${escapeHtml(user.summary?.activePack || "...")}</strong></div>
           <div><span>LAST CLOUD SAVE</span><strong>${escapeHtml(dateTime(user.progressUpdatedAt))}</strong></div>
           <div><span>BROWSER / DEVICE</span><strong>${escapeHtml(browserDevice(user.userAgent))}</strong></div>
           <div><span>CLICK-PUSH BETA</span><strong>${clickPushDetail(user.summary)}</strong></div>
@@ -1467,7 +1467,7 @@
       refreshMedalPreview();
       medalAdminRecent.innerHTML = (data.grants || []).length ? data.grants.map(item => `
         <div class="medal-admin-row"><img src="/${escapeHtml(item.image)}" alt="" width="50" height="50">
-        <span><strong>${escapeHtml(item.username)} — ${escapeHtml(item.title)}</strong><small>${escapeHtml(dateTime(item.awardedAt))}</small></span>
+        <span><strong>${escapeHtml(item.username)} | ${escapeHtml(item.title)}</strong><small>${escapeHtml(dateTime(item.awardedAt))}</small></span>
         <button type="button" data-medal-revoke-user="${escapeHtml(item.userId)}" data-medal-revoke-id="${escapeHtml(item.medalId)}">REVOKE</button></div>`).join('')
         : '<p class="table-hint">No Basement grants yet.</p>';
       setStatus(medalAdminStatus,'READY','success');

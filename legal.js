@@ -4,7 +4,7 @@
 
   function formatReleaseDate(value) {
     const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || ""));
-    return match ? `${Number(match[3])}.${Number(match[2])}.${match[1]}` : "—";
+    return match ? `${Number(match[3])}.${Number(match[2])}.${match[1]}` : "...";
   }
 
   function readableList(values) {
@@ -30,7 +30,7 @@
     const collections = originalCollectionNames();
 
     root.querySelectorAll?.("[data-boxxy-release-version]").forEach(node => {
-      node.textContent = /^\d+$/.test(version) ? version : "—";
+      node.textContent = /^\d+$/.test(version) ? version : "...";
     });
     root.querySelectorAll?.("[data-boxxy-release-date]").forEach(node => {
       node.textContent = formatReleaseDate(isoDate);

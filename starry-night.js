@@ -10,7 +10,7 @@
   "author": "Sam Cornwell",
   "accent": "yellow",
   "license": "User-authored BOXXY collection",
-  "description": "Built around the X pentomino — five squares arranged in a simple star-like cross. Its four-way symmetry lets it grow into larger formations, break apart and rebuild, and shift, rotate and reshape into new patterns. A tribute to a famous artist is waiting among the stars on Level 25.",
+  "description": "Built around the X pentomino. Five squares arranged in a simple starlike cross. Its four-way symmetry lets it grow into larger formations, break apart and rebuild, and shift, rotate and reshape into new patterns. A tribute to a famous artist is waiting among the stars on Level 25.",
   "generatedAt": "2026-08-25T21:16:09.619Z",
   "levels": [
     {

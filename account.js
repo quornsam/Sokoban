@@ -502,7 +502,7 @@
       if (offlineGuide) offlineGuide.hidden = false;
       if (offlineHelp) offlineHelp.textContent = "Apple requires one Home Screen step before the offline files can be stored in the app.";
       if (offlineBtn) {
-        offlineBtn.textContent = "READY — ADD TO HOME SCREEN";
+        offlineBtn.textContent = "READY. ADD TO HOME SCREEN";
         offlineBtn.classList.remove("ready");
       }
       setStatus("FOLLOW THE HOME SCREEN STEPS BELOW", "success");
@@ -1191,13 +1191,13 @@
   function clearGoogleRegistration() {
     pendingGoogleCredential = "";
     if (googleCreateForm) googleCreateForm.reset();
-    if (googleRegistrationEmail) googleRegistrationEmail.textContent = "—";
+    if (googleRegistrationEmail) googleRegistrationEmail.textContent = "...";
     renderMode();
   }
 
   function beginGoogleRegistration(credential, email) {
     pendingGoogleCredential = String(credential || "");
-    if (googleRegistrationEmail) googleRegistrationEmail.textContent = String(email || "—");
+    if (googleRegistrationEmail) googleRegistrationEmail.textContent = String(email || "...");
     renderMode();
     requestAnimationFrame(() => googleCreateForm?.querySelector('input[name="username"]')?.focus?.({ preventScroll: true }));
   }
@@ -1318,9 +1318,9 @@
   }
 
   function formatDate(timestamp) {
-    if (!Number(timestamp)) return "—";
+    if (!Number(timestamp)) return "...";
     try { return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" }).format(new Date(Number(timestamp))); }
-    catch (_) { return "—"; }
+    catch (_) { return "..."; }
   }
 
   function formatTime(seconds) {
@@ -1402,7 +1402,7 @@
       const googleOnly = account.passwordEnabled === false;
       if (googleLinked) googleLinked.hidden = !account.googleLinked;
       if (googleLink) googleLink.hidden = Boolean(account.googleLinked);
-      if (googleLinkedEmail) googleLinkedEmail.textContent = account.googleEmail || account.email || "—";
+      if (googleLinkedEmail) googleLinkedEmail.textContent = account.googleEmail || account.email || "...";
       if (googleDisconnectBtn) googleDisconnectBtn.hidden = !account.googleLinked || googleOnly;
       if (deletePasswordLabel) deletePasswordLabel.hidden = googleOnly;
       if (deletePasswordConfirm) deletePasswordConfirm.hidden = googleOnly;
@@ -1410,8 +1410,8 @@
       if (deleteText) deleteText.textContent = googleOnly
         ? "Deletes the BOXXY account and cloud copy. Confirm with the linked Google account. Progress already stored on this device remains here."
         : "Deletes the BOXXY account and cloud copy. Progress already stored on this device remains here.";
-      if (usernameValue) usernameValue.textContent = account.username || "—";
-      if (emailValue) emailValue.textContent = account.email || "—";
+      if (usernameValue) usernameValue.textContent = account.username || "...";
+      if (emailValue) emailValue.textContent = account.email || "...";
       if (joinedValue) joinedValue.textContent = formatDate(account.createdAt);
       if (activeValue) activeValue.textContent = formatTime((account.totalActiveSeconds || 0) + activeSecondsDelta);
       if (syncValue) syncValue.textContent = account.progressUpdatedAt ? formatDate(account.progressUpdatedAt) : "Waiting";

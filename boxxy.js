@@ -4175,9 +4175,9 @@
   }
 
   function setPackStatValues(totals, values) {
-    if (packTotalMoves) packTotalMoves.textContent = totals.moveLevels ? Math.max(0, Math.round(values.moves)).toLocaleString() : "—";
-    if (packTotalPushes) packTotalPushes.textContent = totals.pushLevels ? Math.max(0, Math.round(values.pushes)).toLocaleString() : "—";
-    if (packTotalTime) packTotalTime.textContent = totals.timeLevels ? formatPackDuration(values.seconds) : "—";
+    if (packTotalMoves) packTotalMoves.textContent = totals.moveLevels ? Math.max(0, Math.round(values.moves)).toLocaleString() : "...";
+    if (packTotalPushes) packTotalPushes.textContent = totals.pushLevels ? Math.max(0, Math.round(values.pushes)).toLocaleString() : "...";
+    if (packTotalTime) packTotalTime.textContent = totals.timeLevels ? formatPackDuration(values.seconds) : "...";
   }
 
   function animatePackCompletionStats(totals) {
@@ -4844,7 +4844,7 @@
     const usernameValue = document.getElementById("accountUsernameValue");
     if (!accountDetails || accountDetails.hidden || !usernameValue) return "";
     const username = String(usernameValue.textContent || "").trim();
-    return username && username !== "—" ? username : "";
+    return username && username !== "..." ? username : "";
   }
 
   function updateDailyLeaderboardAccountNote() {
@@ -5345,7 +5345,7 @@
     renderPlayerProfileStreak(0);
     renderPlayerProfileTrophies([], 0);
     for (const element of [playerProfileLevels, playerProfileDailys, playerProfileMoves, playerProfilePushes]) {
-      if (element) element.textContent = "—";
+      if (element) element.textContent = "...";
     }
     if (playerProfileAvatar) {
       const context = playerProfileAvatar.getContext?.("2d");
@@ -5505,7 +5505,7 @@
       const rank = document.createElement("span");
       rank.className = "daily-leaderboard-rank";
       const ranked = !byMoves || entry.bestMoves !== null;
-      rank.textContent = ranked ? medals[index] || String(index + 1) : "—";
+      rank.textContent = ranked ? medals[index] || String(index + 1) : "...";
       if (ranked && index < 3) rank.classList.add("medal");
       const profileClickable = container === dailyLeaderboardList;
       const name = document.createElement("strong");
@@ -5539,12 +5539,12 @@
       const moveUnit = window.BoxxyLocalisation?.translate?.("MOVES") || "MOVES";
       moves.textContent = moveScore !== null && moveScore !== undefined && Number.isFinite(Number(moveScore))
         ? `${Math.max(0, Math.trunc(Number(moveScore)))}${byMoves ? " m" : ` ${moveUnit}`}`
-        : byMoves ? "— m" : `— ${moveUnit}`;
+        : byMoves ? "... m" : `... ${moveUnit}`;
       const time = document.createElement("b");
       time.className = "daily-leaderboard-time";
       const runSeconds = byMoves ? entry.bestMovesSeconds : entry.seconds;
       if (Number.isFinite(runSeconds) && runSeconds > 0) setPreciseClockContent(time, runSeconds);
-      else time.textContent = byMoves ? "-" : "—";
+      else time.textContent = byMoves ? "-" : "...";
       const deviceClass = normaliseDailyLeaderboardDevice(byMoves ? entry.bestMovesDevice : entry.device);
       const device = document.createElement("span");
       device.className = "daily-leaderboard-device";
@@ -7121,7 +7121,7 @@
       dailyButton.disabled = !available;
       dailyButton.setAttribute("aria-disabled", String(!available));
       dailyButton.title = available
-        ? `Daily Boxxy #${Number(todayPuzzle.sequence) || ""} — ${formatDailyDate(todayPuzzle.date, { weekday: true, long: true })}`
+        ? `Daily Boxxy #${Number(todayPuzzle.sequence) || ""} | ${formatDailyDate(todayPuzzle.date, { weekday: true, long: true })}`
         : dailyAvailabilityLabel(null);
       if (status) status.textContent = dailyAvailabilityLabel(todayPuzzle);
     }
@@ -9105,7 +9105,7 @@
       button.dataset.boardStyleColour = colour;
       button.dataset.boardStyleArtworkColour = artColour;
       button.dataset.boardStyleAsset = canonical;
-      button.title = `${entry.label}${isDefault ? " — default" : ""}`;
+      button.title = `${entry.label}${isDefault ? " default" : ""}`;
       button.setAttribute("aria-label", `${category === "box" ? "Box" : "Box on target"}: ${entry.label}${isDefault ? ", default" : ""}`);
       button.style.backgroundImage = boardAssetFallback("box", artColour);
       button.addEventListener("click", () => BOARD_STYLE?.set?.(category, colour));
@@ -10417,7 +10417,7 @@
     pushesEl.textContent = pushes;
     levelCount.textContent = sharedPuzzleMode ? "SHARED" : makerTesting ? "MAKER" : dailyMode ? `DAILY #${Number(dailyPuzzle?.sequence) || ""}` : `${levelIndex + 1} / ${LEVELS.length}`;
     const best = (makerTesting || sharedPuzzleMode) ? null : dailyMode ? dailyBestMoves(dailyPuzzle) : readBest(levelData);
-    bestEl.textContent = best || "—";
+    bestEl.textContent = best || "...";
     undoBtn.disabled = !history.length || completed;
     updateSavePositionButton();
 
@@ -10508,7 +10508,7 @@
     pushesEl.textContent = pushes;
     levelCount.textContent = sharedPuzzleMode ? "SHARED" : makerTesting ? "MAKER" : dailyMode ? `DAILY #${Number(dailyPuzzle?.sequence) || ""}` : `${levelIndex + 1} / ${LEVELS.length}`;
     const best = (makerTesting || sharedPuzzleMode) ? null : dailyMode ? dailyBestMoves(dailyPuzzle) : readBest(levelData);
-    bestEl.textContent = best || "—";
+    bestEl.textContent = best || "...";
     undoBtn.disabled = !history.length || completed;
     updateSavePositionButton();
     refreshLevelButtons();
@@ -10663,7 +10663,7 @@
         dailyShareText.setSelectionRange(0, 0);
       } catch (_) {}
     }
-    if (dailyShareStatus) dailyShareStatus.textContent = copied ? "COPIED — PASTE IT ANYWHERE" : "SELECT THE TEXT AND COPY";
+    if (dailyShareStatus) dailyShareStatus.textContent = copied ? "COPIED. PASTE IT ANYWHERE" : "SELECT THE TEXT AND COPY";
     return copied;
   }
 
@@ -10722,7 +10722,7 @@
       name: "Daily Boxxy",
       tier: "DAILY BOXXY",
       author: "Sam Cornwell",
-      minimum: "—",
+      minimum: "...",
       pushMinimum: 0,
       solution: String(puzzle.solution || ""),
       layout: puzzle.layout.map(row => String(row)),
@@ -10756,7 +10756,7 @@
     if (completeKicker) completeKicker.textContent = "DAILY BOXXY";
     if (completeTitle) completeTitle.textContent = "DAILY COMPLETE";
     updatePackCollectionLabels(activePack);
-    document.title = `Daily Boxxy #${Number(puzzle.sequence) || ""} — BOXXY`;
+    document.title = `Daily Boxxy #${Number(puzzle.sequence) || ""} | BOXXY`;
     board.style.setProperty("--cols", width);
     board.style.setProperty("--rows", height);
     board.style.setProperty("--ratio", width / height);
@@ -10935,12 +10935,12 @@
       if (makerReturnBtn) makerReturnBtn.hidden = shared;
       if (collectionBtn) collectionBtn.disabled = shared;
       if (shared && collectionName) collectionName.innerHTML = "PRIVATE<br>PUZZLE";
-      if (shared || makerDailyPractice) document.title = `${customName} — BOXXY`;
+      if (shared || makerDailyPractice) document.title = `${customName} | BOXXY`;
       levelData = {
         sourceNumber: shared ? "shared" : "maker",
         name: customName,
         tier: shared ? "SHARED PUZZLE" : "LEVEL MAKER",
-        minimum: "—",
+        minimum: "...",
         pushMinimum: parsed.boxes.length,
         solution: makerSolution,
         layout: cleanRows,
@@ -11849,7 +11849,7 @@
       const movesValue = document.createElement("strong");
       movesValue.textContent = record && Number.isFinite(Number(record.moves))
         ? String(Math.max(0, Math.round(Number(record.moves))))
-        : "—";
+        : "...";
       movesStat.append(movesLabel, movesValue);
 
       const timeStat = document.createElement("span");
@@ -11859,7 +11859,7 @@
       if (record && Number.isFinite(Number(record.seconds))) {
         setPreciseClockContent(timeValue, Math.max(0, Number(record.seconds)));
       } else {
-        timeValue.textContent = "—";
+        timeValue.textContent = "...";
       }
       timeStat.append(timeLabel, timeValue);
 
@@ -15201,8 +15201,8 @@
     }
     if (imageRainbowModeState) imageRainbowModeState.textContent = rainbowMode ? "ON" : "OFF";
     if (imageRainbowDescription) imageRainbowDescription.textContent = rainbowMode
-      ? "ON — choose colours manually or sample them from the image."
-      : "OFF — image tracing uses standard red targets.";
+      ? "ON : choose colours manually or sample them from the image."
+      : "OFF : image tracing uses standard red targets.";
     if (imageTraceNote) imageTraceNote.textContent = rainbowMode
       ? "Rainbow Mode: BOX paints a coloured box on a matching target so its colour is preserved. Zoom in for detailed pixel painting."
       : "Tip: line the grid up first. For most levels you only need to paint walls, boxes, targets and the player.";
@@ -15407,8 +15407,8 @@
     }
     if (rainbowModeState) rainbowModeState.textContent = rainbowMode ? "ON" : "OFF";
     if (rainbowModeDescription) rainbowModeDescription.textContent = rainbowMode
-      ? "ON — coloured targets and colour-letter export codes."
-      : "OFF — standard Sokoban: . target, $ box, * box on target.";
+      ? "ON : coloured targets and colour-letter export codes."
+      : "OFF : standard Sokoban: . target, $ box, * box on target.";
     if (goalPalette) {
       goalPalette.hidden = false;
       goalPalette.removeAttribute("aria-hidden");
@@ -17354,7 +17354,7 @@
       setAttachedSolution(knownRoute, currentLevelText(), currentPuzzleRef);
       const packName = pack.displayName || pack.title || "Puzzle pack";
       const levelName = level.name || `Level ${levelIndex + 1}`;
-      if (saveNameInput) saveNameInput.value = `${packName} — ${levelName}`.slice(0, 48);
+      if (saveNameInput) saveNameInput.value = `${packName} | ${levelName}`.slice(0, 48);
       setStatus(`Opened ${packName}, ${levelName}. All backend packs are available here regardless of game progress.`, "success");
     } catch (error) {
       setStatus(error?.message || "That puzzle could not be opened in the editor.", "error");
