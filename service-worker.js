@@ -1,3 +1,4 @@
+/* BOXXY v537: cache cross-platform SVG language flags. */
 /* BOXXY v533: cache the Hindi localisation catalogue. */
 /* BOXXY v531: cache the Reddit community icon used by desktop and compact Menu links. */
 /* BOXXY v527: refresh localised dynamic labels, tooltips and footer thought/tip catalogues. */
@@ -287,6 +288,15 @@ const ASSETS = [
   "/assets/ui/boxxy-prize-poster-lowres.jpg",
   "/assets/ui/boxxy-splash.png",
   "/assets/ui/reddit-icon.webp",
+  "/assets/ui/flags/gb.svg",
+  "/assets/ui/flags/fr.svg",
+  "/assets/ui/flags/es.svg",
+  "/assets/ui/flags/de.svg",
+  "/assets/ui/flags/cn.svg",
+  "/assets/ui/flags/jp.svg",
+  "/assets/ui/flags/ru.svg",
+  "/assets/ui/flags/in.svg",
+  "/assets/ui/flags/alpha.svg",
   "/assets/ui/completion/happy-boxxy-sprites-1.png",
   "/assets/ui/completion/happy-boxxy-sprites-2.png",
   "/assets/ui/completion/happy-sprites-350-grid.png",

@@ -8103,6 +8103,17 @@ html.touch-ui .compact-settings-only{display:grid!important}
     --desktop-board-action-size:94px;
     --desktop-board-action-clearance:14px;
     --desktop-board-action-right:calc(var(--desktop-utility-expanded) + 14px);
+    /* v537: rail geometry follows available CSS viewport height, including browser zoom. */
+    --desktop-rail-button-size:58px;
+    --desktop-rail-gap:8px;
+    --desktop-rail-pad-y:11px;
+    --desktop-rail-icon-size:21px;
+    --desktop-rail-label-size:6.7px;
+    --desktop-rail-image-size:31px;
+    --desktop-rail-button-pad:5px;
+    --desktop-rail-style-icon-size:25px;
+    --desktop-rail-menu-width:22px;
+    --desktop-rail-menu-height:18px;
   }
 
   /* The title/stats column, message bar, help button, legal/footer and colour strip are fixed chrome.
@@ -8198,18 +8209,18 @@ html.touch-ui .compact-settings-only{display:grid!important}
     right:0;
     bottom:calc(var(--desktop-footer-height) + var(--desktop-utility-edge-gap));
     width:var(--desktop-utility-expanded);
-    padding:11px 8px;
+    padding:var(--desktop-rail-pad-y) 8px;
     border:1px solid var(--line);
     border-right:0;
     border-radius:10px 0 0 10px;
     background:linear-gradient(90deg,rgba(229,179,42,.20),rgba(247,240,229,.82) 24%,rgba(247,240,229,.96));
     box-shadow:-4px 4px 12px rgba(55,38,20,.08);
     display:grid;
-    grid-template-columns:repeat(2,58px);
-    grid-template-rows:repeat(6,58px) minmax(0,1fr) 58px;
+    grid-template-columns:repeat(2,var(--desktop-rail-button-size));
+    grid-template-rows:repeat(6,var(--desktop-rail-button-size)) minmax(var(--desktop-rail-button-size),1fr) var(--desktop-rail-button-size);
     justify-content:center;
     align-content:stretch;
-    gap:8px;
+    gap:var(--desktop-rail-gap);
     overflow:visible;
     pointer-events:auto;
     transform:translateX(0);
@@ -8283,11 +8294,11 @@ html.touch-ui .compact-settings-only{display:grid!important}
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-utility-tray .attire-action{
     position:relative;
     z-index:1;
-    width:58px;
-    height:58px;
-    max-width:58px;
-    min-height:58px;
-    padding:5px;
+    width:var(--desktop-rail-button-size);
+    height:var(--desktop-rail-button-size);
+    max-width:var(--desktop-rail-button-size);
+    min-height:0;
+    padding:var(--desktop-rail-button-pad);
     border:1px solid var(--line);
     border-radius:7px;
     background:#f8f1e6;
@@ -8315,23 +8326,29 @@ html.touch-ui .compact-settings-only{display:grid!important}
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-utility-tray .action.save-position{background:linear-gradient(#f4e2a7,#e5b32a);border-color:#b98b12}
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-utility-tray .action[aria-pressed="false"]{opacity:.58}
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-utility-tray .action span,
-  html:not(.touch-ui):not(.desktop-zen-mode) .desktop-utility-tray .action.small span{font-size:21px;line-height:1}
+  html:not(.touch-ui):not(.desktop-zen-mode) .desktop-utility-tray .action.small span{font-size:var(--desktop-rail-icon-size);line-height:1}
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-utility-tray .action b,
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-utility-tray .action.small b,
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-utility-tray .attire-action b{
     max-width:52px;
-    font-size:6.7px!important;
+    font-size:var(--desktop-rail-label-size)!important;
     line-height:.98!important;
     white-space:normal!important;
     overflow-wrap:normal!important;
     text-align:center;
     letter-spacing:.02em;
   }
-  html:not(.touch-ui):not(.desktop-zen-mode) .desktop-utility-tray .attire-action .style-outfit-icon{width:25px;height:25px}
+  html:not(.touch-ui):not(.desktop-zen-mode) .desktop-utility-tray .attire-action .style-outfit-icon{width:var(--desktop-rail-style-icon-size);height:var(--desktop-rail-style-icon-size)}
+  html:not(.touch-ui):not(.desktop-zen-mode) .desktop-utility-tray .settings-action .menu-lines{width:var(--desktop-rail-menu-width);height:var(--desktop-rail-menu-height)}
+  html:not(.touch-ui):not(.desktop-zen-mode) .desktop-utility-tray .settings-action .menu-lines i{height:clamp(1px,.45dvh,3px)}
+  html:not(.touch-ui):not(.desktop-zen-mode) .desktop-utility-tray #levelBtn>span,
+  html:not(.touch-ui):not(.desktop-zen-mode) .desktop-utility-tray #fullscreenBtn>span{font-size:var(--desktop-rail-icon-size)!important}
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-utility-tray .fullscreen-action b{max-width:52px!important}
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-reddit{color:var(--ink)}
-  html:not(.touch-ui):not(.desktop-zen-mode) .desktop-reddit .reddit-button-icon{width:31px;height:31px}
-  html:not(.touch-ui):not(.desktop-zen-mode) .desktop-language-flag{font-size:29px!important;line-height:1!important}
+  html:not(.touch-ui):not(.desktop-zen-mode) .desktop-reddit .reddit-button-icon{width:var(--desktop-rail-image-size);height:var(--desktop-rail-image-size)}
+  html:not(.touch-ui):not(.desktop-zen-mode) .desktop-language-flag{width:var(--desktop-rail-image-size)!important;height:auto!important;line-height:1!important;display:grid;place-items:center}
+
+  .desktop-language-flag .language-flag-image{width:100%;height:auto;display:block;border:1px solid rgba(23,23,25,.22);box-sizing:border-box}
 
   /* Purpose-built rail icons: Indi, the BOXXY Originals star, and the player's live Daily streak flame. */
   html:not(.touch-ui):not(.desktop-zen-mode) .desktop-profile-indi{
@@ -8448,7 +8465,20 @@ html.touch-ui .compact-settings-only{display:grid!important}
 }
 
 @media (min-width:821px) and (pointer:fine) and (max-height:720px){
-  html:not(.touch-ui){--desktop-footer-height:46px;--desktop-head-height:82px}
+  html:not(.touch-ui){
+    --desktop-footer-height:46px;
+    --desktop-head-height:82px;
+    --desktop-rail-button-size:clamp(28px,8.1dvh,58px);
+    --desktop-rail-gap:clamp(3px,.8dvh,7px);
+    --desktop-rail-pad-y:clamp(3px,.8dvh,6px);
+    --desktop-rail-icon-size:clamp(13px,3dvh,21px);
+    --desktop-rail-label-size:clamp(4.4px,.95dvh,6.7px);
+    --desktop-rail-image-size:clamp(19px,4.4dvh,31px);
+    --desktop-rail-button-pad:clamp(2px,.6dvh,5px);
+    --desktop-rail-style-icon-size:clamp(14px,4dvh,25px);
+    --desktop-rail-menu-width:clamp(14px,3.5dvh,22px);
+    --desktop-rail-menu-height:clamp(10px,2.8dvh,18px);
+  }
   html:not(.touch-ui):not(.desktop-zen-mode) .play-area{grid-template-rows:var(--desktop-head-height) minmax(0,1fr) var(--desktop-footer-height)}
   html:not(.touch-ui):not(.desktop-zen-mode) .side-panel-head{height:var(--desktop-head-height)}
   html:not(.touch-ui):not(.desktop-zen-mode) .side-panel-head .credit{padding:6px 10px 4px}
@@ -8459,9 +8489,45 @@ html.touch-ui .compact-settings-only{display:grid!important}
   html:not(.touch-ui):not(.desktop-zen-mode) .side-panel-head .stats strong{font-size:14px}
 }
 
+@media (min-width:821px) and (pointer:fine) and (max-height:620px){
+  html:not(.touch-ui):not(.desktop-zen-mode) .desktop-utility-tray .desktop-profile-indi{transform:scale(.82);margin:-3px 0}
+  html:not(.touch-ui):not(.desktop-zen-mode) .desktop-utility-tray .desktop-trophy-star{width:clamp(24px,4.5dvh,31px)!important;height:clamp(24px,4.5dvh,31px)!important}
+  html:not(.touch-ui):not(.desktop-zen-mode) .desktop-utility-tray .desktop-daily-streak-icon{transform:scale(.84)}
+}
+
+@media (min-width:821px) and (pointer:fine) and (max-height:420px){
+  html:not(.touch-ui){
+    --desktop-rail-gap:2px;
+    --desktop-rail-pad-y:2px;
+    --desktop-rail-icon-size:12px;
+    --desktop-rail-label-size:4px;
+    --desktop-rail-image-size:18px;
+    --desktop-rail-button-pad:1px;
+    --desktop-rail-style-icon-size:14px;
+    --desktop-rail-menu-width:14px;
+    --desktop-rail-menu-height:10px;
+  }
+  html:not(.touch-ui):not(.desktop-zen-mode) .desktop-utility-tray .desktop-profile-indi{transform:scale(.68);margin:-6px 0}
+  html:not(.touch-ui):not(.desktop-zen-mode) .desktop-utility-tray .desktop-daily-streak-icon{transform:scale(.7)}
+}
+
+@media (min-width:821px) and (pointer:fine) and (max-height:360px){
+  html:not(.touch-ui){
+    --desktop-rail-button-size:clamp(24px,8.1dvh,29px);
+    --desktop-rail-gap:1px;
+    --desktop-rail-pad-y:1px;
+    --desktop-rail-icon-size:11px;
+    --desktop-rail-label-size:3.7px;
+    --desktop-rail-image-size:16px;
+    --desktop-rail-button-pad:1px;
+    --desktop-rail-style-icon-size:12px;
+    --desktop-rail-menu-width:12px;
+    --desktop-rail-menu-height:9px;
+  }
+}
+
 @media (min-width:821px) and (pointer:fine) and (max-height:520px) and (orientation:landscape){
   html:not(.touch-ui){--desktop-footer-height:28px;--desktop-head-height:52px}
-  html:not(.touch-ui):not(.desktop-zen-mode) .desktop-utility-tray{gap:2px;padding-top:3px;padding-bottom:3px}
   html:not(.touch-ui):not(.desktop-zen-mode) .play-area{grid-template-rows:var(--desktop-head-height) minmax(0,1fr) var(--desktop-footer-height)}
   html:not(.touch-ui):not(.desktop-zen-mode) .side-panel-head{height:var(--desktop-head-height);grid-template-rows:1fr}
   html:not(.touch-ui):not(.desktop-zen-mode) .side-panel-head .credit{display:none}
@@ -8771,7 +8837,8 @@ html.touch-ui .compact-settings-only{display:grid!important}
 .language-modal-options button[aria-checked="true"]{background:var(--yellow)!important;box-shadow:2px 2px 0 var(--ink)}
 .language-modal-options button:disabled{opacity:.6;cursor:wait}
 .language-modal-options button:focus-visible,.language-modal-close:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
-.language-option-flag{font-size:26px;line-height:1}
+.language-option-flag{width:32px;line-height:1;display:grid;place-items:center}
+.language-option-flag .language-flag-image{width:100%;height:auto;display:block;border:1px solid rgba(23,23,25,.22);box-sizing:border-box}
 .language-modal-options b{font-size:11px;line-height:1.15;letter-spacing:.02em;overflow-wrap:anywhere}
 .language-modal-status{margin:14px 0 0;color:var(--red);font-size:11px;font-weight:850;line-height:1.35}
 
@@ -8781,6 +8848,6 @@ html.touch-ui .compact-settings-only{display:grid!important}
   .language-modal-head{margin-bottom:12px}
   .language-modal-options{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
   .language-modal-options button{min-height:50px;padding:6px 8px!important;grid-template-columns:30px minmax(0,1fr);gap:6px}
-  .language-option-flag{font-size:22px}
+  .language-option-flag{width:26px}
   .language-modal-options b{font-size:9px}
 }

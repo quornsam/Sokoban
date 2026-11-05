@@ -41,8 +41,8 @@
 }
 .mobile-language-trigger{
   display:none;
-  font:400 clamp(17px,2.5dvh,24px)/1 system-ui,sans-serif;
 }
+.mobile-language-trigger .language-flag-image{width:70%;height:auto;display:block;border:1px solid rgba(23,23,25,.22);box-sizing:border-box}
 :is(.how-to-play-trigger,.mobile-language-trigger):hover{transform:translate(-1px,-1px);box-shadow:5px 5px 0 rgba(23,23,25,.16)}
 :is(.how-to-play-trigger,.mobile-language-trigger):active{transform:translate(2px,2px);box-shadow:1px 1px 0 rgba(23,23,25,.16)}
 :is(.how-to-play-trigger,.mobile-language-trigger):focus-visible{outline:3px solid var(--blue);outline-offset:3px}
