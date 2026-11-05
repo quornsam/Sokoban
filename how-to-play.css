@@ -42,6 +42,7 @@
 .mobile-language-trigger{
   display:none;
 }
+.mobile-language-trigger > span{width:100%;height:100%;display:grid;place-items:center}
 .mobile-language-trigger .language-flag-image{width:70%;height:auto;display:block;border:1px solid rgba(23,23,25,.22);box-sizing:border-box}
 :is(.how-to-play-trigger,.mobile-language-trigger):hover{transform:translate(-1px,-1px);box-shadow:5px 5px 0 rgba(23,23,25,.16)}
 :is(.how-to-play-trigger,.mobile-language-trigger):active{transform:translate(2px,2px);box-shadow:1px 1px 0 rgba(23,23,25,.16)}
