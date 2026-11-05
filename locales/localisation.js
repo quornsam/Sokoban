@@ -1,4 +1,4 @@
-/* BOXXY v534: shared public language modal with desktop and mobile flag controls. */
+/* BOXXY v537: use local SVG flags so language controls render consistently across platforms. */
 (() => {
   "use strict";
 
@@ -7,15 +7,15 @@
   const CATALOG_BASE = "/locales/";
   const TRANSLATED_ATTRIBUTES = ["aria-label", "title", "placeholder", "alt", "data-tooltip"];
   const LANGUAGES = Object.freeze({
-    en:    { label:"English",   flag:"🇬🇧", html:"en-GB" },
-    fr:    { label:"Français",  flag:"🇫🇷", html:"fr" },
-    es:    { label:"Español",   flag:"🇪🇸", html:"es" },
-    de:    { label:"Deutsch",   flag:"🇩🇪", html:"de" },
-    zh:    { label:"中文",       flag:"🇨🇳", html:"zh-CN" },
-    ja:    { label:"日本語",     flag:"🇯🇵", html:"ja" },
-    ru:    { label:"Русский",   flag:"🇷🇺", html:"ru" },
-    hi:    { label:"हिन्दी",     flag:"🇮🇳", html:"hi" },
-    alpha: { label:"Gen Alpha", flag:"🏁", html:"en" }
+    en:    { label:"English",   flagAsset:"/assets/ui/flags/gb.svg", html:"en-GB" },
+    fr:    { label:"Français",  flagAsset:"/assets/ui/flags/fr.svg", html:"fr" },
+    es:    { label:"Español",   flagAsset:"/assets/ui/flags/es.svg", html:"es" },
+    de:    { label:"Deutsch",   flagAsset:"/assets/ui/flags/de.svg", html:"de" },
+    zh:    { label:"中文",       flagAsset:"/assets/ui/flags/cn.svg", html:"zh-CN" },
+    ja:    { label:"日本語",     flagAsset:"/assets/ui/flags/jp.svg", html:"ja" },
+    ru:    { label:"Русский",   flagAsset:"/assets/ui/flags/ru.svg", html:"ru" },
+    hi:    { label:"हिन्दी",     flagAsset:"/assets/ui/flags/in.svg", html:"hi" },
+    alpha: { label:"Gen Alpha", flagAsset:"/assets/ui/flags/alpha.svg", html:"en" }
   });
   const COUNTRY_LANGUAGE = Object.freeze({ FR:"fr", ES:"es", MX:"es", AR:"es", BO:"es", CL:"es", CO:"es", CR:"es", CU:"es", DO:"es", EC:"es", SV:"es", GT:"es", HN:"es", NI:"es", PA:"es", PY:"es", PE:"es", PR:"es", UY:"es", VE:"es", DE:"de", AT:"de", LI:"de", CN:"zh", TW:"zh", HK:"zh", MO:"zh", JP:"ja", RU:"ru", IN:"hi" });
 
@@ -250,7 +250,7 @@
 
   async function loadCatalog(language) {
     if (language === "en") return null;
-    const response = await fetch(`${CATALOG_BASE}${encodeURIComponent(language)}.json?v=536`, { cache:"force-cache" });
+    const response = await fetch(`${CATALOG_BASE}${encodeURIComponent(language)}.json?v=537`, { cache:"force-cache" });
     if (!response.ok) throw new Error(`Could not load ${language} language file.`);
     const data = await response.json();
     if (!data || data.language !== language || typeof data.strings !== "object") throw new Error("Invalid language file.");
@@ -283,7 +283,12 @@
       const flag = document.createElement("span");
       flag.className = "language-option-flag";
       flag.setAttribute("aria-hidden", "true");
-      flag.textContent = meta.flag;
+      const flagImage = document.createElement("img");
+      flagImage.className = "language-flag-image";
+      flagImage.src = meta.flagAsset;
+      flagImage.alt = "";
+      flagImage.decoding = "async";
+      flag.append(flagImage);
       const label = document.createElement("b");
       label.dataset.boxxyI18nIgnore = "";
       label.textContent = meta.label;
@@ -296,7 +301,17 @@
 
   function renderLanguageControl() {
     const meta = LANGUAGES[currentLanguage] || LANGUAGES.en;
-    languageFlags().forEach(flag => { flag.textContent = meta.flag; });
+    languageFlags().forEach(flag => {
+      let image = flag.querySelector("img.language-flag-image");
+      if (!image) {
+        image = document.createElement("img");
+        image.className = "language-flag-image";
+        image.alt = "";
+        image.decoding = "async";
+        flag.replaceChildren(image);
+      }
+      if (image.getAttribute("src") !== meta.flagAsset) image.src = meta.flagAsset;
+    });
     languageButtons().forEach(button => {
       button.setAttribute("aria-label", `Change language. Current: ${meta.label}`);
       button.title = `Change language. Current: ${meta.label}`;
