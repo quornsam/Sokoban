@@ -3186,6 +3186,16 @@ html.touch-ui .level-attire{
 .boxxy-brand .boxxy-brand-hotspot-o{left:20.66%;width:20.53%}
 .boxxy-brand .boxxy-brand-hotspot-x{left:40.83%;width:19.87%}
 .boxxy-brand .boxxy-brand-hotspot-y{left:79.24%;width:20.53%}
+/* BOXXY v541 — on desktop, keep the wordmark on the same height scale as the awards rail.
+   The 2048×400 artwork is 5.12:1, so this width clamp mirrors the existing 25–34px badge-height clamp. */
+@media(min-width:761px){
+  .boxxy-brand{
+    flex:0 0 auto;
+    width:clamp(128px,11.008vw,174px);
+    min-width:0;
+    max-width:none;
+  }
+}
 @media(max-width:760px){
   .boxxy-brand{flex-basis:180px;max-width:180px;min-width:100px}
 }
