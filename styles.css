@@ -3159,6 +3159,52 @@ html.touch-ui .level-attire{
 }
 
 
+/* BOXXY v540 — Boxxy 36 wordmark with the existing title Easter-egg hit targets preserved. */
+.boxxy-brand{
+  position:relative;
+  flex:1 1 300px;
+  min-width:110px;
+  max-width:300px;
+  line-height:0;
+}
+.boxxy-brand-logo{
+  display:block;
+  width:100%;
+  height:auto;
+  pointer-events:none;
+  user-select:none;
+  -webkit-user-select:none;
+}
+.boxxy-brand .boxxy-brand-hotspot{
+  position:absolute;
+  top:0;
+  bottom:0;
+  z-index:2;
+  display:block;
+}
+/* Letter bounds follow the supplied Boxxy 36 artwork. */
+.boxxy-brand .boxxy-brand-hotspot-o{left:20.66%;width:20.53%}
+.boxxy-brand .boxxy-brand-hotspot-x{left:40.83%;width:19.87%}
+.boxxy-brand .boxxy-brand-hotspot-y{left:79.24%;width:20.53%}
+/* BOXXY v541 — on desktop, keep the wordmark on the same height scale as the awards rail.
+   The 2048×400 artwork is 5.12:1, so this width clamp mirrors the existing 25–34px badge-height clamp. */
+@media(min-width:761px){
+  .boxxy-brand{
+    flex:0 0 auto;
+    width:clamp(128px,11.008vw,174px);
+    min-width:0;
+    max-width:none;
+  }
+}
+@media(max-width:760px){
+  .boxxy-brand{flex-basis:180px;max-width:180px;min-width:100px}
+}
+/* BOXXY v542 — keep the compact wordmark across phone portrait widths.
+   This removes the abrupt 150px → 180px jump immediately above 390 CSS px. */
+@media(max-width:480px){
+  .boxxy-brand{flex-basis:150px;max-width:150px;min-width:92px}
+}
+
 /* BOXXY v176 — completed-pack stars, aggregate pack totals and grand finale. */
 .title-word-row{
   display:flex;

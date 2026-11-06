@@ -6647,7 +6647,7 @@
     if (trophyCabinetMoreCount) trophyCabinetMoreCount.textContent = "";
 
     const row = completedPackStars.closest(".title-word-row");
-    const brand = row?.querySelector(":scope > strong");
+    const brand = row?.querySelector(":scope > .boxxy-brand, :scope > strong");
     if (!row || !brand) return;
 
     const rowStyle = getComputedStyle(row);
