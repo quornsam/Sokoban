@@ -3159,7 +3159,7 @@ html.touch-ui .level-attire{
 }
 
 
-/* BOXXY v539 — supplied Boxxy 33 wordmark with the existing title Easter-egg hit targets preserved. */
+/* BOXXY v540 — Boxxy 36 wordmark with the existing title Easter-egg hit targets preserved. */
 .boxxy-brand{
   position:relative;
   flex:1 1 300px;
@@ -3182,10 +3182,10 @@ html.touch-ui .level-attire{
   z-index:2;
   display:block;
 }
-/* Letter bounds follow the supplied Boxxy 33 artwork. */
-.boxxy-brand .boxxy-brand-hotspot-o{left:19.56%;width:19.29%}
-.boxxy-brand .boxxy-brand-hotspot-x{left:39.01%;width:20.03%}
-.boxxy-brand .boxxy-brand-hotspot-y{left:79.87%;width:19.73%}
+/* Letter bounds follow the supplied Boxxy 36 artwork. */
+.boxxy-brand .boxxy-brand-hotspot-o{left:20.66%;width:20.53%}
+.boxxy-brand .boxxy-brand-hotspot-x{left:40.83%;width:19.87%}
+.boxxy-brand .boxxy-brand-hotspot-y{left:79.24%;width:20.53%}
 @media(max-width:760px){
   .boxxy-brand{flex-basis:180px;max-width:180px;min-width:100px}
 }
