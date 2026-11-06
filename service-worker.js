@@ -1,3 +1,4 @@
+/* BOXXY v539: cache the active Boxxy 33 header wordmark. */
 /* BOXXY v537: cache cross-platform SVG language flags. */
 /* BOXXY v533: cache the Hindi localisation catalogue. */
 /* BOXXY v531: cache the Reddit community icon used by desktop and compact Menu links. */
@@ -288,6 +289,7 @@ const ASSETS = [
   "/assets/ui/boxxy-prize-poster-lowres.jpg",
   "/assets/ui/boxxy-splash.png",
   "/assets/ui/reddit-icon.webp",
+  "/assets/branding/boxxy/Boxxy-33-black.png",
   "/assets/ui/flags/gb.svg",
   "/assets/ui/flags/fr.svg",
   "/assets/ui/flags/es.svg",
