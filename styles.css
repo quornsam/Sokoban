@@ -3199,7 +3199,9 @@ html.touch-ui .level-attire{
 @media(max-width:760px){
   .boxxy-brand{flex-basis:180px;max-width:180px;min-width:100px}
 }
-@media(max-width:390px){
+/* BOXXY v542 — keep the compact wordmark across phone portrait widths.
+   This removes the abrupt 150px → 180px jump immediately above 390 CSS px. */
+@media(max-width:480px){
   .boxxy-brand{flex-basis:150px;max-width:150px;min-width:92px}
 }
 
