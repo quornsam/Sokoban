@@ -30,6 +30,7 @@
 /* BOXXY v449: fitted rare-character modal portraits and decoded fixed-character frame warm-up prevent undersized previews and first-move flashing. */
 /* BOXXY v448: rare colour-key characters now select directly, repeat their discovery modal, and never reveal the PARTYGOERS family by themselves. */
 /* BOXXY v447: two super-rare PARTYGOERS unlock through exact Oli colour combinations, with live Indi/Oli selection-card previews. */
+/* BOXXY v543: FLUFFBALLS are public, use character-specific board colours, and have their own soundtrack control. */
 /* BOXXY v446: hidden FLUFFBALLS character family, six new sprites, and shared secret-family unlock handling. */
 /* BOXXY v445: BOXXY Originals Hall of Fame is server-managed, dated, and linked cards open player profiles. */
 /* BOXXY v444: Yaron Shoham added as the tenth BOXXY Originals completer. */
@@ -737,7 +738,6 @@
   const PARTYGOER_STORAGE_KEY = "boxxy-partygoer-character-v1";
   const PARTYGOERS_UNLOCK_KEY = "boxxy-partygoers-unlocked-v2";
   const RARE_PARTYGOERS_UNLOCK_KEY = "boxxy-rare-partygoers-unlocked-v1";
-  const FLUFFBALLS_UNLOCK_KEY = "boxxy-fluffballs-unlocked-v1";
   const RARE_PARTYGOER_UNLOCKS = Object.freeze({
     kangaruby: Object.freeze({
       name: "KangaRuby",
@@ -1248,6 +1248,8 @@
       window.dispatchEvent(new CustomEvent("boxxyspookycharacterselected", { detail: { bodyType: style.bodyType } }));
     } else if (PARTYGOER_BODY_TYPES.includes(style.bodyType)) {
       try { localStorage.setItem(PARTYGOER_STORAGE_KEY, style.bodyType); } catch (_) {}
+    } else if (FLUFFBALL_BODY_TYPES.includes(style.bodyType)) {
+      window.dispatchEvent(new CustomEvent("boxxyfluffballcharacterselected", { detail: { bodyType: style.bodyType } }));
     }
     return true;
   }
@@ -1321,7 +1323,6 @@
   let previousFocus = null;
   let rareUnlockPreviousFocus = null;
   let partygoersUnlocked = false;
-  let fluffballsUnlocked = false;
   let rarePartygoersUnlocked = new Set();
   try { partygoersUnlocked = localStorage.getItem(PARTYGOERS_UNLOCK_KEY) === "1"; } catch (_) {}
   try {
@@ -1330,7 +1331,6 @@
       rarePartygoersUnlocked = new Set(storedRareUnlocks.filter(bodyType => RARE_PARTYGOER_BODY_TYPES.includes(bodyType)));
     }
   } catch (_) {}
-  try { fluffballsUnlocked = localStorage.getItem(FLUFFBALLS_UNLOCK_KEY) === "1"; } catch (_) {}
   let secretUnlockClicks = 0;
   let secretUnlockArmed = false;
 
@@ -1398,16 +1398,9 @@
       partyButton.hidden = !visible;
       partyButton.style.display = visible ? "" : "none";
     }
-    const fluffButton = document.getElementById("styleFluffballsFamilyBtn");
-    if (fluffButton) {
-      fluffButton.hidden = !fluffballsUnlocked;
-      fluffButton.style.display = fluffballsUnlocked ? "" : "none";
-    }
     const familyChoices = styleControls?.querySelector(".style-family-choices");
     familyChoices?.classList.toggle("has-partygoers", partygoersVisible());
-    familyChoices?.classList.toggle("has-fluffballs", fluffballsUnlocked);
     if (!partygoersVisible() && activeStyleFamily === "partygoers") activeStyleFamily = "spooky";
-    if (!fluffballsUnlocked && activeStyleFamily === "fluffballs") activeStyleFamily = "spooky";
     updateSelectedSwatches();
   }
 
@@ -1421,22 +1414,8 @@
     syncSecretFamilyControls();
   }
 
-  function setFluffballsUnlocked(nextUnlocked) {
-    fluffballsUnlocked = Boolean(nextUnlocked);
-    resetSecretUnlockSequence();
-    try {
-      if (fluffballsUnlocked) localStorage.setItem(FLUFFBALLS_UNLOCK_KEY, "1");
-      else localStorage.removeItem(FLUFFBALLS_UNLOCK_KEY);
-    } catch (_) {}
-    syncSecretFamilyControls();
-  }
-
   function togglePartygoers() {
     setPartygoersUnlocked(!partygoersUnlocked);
-  }
-
-  function toggleFluffballs() {
-    setFluffballsUnlocked(!fluffballsUnlocked);
   }
 
   function noteSpookyUnlockClick() {
@@ -1470,7 +1449,6 @@
     const allowed = ["indi", "oli", "spooky", "partygoers", "fluffballs"];
     if (!allowed.includes(nextFamily)) return;
     if (nextFamily === "partygoers" && !partygoersVisible()) return;
-    if (nextFamily === "fluffballs" && !fluffballsUnlocked) return;
     if (activeStyleFamily === nextFamily) return;
     activeStyleFamily = nextFamily;
     updateSelectedSwatches();
@@ -1516,7 +1494,7 @@
     const typeLegend = document.createElement("legend");
     typeLegend.textContent = LABELS.bodyType;
     const typeChoices = document.createElement("div");
-    typeChoices.className = `style-type-choices style-family-choices${partygoersVisible() ? " has-partygoers" : ""}${fluffballsUnlocked ? " has-fluffballs" : ""}`;
+    typeChoices.className = `style-type-choices style-family-choices has-fluffballs${partygoersVisible() ? " has-partygoers" : ""}`;
     typeChoices.setAttribute("role", "group");
     typeChoices.setAttribute("aria-label", "Character families");
 
@@ -1546,8 +1524,6 @@
 
     const fluffButton = familyTab("FLUFFBALLS", "fluffballs", "style-family-fluffballs");
     fluffButton.id = "styleFluffballsFamilyBtn";
-    fluffButton.hidden = !fluffballsUnlocked;
-    fluffButton.style.display = fluffballsUnlocked ? "" : "none";
     typeChoices.appendChild(fluffButton);
 
     typeGroup.append(typeLegend, typeChoices);
@@ -1604,7 +1580,18 @@
     const fluffballLegend = document.createElement("legend");
     fluffballLegend.textContent = "FLUFFBALL";
     const fluffballChoices = characterGrid(FLUFFBALL_BODY_TYPES, FLUFFBALL_CHARACTER_LABELS, "Fluffball");
-    fluffballGroup.append(fluffballLegend, fluffballChoices);
+
+    const fluffballMusicButton = document.createElement("button");
+    fluffballMusicButton.type = "button";
+    fluffballMusicButton.id = "styleFluffballMusicBtn";
+    fluffballMusicButton.className = "style-fluffball-music-btn";
+    fluffballMusicButton.textContent = "FLUFFBALL MUSIC ON";
+    fluffballMusicButton.setAttribute("aria-pressed", "true");
+    fluffballMusicButton.addEventListener("click", () => {
+      window.dispatchEvent(new CustomEvent("boxxyfluffballmusictoggle"));
+    });
+
+    fluffballGroup.append(fluffballLegend, fluffballChoices, fluffballMusicButton);
     styleControls.appendChild(fluffballGroup);
 
     for (const category of CATEGORIES) {
@@ -1660,7 +1647,7 @@
       const category = group.dataset.styleCategory;
       if (category === "bodyType") return;
       if (category === "indi" || category === "oli" || category === "spooky" || category === "partygoers" || category === "fluffballs") {
-        const locked = (category === "partygoers" && !partygoersVisible()) || (category === "fluffballs" && !fluffballsUnlocked);
+        const locked = category === "partygoers" && !partygoersVisible();
         group.hidden = category !== activeStyleFamily || locked;
         return;
       }
@@ -1674,11 +1661,11 @@
     resetSecretUnlockSequence();
     activeStyleFamily = familyForBodyType(style.bodyType);
     if (activeStyleFamily === "partygoers" && !partygoersVisible()) activeStyleFamily = "indi";
-    if (activeStyleFamily === "fluffballs" && !fluffballsUnlocked) activeStyleFamily = "indi";
     updateSelectedSwatches();
     styleModal.hidden = false;
     document.body.classList.add("style-open");
     window.dispatchEvent(new CustomEvent("boxxyspookymusicrequeststate"));
+    window.dispatchEvent(new CustomEvent("boxxyfluffballmusicrequeststate"));
     requestAnimationFrame(() => styleCloseBtn?.focus());
   }
 
@@ -1711,10 +1698,9 @@
     }
     if (styleModal?.hidden) return;
     const secretKey = String(event.key || "").toLowerCase();
-    if (secretUnlockArmed && (secretKey === "k" || secretKey === "f")) {
+    if (secretUnlockArmed && secretKey === "k") {
       event.preventDefault();
-      if (secretKey === "k") togglePartygoers();
-      else toggleFluffballs();
+      togglePartygoers();
       return;
     }
     if (event.key === "Escape") {
@@ -3631,7 +3617,8 @@
     fading: { label: "Fading into Gold", src: "assets/audio/Fading-into-Gold-296KB.mp3" },
     velvet: { label: "Velvet Static", src: "assets/audio/Velvet-Static-296KB.mp3" },
     tetris: { label: "Tetris Piano", src: "assets/audio/Tetris-Piano-293KB.mp3" },
-    spooky: { label: "Dark Quiet Death", src: "assets/audio/Dark-Quiet-Death-280KB.mp3" }
+    spooky: { label: "Dark Quiet Death", src: "assets/audio/Dark-Quiet-Death-280KB.mp3" },
+    fluffballs: { label: "Fluffballs", src: "assets/audio/Fluffballs-302KB.m4a" }
   });
   const storedMusicTrackId = localStorage.getItem("boxxy-music-track-v1");
   let selectedMusicTrackId = storedMusicTrackId === MUSIC_PLAY_ALL_ID || BOXXY_MUSIC_TRACKS[storedMusicTrackId]
@@ -8924,6 +8911,77 @@
   });
   window.addEventListener("boxxyspookymusicrequeststate", updateSpookyMusicButton);
 
+  const FLUFFBALL_MUSIC_AUTOSTART_KEY = "boxxy-fluffball-music-autostarted-v1";
+  const FLUFFBALL_BOARD_STYLES = Object.freeze({
+    roger: Object.freeze({ box: "light-blue", target: "red" }),
+    bobby: Object.freeze({ box: "light-blue", target: "pink" }),
+    carmen: Object.freeze({ box: "teal", target: "yellow" }),
+    titchmarsh: Object.freeze({ box: "brown", target: "green" }),
+    bubbs: Object.freeze({ box: "green", target: "orange" }),
+    porridge: Object.freeze({ box: "teal", target: "pink" })
+  });
+
+  function updateFluffballMusicButton() {
+    const button = document.getElementById("styleFluffballMusicBtn");
+    if (!button) return;
+    const active = musicOn && selectedMusicTrackId === "fluffballs";
+    button.textContent = active ? "FLUFFBALL MUSIC ON" : "FLUFFBALL MUSIC OFF";
+    button.setAttribute("aria-pressed", String(active));
+  }
+
+  function setFluffballMusicEnabled(enabled) {
+    if (enabled) {
+      selectedMusicTrackId = "fluffballs";
+      musicPlayAllIndex = 0;
+      musicOn = true;
+      try {
+        localStorage.setItem("boxxy-music-track-v1", selectedMusicTrackId);
+        localStorage.setItem("push-bauhaus-music", "on");
+        localStorage.setItem(FLUFFBALL_MUSIC_AUTOSTART_KEY, "1");
+      } catch (_) {}
+      updateMusicButton();
+      applySelectedMusicTrack(true, true);
+    } else {
+      musicOn = false;
+      try {
+        localStorage.setItem("push-bauhaus-music", "off");
+        localStorage.setItem(FLUFFBALL_MUSIC_AUTOSTART_KEY, "1");
+      } catch (_) {}
+      updateMusicButton();
+      pauseBackgroundMusic();
+    }
+    updateFluffballMusicButton();
+  }
+
+  function applyFluffballCharacterDefaults(event) {
+    const bodyType = String(event?.detail?.bodyType || "").trim().toLowerCase();
+    const boardStyle = FLUFFBALL_BOARD_STYLES[bodyType];
+    if (boardStyle) BOARD_STYLE?.apply?.(boardStyle);
+
+    let musicAlreadyStarted = false;
+    try { musicAlreadyStarted = localStorage.getItem(FLUFFBALL_MUSIC_AUTOSTART_KEY) === "1"; } catch (_) {}
+
+    selectedMusicTrackId = "fluffballs";
+    musicPlayAllIndex = 0;
+    try { localStorage.setItem("boxxy-music-track-v1", selectedMusicTrackId); } catch (_) {}
+
+    if (!musicAlreadyStarted) {
+      setFluffballMusicEnabled(true);
+      return;
+    }
+
+    updateMusicButton();
+    applySelectedMusicTrack(musicOn, true);
+    updateFluffballMusicButton();
+  }
+
+  window.addEventListener("boxxyfluffballcharacterselected", applyFluffballCharacterDefaults);
+  window.addEventListener("boxxyfluffballmusictoggle", () => {
+    const currentlyActive = musicOn && selectedMusicTrackId === "fluffballs";
+    setFluffballMusicEnabled(!currentlyActive);
+  });
+  window.addEventListener("boxxyfluffballmusicrequeststate", updateFluffballMusicButton);
+
   function boxxySpeedFactor() {
     return BOXXY_SPEED_FACTORS[boxxySpeed] || 1;
   }
@@ -9460,6 +9518,7 @@
     }
     syncDesktopUtilityToggles();
     updateSpookyMusicButton();
+    updateFluffballMusicButton();
   }
 
   async function startBackgroundMusic() {
@@ -13046,6 +13105,7 @@
     localStorage.setItem("boxxy-music-track-v1", selectedMusicTrackId);
     applySelectedMusicTrack(true, true);
     updateSpookyMusicButton();
+    updateFluffballMusicButton();
   });
   settingsSpeedSelect?.addEventListener("change", event => applyBoxxySpeed(String(event.currentTarget.value || "normal"), true));
   settingsLegacyArrowsToggle?.addEventListener("click", event => {

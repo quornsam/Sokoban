@@ -1,3 +1,4 @@
+/* BOXXY v543: cache the public FLUFFBALLS soundtrack and refreshed style/localisation assets. */
 /* BOXXY v540: cache the active Boxxy 36 header wordmark. */
 /* BOXXY v537: cache cross-platform SVG language flags. */
 /* BOXXY v533: cache the Hindi localisation catalogue. */
@@ -121,6 +122,7 @@ const ASSETS = [
   "/assets/audio/Velvet-Static-296KB.mp3",
   "/assets/audio/cracked-ivory-drift.mp3",
   "/assets/audio/Dark-Quiet-Death-280KB.mp3",
+  "/assets/audio/Fluffballs-302KB.m4a",
   "/assets/audio/tetris-piano.m4a",
   "/assets/data/profile-locations-v1.json",
   "/assets/board/board-atlas.png",
