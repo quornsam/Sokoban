@@ -1,3 +1,4 @@
+/* BOXXY v544: refresh the cached app script for announcement Style preload and rolling-message additions. */
 /* BOXXY v543: cache the public FLUFFBALLS soundtrack and refreshed style/localisation assets. */
 /* BOXXY v540: cache the active Boxxy 36 header wordmark. */
 /* BOXXY v537: cache cross-platform SVG language flags. */

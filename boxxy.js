@@ -30,6 +30,7 @@
 /* BOXXY v449: fitted rare-character modal portraits and decoded fixed-character frame warm-up prevent undersized previews and first-move flashing. */
 /* BOXXY v448: rare colour-key characters now select directly, repeat their discovery modal, and never reveal the PARTYGOERS family by themselves. */
 /* BOXXY v447: two super-rare PARTYGOERS unlock through exact Oli colour combinations, with live Indi/Oli selection-card previews. */
+/* BOXXY v544: site-announcement Style opens preload board artwork; add varied Sokoban facts and Fluffball thoughts. */
 /* BOXXY v543: FLUFFBALLS are public, use character-specific board colours, and have their own soundtrack control. */
 /* BOXXY v446: hidden FLUFFBALLS character family, six new sprites, and shared secret-family unlock handling. */
 /* BOXXY v445: BOXXY Originals Hall of Fame is server-managed, dated, and linked cards open player profiles. */
@@ -4512,7 +4513,11 @@
       return;
     }
     if (action === 'open_menu') { await openSettings(); return; }
-    if (action === 'open_style') { document.getElementById('styleBtn')?.click(); return; }
+    if (action === 'open_style') {
+      await prepareBoardStylePaletteAssets();
+      document.getElementById('styleBtn')?.click();
+      return;
+    }
     if (action === 'open_level_picker') { levelBtn?.click(); return; }
     if (action === 'open_packs') { openPackModal(); return; }
     if (action === 'open_daily_archive') { openDailyArchive(); return; }
@@ -7458,6 +7463,151 @@
     "Nobody needs to know how long this took.", "I will pretend that was the plan.", "This counts as exercise.", "Future me can explain this.",
     "Present me remains unconvinced.", "I have made worse decisions near heavier furniture.", "I am putting this on my CV.", "The boxes can buy lunch."
   ];
+  const FLUFFBALL_THOUGHT_CHANCE = 1 / 3;
+  const FLUFFBALL_THOUGHT_NAMES = Object.freeze({
+    roger: "Roger",
+    bobby: "Bobby",
+    carmen: "Carmen",
+    titchmarsh: "Titchmarsh",
+    bubbs: "Bubbs",
+    porridge: "Porridge"
+  });
+  const FLUFFBALL_NONSENSE_CLAIMS = [
+    "the yellow box is called Kevin",
+    "corners are mostly a rumour",
+    "one of the targets is pretending to be innocent",
+    "the warehouse needs an emergency biscuit drawer",
+    "boxes move better when you compliment them",
+    "Tuesday is hiding behind the left wall",
+    "the solution is probably underneath something",
+    "the floor has been rearranged since breakfast",
+    "the quiet box knows more than it is saying",
+    "geometry has become needlessly personal"
+  ];
+  const FLUFFBALL_NONSENSE_ACTIONS = [
+    "negotiating with a crate",
+    "counting the corners for the third time",
+    "looking for the emergency biscuit",
+    "pretending this is a perfectly normal warehouse",
+    "listening for boxes whispering",
+    "thinking an extremely round thought",
+    "checking whether the targets are watching",
+    "filing a complaint with geometry",
+    "waiting for the sensible box to volunteer",
+    "conducting an important fluff inspection"
+  ];
+  const FLUFFBALL_NONSENSE_ENDINGS = [
+    "No further questions.",
+    "Apparently.",
+    "We are not challenging this.",
+    "That seems official enough.",
+    "Please act accordingly.",
+    "Nobody knows why.",
+    "The matter is considered closed.",
+    "This has not helped."
+  ];
+  const SOKOBAN_FACT_VARIANTS = Object.freeze([
+    Object.freeze([
+      'The Japanese word "Sokoban" (倉庫番) means "warehouse keeper".',
+      '"Sokoban" (倉庫番) is Japanese for "warehouse keeper".',
+      'Warehouse keeper: that is what the Japanese name "Sokoban" (倉庫番) means.'
+    ]),
+    Object.freeze([
+      'BOXXY is based on the cult Japanese computer puzzle game Sokoban.',
+      'The game behind BOXXY is the cult Japanese computer puzzle Sokoban.',
+      'BOXXY traces its roots to the Japanese computer-game classic Sokoban.'
+    ]),
+    Object.freeze([
+      'Hiroyuki Imabayashi created Sokoban in Japan in 1981.',
+      'Sokoban began in Japan in 1981, created by Hiroyuki Imabayashi.',
+      '1981 was the year Hiroyuki Imabayashi created Sokoban in Japan.'
+    ]),
+    Object.freeze([
+      'The first Sokoban prototype was written in BASIC on an NEC PC-8001.',
+      'Hiroyuki Imabayashi built his Sokoban prototype in BASIC on an NEC PC-8001.',
+      'An NEC PC-8001 running BASIC was where the first Sokoban prototype took shape.'
+    ]),
+    Object.freeze([
+      'Sokoban was not born from a programming competition: Imabayashi made it as a hobby.',
+      'Despite a long-running internet myth, Sokoban began as a hobby, not a programming-contest entry.',
+      'No programming competition created Sokoban. Hiroyuki Imabayashi has said it started as a hobby.'
+    ]),
+    Object.freeze([
+      'Sokoban\'s creator said he enjoyed seeing his friends struggle with the puzzles.',
+      'Hiroyuki Imabayashi has recalled enjoying watching his friends struggle with Sokoban.',
+      'One early pleasure for Sokoban\'s creator was seeing his friends struggle to solve it.'
+    ]),
+    Object.freeze([
+      'Before Sokoban had a level editor, its puzzles were designed by hand on graph paper.',
+      'Early Sokoban levels were laid out on graph paper because there was no editor yet.',
+      'Graph paper was Sokoban\'s original level-design tool, before an editor existed.'
+    ]),
+    Object.freeze([
+      'Official records date the first commercial Sokoban to December 1982: a cassette release with 20 levels.',
+      'The first commercial Sokoban is officially dated December 1982 and contained 20 levels on cassette.',
+      'Twenty levels on cassette made up the first commercial Sokoban, officially dated December 1982.'
+    ]),
+    Object.freeze([
+      'The original Sokoban hid breakable walls in levels 11 to 20; the divisive gimmick was not used again.',
+      'Levels 11–20 of the first commercial Sokoban used secret breakable walls, a one-off experiment.',
+      'Breakable secret walls appeared in the original Sokoban, caused debate, and disappeared from later games.'
+    ]),
+    Object.freeze([
+      'In August 1983, PC Magazine published Sokoban Extra Edition with ten new puzzles.',
+      'Ten extra Sokoban puzzles appeared in Japan\'s PC Magazine in August 1983.',
+      'Sokoban Extra Edition added ten magazine-published puzzles in August 1983.'
+    ]),
+    Object.freeze([
+      'Sokoban 2 arrived in 1984 with 50 new levels and a level editor.',
+      'The 1984 sequel Sokoban 2 introduced a puzzle editor alongside 50 new levels.',
+      'A built-in level editor first arrived with Sokoban 2 in 1984.'
+    ]),
+    Object.freeze([
+      'The original Sokoban character was called Rabi, a name inspired by Thinking Rabbit.',
+      'Rabi was the name of Sokoban\'s original character, taken from the Thinking Rabbit name.',
+      'Thinking Rabbit inspired the name Rabi, used for the original Sokoban character.'
+    ]),
+    Object.freeze([
+      'The objects pushed in the earliest Sokoban were imagined as tied-up luggage rather than wooden crates.',
+      'Early Sokoban used the image of heavy luggage tied with string; wooden boxes came later.',
+      'Before wooden crates became familiar, Sokoban\'s pushable objects looked like tied luggage.'
+    ]),
+    Object.freeze([
+      'Spectrum HoloByte brought Sokoban to Western computer audiences in 1988 under the title Soko-Ban.',
+      'Western computer players met the game as Soko-Ban in Spectrum HoloByte\'s 1988 release.',
+      'The 1988 Spectrum HoloByte release Soko-Ban helped introduce the puzzle to Western computer audiences.'
+    ]),
+    Object.freeze([
+      'Sokoban Perfect was released in 1989 with 306 levels and evolved from plans for a Sokoban 3.',
+      'The planned Sokoban 3 eventually became 1989\'s Sokoban Perfect, expanded to 306 levels.',
+      'Sokoban Perfect grew out of the Sokoban 3 idea and ultimately contained 306 puzzles.'
+    ]),
+    Object.freeze([
+      'The Game Boy version of Sokoban was released internationally as Boxxle.',
+      'Boxxle was the international name used for a Game Boy version of Sokoban.',
+      'On Game Boy, international players encountered Sokoban under the name Boxxle.'
+    ]),
+    Object.freeze([
+      'Several puzzles in the famous Original 50 first appeared in earlier Japanese Thinking Rabbit releases.',
+      'The Original 50 draws on puzzles that had appeared in earlier Japanese Sokoban releases.',
+      'Some levels now known from the Original 50 can be traced back to earlier Thinking Rabbit releases in Japan.'
+    ]),
+    Object.freeze([
+      'Sokoban levels can be written entirely as text: # is a wall and $ is a box in the standard notation.',
+      'A whole Sokoban puzzle can be stored as plain text, with symbols such as # for walls and $ for boxes.',
+      'Plain-text Sokoban notation uses characters including # for walls, $ for boxes, @ for the player and . for goals.'
+    ]),
+    Object.freeze([
+      'The Sokoban solution with the fewest pushes is not necessarily the one with the fewest player moves.',
+      'Fewest pushes and fewest moves are different Sokoban optimisation problems.',
+      'A push-optimal Sokoban route can still use more walking moves than another solution.'
+    ]),
+    Object.freeze([
+      'Sokoban is used in artificial-intelligence and search research because its simple rules create difficult planning problems.',
+      'Researchers use Sokoban as a test bed for artificial intelligence, planning and search.',
+      'Simple rules, difficult search: that combination has made Sokoban useful in artificial-intelligence research.'
+    ])
+  ]);
   const KONAMI_SEQUENCE = ["ArrowUp", "ArrowUp", "ArrowDown", "ArrowDown", "ArrowLeft", "ArrowRight", "ArrowLeft", "ArrowRight", "a", "b", "Enter"];
   const KONAMI_SHOWCASE_LAYOUT = Object.freeze([
     '############',
@@ -7632,6 +7782,34 @@
 
   function capitalise(text) {
     return text ? text.charAt(0).toUpperCase() + text.slice(1) : text;
+  }
+
+  function englishThoughtExtrasEnabled() {
+    const language = window.BoxxyLocalisation?.language;
+    return !language || language === "en";
+  }
+
+  function currentFluffballThoughtName() {
+    const bodyType = String(window.CharacterStyler?.style?.bodyType || "").toLowerCase();
+    return FLUFFBALL_THOUGHT_NAMES[bodyType] || "";
+  }
+
+  function generateFluffballThought() {
+    const name = currentFluffballThoughtName();
+    if (!name) return "";
+    const claim = () => pickFresh(FLUFFBALL_NONSENSE_CLAIMS, "fluff-claim");
+    const action = () => pickFresh(FLUFFBALL_NONSENSE_ACTIONS, "fluff-action");
+    const ending = () => pickFresh(FLUFFBALL_NONSENSE_ENDINGS, "fluff-ending");
+    switch (Math.floor(Math.random() * 8)) {
+      case 0: return `${name} insists ${claim()}.`;
+      case 1: return `According to ${name}, ${claim()}.`;
+      case 2: return `${name} is ${action()}.`;
+      case 3: return `${name} is ${action()}. ${ending()}`;
+      case 4: return `${name} says ${claim()}. ${ending()}`;
+      case 5: return `Breaking news from ${name}: ${claim()}.`;
+      case 6: return `${name}'s warehouse report: ${claim()}.`;
+      default: return `${name} would like it noted that ${claim()}.`;
+    }
   }
 
   function generateThoughtCandidate() {
@@ -7825,6 +8003,12 @@
       "Completed pack awards stay in your Trophy Cabinet."
     ]);
 
+    if (englishThoughtExtrasEnabled()) {
+      SOKOBAN_FACT_VARIANTS.forEach((variants, index) => {
+        add(`sokoban-history-${index + 1}`, variants);
+      });
+    }
+
     return items;
   }
 
@@ -7841,6 +8025,9 @@
   function composeCharacterThought(options = {}) {
     const includeFact = options.preferFact === true || Math.random() < THOUGHT_FACT_CHANCE;
     let thought = includeFact ? generateThoughtFact() : "";
+    if (!thought && englishThoughtExtrasEnabled() && currentFluffballThoughtName() && Math.random() < FLUFFBALL_THOUGHT_CHANCE) {
+      thought = generateFluffballThought();
+    }
     if (!thought) {
       thought = window.BoxxyLocalisation?.randomThought?.() || "";
     }
