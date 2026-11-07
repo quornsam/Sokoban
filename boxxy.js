@@ -30,6 +30,7 @@
 /* BOXXY v449: fitted rare-character modal portraits and decoded fixed-character frame warm-up prevent undersized previews and first-move flashing. */
 /* BOXXY v448: rare colour-key characters now select directly, repeat their discovery modal, and never reveal the PARTYGOERS family by themselves. */
 /* BOXXY v447: two super-rare PARTYGOERS unlock through exact Oli colour combinations, with live Indi/Oli selection-card previews. */
+/* BOXXY v545: reduce Fluffball-specific rolling-message frequency to 10% overall. */
 /* BOXXY v544: site-announcement Style opens preload board artwork; add varied Sokoban facts and Fluffball thoughts. */
 /* BOXXY v543: FLUFFBALLS are public, use character-specific board colours, and have their own soundtrack control. */
 /* BOXXY v446: hidden FLUFFBALLS character family, six new sprites, and shared secret-family unlock handling. */
@@ -7463,7 +7464,7 @@
     "Nobody needs to know how long this took.", "I will pretend that was the plan.", "This counts as exercise.", "Future me can explain this.",
     "Present me remains unconvinced.", "I have made worse decisions near heavier furniture.", "I am putting this on my CV.", "The boxes can buy lunch."
   ];
-  const FLUFFBALL_THOUGHT_CHANCE = 1 / 3;
+  const FLUFFBALL_THOUGHT_CHANCE = 3 / 25;
   const FLUFFBALL_THOUGHT_NAMES = Object.freeze({
     roger: "Roger",
     bobby: "Bobby",
