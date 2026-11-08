@@ -18,6 +18,9 @@
 /* BOXXY v474: mobile gold badge layout, Static Noise pack artwork, and release metadata. */
 /* BOXXY v473: steady mobile awards header and compact, non-overlapping gold count. */
 /* BOXXY v469: optional original v451 fixed Zen arrows, retaining the modern keypad and reversible Restart. */
+/* BOXXY v548: editor-native pallet symbols plus private sharing and BOXXY-extended XSB export. */
+/* BOXXY v547: replace pallet artwork and preload/decode active pallet states before Level Maker test play. */
+/* BOXXY v546: experimental 2×2 pallet blocks in Level Maker testing, with unified movement, targets and artwork. */
 /* BOXXY v468: public Hall of Fame shows linked-player avatars in responsive cards. */
 /* BOXXY v467: Restart/Revert shared by every gameplay control and keyboard R. */
 /* BOXXY v466: smaller, corner-anchored Zen actions on medium/large keypads; reversible Zen restart until the next move. */
@@ -342,6 +345,29 @@
   });
 })();
 
+/* BOXXY v546 — experimental 2×2 pallet block notation and artwork. */
+(() => {
+  "use strict";
+  const FLOOR_CHAR = "£";
+  const GOAL_CHAR = "§";
+  const ASSET_REVISION = "547";
+  const CELL_CHARS = new Set([FLOOR_CHAR, GOAL_CHAR]);
+
+  function isCell(value) {
+    return CELL_CHARS.has(String(value || ""));
+  }
+
+  function spritePath(colour = "default-yellow") {
+    const raw = String(colour || "default-yellow").trim().toLowerCase().replace(/_/g, "-");
+    const clean = raw === "default-yellow"
+      ? "default-yellow"
+      : (window.BoxxyGoalColours?.normalise?.(raw) || "yellow");
+    return `assets/board/pallets/boxxy-pallet-2x2-${clean}.png?v=${ASSET_REVISION}`;
+  }
+
+  window.BoxxyPalletBlocks = Object.freeze({ FLOOR_CHAR, GOAL_CHAR, ASSET_REVISION, isCell, spritePath });
+})();
+
 /* BOXXY v323 — player-selectable standard box and target colours. */
 (() => {
   "use strict";
@@ -441,6 +467,10 @@
     return String(route ?? "").replace(/\s/g, "");
   }
 
+  const PALLET_FLOOR_CHAR = "£";
+  const PALLET_GOAL_CHAR = "§";
+  const PALLET_CHARS = new Set([PALLET_FLOOR_CHAR, PALLET_GOAL_CHAR]);
+
   function parseLevel(levelText) {
     const lines = String(levelText ?? "")
       .replace(/\r/g, "")
@@ -451,23 +481,29 @@
     if (!lines.length) return { ok: false, error: "The level is empty." };
     const width = Math.max(...lines.map(line => line.length));
     const height = lines.length;
+    const chars = lines.map(line => line.padEnd(width, " ").split(""));
+    const key = (x, y) => `${x},${y}`;
     const walls = new Set();
+    const voids = new Set();
     const goals = new Set();
     const boxes = new Set();
-    const voids = new Set();
+    const pallets = [];
+    const palletCells = new Set();
     let player = null;
     let playerCount = 0;
 
-    const key = (x, y) => `${x},${y}`;
-    const chars = lines.map(line => line.padEnd(width, " ").split(""));
-
-    // XSB uses spaces both for floor and for padding outside an irregular map.
-    // Match BOXXY's own importer by flood-filling boundary spaces as void.
     const outsideQueue = [];
+    const explicitFloor = new Set();
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const ch = chars[y][x];
+        if (".@$*+".includes(ch) || PALLET_CHARS.has(ch)) explicitFloor.add(key(x, y));
+      }
+    }
     const addOutside = (x, y) => {
       if (x < 0 || y < 0 || x >= width || y >= height || chars[y][x] !== " ") return;
       const id = key(x, y);
-      if (voids.has(id)) return;
+      if (explicitFloor.has(id) || voids.has(id)) return;
       voids.add(id);
       outsideQueue.push([x, y]);
     };
@@ -492,7 +528,7 @@
         const ch = chars[y][x];
         const id = key(x, y);
         if (ch === "#") walls.add(id);
-        if (ch === "." || ch === "*" || ch === "+") goals.add(id);
+        if (ch === "." || ch === "*" || ch === "+" || ch === PALLET_GOAL_CHAR) goals.add(id);
         if (ch === "$" || ch === "*") boxes.add(id);
         if (ch === "@" || ch === "+") {
           player = [x, y];
@@ -501,11 +537,27 @@
       }
     }
 
-    if (playerCount !== 1 || !player) return { ok: false, error: `The level has ${playerCount} players; exactly one is required.` };
-    if (!boxes.size) return { ok: false, error: "The level has no boxes." };
-    if (boxes.size !== goals.size) return { ok: false, error: `The level has ${boxes.size} boxes and ${goals.size} goals.` };
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const id = key(x, y);
+        if (!PALLET_CHARS.has(chars[y][x]) || palletCells.has(id)) continue;
+        const footprint = [[x, y], [x + 1, y], [x, y + 1], [x + 1, y + 1]];
+        if (footprint.some(([px, py]) => px >= width || py >= height || !PALLET_CHARS.has(chars[py][px]))) {
+          return { ok: false, error: `Pallet block at column ${x + 1}, row ${y + 1} is not a complete 2×2 block.` };
+        }
+        footprint.forEach(([px, py]) => palletCells.add(key(px, py)));
+        pallets.push({ x, y });
+      }
+    }
 
-    return { ok: true, width, height, walls, voids, goals, boxes, player, key };
+    if (playerCount !== 1 || !player) return { ok: false, error: `The level has ${playerCount} players; exactly one is required.` };
+    if (!boxes.size && !pallets.length) return { ok: false, error: "The level has no boxes or pallet blocks." };
+    const requiredGoals = boxes.size + pallets.length * 4;
+    if (requiredGoals !== goals.size) {
+      return { ok: false, error: `The level has ${requiredGoals} required box/pallet goal squares and ${goals.size} goals.` };
+    }
+
+    return { ok: true, width, height, walls, voids, goals, boxes, pallets, player, key };
   }
 
   function verify(levelText, route) {
@@ -519,11 +571,37 @@
     }
 
     const boxes = new Set(parsed.boxes);
+    const pallets = parsed.pallets.map(pallet => ({ ...pallet }));
     let [px, py] = parsed.player;
     let pushes = 0;
     let canonical = "";
 
     const blocked = (x, y) => x < 0 || y < 0 || x >= parsed.width || y >= parsed.height || parsed.walls.has(parsed.key(x, y)) || parsed.voids.has(parsed.key(x, y));
+    const palletIndexAt = (x, y) => pallets.findIndex(pallet => x >= pallet.x && x <= pallet.x + 1 && y >= pallet.y && y <= pallet.y + 1);
+    const palletDestinationClear = (index, dx, dy) => {
+      const pallet = pallets[index];
+      if (!pallet) return false;
+      for (let oy = 0; oy < 2; oy++) {
+        for (let ox = 0; ox < 2; ox++) {
+          const tx = pallet.x + dx + ox;
+          const ty = pallet.y + dy + oy;
+          const oldOwnCell = tx >= pallet.x && tx <= pallet.x + 1 && ty >= pallet.y && ty <= pallet.y + 1;
+          if (oldOwnCell) continue;
+          if (blocked(tx, ty) || boxes.has(parsed.key(tx, ty))) return false;
+          const other = palletIndexAt(tx, ty);
+          if (other >= 0 && other !== index) return false;
+        }
+      }
+      return true;
+    };
+    const palletSolved = pallet => {
+      for (let oy = 0; oy < 2; oy++) {
+        for (let ox = 0; ox < 2; ox++) {
+          if (!parsed.goals.has(parsed.key(pallet.x + ox, pallet.y + oy))) return false;
+        }
+      }
+      return true;
+    };
 
     for (let i = 0; i < clean.length; i++) {
       const lower = clean[i].toLowerCase();
@@ -543,13 +621,24 @@
         const bx = nx + dx;
         const by = ny + dy;
         const beyondKey = parsed.key(bx, by);
-        if (blocked(bx, by) || boxes.has(beyondKey)) {
+        if (blocked(bx, by) || boxes.has(beyondKey) || palletIndexAt(bx, by) >= 0) {
           return { valid: false, solved: false, route: canonical, moves: i, pushes, error: `Move ${i + 1} attempts an illegal push.` };
         }
         boxes.delete(nextKey);
         boxes.add(beyondKey);
         pushes++;
         pushed = true;
+      } else {
+        const palletIndex = palletIndexAt(nx, ny);
+        if (palletIndex >= 0) {
+          if (!palletDestinationClear(palletIndex, dx, dy)) {
+            return { valid: false, solved: false, route: canonical, moves: i, pushes, error: `Move ${i + 1} attempts an illegal pallet push.` };
+          }
+          pallets[palletIndex].x += dx;
+          pallets[palletIndex].y += dy;
+          pushes++;
+          pushed = true;
+        }
       }
 
       px = nx;
@@ -557,14 +646,14 @@
       canonical += pushed ? lower.toUpperCase() : lower;
     }
 
-    const solved = [...boxes].every(box => parsed.goals.has(box));
+    const solved = [...boxes].every(box => parsed.goals.has(box)) && pallets.every(palletSolved);
     return {
       valid: true,
       solved,
       route: canonical,
       moves: canonical.length,
       pushes,
-      error: solved ? "" : "The route is legal but does not finish with every box on a goal."
+      error: solved ? "" : "The route is legal but does not finish with every box and pallet block on its goals."
     };
   }
 
@@ -576,7 +665,31 @@
   "use strict";
 
   const MAX_SIZE = 64;
-  const ALLOWED = /^[ #@$.+*]*$/;
+  const PALLET_FLOOR = window.BoxxyPalletBlocks?.FLOOR_CHAR || "£";
+  const PALLET_GOAL = window.BoxxyPalletBlocks?.GOAL_CHAR || "§";
+  const PALLET_CELLS = new Set([PALLET_FLOOR, PALLET_GOAL]);
+  const ALLOWED = /^[ #@$.+*£§]*$/;
+
+  function countPallets(layout) {
+    const height = layout.length;
+    const width = Math.max(0, ...layout.map(row => row.length));
+    const seen = new Set();
+    let pallets = 0;
+    const cellAt = (x, y) => y >= 0 && y < height && x >= 0 && x < layout[y].length ? layout[y][x] : " ";
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const id = `${x},${y}`;
+        if (!PALLET_CELLS.has(cellAt(x, y)) || seen.has(id)) continue;
+        const footprint = [[x,y],[x+1,y],[x,y+1],[x+1,y+1]];
+        if (!footprint.every(([px,py]) => PALLET_CELLS.has(cellAt(px,py)))) {
+          throw new Error("Puzzle link contains an incomplete 2×2 pallet block.");
+        }
+        footprint.forEach(([px,py]) => seen.add(`${px},${py}`));
+        pallets++;
+      }
+    }
+    return pallets;
+  }
 
   function bytesToBase64Url(bytes) {
     let binary = "";
@@ -606,8 +719,10 @@
     const joined = layout.join("");
     const players = (joined.match(/[@+]/g) || []).length;
     const boxes = (joined.match(/[$*]/g) || []).length;
-    const goals = (joined.match(/[.*+]/g) || []).length;
-    if (players !== 1 || boxes < 1 || boxes !== goals) throw new Error("Puzzle link does not contain a valid Sokoban starting position.");
+    const pallets = countPallets(layout);
+    const goals = (joined.match(/[.*+§]/g) || []).length;
+    const requiredGoalSquares = boxes + pallets * 4;
+    if (players !== 1 || boxes + pallets < 1 || goals !== requiredGoalSquares) throw new Error("Puzzle link does not contain a valid Sokoban starting position.");
     const name = String(value.n || "Shared Puzzle").trim().slice(0, 64) || "Shared Puzzle";
     const goalColours = window.BoxxyGoalColours?.normaliseMap?.(value.c || value.goalColours, layout) || {};
     return { version: 2, name, layout, goalColours };
@@ -3285,6 +3400,7 @@
   let outside = new Set();
   let player = [0, 0];
   let boxes = [];
+  let pallets = [];
   let goals = [];
   let moves = 0;
   let pushes = 0;
@@ -3385,6 +3501,7 @@
   let mobileLargeBoardSnapMovement = false;
   let goalLookup = new Map();
   let boxLookup = new Map();
+  let palletLookup = new Map();
   let persistentBoxPieces = [];
   let persistentPlayerPiece = null;
   let persistentPlayerImage = null;
@@ -7291,6 +7408,14 @@
     return `url("${boardAssetPath(type, colour)}")`;
   }
 
+  function palletAssetPath(colour = "default-yellow") {
+    return window.BoxxyPalletBlocks?.spritePath?.(colour) || `assets/board/pallets/boxxy-pallet-2x2-${colour}.png?v=547`;
+  }
+
+  function cssPalletAsset(colour = "default-yellow") {
+    return `url("${palletAssetPath(colour)}")`;
+  }
+
   function styleBoardArtworkHost(element, colour = "red") {
     /* BOXXY's colour system already owns the visible board sprite variables.
        Keep rendering synchronous: preload/verification may run separately, but
@@ -7311,6 +7436,8 @@
     board.style.setProperty("--boxxy-standard-box-sprite", cssBoardAsset("box", boxColour));
     board.style.setProperty("--boxxy-standard-target-box-sprite", cssBoardAsset("box", targetColour));
     board.style.setProperty("--boxxy-standard-goal-sprite", cssBoardAsset("goal", targetColour));
+    board.style.setProperty("--boxxy-standard-pallet-sprite", cssPalletAsset(boxColour));
+    board.style.setProperty("--boxxy-standard-target-pallet-sprite", cssPalletAsset(targetColour));
   }
 
   function refreshBoardArtwork() {
@@ -7325,6 +7452,10 @@
 
   function currentBoardAssetPaths() {
     const paths = new Set([boardAssetPath("box", displayBoxArtworkColour())]);
+    if (pallets.length) {
+      paths.add(palletAssetPath(displayBoxArtworkColour()));
+      paths.add(palletAssetPath(displayTargetColour("red")));
+    }
     for (const goal of goals) {
       const colour = displayTargetColour(goal.colour);
       paths.add(boardAssetPath("goal", colour));
@@ -8878,7 +9009,10 @@
     const explicitFloor = new Set();
     const parsedGoals = [];
     const parsedBoxes = [];
+    const parsedPallets = [];
+    const parsedPalletCells = new Set();
     const colourMap = GOAL_COLOURS?.normaliseMap?.(goalColours, rows) || {};
+    const PALLETS = window.BoxxyPalletBlocks;
     let parsedPlayer = null;
 
     for (let y = 0; y < h; y++) {
@@ -8888,12 +9022,27 @@
           parsedWalls.add(key(x, y));
           continue;
         }
-        if (".@$*+".includes(ch)) {
+        if (".@$*+".includes(ch) || PALLETS?.isCell?.(ch)) {
           explicitFloor.add(key(x, y));
-          if (".*+".includes(ch)) parsedGoals.push({ x, y, colour: GOAL_COLOURS?.normalise?.(colourMap[`${x},${y}`]) || "red" });
+          if (".*+".includes(ch) || ch === PALLETS?.GOAL_CHAR) {
+            parsedGoals.push({ x, y, colour: GOAL_COLOURS?.normalise?.(colourMap[`${x},${y}`]) || "red" });
+          }
           if ("$*".includes(ch)) parsedBoxes.push([x, y]);
           if ("@+".includes(ch)) parsedPlayer = [x, y];
         }
+      }
+    }
+
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const id = key(x, y);
+        if (!PALLETS?.isCell?.(grid[y][x]) || parsedPalletCells.has(id)) continue;
+        const footprint = [[x, y], [x + 1, y], [x, y + 1], [x + 1, y + 1]];
+        if (footprint.some(([px, py]) => px >= w || py >= h || !PALLETS?.isCell?.(grid[py][px]))) {
+          throw new Error(`Pallet block at column ${x + 1}, row ${y + 1} is not a complete 2×2 block.`);
+        }
+        footprint.forEach(([px, py]) => parsedPalletCells.add(key(px, py)));
+        parsedPallets.push([x, y]);
       }
     }
 
@@ -8931,7 +9080,10 @@
     }
 
     if (!parsedPlayer) throw new Error("Level is missing a player.");
-    if (parsedGoals.length !== parsedBoxes.length) throw new Error("Level has unequal boxes and goals.");
+    const requiredGoalSquares = parsedBoxes.length + parsedPallets.length * 4;
+    if (parsedGoals.length !== requiredGoalSquares) {
+      throw new Error(`Level has ${parsedGoals.length} goals but needs ${requiredGoalSquares} for its boxes and pallet blocks.`);
+    }
 
     return {
       width: w,
@@ -8941,6 +9093,7 @@
       outside: parsedOutside,
       player: parsedPlayer,
       boxes: parsedBoxes,
+      pallets: parsedPallets,
       goals: parsedGoals
     };
   }
@@ -9282,11 +9435,29 @@
 
   function standardBoardStyleAssetPaths(style = standardBoardStyle()) {
     const boxColour = style.box === "yellow" ? "default-yellow" : style.box;
-    return [
+    const paths = [
       boardAssetPath("box", boxColour),
       boardAssetPath("goal", style.target),
       boardAssetPath("box", style.target)
     ];
+    if (pallets.length) {
+      paths.push(palletAssetPath(boxColour), palletAssetPath(style.target));
+    }
+    return paths;
+  }
+
+  async function prepareMakerTestAssets(layoutRows) {
+    const rows = Array.isArray(layoutRows) ? layoutRows.map(row => String(row)) : [];
+    const hasPallet = rows.some(row => [...row].some(char => window.BoxxyPalletBlocks?.isCell?.(char)));
+    if (!hasPallet) return { ok: true, pallet: false, results: [] };
+    const style = standardBoardStyle();
+    const boxColour = style.box === "yellow" ? "default-yellow" : style.box;
+    const paths = [...new Set([
+      palletAssetPath(boxColour),
+      palletAssetPath(style.target)
+    ])];
+    const results = await Promise.all(paths.map(ensureBoardAsset));
+    return { ok: results.every(result => result?.ok), pallet: true, results };
   }
 
   function ensureStandardBoardStyleAssets(style = standardBoardStyle()) {
@@ -10316,6 +10487,17 @@
       });
     });
 
+    pallets.forEach(pallet => {
+      const onGoal = palletOnGoals(pallet);
+      const palletHex = onGoal ? displayTargetHex("red") : displayBoxHex();
+      addCuboid({
+        x0: pallet.x + 0.08, z0: pallet.y + 0.08,
+        x1: pallet.x + 1.92, z1: pallet.y + 1.92,
+        objectHeight: 0.72, kind: "box",
+        colour: `${palletHex}b8`, topColour: `${palletHex}d8`, onGoal
+      });
+    });
+
     if (view.zoom > 0.015) {
       const avatarHalfWidth = 0.30;
       const avatarHeight = 0.88;
@@ -10481,6 +10663,44 @@
     boxes.forEach((box, index) => boxLookup.set(key(box.x, box.y), index));
   }
 
+  function palletFootprint(pallet) {
+    if (!pallet) return [];
+    return [
+      [pallet.x, pallet.y],
+      [pallet.x + 1, pallet.y],
+      [pallet.x, pallet.y + 1],
+      [pallet.x + 1, pallet.y + 1]
+    ];
+  }
+
+  function rebuildPalletLookup() {
+    palletLookup = new Map();
+    pallets.forEach((pallet, index) => {
+      palletFootprint(pallet).forEach(([x, y]) => palletLookup.set(key(x, y), index));
+    });
+  }
+
+  function palletIndexAt(x, y) {
+    const index = palletLookup.get(key(x, y));
+    return Number.isInteger(index) ? index : -1;
+  }
+
+  function palletOnGoals(pallet) {
+    return palletFootprint(pallet).every(([x, y]) => isGoal(x, y));
+  }
+
+  function palletDestinationClear(index, dx, dy) {
+    const pallet = pallets[index];
+    if (!pallet) return false;
+    return palletFootprint({ x: pallet.x + dx, y: pallet.y + dy }).every(([x, y]) => {
+      const overlapsOwnOldFootprint = x >= pallet.x && x <= pallet.x + 1 && y >= pallet.y && y <= pallet.y + 1;
+      if (overlapsOwnOldFootprint) return true;
+      if (blocked(x, y) || boxIndex(x, y) >= 0) return false;
+      const otherPallet = palletIndexAt(x, y);
+      return otherPallet < 0 || otherPallet === index;
+    });
+  }
+
   function resetPersistentPieceCache() {
     persistentBoxPieces = [];
     persistentPlayerPiece = null;
@@ -10500,6 +10720,7 @@
     board?.classList.toggle("large-level-performance", largeLevelPerformanceMode);
     rebuildGoalLookup();
     rebuildBoxLookup();
+    rebuildPalletLookup();
     resetPersistentPieceCache();
   }
 
@@ -10679,9 +10900,9 @@
        already updates only moved boxes and boxes whose goal colour changes.
        Ordinary boards retain their established rendering path. */
     syncStandardBoardArtworkVariables();
-    const useCachedPieceRenderer = largeLevelPerformanceMode
+    const useCachedPieceRenderer = !pallets.length && (largeLevelPerformanceMode
       || levelUsesRainbowStyle(levelData)
-      || (boxxyInstantSpeedActive() && anim === "idle");
+      || (boxxyInstantSpeedActive() && anim === "idle"));
     if (useCachedPieceRenderer) {
       renderPersistentPieces(anim);
       return;
@@ -10713,6 +10934,30 @@
       if (goal) styleBoardArtworkHost(piece, targetColour);
       const art = document.createElement("span");
       art.className = "board-art board-art-box";
+      art.setAttribute("aria-hidden", "true");
+      piece.appendChild(art);
+      pieceLayer.appendChild(piece);
+    });
+
+    pallets.forEach(pallet => {
+      const onGoal = palletOnGoals(pallet);
+      const movingPallet = Boolean(
+        anim === "pushing"
+        && pallet.moving
+        && activeBoardMotion?.type === "pallet-push"
+        && !mobileLargeBoardSnapMovement
+        && pallet.x === activeBoardMotion.palletToX
+        && pallet.y === activeBoardMotion.palletToY
+      );
+      const piece = document.createElement("div");
+      piece.className = `piece pallet${onGoal ? " on-goal" : ""}${movingPallet ? " pushing board-step" : ""}`;
+      piece.style.cssText = posStyle(pallet.x, pallet.y, depth(pallet.y + 1, "box"));
+      if (movingPallet) {
+        piece.style.setProperty("--from-x", activeBoardMotion.palletFromX);
+        piece.style.setProperty("--from-y", activeBoardMotion.palletFromY);
+      }
+      const art = document.createElement("span");
+      art.className = "board-art board-art-pallet";
       art.setAttribute("aria-hidden", "true");
       piece.appendChild(art);
       pieceLayer.appendChild(piece);
@@ -10984,9 +11229,10 @@
     outside = parsed.outside;
     player = [...parsed.player];
     boxes = parsed.boxes.map(([x, y]) => ({ x, y, moving: false }));
+    pallets = parsed.pallets.map(([x, y]) => ({ x, y, moving: false }));
     goals = parsed.goals.map(goal => ({ ...goal }));
     configureLargeLevelPerformanceMode();
-    levelData.pushMinimum = boxes.length;
+    levelData.pushMinimum = boxes.length + pallets.length;
     moves = 0;
     pushes = 0;
     history = [];
@@ -11080,6 +11326,7 @@
     outside = parsed.outside;
     player = [...parsed.player];
     boxes = parsed.boxes.map(([x, y]) => ({ x, y, moving: false }));
+    pallets = parsed.pallets.map(([x, y]) => ({ x, y, moving: false }));
     goals = parsed.goals.map(goal => ({ ...goal }));
     configureLargeLevelPerformanceMode();
     moves = 0;
@@ -11188,7 +11435,7 @@
         name: customName,
         tier: shared ? "SHARED PUZZLE" : "LEVEL MAKER",
         minimum: "...",
-        pushMinimum: parsed.boxes.length,
+        pushMinimum: parsed.boxes.length + parsed.pallets.length,
         solution: makerSolution,
         layout: cleanRows,
         goalColours: makerGoalColours,
@@ -11201,6 +11448,7 @@
       outside = parsed.outside;
       player = [...parsed.player];
       boxes = parsed.boxes.map(([x, y]) => ({ x, y, moving: false }));
+      pallets = parsed.pallets.map(([x, y]) => ({ x, y, moving: false }));
       goals = parsed.goals.map(goal => ({ ...goal }));
       configureLargeLevelPerformanceMode();
       moves = 0;
@@ -11270,7 +11518,8 @@
       moves,
       pushes,
       facing,
-      route: playedRoute
+      route: playedRoute,
+      pallets: pallets.map(pallet => ({ x: pallet.x, y: pallet.y }))
     };
     if (largeLevelPerformanceMode) {
       const coords = new Uint16Array(boxes.length * 2);
@@ -11283,6 +11532,14 @@
       state.boxes = copyBoxes(boxes);
     }
     return state;
+  }
+
+  function palletsFromSnapshot(state) {
+    return (Array.isArray(state?.pallets) ? state.pallets : []).map(pallet => ({
+      x: Number(pallet.x),
+      y: Number(pallet.y),
+      moving: false
+    }));
   }
 
   function boxesFromSnapshot(state) {
@@ -11348,7 +11605,9 @@
       player = [...saved.position.player];
       boxes = boxesFromSnapshot(saved.position);
       boxes.forEach(box => { box.moving = false; });
+      pallets = palletsFromSnapshot(saved.position);
       rebuildBoxLookup();
+      rebuildPalletLookup();
       moves = saved.position.moves;
       pushes = saved.position.pushes;
       facing = saved.position.facing;
@@ -11394,7 +11653,9 @@
     blockedPushHeld = false;
     player = [...parsed.player];
     boxes = parsed.boxes.map(([x, y]) => ({ x, y, moving: false }));
+    pallets = parsed.pallets.map(([x, y]) => ({ x, y, moving: false }));
     rebuildBoxLookup();
+    rebuildPalletLookup();
     moves = 0;
     pushes = 0;
     history = [];
@@ -11492,7 +11753,7 @@
     if (index >= 0) {
       const bx = nx + dx;
       const by = ny + dy;
-      if (blocked(bx, by) || boxIndex(bx, by) >= 0) {
+      if (blocked(bx, by) || boxIndex(bx, by) >= 0 || palletIndexAt(bx, by) >= 0) {
         facing = facingOverride || attemptedFacing;
         blockedPushHeld = holdBlocked;
         sfx.bump();
@@ -11506,6 +11767,7 @@
       redoHistory = [];
       history.push(snapshot());
       boxes.forEach(box => { box.moving = false; });
+      pallets.forEach(pallet => { pallet.moving = false; });
       const movedBoxFromX = boxes[index].x;
       const movedBoxFromY = boxes[index].y;
       /* Keep the coordinate cache current on every board. Turbo reuses the
@@ -11537,11 +11799,59 @@
         else render("pushing");
       }
     } else {
-      startLevelTimerIfNeeded();
+      const palletIndex = palletIndexAt(nx, ny);
+      if (palletIndex >= 0) {
+        if (!palletDestinationClear(palletIndex, dx, dy)) {
+          facing = facingOverride || attemptedFacing;
+          blockedPushHeld = holdBlocked;
+          sfx.bump();
+          render("pushing");
+          scheduleIdle();
+          if (!holdBlocked) animTimer = setTimeout(() => render("idle"), scaledBoxxyDelay(180));
+          return;
+        }
+        startLevelTimerIfNeeded();
+        blockedPushHeld = false;
+        redoHistory = [];
+        history.push(snapshot());
+        boxes.forEach(box => { box.moving = false; });
+        pallets.forEach(pallet => { pallet.moving = false; });
+        const pallet = pallets[palletIndex];
+        const palletFromX = pallet.x;
+        const palletFromY = pallet.y;
+        palletFootprint(pallet).forEach(([x, y]) => palletLookup.delete(key(x, y)));
+        pallet.x += dx;
+        pallet.y += dy;
+        pallet.moving = true;
+        palletFootprint(pallet).forEach(([x, y]) => palletLookup.set(key(x, y), palletIndex));
+        player = [nx, ny];
+        boardStepMotion = {
+          type: "pallet-push",
+          fromX: previousPlayer[0], fromY: previousPlayer[1],
+          toX: nx, toY: ny,
+          palletFromX, palletFromY,
+          palletToX: pallet.x, palletToY: pallet.y
+        };
+        moves++;
+        pushes++;
+        if (!fromAutoplay && !makerDailyPractice) {
+          addLifetimeStat(ALL_TIME_STEPS_KEY);
+          addLifetimeStat(ALL_TIME_PUSHES_KEY);
+        }
+        facing = facingOverride || attemptedFacing;
+        if (!instantMoveBatchExecuting) {
+          sfx.push();
+          if (palletOnGoals(pallet)) sfx.goal();
+          if (turboAnimationSuppressed) render("idle");
+          else render("pushing");
+        }
+      } else {
+        startLevelTimerIfNeeded();
       blockedPushHeld = false;
       redoHistory = [];
       history.push(snapshot());
       boxes.forEach(box => { box.moving = false; });
+      pallets.forEach(pallet => { pallet.moving = false; });
       player = [nx, ny];
       boardStepMotion = {
         type: "walk",
@@ -11555,6 +11865,7 @@
         sfx.walk();
         if (turboAnimationSuppressed) render("idle");
         else render("walking");
+      }
       }
     }
 
@@ -11577,7 +11888,7 @@
   }
 
   function solved() {
-    return boxes.every(box => isGoal(box.x, box.y));
+    return boxes.every(box => isGoal(box.x, box.y)) && pallets.every(palletOnGoals);
   }
 
   function canonicalCompletedSolveData() {
@@ -12030,7 +12341,9 @@
     player = [...state.player];
     boxes = boxesFromSnapshot(state);
     boxes.forEach(box => { box.moving = false; });
+    pallets = palletsFromSnapshot(state);
     rebuildBoxLookup();
+    rebuildPalletLookup();
     moves = state.moves;
     pushes = state.pushes;
     facing = state.facing;
@@ -12050,7 +12363,9 @@
     player = [...state.player];
     boxes = boxesFromSnapshot(state);
     boxes.forEach(box => { box.moving = false; });
+    pallets = palletsFromSnapshot(state);
     rebuildBoxLookup();
+    rebuildPalletLookup();
     moves = state.moves;
     pushes = state.pushes;
     facing = state.facing;
@@ -12242,6 +12557,7 @@
       if (index !== excludedBoxIndex) blockedCells.add(key(box.x, box.y));
     });
     if (selectedBoxPosition) blockedCells.add(key(selectedBoxPosition.x, selectedBoxPosition.y));
+    pallets.forEach(pallet => palletFootprint(pallet).forEach(([x, y]) => blockedCells.add(key(x, y))));
     return blockedCells;
   }
 
@@ -12514,6 +12830,12 @@
     if (!floor.has(cellKey)) {
       clearMouseSupportOverlay();
       showCharacterThought("That square is outside the puzzle floor.", true);
+      return;
+    }
+
+    if (palletIndexAt(x, y) >= 0) {
+      clearMouseSupportOverlay();
+      showCharacterThought("Use the movement controls to push a pallet block from any side.", true);
       return;
     }
 
@@ -13936,6 +14258,7 @@
   }
   window.BoxxyGameAPI = {
     playHistoryLevel,
+    prepareMakerTestAssets(layoutRows) { return prepareMakerTestAssets(layoutRows); },
     startMakerTest(layoutRows, attachedSolution = "", options = {}) { return loadMakerTest(layoutRows, attachedSolution, options); },
     exitMakerTest() { exitMakerTest(); },
     restartMakerTest() { restartMakerTest(); },
@@ -14146,9 +14469,12 @@
   const GOAL_COLOURS = window.BoxxyGoalColours;
   const DEFAULT_GOAL_COLOUR = GOAL_COLOURS?.DEFAULT || "red";
   const GOAL_TOOLS = new Set(["goal", "boxgoal", "playergoal"]);
+  const PALLET_FLOOR = window.BoxxyPalletBlocks?.FLOOR_CHAR || "£";
+  const PALLET_GOAL = window.BoxxyPalletBlocks?.GOAL_CHAR || "§";
+  const PALLET_VALUES = new Set([PALLET_FLOOR, PALLET_GOAL]);
   const SAVE_KEY = "boxxy-level-maker-saves-v1";
   const RAINBOW_PREF_KEY = "boxxy-level-maker-rainbow-mode-v1";
-  const VALID = new Set([VOID, " ", "#", "@", "$", ".", "*", "+"]);
+  const VALID = new Set([VOID, " ", "#", "@", "$", ".", "*", "+", PALLET_FLOOR, PALLET_GOAL]);
   const DIRECTIONS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
   const CLASS_BY_VALUE = {
     [VOID]: "void",
@@ -14158,7 +14484,9 @@
     "$": "box",
     ".": "goal",
     "*": "boxgoal",
-    "+": "playergoal"
+    "+": "playergoal",
+    [PALLET_FLOOR]: "pallet",
+    [PALLET_GOAL]: "palletgoal"
   };
   const LABEL_BY_VALUE = {
     [VOID]: "void",
@@ -14168,7 +14496,9 @@
     "$": "box",
     ".": "goal",
     "*": "box on goal",
-    "+": "player on goal"
+    "+": "player on goal",
+    [PALLET_FLOOR]: "pallet block",
+    [PALLET_GOAL]: "pallet block over target"
   };
 
   let cols = 10;
@@ -15648,6 +15978,11 @@
   }
 
   function setRainbowMode(enabled, options = {}) {
+    if (enabled && !options.allowPalletReplacement && cells.some(value => PALLET_VALUES.has(value))) {
+      if (rainbowModeInput) rainbowModeInput.checked = false;
+      if (options.announce) setStatus("Rainbow Mode is not available while this experimental pallet-block level contains a 2×2 pallet.", "error");
+      return false;
+    }
     rainbowMode = Boolean(enabled);
     if (rainbowModeInput) {
       rainbowModeInput.checked = rainbowMode;
@@ -15683,6 +16018,7 @@
     if (options.announce) setStatus(rainbowMode
       ? "Rainbow Mode on. Coloured targets and colour-letter export codes are enabled."
       : "Rainbow Mode off. The editor and text box now use standard Sokoban symbols.", "success");
+    return true;
   }
 
   function currentLevelText() {
@@ -15969,6 +16305,10 @@
       return;
     }
     if (solverRunning) return;
+    if (validation.pallets > 0) {
+      setSolverStatus("The automatic Rust/WASM solver does not support 2×2 pallet blocks yet. Test-play this puzzle or check an imported route instead.", "error");
+      return;
+    }
 
     const solverHeight = validation.rows.length;
     const solverWidth = Math.max(1, ...validation.rows.map(row => row.length));
@@ -16099,7 +16439,7 @@
   }
 
   function cellHasGoal(value) {
-    return value === "." || value === "*" || value === "+";
+    return value === "." || value === "*" || value === "+" || value === PALLET_GOAL;
   }
 
   function blankGoalColours(width = cols, height = rows) {
@@ -16117,10 +16457,61 @@
     GOAL_COLOURS?.style?.(element, colour || DEFAULT_GOAL_COLOUR);
   }
 
+  function palletGroupData(values = cells, width = cols, height = rows) {
+    const visited = new Set();
+    const anchors = [];
+    const malformed = new Set();
+    const idx = (x, y) => y * width + x;
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const index = idx(x, y);
+        if (!PALLET_VALUES.has(values[index]) || visited.has(index)) continue;
+        const footprint = [[x,y],[x+1,y],[x,y+1],[x+1,y+1]];
+        if (footprint.every(([px,py]) => px < width && py < height && PALLET_VALUES.has(values[idx(px,py)]))) {
+          const indices = footprint.map(([px,py]) => idx(px,py));
+          indices.forEach(i => visited.add(i));
+          anchors.push({ x, y, index, indices, onGoal: indices.every(i => values[i] === PALLET_GOAL) });
+        } else {
+          malformed.add(index);
+          visited.add(index);
+        }
+      }
+    }
+    for (let i = 0; i < values.length; i++) if (PALLET_VALUES.has(values[i]) && !visited.has(i)) malformed.add(i);
+    return { anchors, malformed: [...malformed] };
+  }
+
+  function palletAnchorContaining(index, values = cells) {
+    return palletGroupData(values).anchors.find(group => group.indices.includes(index)) || null;
+  }
+
+  function restorePalletGroup(group) {
+    if (!group) return;
+    group.indices.forEach(index => {
+      cells[index] = cells[index] === PALLET_GOAL ? "." : " ";
+      goalColours[index] = cells[index] === "." ? DEFAULT_GOAL_COLOUR : null;
+    });
+  }
+
+  function normaliseMalformedPalletCells() {
+    const data = palletGroupData();
+    data.malformed.forEach(index => {
+      cells[index] = cells[index] === PALLET_GOAL ? "." : " ";
+      goalColours[index] = cells[index] === "." ? DEFAULT_GOAL_COLOUR : null;
+    });
+    return data.malformed.length;
+  }
+
   function styleMakerCell(button, index) {
     if (!button) return;
     const value = cells[index];
     button.className = `maker-cell type-${CLASS_BY_VALUE[value] || "void"}`;
+    const palletGroup = PALLET_VALUES.has(value) ? palletAnchorContaining(index) : null;
+    if (palletGroup) {
+      const offset = palletGroup.indices.indexOf(index);
+      const quadrant = ["pallet-top-left", "pallet-top-right", "pallet-bottom-left", "pallet-bottom-right"][offset];
+      button.classList.add("pallet-cell", quadrant);
+    }
     button.dataset.index = String(index);
     button.dataset.value = value;
     if (cellHasGoal(value)) applyGoalStyle(button, rainbowMode ? goalColours[index] : DEFAULT_GOAL_COLOUR);
@@ -16271,6 +16662,41 @@
     if (!Number.isInteger(index) || index < 0 || index >= cells.length || index === lastPaintIndex) return;
     const before = cells.slice();
     const beforeColours = goalColours.slice();
+
+    if (activeTool === "pallet") {
+      if (rainbowMode) {
+        setStatus("Turn Rainbow Mode off before placing a 2×2 pallet block.", "error");
+        lastPaintIndex = index;
+        return;
+      }
+      const [x, y] = coordsOf(index);
+      if (x + 1 >= cols || y + 1 >= rows) {
+        setStatus("A pallet needs a complete 2×2 area inside the editor grid.", "error");
+        lastPaintIndex = index;
+        return;
+      }
+      const footprint = [indexOf(x,y), indexOf(x+1,y), indexOf(x,y+1), indexOf(x+1,y+1)];
+      const existing = palletAnchorContaining(index);
+      if (existing && existing.index === index) { lastPaintIndex = index; return; }
+      if (footprint.some(i => ![" ", "."].includes(cells[i]))) {
+        setStatus("Place a pallet on a clear 2×2 area of floor and/or targets.", "error");
+        lastPaintIndex = index;
+        return;
+      }
+      footprint.forEach(i => {
+        cells[i] = cells[i] === "." ? PALLET_GOAL : PALLET_FLOOR;
+        goalColours[i] = cells[i] === PALLET_GOAL ? DEFAULT_GOAL_COLOUR : null;
+      });
+      renderGrid();
+      updateTextFromGrid(false);
+      clearAttachedSolution(true);
+      lastPaintIndex = index;
+      setStatus("2×2 pallet placed. Push it from any side during test play.", "success");
+      return;
+    }
+
+    const group = PALLET_VALUES.has(cells[index]) ? palletAnchorContaining(index) : null;
+    if (group) restorePalletGroup(group);
     const current = cells[index];
     const next = valueForTool(activeTool, current, index);
     cells[index] = next;
@@ -16287,7 +16713,8 @@
         if (i !== index && cells[i] !== value) updateCellElement(i);
       });
     }
-    updateCellElement(index);
+    if (group) renderGrid();
+    else updateCellElement(index);
     lastPaintIndex = index;
     updateTextFromGrid(false);
     if (before.some((value, i) => value !== cells[i])) clearAttachedSolution(true);
@@ -16326,6 +16753,7 @@
     rows = nextRows;
     cells = next;
     goalColours = normaliseGoalColourArray(nextGoalColours, cells);
+    normaliseMalformedPalletCells();
     clearAttachedSolution(true);
     syncSizeInputs();
     renderGrid();
@@ -16453,7 +16881,7 @@
 
   function importRows(lines, options = {}) {
     if (Object.prototype.hasOwnProperty.call(options, "rainbowMode")) {
-      setRainbowMode(Boolean(options.rainbowMode), { persist: options.persistRainbow !== false });
+      setRainbowMode(Boolean(options.rainbowMode), { persist: options.persistRainbow !== false, allowPalletReplacement: true });
     }
     if (!Array.isArray(lines) || !lines.length) throw new Error("No level text was found.");
     if (lines.length > MAX_SIZE) throw new Error(`The level is ${lines.length} rows high. The editor supports up to ${MAX_SIZE}.`);
@@ -16466,13 +16894,17 @@
       throw new Error("This level uses Rainbow Mode colour letters. Turn Rainbow Mode on before importing it.");
     }
     const invalid = [...new Set(cleaned.join("").split("").filter(ch =>
-      !" -#@$.+*".includes(ch) && !(rainbowMode && GOAL_COLOURS?.isTextCode?.(ch))
+      !` -#@$.+*${PALLET_FLOOR}${PALLET_GOAL}`.includes(ch) && !(rainbowMode && GOAL_COLOURS?.isTextCode?.(ch))
     ))];
     if (invalid.length) throw new Error(`Unsupported character${invalid.length === 1 ? "" : "s"}: ${invalid.join(" ")}`);
 
     const decodedRows = cleaned.map(line => [...line].map(ch => rainbowMode
       ? (GOAL_COLOURS?.decodeTextChar?.(ch)?.cell || ch)
       : ch).join(""));
+    if (rainbowMode && decodedRows.some(line => [...line].some(ch => PALLET_VALUES.has(ch)))) {
+      setRainbowMode(false, { persist: false, allowPalletReplacement: true });
+      throw new Error("Pallet blocks are experimental and cannot currently be combined with Rainbow Mode.");
+    }
     const classified = classifySpaces(decodedRows);
     cols = clampSize(classified.width);
     rows = clampSize(classified.height);
@@ -16501,6 +16933,8 @@
         }
       }
     }
+    const palletData = palletGroupData();
+    if (palletData.malformed.length) throw new Error("Every pallet block must be a complete 2×2 group of £/§ cells.");
     syncSizeInputs();
     if (boxesInput) boxesInput.value = String(Math.max(1, countBoxes()));
     renderGrid();
@@ -16512,13 +16946,17 @@
   function validate() {
     const playerCount = cells.filter(value => value === "@" || value === "+").length;
     const boxCount = cells.filter(value => value === "$" || value === "*").length;
-    const goalCount = cells.filter(value => value === "." || value === "*" || value === "+").length;
+    const palletData = palletGroupData();
+    const palletCount = palletData.anchors.length;
+    const goalCount = cells.filter(cellHasGoal).length;
+    const requiredGoals = boxCount + palletCount * 4;
     if (playerCount !== 1) return { ok: false, error: `The level needs exactly one player. It currently has ${playerCount}.` };
-    if (boxCount < 1) return { ok: false, error: "The level needs at least one box and one goal." };
-    if (boxCount !== goalCount) return { ok: false, error: `Boxes and goals must match. There are ${boxCount} boxes and ${goalCount} goals.` };
+    if (palletData.malformed.length) return { ok: false, error: "Every pallet block must occupy one complete 2×2 group." };
+    if (boxCount + palletCount < 1) return { ok: false, error: "The level needs at least one box or pallet block and matching goals." };
+    if (requiredGoals !== goalCount) return { ok: false, error: `Pushable objects need ${requiredGoals} goal squares. There are ${goalCount}.` };
     const exported = exportRows();
     if (!exported.some(line => line.includes("#"))) return { ok: false, error: "Add some walls before testing the level." };
-    return { ok: true, rows: exported, boxes: boxCount };
+    return { ok: true, rows: exported, boxes: boxCount, pallets: palletCount };
   }
 
   function terrainWalkable(terrain, index) {
@@ -17719,7 +18157,9 @@
       const option = document.createElement("option");
       option.value = record.id;
       const boxTotal = Array.isArray(record.cells) ? countBoxes(record.cells) : Number(record.boxes || 0);
-      option.textContent = `${record.name} · ${record.cols || "?"}×${record.rows || "?"} · ${boxTotal} ${boxTotal === 1 ? "box" : "boxes"}`;
+      const palletTotal = Array.isArray(record.cells) ? palletGroupData(record.cells, Number(record.cols) || cols, Number(record.rows) || rows).anchors.length : Number(record.pallets || 0);
+      const objectLabel = [boxTotal ? `${boxTotal} ${boxTotal === 1 ? "box" : "boxes"}` : "", palletTotal ? `${palletTotal} ${palletTotal === 1 ? "pallet" : "pallets"}` : ""].filter(Boolean).join(" · ") || "empty";
+      option.textContent = `${record.name} · ${record.cols || "?"}×${record.rows || "?"} · ${objectLabel}`;
       savedSelect.appendChild(option);
     });
     const selection = preferredId && records.some(record => record.id === preferredId) ? preferredId : "";
@@ -17753,6 +18193,7 @@
       rainbowMode,
       goalColours: rainbowMode ? normaliseGoalColourArray(goalColours, cells) : blankGoalColours(cols, rows),
       boxes: countBoxes(),
+      pallets: palletGroupData().anchors.length,
       solution: solutionMatchesCurrentBoard() ? currentSolution : "",
       solutionLevelText: solutionMatchesCurrentBoard() ? currentSolutionLevelText : "",
       createdAt: isOverwrite ? matchingRecord.createdAt || now : now,
@@ -17863,6 +18304,10 @@
   }
 
   function selectTool(tool) {
+    if (tool === "pallet" && rainbowMode) {
+      setStatus("Turn Rainbow Mode off before placing a pallet block.", "error");
+      return;
+    }
     activeTool = tool;
     toolButtons.forEach(button => button.classList.toggle("selected", button.dataset.makerTool === tool));
     goalPalette?.classList.toggle("active", rainbowMode && GOAL_TOOLS.has(tool));
@@ -17916,7 +18361,7 @@
   });
 
   gridEl.addEventListener("pointermove", event => {
-    if (!painting) return;
+    if (!painting || activeTool === "pallet") return;
     event.preventDefault();
     const target = document.elementFromPoint(event.clientX, event.clientY)?.closest?.(".maker-cell");
     if (target && gridEl.contains(target)) paintIndex(Number(target.dataset.index));
@@ -18273,10 +18718,15 @@
     if (event.target === solverModal) closeSolverDialog();
   });
 
-  testBtn.addEventListener("click", () => {
+  testBtn.addEventListener("click", async () => {
     const validation = validate();
     if (!validation.ok) {
       setStatus(validation.error, "error");
+      return;
+    }
+    const prepared = await window.BoxxyGameAPI?.prepareMakerTestAssets?.(validation.rows);
+    if (prepared && prepared.ok === false) {
+      setStatus("Pallet artwork could not be prepared. Please try again.", "error");
       return;
     }
     const result = window.BoxxyGameAPI?.startMakerTest?.(validation.rows, solutionMatchesCurrentBoard() ? currentSolution : "", {
@@ -18288,7 +18738,11 @@
       setStatus(result?.error || "The game could not load this level.", "error");
       return;
     }
-    setStatus(`Testing a level with ${validation.boxes} ${validation.boxes === 1 ? "box" : "boxes"}.`, "success");
+    const objectParts = [
+      validation.boxes ? `${validation.boxes} ${validation.boxes === 1 ? "box" : "boxes"}` : "",
+      validation.pallets ? `${validation.pallets} ${validation.pallets === 1 ? "pallet" : "pallets"}` : ""
+    ].filter(Boolean);
+    setStatus(`Testing a level with ${objectParts.join(" and ")}.`, "success");
     exitTestBtn.hidden = false;
     closeMaker();
   });
@@ -18413,7 +18867,7 @@
     setStatus(`Editing “${String(event?.detail?.name || saveNameInput?.value || "pack puzzle")}”. Pack-only name and author changes remain in the Pack Builder.`, "success");
   });
 
-  window.addEventListener("boxxy-pack-builder-play-level", event => {
+  window.addEventListener("boxxy-pack-builder-play-level", async event => {
     openMaker();
     if (!loadPackBuilderRequest(event?.detail)) {
       setStatus("That pack puzzle could not be prepared for play.", "error");
@@ -18425,6 +18879,11 @@
       return;
     }
     const displayName = String(event?.detail?.name || saveNameInput?.value || "Pack Puzzle").trim() || "Pack Puzzle";
+    const prepared = await window.BoxxyGameAPI?.prepareMakerTestAssets?.(validation.rows);
+    if (prepared && prepared.ok === false) {
+      setStatus("Pallet artwork could not be prepared. Please try again.", "error");
+      return;
+    }
     const result = window.BoxxyGameAPI?.startMakerTest?.(
       validation.rows,
       solutionMatchesCurrentBoard() ? currentSolution : String(event?.detail?.solution || ""),

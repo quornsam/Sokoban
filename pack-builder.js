@@ -72,7 +72,7 @@
   const DAILY_SEQUENCE_ANCHOR = 1;
   const DAILY_FIRST_MONTH = "2026-08";
   const VOID = "~";
-  const TILE_CHARS = new Set([" ", "#", "@", "$", ".", "*", "+"]);
+  const TILE_CHARS = new Set([" ", "#", "@", "$", ".", "*", "+", "£", "§"]);
   const GOAL_COLOURS = window.BoxxyGoalColours;
   const DEFAULT_GOAL_COLOUR = GOAL_COLOURS?.DEFAULT || "red";
   const localTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Browser local time";
@@ -118,7 +118,7 @@
 
   function normaliseLayout(layout) {
     if (!Array.isArray(layout)) return [];
-    const rows = layout.map(row => String(row || "").replace(/[^ #@$.+*]/g, " ").replace(/\s+$/g, ""));
+    const rows = layout.map(row => String(row || "").replace(/[^ #@$.+*£§]/g, " ").replace(/\s+$/g, ""));
     while (rows.length && !rows[0].trim()) rows.shift();
     while (rows.length && !rows.at(-1).trim()) rows.pop();
     return rows.length ? rows : [""];
@@ -191,6 +191,25 @@
 
   function countBoxes(layout) {
     return normaliseLayout(layout).join("").split("").filter(char => char === "$" || char === "*").length;
+  }
+
+  function countPallets(layout) {
+    const rows = normaliseLayout(layout);
+    const height = rows.length;
+    const width = Math.max(1, ...rows.map(row => row.length));
+    const chars = rows.map(row => row.padEnd(width, " ").split(""));
+    const seen = new Set();
+    let total = 0;
+    for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+      const key = `${x},${y}`;
+      if (!"£§".includes(chars[y][x]) || seen.has(key)) continue;
+      const footprint = [[x,y],[x+1,y],[x,y+1],[x+1,y+1]];
+      if (footprint.every(([px,py]) => px < width && py < height && "£§".includes(chars[py][px]))) {
+        footprint.forEach(([px,py]) => seen.add(`${px},${py}`));
+        total++;
+      }
+    }
+    return total;
   }
 
   function cleanSolution(solution) {
@@ -317,6 +336,7 @@
       cols: width,
       rows: layout.length,
       boxes: countBoxes(layout),
+      pallets: countPallets(layout),
       addedAt: Date.now()
     };
   }
@@ -339,6 +359,7 @@
       cols: Math.max(1, ...layout.map(row => row.length)),
       rows: layout.length,
       boxes: countBoxes(layout),
+      pallets: countPallets(layout),
       addedAt: Number(entry?.addedAt) || Date.now()
     };
   }
@@ -962,11 +983,11 @@
           context.fillRect(px + tile * .08, py + tile * .76, tile * .84, tile * .16);
           continue;
         }
-        const goalColourName = (char === "." || char === "*" || char === "+")
+        const goalColourName = (char === "." || char === "*" || char === "+" || char === "§")
           ? (GOAL_COLOURS?.normalise?.(goalColours[`${x},${y}`]) || DEFAULT_GOAL_COLOUR)
           : DEFAULT_GOAL_COLOUR;
         const goalColour = GOAL_COLOURS?.PALETTE?.[goalColourName]?.hex || "#db3b27";
-        if (char === "." || char === "*" || char === "+") {
+        if (char === "." || char === "*" || char === "+" || char === "§") {
           context.strokeStyle = goalColour;
           context.lineWidth = Math.max(1.2, tile * .12);
           context.beginPath();
@@ -981,6 +1002,17 @@
           context.lineWidth = Math.max(.8, tile * .07);
           context.fillRect(px + tile * .18, py + tile * .18, tile * .64, tile * .64);
           context.strokeRect(px + tile * .18, py + tile * .18, tile * .64, tile * .64);
+        }
+        if ((char === "£" || char === "§")
+          && (x === 0 || !"£§".includes(chars[y][x - 1]))
+          && (y === 0 || !"£§".includes(chars[y - 1][x]))) {
+          const allOnGoal = y + 1 < height && x + 1 < width
+            && [chars[y][x], chars[y][x + 1], chars[y + 1][x], chars[y + 1][x + 1]].every(value => value === "§");
+          context.fillStyle = allOnGoal ? goalColour : "#e5b32a";
+          context.strokeStyle = "#6f5312";
+          context.lineWidth = Math.max(.8, tile * .07);
+          context.fillRect(px + tile * .10, py + tile * .10, tile * 1.80, tile * 1.80);
+          context.strokeRect(px + tile * .10, py + tile * .10, tile * 1.80, tile * 1.80);
         }
         if (char === "@" || char === "+") {
           context.fillStyle = "#20539a";
@@ -1124,9 +1156,11 @@
     title.textContent = record.name;
     const meta = document.createElement("span");
     const boxes = countBoxes(record.layout);
+    const pallets = countPallets(record.layout);
+    const objectLabel = [boxes ? `${boxes} ${boxes === 1 ? "BOX" : "BOXES"}` : "", pallets ? `${pallets} ${pallets === 1 ? "PALLET" : "PALLETS"}` : ""].filter(Boolean).join(" · ") || "NO BOXES";
     const hasSolution = Boolean(cleanSolution(record.solution));
     meta.className = `pack-level-meta ${hasSolution ? "is-solved" : "is-unsolved"}`;
-    meta.textContent = `${Math.max(1, ...record.layout.map(row => row.length))}×${record.layout.length} · ${boxes} ${boxes === 1 ? "BOX" : "BOXES"} · ${solvedLabel(record.solution)}`;
+    meta.textContent = `${Math.max(1, ...record.layout.map(row => row.length))}×${record.layout.length} · ${objectLabel} · ${solvedLabel(record.solution)}`;
 
     const directActions = document.createElement("div");
     directActions.className = "pack-card-direct-actions";
@@ -1533,9 +1567,11 @@
     const meta = document.createElement("span");
     const layout = normaliseLayout(level?.layout);
     const boxes = countBoxes(layout);
+    const pallets = countPallets(layout);
+    const objectLabel = [boxes ? `${boxes} ${boxes === 1 ? "BOX" : "BOXES"}` : "", pallets ? `${pallets} ${pallets === 1 ? "PALLET" : "PALLETS"}` : ""].filter(Boolean).join(" · ") || "NO BOXES";
     const solutionMoves = solutionMoveCount(level?.solution);
     meta.className = "pack-level-meta";
-    meta.textContent = `${Math.max(1, ...layout.map(row => row.length))}×${layout.length} · ${boxes} ${boxes === 1 ? "BOX" : "BOXES"}${solutionMoves ? ` · ${solutionMoves} MOVES` : ""}`;
+    meta.textContent = `${Math.max(1, ...layout.map(row => row.length))}×${layout.length} · ${objectLabel}${solutionMoves ? ` · ${solutionMoves} MOVES` : ""}`;
     body.append(title, meta);
     card.append(badge, canvas, body);
     return card;
@@ -2069,10 +2105,15 @@
   }
 
   function buildXsb(pack) {
+    const hasPallets = pack.levels.some(level => Array.isArray(level?.layout) && level.layout.some(row => /[£§]/.test(String(row))));
     const lines = [
       `; ${pack.displayName}`,
       pack.author ? `; Author: ${pack.author}` : "; Author: not specified",
       pack.description ? `; ${pack.description}` : "; Created with BOXXY Pack Builder",
+      ...(hasPallets ? [
+        "; BOXXY XSB extension: £ = 2x2 pallet cell; § = 2x2 pallet cell over target.",
+        "; Four adjoining pallet cells form one movable 2x2 pallet block."
+      ] : []),
       ""
     ];
     pack.levels.forEach((level, index) => {
@@ -2093,7 +2134,7 @@
     const slug = slugify(pack.displayName);
     if (!pack.levels.length) throw new Error("Add at least one saved level before exporting the pack.");
     if (activeDraft.destination === "xsb") {
-      return { filename: `${slug}.xsb`, mime: "text/plain", text: buildXsb(pack) };
+      return { filename: `${slug}.xsb`, mime: "text/plain;charset=utf-8", text: buildXsb(pack) };
     }
     if (activeDraft.destination === "boxxy-private") {
       return {

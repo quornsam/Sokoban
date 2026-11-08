@@ -1,3 +1,5 @@
+/* BOXXY v548 — editor-native 2×2 pallet symbols; gameplay artwork unchanged. */
+/* BOXXY v547 — refreshed 2×2 pallet artwork; preserve existing in-game sizing. */
 /* BOXXY v481: compact/wide legacy Zen arrows with a three-position selector. */
 /* BOXXY v480: unnumbered gold-medal replay entries. */
 /* BOXXY v479: earned-only trophy cabinet and no count summary. */
@@ -4154,7 +4156,7 @@ html.touch-ui .level-attire{
 .maker-fullscreen:active{transform:translate(2px,2px)}
 
 .maker-toolbar{
-  grid-template-columns:repeat(8,minmax(0,1fr));
+  grid-template-columns:repeat(9,minmax(0,1fr));
   gap:4px;
   margin-bottom:6px;
 }
@@ -8901,3 +8903,91 @@ html.touch-ui .compact-settings-only{display:grid!important}
   .language-option-flag{width:26px}
   .language-modal-options b{font-size:9px}
 }
+
+/* BOXXY v546 — experimental 2×2 pallet blocks. */
+.piece.pallet{
+  left:calc((var(--x) + 1) * 100% / var(--cols));
+  top:calc((var(--y) + 2) * 100% / var(--rows));
+  width:calc(200% / var(--cols));
+  height:calc(200% / var(--rows));
+  transform:translate(-50%,-100%);
+  display:block;
+  transition:left var(--boxxy-step-transition,.17s) cubic-bezier(.2,.82,.32,1),top var(--boxxy-step-transition,.17s) cubic-bezier(.2,.82,.32,1);
+}
+.piece.pallet .board-art-pallet{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  background-image:var(--boxxy-standard-pallet-sprite,url("assets/board/pallets/boxxy-pallet-2x2-default-yellow.png?v=547"));
+  background-position:center;
+  background-size:100% 100%;
+  background-repeat:no-repeat;
+}
+.piece.pallet.on-goal .board-art-pallet{
+  background-image:var(--boxxy-standard-target-pallet-sprite,url("assets/board/pallets/boxxy-pallet-2x2-red.png?v=547"));
+}
+.piece.pallet.pushing.board-step{animation:palletPieceMove var(--boxxy-motion-duration,.105s) cubic-bezier(.2,.82,.32,1) both}
+@keyframes palletPieceMove{
+  0%{left:calc((var(--from-x) + 1) * 100% / var(--cols));top:calc((var(--from-y) + 2) * 100% / var(--rows))}
+  100%{left:calc((var(--x) + 1) * 100% / var(--cols));top:calc((var(--y) + 2) * 100% / var(--rows))}
+}
+
+/* Level Maker pallets deliberately use editor graphics rather than gameplay sprites. */
+.maker-tool-icon.pallet{
+  background:
+    linear-gradient(#f2c33b 0 0) 4px 4px/10px 10px no-repeat,
+    linear-gradient(#f2c33b 0 0) calc(100% - 4px) 4px/10px 10px no-repeat,
+    linear-gradient(#f2c33b 0 0) 4px calc(100% - 4px)/10px 10px no-repeat,
+    linear-gradient(#f2c33b 0 0) calc(100% - 4px) calc(100% - 4px)/10px 10px no-repeat,
+    #9b9b9b;
+  background-origin:border-box;
+  border-radius:4px;
+  box-shadow:inset 0 0 0 2px #777;
+}
+.maker-cell.type-pallet,.maker-cell.type-palletgoal{
+  background-color:#9b9b9b;
+  background-repeat:no-repeat;
+}
+.maker-cell.type-pallet::after,.maker-cell.type-palletgoal::after{
+  content:"";
+  position:absolute;
+  inset:17%;
+  border:2px solid #77570e;
+  background:linear-gradient(145deg,#f2c33b,#d89f16);
+  box-shadow:2px 2px 0 rgba(23,23,25,.35);
+  z-index:3;
+}
+.maker-cell.type-palletgoal::before{
+  content:"";
+  position:absolute;
+  left:50%;top:50%;width:72%;height:72%;
+  transform:translate(-50%,-50%);
+  background:center/contain no-repeat var(--goal-sprite,var(--boxxy-standard-goal-sprite));
+  z-index:1;
+}
+.maker-cell.type-palletgoal::after{
+  border-color:#7c1514;
+  background:linear-gradient(145deg,#ef3c36,#c82220);
+}
+.maker-cell.pallet-top-left{
+  border-right-color:transparent;border-bottom-color:transparent;border-radius:8px 0 0 0;
+  background-image:linear-gradient(#696969 0 0),linear-gradient(#696969 0 0);
+  background-size:28% 3px,3px 28%;background-position:right center,center bottom;
+}
+.maker-cell.pallet-top-right{
+  border-bottom-color:transparent;border-radius:0 8px 0 0;
+  background-image:linear-gradient(#696969 0 0),linear-gradient(#696969 0 0);
+  background-size:28% 3px,3px 28%;background-position:left center,center bottom;
+}
+.maker-cell.pallet-bottom-left{
+  border-right-color:transparent;border-radius:0 0 0 8px;
+  background-image:linear-gradient(#696969 0 0),linear-gradient(#696969 0 0);
+  background-size:28% 3px,3px 28%;background-position:right center,center top;
+}
+.maker-cell.pallet-bottom-right{
+  border-radius:0 0 8px 0;
+  background-image:linear-gradient(#696969 0 0),linear-gradient(#696969 0 0);
+  background-size:28% 3px,3px 28%;background-position:left center,center top;
+}
+.maker-cell.pallet-cell:focus-visible{z-index:7}
