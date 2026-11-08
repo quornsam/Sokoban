@@ -18,6 +18,7 @@
 /* BOXXY v474: mobile gold badge layout, Static Noise pack artwork, and release metadata. */
 /* BOXXY v473: steady mobile awards header and compact, non-overlapping gold count. */
 /* BOXXY v469: optional original v451 fixed Zen arrows, retaining the modern keypad and reversible Restart. */
+/* BOXXY v547: replace pallet artwork and preload/decode active pallet states before Level Maker test play. */
 /* BOXXY v546: experimental 2×2 pallet blocks in Level Maker testing, with unified movement, targets and artwork. */
 /* BOXXY v468: public Hall of Fame shows linked-player avatars in responsive cards. */
 /* BOXXY v467: Restart/Revert shared by every gameplay control and keyboard R. */
@@ -348,7 +349,7 @@
   "use strict";
   const FLOOR_CHAR = "£";
   const GOAL_CHAR = "§";
-  const ASSET_REVISION = "546";
+  const ASSET_REVISION = "547";
   const CELL_CHARS = new Set([FLOOR_CHAR, GOAL_CHAR]);
 
   function isCell(value) {
@@ -7381,7 +7382,7 @@
   }
 
   function palletAssetPath(colour = "default-yellow") {
-    return window.BoxxyPalletBlocks?.spritePath?.(colour) || `assets/board/pallets/boxxy-pallet-2x2-${colour}.png?v=546`;
+    return window.BoxxyPalletBlocks?.spritePath?.(colour) || `assets/board/pallets/boxxy-pallet-2x2-${colour}.png?v=547`;
   }
 
   function cssPalletAsset(colour = "default-yellow") {
@@ -9407,11 +9408,29 @@
 
   function standardBoardStyleAssetPaths(style = standardBoardStyle()) {
     const boxColour = style.box === "yellow" ? "default-yellow" : style.box;
-    return [
+    const paths = [
       boardAssetPath("box", boxColour),
       boardAssetPath("goal", style.target),
       boardAssetPath("box", style.target)
     ];
+    if (pallets.length) {
+      paths.push(palletAssetPath(boxColour), palletAssetPath(style.target));
+    }
+    return paths;
+  }
+
+  async function prepareMakerTestAssets(layoutRows) {
+    const rows = Array.isArray(layoutRows) ? layoutRows.map(row => String(row)) : [];
+    const hasPallet = rows.some(row => [...row].some(char => window.BoxxyPalletBlocks?.isCell?.(char)));
+    if (!hasPallet) return { ok: true, pallet: false, results: [] };
+    const style = standardBoardStyle();
+    const boxColour = style.box === "yellow" ? "default-yellow" : style.box;
+    const paths = [...new Set([
+      palletAssetPath(boxColour),
+      palletAssetPath(style.target)
+    ])];
+    const results = await Promise.all(paths.map(ensureBoardAsset));
+    return { ok: results.every(result => result?.ok), pallet: true, results };
   }
 
   function ensureStandardBoardStyleAssets(style = standardBoardStyle()) {
@@ -14212,6 +14231,7 @@
   }
   window.BoxxyGameAPI = {
     playHistoryLevel,
+    prepareMakerTestAssets(layoutRows) { return prepareMakerTestAssets(layoutRows); },
     startMakerTest(layoutRows, attachedSolution = "", options = {}) { return loadMakerTest(layoutRows, attachedSolution, options); },
     exitMakerTest() { exitMakerTest(); },
     restartMakerTest() { restartMakerTest(); },
@@ -18684,10 +18704,15 @@
     if (event.target === solverModal) closeSolverDialog();
   });
 
-  testBtn.addEventListener("click", () => {
+  testBtn.addEventListener("click", async () => {
     const validation = validate();
     if (!validation.ok) {
       setStatus(validation.error, "error");
+      return;
+    }
+    const prepared = await window.BoxxyGameAPI?.prepareMakerTestAssets?.(validation.rows);
+    if (prepared && prepared.ok === false) {
+      setStatus("Pallet artwork could not be prepared. Please try again.", "error");
       return;
     }
     const result = window.BoxxyGameAPI?.startMakerTest?.(validation.rows, solutionMatchesCurrentBoard() ? currentSolution : "", {
@@ -18828,7 +18853,7 @@
     setStatus(`Editing “${String(event?.detail?.name || saveNameInput?.value || "pack puzzle")}”. Pack-only name and author changes remain in the Pack Builder.`, "success");
   });
 
-  window.addEventListener("boxxy-pack-builder-play-level", event => {
+  window.addEventListener("boxxy-pack-builder-play-level", async event => {
     openMaker();
     if (!loadPackBuilderRequest(event?.detail)) {
       setStatus("That pack puzzle could not be prepared for play.", "error");
@@ -18840,6 +18865,11 @@
       return;
     }
     const displayName = String(event?.detail?.name || saveNameInput?.value || "Pack Puzzle").trim() || "Pack Puzzle";
+    const prepared = await window.BoxxyGameAPI?.prepareMakerTestAssets?.(validation.rows);
+    if (prepared && prepared.ok === false) {
+      setStatus("Pallet artwork could not be prepared. Please try again.", "error");
+      return;
+    }
     const result = window.BoxxyGameAPI?.startMakerTest?.(
       validation.rows,
       solutionMatchesCurrentBoard() ? currentSolution : String(event?.detail?.solution || ""),

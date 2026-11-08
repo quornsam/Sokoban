@@ -1,3 +1,4 @@
+/* BOXXY v547 — refreshed 2×2 pallet artwork; preserve existing in-game sizing. */
 /* BOXXY v481: compact/wide legacy Zen arrows with a three-position selector. */
 /* BOXXY v480: unnumbered gold-medal replay entries. */
 /* BOXXY v479: earned-only trophy cabinet and no count summary. */
@@ -8917,13 +8918,13 @@ html.touch-ui .compact-settings-only{display:grid!important}
   inset:0;
   width:100%;
   height:100%;
-  background-image:var(--boxxy-standard-pallet-sprite,url("assets/board/pallets/boxxy-pallet-2x2-default-yellow.png?v=546"));
+  background-image:var(--boxxy-standard-pallet-sprite,url("assets/board/pallets/boxxy-pallet-2x2-default-yellow.png?v=547"));
   background-position:center;
   background-size:100% 100%;
   background-repeat:no-repeat;
 }
 .piece.pallet.on-goal .board-art-pallet{
-  background-image:var(--boxxy-standard-target-pallet-sprite,url("assets/board/pallets/boxxy-pallet-2x2-red.png?v=546"));
+  background-image:var(--boxxy-standard-target-pallet-sprite,url("assets/board/pallets/boxxy-pallet-2x2-red.png?v=547"));
 }
 .piece.pallet.pushing.board-step{animation:palletPieceMove var(--boxxy-motion-duration,.105s) cubic-bezier(.2,.82,.32,1) both}
 @keyframes palletPieceMove{
@@ -8932,7 +8933,7 @@ html.touch-ui .compact-settings-only{display:grid!important}
 }
 
 .maker-tool-icon.pallet{
-  background:#f4eadb center/92% 92% no-repeat url("assets/board/pallets/boxxy-pallet-2x2-default-yellow.png?v=546");
+  background:#f4eadb center/92% 92% no-repeat url("assets/board/pallets/boxxy-pallet-2x2-default-yellow.png?v=547");
 }
 .maker-cell.type-pallet,.maker-cell.type-palletgoal{background:#f1e7d7}
 .maker-cell.type-palletgoal::before{
