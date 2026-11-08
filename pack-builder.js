@@ -2105,10 +2105,15 @@
   }
 
   function buildXsb(pack) {
+    const hasPallets = pack.levels.some(level => Array.isArray(level?.layout) && level.layout.some(row => /[£§]/.test(String(row))));
     const lines = [
       `; ${pack.displayName}`,
       pack.author ? `; Author: ${pack.author}` : "; Author: not specified",
       pack.description ? `; ${pack.description}` : "; Created with BOXXY Pack Builder",
+      ...(hasPallets ? [
+        "; BOXXY XSB extension: £ = 2x2 pallet cell; § = 2x2 pallet cell over target.",
+        "; Four adjoining pallet cells form one movable 2x2 pallet block."
+      ] : []),
       ""
     ];
     pack.levels.forEach((level, index) => {
@@ -2129,11 +2134,7 @@
     const slug = slugify(pack.displayName);
     if (!pack.levels.length) throw new Error("Add at least one saved level before exporting the pack.");
     if (activeDraft.destination === "xsb") {
-      const palletLevel = pack.levels.find(level => Array.isArray(level?.layout) && level.layout.some(row => /[£§]/.test(String(row))));
-      if (palletLevel) {
-        throw new Error(`“${palletLevel.name || "This puzzle"}” uses experimental 2×2 pallet blocks, which are not part of standard XSB notation. Export this pack as a BOXXY pack instead.`);
-      }
-      return { filename: `${slug}.xsb`, mime: "text/plain", text: buildXsb(pack) };
+      return { filename: `${slug}.xsb`, mime: "text/plain;charset=utf-8", text: buildXsb(pack) };
     }
     if (activeDraft.destination === "boxxy-private") {
       return {

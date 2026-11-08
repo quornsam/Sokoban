@@ -18,6 +18,7 @@
 /* BOXXY v474: mobile gold badge layout, Static Noise pack artwork, and release metadata. */
 /* BOXXY v473: steady mobile awards header and compact, non-overlapping gold count. */
 /* BOXXY v469: optional original v451 fixed Zen arrows, retaining the modern keypad and reversible Restart. */
+/* BOXXY v548: editor-native pallet symbols plus private sharing and BOXXY-extended XSB export. */
 /* BOXXY v547: replace pallet artwork and preload/decode active pallet states before Level Maker test play. */
 /* BOXXY v546: experimental 2×2 pallet blocks in Level Maker testing, with unified movement, targets and artwork. */
 /* BOXXY v468: public Hall of Fame shows linked-player avatars in responsive cards. */
@@ -664,7 +665,31 @@
   "use strict";
 
   const MAX_SIZE = 64;
-  const ALLOWED = /^[ #@$.+*]*$/;
+  const PALLET_FLOOR = window.BoxxyPalletBlocks?.FLOOR_CHAR || "£";
+  const PALLET_GOAL = window.BoxxyPalletBlocks?.GOAL_CHAR || "§";
+  const PALLET_CELLS = new Set([PALLET_FLOOR, PALLET_GOAL]);
+  const ALLOWED = /^[ #@$.+*£§]*$/;
+
+  function countPallets(layout) {
+    const height = layout.length;
+    const width = Math.max(0, ...layout.map(row => row.length));
+    const seen = new Set();
+    let pallets = 0;
+    const cellAt = (x, y) => y >= 0 && y < height && x >= 0 && x < layout[y].length ? layout[y][x] : " ";
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const id = `${x},${y}`;
+        if (!PALLET_CELLS.has(cellAt(x, y)) || seen.has(id)) continue;
+        const footprint = [[x,y],[x+1,y],[x,y+1],[x+1,y+1]];
+        if (!footprint.every(([px,py]) => PALLET_CELLS.has(cellAt(px,py)))) {
+          throw new Error("Puzzle link contains an incomplete 2×2 pallet block.");
+        }
+        footprint.forEach(([px,py]) => seen.add(`${px},${py}`));
+        pallets++;
+      }
+    }
+    return pallets;
+  }
 
   function bytesToBase64Url(bytes) {
     let binary = "";
@@ -694,8 +719,10 @@
     const joined = layout.join("");
     const players = (joined.match(/[@+]/g) || []).length;
     const boxes = (joined.match(/[$*]/g) || []).length;
-    const goals = (joined.match(/[.*+]/g) || []).length;
-    if (players !== 1 || boxes < 1 || boxes !== goals) throw new Error("Puzzle link does not contain a valid Sokoban starting position.");
+    const pallets = countPallets(layout);
+    const goals = (joined.match(/[.*+§]/g) || []).length;
+    const requiredGoalSquares = boxes + pallets * 4;
+    if (players !== 1 || boxes + pallets < 1 || goals !== requiredGoalSquares) throw new Error("Puzzle link does not contain a valid Sokoban starting position.");
     const name = String(value.n || "Shared Puzzle").trim().slice(0, 64) || "Shared Puzzle";
     const goalColours = window.BoxxyGoalColours?.normaliseMap?.(value.c || value.goalColours, layout) || {};
     return { version: 2, name, layout, goalColours };
@@ -16475,24 +16502,15 @@
     return data.malformed.length;
   }
 
-  function makerPalletArtworkColour(onGoal = false) {
-    const style = window.BoxxyBoardStyle?.style || {};
-    const raw = onGoal ? String(style.target || "red") : String(style.box || "yellow");
-    const colour = GOAL_COLOURS?.normalise?.(raw) || (onGoal ? "red" : "yellow");
-    return !onGoal && colour === "yellow" ? "default-yellow" : colour;
-  }
-
   function styleMakerCell(button, index) {
     if (!button) return;
     const value = cells[index];
     button.className = `maker-cell type-${CLASS_BY_VALUE[value] || "void"}`;
     const palletGroup = PALLET_VALUES.has(value) ? palletAnchorContaining(index) : null;
-    if (palletGroup?.index === index) {
-      button.classList.add("pallet-anchor", palletGroup.onGoal ? "pallet-on-goal" : "pallet-on-floor");
-      button.style.setProperty("--maker-pallet-sprite", `url("${window.BoxxyPalletBlocks?.spritePath?.(makerPalletArtworkColour(palletGroup.onGoal)) || ""}")`);
-    } else {
-      button.classList.remove("pallet-anchor", "pallet-on-goal", "pallet-on-floor");
-      button.style.removeProperty("--maker-pallet-sprite");
+    if (palletGroup) {
+      const offset = palletGroup.indices.indexOf(index);
+      const quadrant = ["pallet-top-left", "pallet-top-right", "pallet-bottom-left", "pallet-bottom-right"][offset];
+      button.classList.add("pallet-cell", quadrant);
     }
     button.dataset.index = String(index);
     button.dataset.value = value;
@@ -18604,10 +18622,6 @@
     const validation = validate();
     if (!validation.ok) {
       setStatus(validation.error, "error");
-      return;
-    }
-    if (validation.pallets > 0) {
-      setStatus("Private URL sharing does not support experimental 2×2 pallet blocks yet. Save or copy the level text instead.", "error");
       return;
     }
     const shareHeight = validation.rows.length;

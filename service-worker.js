@@ -1,3 +1,4 @@
+/* BOXXY v548: cache editor-native pallet rendering plus pallet share/XSB support. */
 /* BOXXY v547: refresh 2×2 pallet artwork and preload-aware gameplay/editor assets. */
 /* BOXXY v546: cache experimental 2×2 pallet artwork and refreshed editor/gameplay assets. */
 /* BOXXY v545: refresh the cached app script for reduced Fluffball message weighting. */
