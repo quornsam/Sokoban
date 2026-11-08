@@ -4154,7 +4154,7 @@ html.touch-ui .level-attire{
 .maker-fullscreen:active{transform:translate(2px,2px)}
 
 .maker-toolbar{
-  grid-template-columns:repeat(8,minmax(0,1fr));
+  grid-template-columns:repeat(9,minmax(0,1fr));
   gap:4px;
   margin-bottom:6px;
 }
@@ -8901,3 +8901,56 @@ html.touch-ui .compact-settings-only{display:grid!important}
   .language-option-flag{width:26px}
   .language-modal-options b{font-size:9px}
 }
+
+/* BOXXY v546 — experimental 2×2 pallet blocks. */
+.piece.pallet{
+  left:calc((var(--x) + 1) * 100% / var(--cols));
+  top:calc((var(--y) + 2) * 100% / var(--rows));
+  width:calc(200% / var(--cols));
+  height:calc(200% / var(--rows));
+  transform:translate(-50%,-100%);
+  display:block;
+  transition:left var(--boxxy-step-transition,.17s) cubic-bezier(.2,.82,.32,1),top var(--boxxy-step-transition,.17s) cubic-bezier(.2,.82,.32,1);
+}
+.piece.pallet .board-art-pallet{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  background-image:var(--boxxy-standard-pallet-sprite,url("assets/board/pallets/boxxy-pallet-2x2-default-yellow.png?v=546"));
+  background-position:center;
+  background-size:100% 100%;
+  background-repeat:no-repeat;
+}
+.piece.pallet.on-goal .board-art-pallet{
+  background-image:var(--boxxy-standard-target-pallet-sprite,url("assets/board/pallets/boxxy-pallet-2x2-red.png?v=546"));
+}
+.piece.pallet.pushing.board-step{animation:palletPieceMove var(--boxxy-motion-duration,.105s) cubic-bezier(.2,.82,.32,1) both}
+@keyframes palletPieceMove{
+  0%{left:calc((var(--from-x) + 1) * 100% / var(--cols));top:calc((var(--from-y) + 2) * 100% / var(--rows))}
+  100%{left:calc((var(--x) + 1) * 100% / var(--cols));top:calc((var(--y) + 2) * 100% / var(--rows))}
+}
+
+.maker-tool-icon.pallet{
+  background:#f4eadb center/92% 92% no-repeat url("assets/board/pallets/boxxy-pallet-2x2-default-yellow.png?v=546");
+}
+.maker-cell.type-pallet,.maker-cell.type-palletgoal{background:#f1e7d7}
+.maker-cell.type-palletgoal::before{
+  content:"";
+  position:absolute;
+  left:50%;top:50%;width:72%;height:72%;
+  transform:translate(-50%,-50%);
+  background:center/contain no-repeat var(--goal-sprite,var(--boxxy-standard-goal-sprite));
+  z-index:1;
+}
+.maker-cell.pallet-anchor{z-index:4;overflow:visible}
+.maker-cell.pallet-anchor::after{
+  content:"";
+  position:absolute;
+  left:0;top:0;
+  width:200%;height:200%;
+  background:var(--maker-pallet-sprite) center/100% 100% no-repeat;
+  pointer-events:none;
+  z-index:4;
+}
+.maker-cell.pallet-anchor:focus-visible{z-index:7}
