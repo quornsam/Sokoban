@@ -1,3 +1,4 @@
+/* BOXXY v550: Level Maker box-on-target uses native red square editor graphics instead of gameplay artwork. */
 /* BOXXY v548 — editor-native 2×2 pallet symbols; gameplay artwork unchanged. */
 /* BOXXY v547 — refreshed 2×2 pallet artwork; preserve existing in-game sizing. */
 /* BOXXY v481: compact/wide legacy Zen arrows with a three-position selector. */
@@ -635,7 +636,7 @@ linear-gradient(135deg,transparent 0 58%,var(--shape-color) 58% 66%,transparent 
 .maker-cell.type-wall::after{content:"";position:absolute;left:3px;right:3px;bottom:3px;height:18%;background:#050506}
 .maker-cell.type-goal::before,.maker-cell.type-playergoal::before{content:"";position:absolute;left:50%;top:50%;width:72%;height:72%;transform:translate(-50%,-50%);background:center/contain no-repeat var(--goal-sprite);z-index:1}
 .maker-cell.type-box::after{content:"";position:absolute;inset:17%;background:linear-gradient(145deg,#f2c33b,#d89f16);border:2px solid #77570e;box-shadow:2px 2px 0 rgba(23,23,25,.35);z-index:2}
-.maker-cell.type-boxgoal::before{content:"";position:absolute;left:50%;top:50%;width:84%;height:84%;transform:translate(-50%,-50%);background:center/contain no-repeat var(--box-sprite);z-index:2}
+.maker-cell.type-boxgoal::before{content:"";position:absolute;inset:17%;background:linear-gradient(145deg,#ef3c36,#c82220);border:2px solid #7c1514;box-shadow:2px 2px 0 rgba(23,23,25,.35);z-index:2}
 .maker-cell.type-boxgoal::after{display:none}
 .maker-cell.type-player::after,.maker-cell.type-playergoal::after{content:"";position:absolute;left:50%;top:50%;width:36%;height:55%;transform:translate(-50%,-50%);border-radius:50% 50% 42% 42%;background:var(--blue);box-shadow:0 3px 0 #15345f;z-index:2}
 .maker-cell:focus-visible{outline:3px solid var(--red);outline-offset:-3px;z-index:5}
@@ -891,7 +892,7 @@ body.maker-testing .level-picker{display:none!important}
 /* Sprite-based coloured goals and solved boxes in the editor. */
 .maker-tool-icon.boxgoal::after{width:23px;height:23px;border-width:3px}
 .maker-tool-icon.boxgoal::before{inset:7px;background:var(--selected-goal-colour,var(--red));border-color:var(--ink);box-shadow:2px 2px 0 rgba(23,23,25,.35)}
-.maker-cell.type-boxgoal::before{width:84%;height:84%;background:center/contain no-repeat var(--box-sprite)}
+.maker-cell.type-boxgoal::before{inset:17%;width:auto;height:auto;transform:none;background:linear-gradient(145deg,#ef3c36,#c82220);border:2px solid #7c1514;box-shadow:2px 2px 0 rgba(23,23,25,.35)}
 .maker-cell.type-boxgoal::after{display:none}
 
 /* Larger workshop; the grid now uses a calculated cell size and always fits its bay. */
