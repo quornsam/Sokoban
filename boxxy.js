@@ -4104,7 +4104,7 @@
     if (wardrobeKicker) wardrobeKicker.textContent = "BAUHAUS WARDROBE";
     themeChoices.forEach(button => button.classList.toggle("active", button.dataset.themeChoice === "bauhaus"));
     const splashImg = splashScreen?.querySelector("img");
-    if (splashImg) splashImg.src = "assets/ui/boxxy-splash.png";
+    if (splashImg) splashImg.src = "assets/ui/boxxy-splash-v552.png";
     if (redraw && levelData) {
       buildFloor();
       buildVoid();
