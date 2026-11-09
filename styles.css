@@ -597,6 +597,18 @@ linear-gradient(135deg,transparent 0 58%,var(--shape-color) 58% 66%,transparent 
   background:#d8cdbd;
   box-shadow:inset 0 0 0 6px rgba(255,255,255,.3);
 }
+.maker-counts{
+  margin-top:7px;
+  padding:7px 10px;
+  border:1px solid #b7aa97;
+  background:#f7f0e5;
+  color:#5f5548;
+  text-align:center;
+  font-size:9px;
+  font-weight:950;
+  letter-spacing:.035em;
+  font-variant-numeric:tabular-nums;
+}
 .maker-grid{
   --maker-cols:10;
   width:min(100%,720px);
@@ -663,6 +675,12 @@ linear-gradient(135deg,transparent 0 58%,var(--shape-color) 58% 66%,transparent 
 .maker-save-row input,.maker-load-row select{min-width:0;height:34px;border:1px solid var(--ink);background:#fff9ef;color:var(--ink);font-size:10px;font-weight:850}
 .maker-save-row input{padding:0 8px}
 .maker-save-row button{padding:0 10px}
+.maker-save-row button.overwrite-warning{
+  background:var(--red);
+  color:#fff;
+  border-color:var(--ink);
+  box-shadow:3px 3px 0 var(--ink);
+}
 .maker-load-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:6px;margin-top:6px}
 .maker-load-row select{padding:0 6px;text-overflow:ellipsis}
 .maker-load-row button{padding:0 8px}
@@ -707,6 +725,35 @@ linear-gradient(135deg,transparent 0 58%,var(--shape-color) 58% 66%,transparent 
 .maker-test b{font-size:22px}
 body.maker-testing .level-picker{display:none!important}
 
+.maker-test-solve-panel{
+  margin:12px 0 4px;
+  padding:10px;
+  border:2px solid var(--ink);
+  background:#eee5d8;
+}
+.maker-test-solve-panel label{
+  display:block;
+  margin:0 0 6px;
+  font-size:9px;
+  font-weight:1000;
+  letter-spacing:.12em;
+}
+.maker-test-solve-panel textarea{
+  display:block;
+  width:100%;
+  height:82px;
+  min-height:58px;
+  max-height:180px;
+  resize:vertical;
+  padding:9px 10px;
+  border:2px solid var(--ink);
+  background:#171719;
+  color:#f4eee3;
+  font:700 12px/1.35 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  overflow:auto;
+  overflow-wrap:anywhere;
+  white-space:pre-wrap;
+}
 .complete-card.final-complete{box-shadow:12px 12px 0 var(--yellow),-12px -12px 0 var(--blue),0 28px 80px rgba(0,0,0,.38)}
 .complete-card.final-complete .complete-art span{font-size:60px}
 
@@ -986,8 +1033,10 @@ body.maker-testing .level-picker{display:none!important}
 
 
 /* v102 — integrated backend solver dialogue. */
-.maker-main-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
-.maker-main-actions .maker-solve{background:var(--blue);color:#fff;border-color:var(--ink)}
+.maker-main-actions{display:flex}
+.maker-main-actions .maker-solve{flex:1;background:var(--blue);color:#fff;border-color:var(--ink)}
+.maker-main-actions .maker-undo-edit{flex:1;background:#eee5d8;color:var(--ink);border-color:var(--ink)}
+.maker-main-actions .maker-undo-edit:disabled{opacity:.42;cursor:not-allowed}
 .maker-solver-modal{
   z-index:15000;
   padding:12px;
@@ -1035,7 +1084,7 @@ body.maker-testing .level-picker{display:none!important}
 .maker-solver-actions button:disabled{opacity:.42;cursor:not-allowed}
 .maker-solver-actions .maker-solver-start{background:var(--red);color:#fff}
 @media(max-width:620px){
-  .maker-main-actions{grid-template-columns:1fr 1fr}
+  .maker-main-actions{display:grid;grid-template-columns:1fr 1fr}
   .maker-main-actions .maker-test{grid-column:1/-1}
   .maker-solver-card{padding:15px}
   .maker-solver-actions{grid-template-columns:1fr 1fr}
@@ -1043,6 +1092,7 @@ body.maker-testing .level-picker{display:none!important}
   .maker-solution-import-head span{display:block;margin-top:5px;text-align:left}
   .maker-solution-import-actions{grid-template-columns:1fr}
   .maker-solution-output{height:105px}
+  .maker-test-solve-panel textarea{height:68px;min-height:54px}
 }
 
 /* v133 inherited level-maker additions */

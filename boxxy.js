@@ -18,6 +18,7 @@
 /* BOXXY v474: mobile gold badge layout, Static Noise pack artwork, and release metadata. */
 /* BOXXY v473: steady mobile awards header and compact, non-overlapping gold count. */
 /* BOXXY v469: optional original v451 fixed Zen arrows, retaining the modern keypad and reversible Restart. */
+/* BOXXY v549: Level Maker live counts, editor undo, pallet-under-target painting, overwrite warning and test solve data. */
 /* BOXXY v548: editor-native pallet symbols plus private sharing and BOXXY-extended XSB export. */
 /* BOXXY v547: replace pallet artwork and preload/decode active pallet states before Level Maker test play. */
 /* BOXXY v546: experimental 2×2 pallet blocks in Level Maker testing, with unified movement, targets and artwork. */
@@ -3312,6 +3313,8 @@
   const dailyCompletionActions = document.getElementById("dailyCompletionActions");
   const standardCompletionActions = document.getElementById("standardCompletionActions");
   const copySolveDataBtn = document.getElementById("copySolveDataBtn");
+  const makerTestSolvePanel = document.getElementById("makerTestSolvePanel");
+  const makerTestSolveText = document.getElementById("makerTestSolveText");
   const dailyCompletePackBtn = document.getElementById("dailyCompletePackBtn");
   const dailyCompleteArchiveBtn = document.getElementById("dailyCompleteArchiveBtn");
   const dailyGhostRaceBtn = document.getElementById("dailyGhostRaceBtn");
@@ -4140,6 +4143,8 @@
     if (dailySharePanel) dailySharePanel.hidden = true;
     if (dailyShareStatus) dailyShareStatus.textContent = "";
     if (dailyCompletionLeaderboard) dailyCompletionLeaderboard.hidden = true;
+    if (makerTestSolvePanel) makerTestSolvePanel.hidden = true;
+    if (makerTestSolveText) makerTestSolveText.value = "";
     if (dailyCompletionLeaderboardList) {
       dailyCompletionLeaderboardList.innerHTML = "";
       delete dailyCompletionLeaderboardList.dataset.dailyLeaderboardDate;
@@ -12078,6 +12083,12 @@
       const solvedWithGuidedRoute = autoplayRunning || guidedSolveUsed;
       const capturedRoute = String(playedRoute || "").replace(/[^UDLR]/gi, "").toUpperCase();
       const previousRoute = String(makerSolution || "").replace(/[^UDLR]/gi, "").toUpperCase();
+      const makerSolveCheck = capturedRoute && Array.isArray(makerLayout)
+        ? window.BoxxyRouteVerifier?.verify?.(makerLayout.join("\n"), capturedRoute)
+        : null;
+      const makerSolveData = makerSolveCheck?.valid && makerSolveCheck?.solved
+        ? String(makerSolveCheck.route || capturedRoute)
+        : capturedRoute;
       const moveText = `${moves} ${moves === 1 ? "move" : "moves"}`;
       const pushText = `${pushes} ${pushes === 1 ? "push" : "pushes"}`;
       makerCompletedRoute = !solvedWithGuidedRoute && !makerDailyPractice ? capturedRoute : "";
@@ -12085,6 +12096,8 @@
       completionPackContext = null;
       hidePackCompletionStats();
       restoreStandardCompletionActions();
+      if (makerTestSolveText) makerTestSolveText.value = makerSolveData;
+      if (makerTestSolvePanel) makerTestSolvePanel.hidden = !makerSolveData;
       if (finalPackPicker) finalPackPicker.hidden = true;
       if (finalPackStatus) finalPackStatus.textContent = "";
       if (completeKicker) completeKicker.textContent = makerDailyPractice ? "DAILY PRACTICE" : "LEVEL MAKER";
@@ -14344,6 +14357,7 @@
   const makerFullscreenBtn = document.getElementById("makerFullscreenBtn");
   const gridEl = document.getElementById("makerGrid");
   const gridShell = gridEl?.closest(".maker-grid-shell");
+  const countsEl = document.getElementById("makerCounts");
   const widthInput = document.getElementById("makerWidth");
   const heightInput = document.getElementById("makerHeight");
   const boxesInput = document.getElementById("makerBoxes");
@@ -14401,6 +14415,7 @@
   const shareBtn = document.getElementById("makerShareBtn");
   const testBtn = document.getElementById("makerTestBtn");
   const exitTestBtn = document.getElementById("makerExitTestBtn");
+  const undoEditBtn = document.getElementById("makerUndoEditBtn");
   const textEl = document.getElementById("makerText");
   const statusEl = document.getElementById("makerStatus");
   const hotspot = document.getElementById("makerHotspot");
@@ -14510,6 +14525,9 @@
   let activeTool = "wall";
   let painting = false;
   let lastPaintIndex = -1;
+  const EDITOR_UNDO_LIMIT = 100;
+  let editorUndoStack = [];
+  let editorTransactionSnapshot = null;
   let unlockClicks = 0;
   let unlockArmed = false;
   let unlockTimer = null;
@@ -16588,6 +16606,107 @@
     return values.filter(value => value === "$" || value === "*").length;
   }
 
+  function updateMakerCounts() {
+    if (!countsEl) return;
+    const palletCount = palletGroupData().anchors.length;
+    const targetCount = cells.filter(cellHasGoal).length;
+    const boxSquareCount = countBoxes() + palletCount * 4;
+    const targetLabel = `${targetCount} ${targetCount === 1 ? "target" : "targets"}`;
+    const boxLabel = `${boxSquareCount} ${boxSquareCount === 1 ? "box" : "boxes"}`;
+    const palletLabel = palletCount
+      ? ` (includes ${palletCount} large ${palletCount === 1 ? "pallet" : "pallets"})`
+      : "";
+    countsEl.textContent = `${targetLabel} • ${boxLabel}${palletLabel}`;
+  }
+
+  function editorSnapshot() {
+    return {
+      cols,
+      rows,
+      cells: cells.slice(),
+      goalColours: goalColours.slice(),
+      rainbowMode,
+      activeSaveId,
+      saveName: saveNameInput?.value || "",
+      currentSolution,
+      currentSolutionLevelText,
+      currentPuzzleRef: currentPuzzleRef ? { ...currentPuzzleRef } : null
+    };
+  }
+
+  function editorSnapshotMatchesCurrent(snapshot) {
+    if (!snapshot || Number(snapshot.cols) !== cols || Number(snapshot.rows) !== rows || Boolean(snapshot.rainbowMode) !== rainbowMode) return false;
+    if (!Array.isArray(snapshot.cells) || snapshot.cells.length !== cells.length || snapshot.cells.some((value, index) => value !== cells[index])) return false;
+    const colours = Array.isArray(snapshot.goalColours) ? snapshot.goalColours : [];
+    if (colours.length !== goalColours.length || colours.some((value, index) => value !== goalColours[index])) return false;
+    if (String(snapshot.activeSaveId || "") !== String(activeSaveId || "")) return false;
+    if (String(snapshot.saveName || "") !== String(saveNameInput?.value || "")) return false;
+    if (String(snapshot.currentSolution || "") !== String(currentSolution || "")) return false;
+    if (String(snapshot.currentSolutionLevelText || "") !== String(currentSolutionLevelText || "")) return false;
+    return JSON.stringify(snapshot.currentPuzzleRef || null) === JSON.stringify(currentPuzzleRef || null);
+  }
+
+  function updateEditorUndoButton() {
+    if (!undoEditBtn) return;
+    undoEditBtn.disabled = editorUndoStack.length === 0;
+    undoEditBtn.setAttribute("aria-label", editorUndoStack.length ? "Undo last Level Maker edit" : "Nothing to undo");
+  }
+
+  function commitEditorUndoSnapshot(snapshot) {
+    if (!snapshot || editorSnapshotMatchesCurrent(snapshot)) {
+      updateEditorUndoButton();
+      return false;
+    }
+    editorUndoStack.push(snapshot);
+    if (editorUndoStack.length > EDITOR_UNDO_LIMIT) editorUndoStack.splice(0, editorUndoStack.length - EDITOR_UNDO_LIMIT);
+    updateEditorUndoButton();
+    return true;
+  }
+
+  function beginEditorTransaction() {
+    if (!editorTransactionSnapshot) editorTransactionSnapshot = editorSnapshot();
+  }
+
+  function commitEditorTransaction() {
+    const snapshot = editorTransactionSnapshot;
+    editorTransactionSnapshot = null;
+    return commitEditorUndoSnapshot(snapshot);
+  }
+
+  function restoreEditorSnapshot(snapshot) {
+    if (!snapshot) return false;
+    cols = clampSize(snapshot.cols);
+    rows = clampSize(snapshot.rows);
+    cells = Array.isArray(snapshot.cells) ? snapshot.cells.slice() : blankGrid(cols, rows, VOID);
+    goalColours = Array.isArray(snapshot.goalColours) ? snapshot.goalColours.slice() : blankGoalColours(cols, rows);
+    activeSaveId = String(snapshot.activeSaveId || "");
+    if (saveNameInput) saveNameInput.value = String(snapshot.saveName || "");
+    currentSolution = String(snapshot.currentSolution || "");
+    currentSolutionLevelText = String(snapshot.currentSolutionLevelText || "");
+    currentPuzzleRef = snapshot.currentPuzzleRef ? { ...snapshot.currentPuzzleRef } : null;
+    clearVerifiedImport(true);
+    setRainbowMode(Boolean(snapshot.rainbowMode), { persist: true, allowPalletReplacement: true });
+    syncSizeInputs();
+    if (boxesInput) boxesInput.value = String(Math.max(1, countBoxes()));
+    renderGrid();
+    updateTextFromGrid();
+    resetSaveConfirmation();
+    renderSavedLevels(activeSaveId);
+    updateSolverControls();
+    return true;
+  }
+
+  function undoEditorEdit() {
+    if (!editorUndoStack.length) {
+      updateEditorUndoButton();
+      return;
+    }
+    const snapshot = editorUndoStack.pop();
+    restoreEditorSnapshot(snapshot);
+    updateEditorUndoButton();
+    setStatus("Last Level Maker edit undone.", "success");
+  }
+
   function makeRoom(width = cols, height = rows, announce = true) {
     cols = clampSize(width);
     rows = clampSize(height);
@@ -16696,6 +16815,19 @@
     }
 
     const group = PALLET_VALUES.has(cells[index]) ? palletAnchorContaining(index) : null;
+    if (group && activeTool === "goal") {
+      const current = cells[index];
+      if (current !== PALLET_GOAL) {
+        cells[index] = PALLET_GOAL;
+        goalColours[index] = DEFAULT_GOAL_COLOUR;
+        updateCellElement(index);
+        updateTextFromGrid(false);
+        clearAttachedSolution(true);
+        setStatus("Target added underneath this pallet square.", "success");
+      }
+      lastPaintIndex = index;
+      return;
+    }
     if (group) restorePalletGroup(group);
     const current = cells[index];
     const next = valueForTool(activeTool, current, index);
@@ -16814,6 +16946,7 @@
   }
 
   function updateTextFromGrid(force = true) {
+    updateMakerCounts();
     if (!force && document.activeElement === textEl) return;
     textEl.value = exportTextRows().join("\n");
   }
@@ -17948,6 +18081,7 @@
       return;
     }
 
+    const undoSnapshot = editorSnapshot();
     generateBtn.disabled = true;
     generateBtn.setAttribute("aria-busy", "true");
     const originalLabel = generateBtn.textContent;
@@ -17969,6 +18103,7 @@
         return;
       }
       applyGeneratedLevel(generated);
+      commitEditorUndoSnapshot(undoSnapshot);
       if (tested) {
         setStatus(`Generated and checked ${generatorDescription}: ${boxCount} ${boxCount === 1 ? "box" : "boxes"}, verified ${generated.solutionPushes}-push path across ${generated.solutionLines} box lines.`, "success");
       } else {
@@ -18031,6 +18166,7 @@
       setStatus("Choose an existing puzzle first.", "error");
       return;
     }
+    const undoSnapshot = editorSnapshot();
     try {
       const levelRainbowMode = Boolean(level.rainbowMode) || goalColourDataPresent(level.goalColours);
       importRows(level.layout, { quiet: true, goalColours: level.goalColours, rainbowMode: levelRainbowMode });
@@ -18041,6 +18177,7 @@
       const packName = pack.displayName || pack.title || "Puzzle pack";
       const levelName = level.name || `Level ${levelIndex + 1}`;
       if (saveNameInput) saveNameInput.value = `${packName} | ${levelName}`.slice(0, 48);
+      commitEditorUndoSnapshot(undoSnapshot);
       setStatus(`Opened ${packName}, ${levelName}. All backend packs are available here regardless of game progress.`, "success");
     } catch (error) {
       setStatus(error?.message || "That puzzle could not be opened in the editor.", "error");
@@ -18135,7 +18272,11 @@
   function resetSaveConfirmation() {
     pendingOverwriteId = "";
     clearTimeout(overwriteTimer);
-    if (saveBtn) saveBtn.textContent = "SAVE LEVEL";
+    if (saveBtn) {
+      saveBtn.textContent = "SAVE LEVEL";
+      saveBtn.classList.remove("overwrite-warning");
+      saveBtn.removeAttribute("aria-describedby");
+    }
   }
 
   function newSaveId() {
@@ -18177,6 +18318,8 @@
       resetSaveConfirmation();
       pendingOverwriteId = matchingRecord.id;
       saveBtn.textContent = "OVERWRITE";
+      saveBtn.classList.add("overwrite-warning");
+      saveBtn.setAttribute("aria-describedby", "makerStatus");
       setStatus(`A saved level named “${matchingRecord.name}” already exists. Press OVERWRITE to replace it, or change the name to save a new level.`, "error");
       overwriteTimer = window.setTimeout(resetSaveConfirmation, 8000);
       return;
@@ -18233,6 +18376,7 @@
       setStatus("That saved level is damaged and could not be loaded.", "error");
       return;
     }
+    const undoSnapshot = editorSnapshot();
     cols = savedCols;
     rows = savedRows;
     cells = record.cells.slice();
@@ -18250,6 +18394,7 @@
     const restoredSolution = typeof record.solution === "string" && (!record.solutionLevelText || record.solutionLevelText === restoredText) ? record.solution : "";
     setAttachedSolution(restoredSolution, restoredText, null);
     renderSavedLevels(record.id);
+    commitEditorUndoSnapshot(undoSnapshot);
     setStatus(`Loaded “${record.name}”.${restoredSolution ? " Its attached guided solve was restored." : ""} Change the name before saving to keep the original and create a new level.`, "success");
   }
 
@@ -18317,7 +18462,9 @@
     button.addEventListener("click", () => selectTool(button.dataset.makerTool));
   });
   rainbowModeInput?.addEventListener("change", () => {
+    const snapshot = editorSnapshot();
     setRainbowMode(rainbowModeInput.checked, { announce: true, persist: true });
+    commitEditorUndoSnapshot(snapshot);
   });
   goalColourButtons.forEach(button => {
     const colour = GOAL_COLOURS?.normalise?.(button.dataset.makerGoalColour) || DEFAULT_GOAL_COLOUR;
@@ -18355,6 +18502,7 @@
     const cell = event.target.closest(".maker-cell");
     if (!cell) return;
     event.preventDefault();
+    beginEditorTransaction();
     painting = true;
     lastPaintIndex = -1;
     paintIndex(Number(cell.dataset.index));
@@ -18368,10 +18516,12 @@
   });
 
   window.addEventListener("pointerup", () => {
+    if (painting) commitEditorTransaction();
     painting = false;
     lastPaintIndex = -1;
   });
   window.addEventListener("pointercancel", () => {
+    if (painting) commitEditorTransaction();
     painting = false;
     lastPaintIndex = -1;
   });
@@ -18392,15 +18542,30 @@
     } else if (event.key === " " || event.key === "Enter") {
       event.preventDefault();
       lastPaintIndex = -1;
+      beginEditorTransaction();
       paintIndex(index);
+      commitEditorTransaction();
     }
   });
 
   generateBtn.addEventListener("click", generateLevel);
-  resizeBtn.addEventListener("click", () => resizeGrid(widthInput.value, heightInput.value));
-  rotateBtn?.addEventListener("click", rotateGridClockwise);
-  roomBtn.addEventListener("click", () => makeRoom(widthInput.value, heightInput.value));
+  resizeBtn.addEventListener("click", () => {
+    const snapshot = editorSnapshot();
+    resizeGrid(widthInput.value, heightInput.value);
+    commitEditorUndoSnapshot(snapshot);
+  });
+  rotateBtn?.addEventListener("click", () => {
+    const snapshot = editorSnapshot();
+    rotateGridClockwise();
+    commitEditorUndoSnapshot(snapshot);
+  });
+  roomBtn.addEventListener("click", () => {
+    const snapshot = editorSnapshot();
+    makeRoom(widthInput.value, heightInput.value);
+    commitEditorUndoSnapshot(snapshot);
+  });
   clearBtn.addEventListener("click", () => {
+    const snapshot = editorSnapshot();
     cols = clampSize(widthInput.value);
     rows = clampSize(heightInput.value);
     cells = blankGrid(cols, rows, VOID);
@@ -18411,12 +18576,15 @@
     updateTextFromGrid();
     clearActiveSave();
     setStatus("Grid cleared.");
+    commitEditorUndoSnapshot(snapshot);
   });
 
   importBtn.addEventListener("click", () => {
+    const snapshot = editorSnapshot();
     try {
       importRows(normalizePastedText(textEl.value));
       clearAttachedSolution(true);
+      commitEditorUndoSnapshot(snapshot);
     } catch (error) {
       setStatus(error?.message || "The level could not be imported.", "error");
     }
@@ -18602,6 +18770,7 @@
   });
 
   imageImportApplyBtn?.addEventListener("click", () => {
+    const snapshot = editorSnapshot();
     try {
       syncImageGridDimensions();
       const importedImage = buildImageImportData();
@@ -18611,6 +18780,7 @@
         persistRainbow: true
       });
       clearAttachedSolution(true);
+      commitEditorUndoSnapshot(snapshot);
       setStatus(`Imported ${imageImportState.cols} × ${imageImportState.rows} level from image${importedImage.rainbowMode ? " in Rainbow Mode" : ""}.`, "success");
       closeImageImportModal();
     } catch (error) {
@@ -18676,6 +18846,7 @@
   });
 
   shareBtn?.addEventListener("click", copyShareLink);
+  undoEditBtn?.addEventListener("click", undoEditorEdit);
   saveBtn.addEventListener("click", saveCurrentLevel);
   existingPackSelect?.addEventListener("change", () => populateExistingLevels());
   existingLevelSelect?.addEventListener("dblclick", openExistingPuzzle);
@@ -18919,6 +19090,7 @@
   makeRoom(10, 10, false);
   setRainbowMode(readRainbowPreference(), { persist: false });
   boxesInput.value = "3";
+  updateEditorUndoButton();
   renderSavedLevels();
   populateExistingPacks();
 })();

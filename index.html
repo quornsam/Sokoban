@@ -163,7 +163,7 @@
     document.documentElement.classList.add("ios-standalone");
   }
 </script>
-<link rel="stylesheet" href="styles.css?v=548">
+<link rel="stylesheet" href="styles.css?v=549">
 <link rel="stylesheet" href="how-to-play.css?v=538">
 <link rel="stylesheet" href="rainbow-intro.css?v=502">
 <link rel="preload" as="image" href="assets/board/boxes/box-default-yellow.png?v=226">
@@ -1054,6 +1054,10 @@
         <div class="final-pack-more-row"><button id="finalPackMoreBtn" class="final-pack-more-btn" type="button" hidden>MORE</button></div>
         <p id="finalPackStatus" class="final-pack-status" aria-live="polite"></p>
       </section>
+      <section id="makerTestSolvePanel" class="maker-test-solve-panel" hidden aria-labelledby="makerTestSolveLabel">
+        <label id="makerTestSolveLabel" for="makerTestSolveText">SOLVE DATA</label>
+        <textarea id="makerTestSolveText" readonly spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Level Maker solve data"></textarea>
+      </section>
       <div class="complete-actions">
         <button id="makerApplySolveBtn" class="complete-secondary" type="button" hidden>APPLY SOLVE</button>
         <button id="copySolveDataBtn" class="complete-secondary completion-solve-copy" type="button" hidden>COPY SOLVE DATA</button>
@@ -1166,6 +1170,7 @@
         <div class="maker-grid-shell">
           <div id="makerGrid" class="maker-grid" role="grid" aria-label="Level editor grid"></div>
         </div>
+        <div id="makerCounts" class="maker-counts" aria-live="polite">0 targets • 0 boxes</div>
       </section>
 
       <aside class="maker-controls">
@@ -1233,6 +1238,7 @@
         <div id="makerStatus" class="maker-status" aria-live="polite">Ready.</div>
         <div class="maker-main-actions">
           <button id="makerExitTestBtn" class="maker-exit" type="button" hidden>EXIT TEST</button>
+          <button id="makerUndoEditBtn" class="maker-undo-edit" type="button" disabled>UNDO</button>
           <button id="makerSolveBtn" class="maker-solve" type="button">SOLVE PUZZLE</button>
           <button id="makerTestBtn" class="maker-test" type="button">TEST LEVEL <b aria-hidden="true">→</b></button>
         </div>
@@ -1713,7 +1719,7 @@
 <script src="static-noise.js?v=476"></script>
 <script src="four-leaf-clover.js?v=482"></script>
 <script src="the-staircase.js?v=506"></script>
-<script src="boxxy.js?v=548"></script>
+<script src="boxxy.js?v=549"></script>
 <script src="attempt-history.js?v=492"></script>
 <script src="attempt-history-ui.js?v=536"></script>
 <script src="account.js?v=536"></script>
