@@ -1,3 +1,6 @@
+/* BOXXY v550: Level Maker box-on-target uses native red square editor graphics instead of gameplay artwork. */
+/* BOXXY v548 — editor-native 2×2 pallet symbols; gameplay artwork unchanged. */
+/* BOXXY v547 — refreshed 2×2 pallet artwork; preserve existing in-game sizing. */
 /* BOXXY v481: compact/wide legacy Zen arrows with a three-position selector. */
 /* BOXXY v480: unnumbered gold-medal replay entries. */
 /* BOXXY v479: earned-only trophy cabinet and no count summary. */
@@ -7,6 +10,7 @@
 /* BOXXY v474: restore over-medal mobile gold count, enlarge the gold medal, and refresh Static Noise art. */
 /* BOXXY v457 — Puzzle Packs exposes the Secret Level Editor on iPad/tablet and desktop, not phones. */
 /* BOXXY v449 — rare-character modal portraits use opaque-bound fitting; fixed-character frame warm-up is handled in the renderer. */
+/* BOXXY v543 — public FLUFFBALLS family, spot-pattern tab and matched in-family music control. */
 /* BOXXY v448 — rare-character modal uses the fixed sprite sheet directly and rare colour keys no longer expose PARTYGOERS. */
 /* BOXXY v447 — live Indi/Oli selector previews and super-rare character unlock modal. */
 /* BOXXY v446 — hidden FLUFFBALLS family and responsive secret-family tabs. */
@@ -334,6 +338,9 @@ linear-gradient(135deg,transparent 0 58%,var(--shape-color) 58% 66%,transparent 
 .style-family-spooky::after{content:"";position:absolute;left:18%;top:0;width:8px;height:10px;border-radius:0 0 7px 7px;background:#a3151d;box-shadow:28px 0 0 -2px #a3151d,63px 0 0 1px #a3151d;pointer-events:none}
 .style-family-spooky:hover{background:#19191c}
 .style-family-spooky.is-active-tab{background:#08080a;border-color:#88888d;color:#fff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
+.style-type-btn.style-family-fluffballs{--fluffball-spots:radial-gradient(circle at 12% 28%,#f97915 0 5px,transparent 6px),radial-gradient(circle at 31% 72%,#f16e8f 0 6px,transparent 7px),radial-gradient(circle at 54% 24%,#f16e8f 0 5px,transparent 6px),radial-gradient(circle at 74% 68%,#f97915 0 6px,transparent 7px),radial-gradient(circle at 91% 30%,#f16e8f 0 5px,transparent 6px);overflow:hidden;border-color:var(--ink);color:var(--ink);text-shadow:none;background-color:#f5d85c;background-image:var(--fluffball-spots)}
+.style-type-btn.style-family-fluffballs:hover{background-color:#f9e37c;background-image:var(--fluffball-spots)}
+.style-type-btn.style-family-fluffballs.is-active-tab{background-color:#f2c121;background-image:var(--fluffball-spots);border-color:var(--ink);color:var(--ink);box-shadow:inset 0 0 0 2px rgba(23,23,25,.22)}
 .style-family-partygoers{display:flex;align-items:center;justify-content:center;gap:8px;overflow:hidden;background:var(--green);border-color:#226f3d;color:#fff;padding-left:10px;padding-right:10px}
 .style-family-partygoers::before,.style-family-partygoers::after{content:"★";position:static;transform:none;flex:0 0 auto;color:var(--yellow);font-size:12px;line-height:1;text-shadow:none}
 .style-family-partygoers:hover{background:#3f9154}
@@ -361,9 +368,9 @@ linear-gradient(135deg,transparent 0 58%,var(--shape-color) 58% 66%,transparent 
 .style-character-choice.selected .style-character-name{background:var(--yellow)}
 .style-character-name:hover{background:#f7efe4}
 .style-character-choice[data-body-type="mr-pjkuylasg"] .style-character-name{font-size:8px;letter-spacing:0;white-space:nowrap;padding-left:2px;padding-right:2px}
-.style-spooky-music-btn{width:100%;margin-top:10px;padding:11px 12px;border:1px solid #171719;border-radius:9px;background:#171719;color:#fff;font:950 12px/1 var(--font,inherit);letter-spacing:.08em;transition:background-color .15s ease,transform .15s ease,box-shadow .15s ease}
-.style-spooky-music-btn[aria-pressed="true"]{background:#b52222;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
-.style-spooky-music-btn:active{transform:translateY(1px)}
+.style-spooky-music-btn,.style-fluffball-music-btn{width:100%;margin-top:10px;padding:11px 12px;border:1px solid #171719;border-radius:9px;background:#171719;color:#fff;font:950 12px/1 var(--font,inherit);letter-spacing:.08em;transition:background-color .15s ease,transform .15s ease,box-shadow .15s ease}
+.style-spooky-music-btn[aria-pressed="true"],.style-fluffball-music-btn[aria-pressed="true"]{background:#b52222;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
+.style-spooky-music-btn:active,.style-fluffball-music-btn:active{transform:translateY(1px)}
 @media(max-width:620px){
   .style-family-choices.has-partygoers,.style-family-choices.has-fluffballs,.style-family-choices.has-partygoers.has-fluffballs{grid-template-columns:repeat(2,minmax(0,1fr))}
   .style-character-grid:not(.style-single-character-grid),.style-partygoers-group .style-character-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:9px 7px}
@@ -590,6 +597,18 @@ linear-gradient(135deg,transparent 0 58%,var(--shape-color) 58% 66%,transparent 
   background:#d8cdbd;
   box-shadow:inset 0 0 0 6px rgba(255,255,255,.3);
 }
+.maker-counts{
+  margin-top:7px;
+  padding:7px 10px;
+  border:1px solid #b7aa97;
+  background:#f7f0e5;
+  color:#5f5548;
+  text-align:center;
+  font-size:9px;
+  font-weight:950;
+  letter-spacing:.035em;
+  font-variant-numeric:tabular-nums;
+}
 .maker-grid{
   --maker-cols:10;
   width:min(100%,720px);
@@ -616,7 +635,7 @@ linear-gradient(135deg,transparent 0 58%,var(--shape-color) 58% 66%,transparent 
 .maker-cell.type-wall::after{content:"";position:absolute;left:3px;right:3px;bottom:3px;height:18%;background:#050506}
 .maker-cell.type-goal::before,.maker-cell.type-playergoal::before{content:"";position:absolute;left:50%;top:50%;width:72%;height:72%;transform:translate(-50%,-50%);background:center/contain no-repeat var(--goal-sprite);z-index:1}
 .maker-cell.type-box::after{content:"";position:absolute;inset:17%;background:linear-gradient(145deg,#f2c33b,#d89f16);border:2px solid #77570e;box-shadow:2px 2px 0 rgba(23,23,25,.35);z-index:2}
-.maker-cell.type-boxgoal::before{content:"";position:absolute;left:50%;top:50%;width:84%;height:84%;transform:translate(-50%,-50%);background:center/contain no-repeat var(--box-sprite);z-index:2}
+.maker-cell.type-boxgoal::before{content:"";position:absolute;inset:17%;background:linear-gradient(145deg,#ef3c36,#c82220);border:2px solid #7c1514;box-shadow:2px 2px 0 rgba(23,23,25,.35);z-index:2}
 .maker-cell.type-boxgoal::after{display:none}
 .maker-cell.type-player::after,.maker-cell.type-playergoal::after{content:"";position:absolute;left:50%;top:50%;width:36%;height:55%;transform:translate(-50%,-50%);border-radius:50% 50% 42% 42%;background:var(--blue);box-shadow:0 3px 0 #15345f;z-index:2}
 .maker-cell:focus-visible{outline:3px solid var(--red);outline-offset:-3px;z-index:5}
@@ -656,6 +675,12 @@ linear-gradient(135deg,transparent 0 58%,var(--shape-color) 58% 66%,transparent 
 .maker-save-row input,.maker-load-row select{min-width:0;height:34px;border:1px solid var(--ink);background:#fff9ef;color:var(--ink);font-size:10px;font-weight:850}
 .maker-save-row input{padding:0 8px}
 .maker-save-row button{padding:0 10px}
+.maker-save-row button.overwrite-warning{
+  background:var(--red);
+  color:#fff;
+  border-color:var(--ink);
+  box-shadow:3px 3px 0 var(--ink);
+}
 .maker-load-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:6px;margin-top:6px}
 .maker-load-row select{padding:0 6px;text-overflow:ellipsis}
 .maker-load-row button{padding:0 8px}
@@ -700,6 +725,35 @@ linear-gradient(135deg,transparent 0 58%,var(--shape-color) 58% 66%,transparent 
 .maker-test b{font-size:22px}
 body.maker-testing .level-picker{display:none!important}
 
+.maker-test-solve-panel{
+  margin:12px 0 4px;
+  padding:10px;
+  border:2px solid var(--ink);
+  background:#eee5d8;
+}
+.maker-test-solve-panel label{
+  display:block;
+  margin:0 0 6px;
+  font-size:9px;
+  font-weight:1000;
+  letter-spacing:.12em;
+}
+.maker-test-solve-panel textarea{
+  display:block;
+  width:100%;
+  height:82px;
+  min-height:58px;
+  max-height:180px;
+  resize:vertical;
+  padding:9px 10px;
+  border:2px solid var(--ink);
+  background:#171719;
+  color:#f4eee3;
+  font:700 12px/1.35 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  overflow:auto;
+  overflow-wrap:anywhere;
+  white-space:pre-wrap;
+}
 .complete-card.final-complete{box-shadow:12px 12px 0 var(--yellow),-12px -12px 0 var(--blue),0 28px 80px rgba(0,0,0,.38)}
 .complete-card.final-complete .complete-art span{font-size:60px}
 
@@ -837,7 +891,7 @@ body.maker-testing .level-picker{display:none!important}
 /* Sprite-based coloured goals and solved boxes in the editor. */
 .maker-tool-icon.boxgoal::after{width:23px;height:23px;border-width:3px}
 .maker-tool-icon.boxgoal::before{inset:7px;background:var(--selected-goal-colour,var(--red));border-color:var(--ink);box-shadow:2px 2px 0 rgba(23,23,25,.35)}
-.maker-cell.type-boxgoal::before{width:84%;height:84%;background:center/contain no-repeat var(--box-sprite)}
+.maker-cell.type-boxgoal::before{inset:17%;width:auto;height:auto;transform:none;background:linear-gradient(145deg,#ef3c36,#c82220);border:2px solid #7c1514;box-shadow:2px 2px 0 rgba(23,23,25,.35)}
 .maker-cell.type-boxgoal::after{display:none}
 
 /* Larger workshop; the grid now uses a calculated cell size and always fits its bay. */
@@ -979,8 +1033,10 @@ body.maker-testing .level-picker{display:none!important}
 
 
 /* v102 — integrated backend solver dialogue. */
-.maker-main-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
-.maker-main-actions .maker-solve{background:var(--blue);color:#fff;border-color:var(--ink)}
+.maker-main-actions{display:flex}
+.maker-main-actions .maker-solve{flex:1;background:var(--blue);color:#fff;border-color:var(--ink)}
+.maker-main-actions .maker-undo-edit{flex:1;background:#eee5d8;color:var(--ink);border-color:var(--ink)}
+.maker-main-actions .maker-undo-edit:disabled{opacity:.42;cursor:not-allowed}
 .maker-solver-modal{
   z-index:15000;
   padding:12px;
@@ -1028,7 +1084,7 @@ body.maker-testing .level-picker{display:none!important}
 .maker-solver-actions button:disabled{opacity:.42;cursor:not-allowed}
 .maker-solver-actions .maker-solver-start{background:var(--red);color:#fff}
 @media(max-width:620px){
-  .maker-main-actions{grid-template-columns:1fr 1fr}
+  .maker-main-actions{display:grid;grid-template-columns:1fr 1fr}
   .maker-main-actions .maker-test{grid-column:1/-1}
   .maker-solver-card{padding:15px}
   .maker-solver-actions{grid-template-columns:1fr 1fr}
@@ -1036,6 +1092,7 @@ body.maker-testing .level-picker{display:none!important}
   .maker-solution-import-head span{display:block;margin-top:5px;text-align:left}
   .maker-solution-import-actions{grid-template-columns:1fr}
   .maker-solution-output{height:105px}
+  .maker-test-solve-panel textarea{height:68px;min-height:54px}
 }
 
 /* v133 inherited level-maker additions */
@@ -3185,10 +3242,22 @@ html.touch-ui .level-attire{
 .boxxy-brand .boxxy-brand-hotspot-o{left:20.66%;width:20.53%}
 .boxxy-brand .boxxy-brand-hotspot-x{left:40.83%;width:19.87%}
 .boxxy-brand .boxxy-brand-hotspot-y{left:79.24%;width:20.53%}
+/* BOXXY v541 — on desktop, keep the wordmark on the same height scale as the awards rail.
+   The 2048×400 artwork is 5.12:1, so this width clamp mirrors the existing 25–34px badge-height clamp. */
+@media(min-width:761px){
+  .boxxy-brand{
+    flex:0 0 auto;
+    width:clamp(128px,11.008vw,174px);
+    min-width:0;
+    max-width:none;
+  }
+}
 @media(max-width:760px){
   .boxxy-brand{flex-basis:180px;max-width:180px;min-width:100px}
 }
-@media(max-width:390px){
+/* BOXXY v542 — keep the compact wordmark across phone portrait widths.
+   This removes the abrupt 150px → 180px jump immediately above 390 CSS px. */
+@media(max-width:480px){
   .boxxy-brand{flex-basis:150px;max-width:150px;min-width:92px}
 }
 
@@ -4137,7 +4206,7 @@ html.touch-ui .level-attire{
 .maker-fullscreen:active{transform:translate(2px,2px)}
 
 .maker-toolbar{
-  grid-template-columns:repeat(8,minmax(0,1fr));
+  grid-template-columns:repeat(9,minmax(0,1fr));
   gap:4px;
   margin-bottom:6px;
 }
@@ -8884,3 +8953,91 @@ html.touch-ui .compact-settings-only{display:grid!important}
   .language-option-flag{width:26px}
   .language-modal-options b{font-size:9px}
 }
+
+/* BOXXY v546 — experimental 2×2 pallet blocks. */
+.piece.pallet{
+  left:calc((var(--x) + 1) * 100% / var(--cols));
+  top:calc((var(--y) + 2) * 100% / var(--rows));
+  width:calc(200% / var(--cols));
+  height:calc(200% / var(--rows));
+  transform:translate(-50%,-100%);
+  display:block;
+  transition:left var(--boxxy-step-transition,.17s) cubic-bezier(.2,.82,.32,1),top var(--boxxy-step-transition,.17s) cubic-bezier(.2,.82,.32,1);
+}
+.piece.pallet .board-art-pallet{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  background-image:var(--boxxy-standard-pallet-sprite,url("assets/board/pallets/boxxy-pallet-2x2-default-yellow.png?v=547"));
+  background-position:center;
+  background-size:100% 100%;
+  background-repeat:no-repeat;
+}
+.piece.pallet.on-goal .board-art-pallet{
+  background-image:var(--boxxy-standard-target-pallet-sprite,url("assets/board/pallets/boxxy-pallet-2x2-red.png?v=547"));
+}
+.piece.pallet.pushing.board-step{animation:palletPieceMove var(--boxxy-motion-duration,.105s) cubic-bezier(.2,.82,.32,1) both}
+@keyframes palletPieceMove{
+  0%{left:calc((var(--from-x) + 1) * 100% / var(--cols));top:calc((var(--from-y) + 2) * 100% / var(--rows))}
+  100%{left:calc((var(--x) + 1) * 100% / var(--cols));top:calc((var(--y) + 2) * 100% / var(--rows))}
+}
+
+/* Level Maker pallets deliberately use editor graphics rather than gameplay sprites. */
+.maker-tool-icon.pallet{
+  background:
+    linear-gradient(#f2c33b 0 0) 4px 4px/10px 10px no-repeat,
+    linear-gradient(#f2c33b 0 0) calc(100% - 4px) 4px/10px 10px no-repeat,
+    linear-gradient(#f2c33b 0 0) 4px calc(100% - 4px)/10px 10px no-repeat,
+    linear-gradient(#f2c33b 0 0) calc(100% - 4px) calc(100% - 4px)/10px 10px no-repeat,
+    #9b9b9b;
+  background-origin:border-box;
+  border-radius:4px;
+  box-shadow:inset 0 0 0 2px #777;
+}
+.maker-cell.type-pallet,.maker-cell.type-palletgoal{
+  background-color:#9b9b9b;
+  background-repeat:no-repeat;
+}
+.maker-cell.type-pallet::after,.maker-cell.type-palletgoal::after{
+  content:"";
+  position:absolute;
+  inset:17%;
+  border:2px solid #77570e;
+  background:linear-gradient(145deg,#f2c33b,#d89f16);
+  box-shadow:2px 2px 0 rgba(23,23,25,.35);
+  z-index:3;
+}
+.maker-cell.type-palletgoal::before{
+  content:"";
+  position:absolute;
+  left:50%;top:50%;width:72%;height:72%;
+  transform:translate(-50%,-50%);
+  background:center/contain no-repeat var(--goal-sprite,var(--boxxy-standard-goal-sprite));
+  z-index:1;
+}
+.maker-cell.type-palletgoal::after{
+  border-color:#7c1514;
+  background:linear-gradient(145deg,#ef3c36,#c82220);
+}
+.maker-cell.pallet-top-left{
+  border-right-color:transparent;border-bottom-color:transparent;border-radius:8px 0 0 0;
+  background-image:linear-gradient(#696969 0 0),linear-gradient(#696969 0 0);
+  background-size:28% 3px,3px 28%;background-position:right center,center bottom;
+}
+.maker-cell.pallet-top-right{
+  border-bottom-color:transparent;border-radius:0 8px 0 0;
+  background-image:linear-gradient(#696969 0 0),linear-gradient(#696969 0 0);
+  background-size:28% 3px,3px 28%;background-position:left center,center bottom;
+}
+.maker-cell.pallet-bottom-left{
+  border-right-color:transparent;border-radius:0 0 0 8px;
+  background-image:linear-gradient(#696969 0 0),linear-gradient(#696969 0 0);
+  background-size:28% 3px,3px 28%;background-position:right center,center top;
+}
+.maker-cell.pallet-bottom-right{
+  border-radius:0 0 8px 0;
+  background-image:linear-gradient(#696969 0 0),linear-gradient(#696969 0 0);
+  background-size:28% 3px,3px 28%;background-position:left center,center top;
+}
+.maker-cell.pallet-cell:focus-visible{z-index:7}

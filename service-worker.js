@@ -1,3 +1,10 @@
+/* BOXXY v554: new splash artwork with letter-masked shimmer; preserve cumulative offline assets. */
+/* BOXXY v548: cache editor-native pallet rendering plus pallet share/XSB support. */
+/* BOXXY v547: refresh 2×2 pallet artwork and preload-aware gameplay/editor assets. */
+/* BOXXY v546: cache experimental 2×2 pallet artwork and refreshed editor/gameplay assets. */
+/* BOXXY v545: refresh the cached app script for reduced Fluffball message weighting. */
+/* BOXXY v544: refresh the cached app script for announcement Style preload and rolling-message additions. */
+/* BOXXY v543: cache the public FLUFFBALLS soundtrack and refreshed style/localisation assets. */
 /* BOXXY v540: cache the active Boxxy 36 header wordmark. */
 /* BOXXY v537: cache cross-platform SVG language flags. */
 /* BOXXY v533: cache the Hindi localisation catalogue. */
@@ -121,6 +128,7 @@ const ASSETS = [
   "/assets/audio/Velvet-Static-296KB.mp3",
   "/assets/audio/cracked-ivory-drift.mp3",
   "/assets/audio/Dark-Quiet-Death-280KB.mp3",
+  "/assets/audio/Fluffballs-302KB.m4a",
   "/assets/audio/tetris-piano.m4a",
   "/assets/data/profile-locations-v1.json",
   "/assets/board/board-atlas.png",
@@ -140,6 +148,22 @@ const ASSETS = [
   "/assets/board/boxes/box-red.png",
   "/assets/board/boxes/box-teal.png",
   "/assets/board/boxes/box-yellow.png",
+  "/assets/board/pallets/boxxy-pallet-2x2-black.png",
+  "/assets/board/pallets/boxxy-pallet-2x2-blue.png",
+  "/assets/board/pallets/boxxy-pallet-2x2-brown.png",
+  "/assets/board/pallets/boxxy-pallet-2x2-burgundy.png",
+  "/assets/board/pallets/boxxy-pallet-2x2-cream.png",
+  "/assets/board/pallets/boxxy-pallet-2x2-default-yellow.png",
+  "/assets/board/pallets/boxxy-pallet-2x2-green.png",
+  "/assets/board/pallets/boxxy-pallet-2x2-grey.png",
+  "/assets/board/pallets/boxxy-pallet-2x2-light-blue.png",
+  "/assets/board/pallets/boxxy-pallet-2x2-lime.png",
+  "/assets/board/pallets/boxxy-pallet-2x2-orange.png",
+  "/assets/board/pallets/boxxy-pallet-2x2-pink.png",
+  "/assets/board/pallets/boxxy-pallet-2x2-purple.png",
+  "/assets/board/pallets/boxxy-pallet-2x2-red.png",
+  "/assets/board/pallets/boxxy-pallet-2x2-teal.png",
+  "/assets/board/pallets/boxxy-pallet-2x2-yellow.png",
   "/assets/board/goals/goal-black.png",
   "/assets/board/goals/goal-blue.png",
   "/assets/board/goals/goal-brown.png",
