@@ -18,6 +18,7 @@
 /* BOXXY v474: mobile gold badge layout, Static Noise pack artwork, and release metadata. */
 /* BOXXY v473: steady mobile awards header and compact, non-overlapping gold count. */
 /* BOXXY v469: optional original v451 fixed Zen arrows, retaining the modern keypad and reversible Restart. */
+/* BOXXY v551: Level Maker confirmation states persist until the user explicitly resolves them. */
 /* BOXXY v549: Level Maker live counts, editor undo, pallet-under-target painting, overwrite warning and test solve data. */
 /* BOXXY v548: editor-native pallet symbols plus private sharing and BOXXY-extended XSB export. */
 /* BOXXY v547: replace pallet artwork and preload/decode active pallet states before Level Maker test play. */
@@ -14533,9 +14534,7 @@
   let unlockTimer = null;
   let activeSaveId = "";
   let pendingOverwriteId = "";
-  let overwriteTimer = null;
   let pendingDeleteId = "";
-  let deleteTimer = null;
   let fitFrame = 0;
   let currentSolution = "";
   let currentSolutionLevelText = "";
@@ -18271,7 +18270,6 @@
 
   function resetSaveConfirmation() {
     pendingOverwriteId = "";
-    clearTimeout(overwriteTimer);
     if (saveBtn) {
       saveBtn.textContent = "SAVE LEVEL";
       saveBtn.classList.remove("overwrite-warning");
@@ -18321,7 +18319,6 @@
       saveBtn.classList.add("overwrite-warning");
       saveBtn.setAttribute("aria-describedby", "makerStatus");
       setStatus(`A saved level named “${matchingRecord.name}” already exists. Press OVERWRITE to replace it, or change the name to save a new level.`, "error");
-      overwriteTimer = window.setTimeout(resetSaveConfirmation, 8000);
       return;
     }
 
@@ -18400,7 +18397,6 @@
 
   function resetDeleteButton() {
     pendingDeleteId = "";
-    clearTimeout(deleteTimer);
     deleteBtn.textContent = "DELETE";
   }
 
@@ -18414,7 +18410,6 @@
       pendingDeleteId = id;
       deleteBtn.textContent = "CONFIRM";
       setStatus("Press CONFIRM to delete the selected saved level.");
-      deleteTimer = window.setTimeout(resetDeleteButton, 3500);
       return;
     }
     const records = readSavedLevels();
