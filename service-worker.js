@@ -288,6 +288,7 @@ const ASSETS = [
   "/assets/ui/starry-night-badge.png",
   "/assets/ui/boxxy-prize-poster-lowres.jpg",
   "/assets/ui/boxxy-splash-v552.png",
+  "/assets/ui/boxxy-splash-letter-mask-v553.png",
   "/assets/ui/reddit-icon.webp",
   "/assets/branding/boxxy/Boxxy-36-black.png",
   "/assets/ui/flags/gb.svg",
