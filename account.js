@@ -1,6 +1,7 @@
 /* BOXXY v484: cloud pack catalogue starts from the shared published-content catalogue. */
 /* BOXXY v476: wait for initial account identity before presenting monthly medal notices. */
 /* BOXXY v463: keep Secret Workshop drafts and editor preferences local to the browser. */
+/* BOXXY v555: serialize account progress uploads; Daily completion expedites the normal sync lane without overlapping stale snapshots. */
 /* BOXXY v461: release metadata/cache correction; v460 cloud-sync diagnostics retained. */
 /* BOXXY v460: report account cloud-sync failures instead of silently swallowing them. */
 /* BOXXY v428: account responses broadcast the player's permanent Daily gold-medal total. */
@@ -1569,7 +1570,12 @@
     }
   }
 
-  async function syncNow(force = false) {
+  let syncLaneActive = false;
+  let syncLanePending = false;
+  let syncLanePendingForce = false;
+  let syncLanePendingWaiters = [];
+
+  async function performSync(force = false) {
     if (!account || busy) return false;
     const progress = collectCloudState();
     const fingerprint = stableStringify(progress);
@@ -1607,6 +1613,46 @@
       if (accountView && !accountView.hidden) setStatus("Cloud progress could not reach the BOXXY account service.", "error");
       return false;
     }
+  }
+
+  async function runSyncLane(force, waiters) {
+    let nextForce = Boolean(force);
+    let nextWaiters = waiters;
+
+    while (true) {
+      let synced = false;
+      try {
+        synced = await performSync(nextForce);
+      } catch (error) {
+        console.error("BOXXY cloud sync lane failed", error);
+      }
+      nextWaiters.forEach(resolve => resolve(synced));
+
+      if (!syncLanePending) break;
+      nextForce = syncLanePendingForce;
+      nextWaiters = syncLanePendingWaiters;
+      syncLanePending = false;
+      syncLanePendingForce = false;
+      syncLanePendingWaiters = [];
+    }
+
+    syncLaneActive = false;
+  }
+
+  function syncNow(force = false) {
+    if (!account || busy) return Promise.resolve(false);
+
+    return new Promise(resolve => {
+      if (syncLaneActive) {
+        syncLanePending = true;
+        syncLanePendingForce = syncLanePendingForce || Boolean(force);
+        syncLanePendingWaiters.push(resolve);
+        return;
+      }
+
+      syncLaneActive = true;
+      void runSyncLane(force, [resolve]);
+    });
   }
 
   createModeBtn?.addEventListener("click", () => { mode = "create"; setStatus(""); renderMode(); });

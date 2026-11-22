@@ -1,3 +1,4 @@
+/* BOXXY v555: refresh cached account client for serialized progress sync uploads. */
 /* BOXXY v554: new splash artwork with letter-masked shimmer; preserve cumulative offline assets. */
 /* BOXXY v548: cache editor-native pallet rendering plus pallet share/XSB support. */
 /* BOXXY v547: refresh 2×2 pallet artwork and preload-aware gameplay/editor assets. */
