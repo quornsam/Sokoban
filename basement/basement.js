@@ -1,3 +1,4 @@
+/* BOXXY v560: Basement Daily date testing opens the existing no-scoring preview path. */
 /* BOXXY v484: Basement pack history starts from the shared published-content catalogue. */
 /* BOXXY v482: pack history from account catalogue and derived Daily month groups. */
 /* BOXXY v447: KangaRuby and WhoopsaDaisy join the shared fixed-character registry and Basement actions. */
@@ -132,6 +133,8 @@
   const siteMessageList = document.getElementById("siteMessageList");
   const practiceSearch = document.getElementById("practiceSearch");
   const practiceFilter = document.getElementById("practiceFilter");
+  const practiceTestDate = document.getElementById("practiceTestDate");
+  const practiceTestDateOpen = document.getElementById("practiceTestDateOpen");
   const practiceCards = document.getElementById("practiceCards");
   const practiceStatus = document.getElementById("practiceStatus");
   const practiceCount = document.getElementById("practiceCount");
@@ -1037,6 +1040,12 @@
   }
   practiceSearch?.addEventListener("input",renderPracticeCards);
   practiceFilter?.addEventListener("change",renderPracticeCards);
+  practiceTestDateOpen?.addEventListener("click", () => {
+    const date=String(practiceTestDate?.value||"");
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){setStatus(practiceStatus,"CHOOSE A TEST DATE","error");return;}
+    if(!preparedDailies.some(item=>String(item.date||"")===date)){setStatus(practiceStatus,`${date} IS NOT A PREPARED DAILY`,`error`);return;}
+    window.open(`/?dailyDate=${encodeURIComponent(date)}`,"_blank","noopener");
+  });
   function filteredUsers() {
     const query = String(searchInput?.value || "").trim().toLowerCase();
     const list = query ? users.filter(user => [user.username, user.email, user.googleEmail, user.signupIp, user.lastIp, user.firstCountry, user.language, user.summary?.clickPushCode, ...(user.summary?.clickPushCodes || [])].some(value => String(value || "").toLowerCase().includes(query))) : users;

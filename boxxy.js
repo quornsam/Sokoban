@@ -9,6 +9,7 @@
 /* BOXXY v483: image medals use one shared pack reward definition. */
 /* BOXXY v482: add Four Leaf Clover artwork and canonical pack registration. */
 /* BOXXY v481: three-way Zen arrow mode (movable, original, wide). */
+/* BOXXY v560: special-day Daily box fireworks, skippable replay completions, and Basement date testing. */
 /* BOXXY v557: allow Basement Daily Practice to preview Jan 1 fireworks and medal presentation without awarding it. */
 /* BOXXY v558: repair New Year fireworks visibility and Basement Daily Practice preview integration. */
 /* BOXXY v556: January 2027 Dailys, New Year medal and first-completion box fireworks. */
@@ -2012,10 +2013,19 @@
   }
   window.BoxxySpecialMedals = Object.freeze({ earned: earnedSpecialMedals });
   const DAILY_STREAK_KEY = "boxxy-daily-streak-v1";
-  const NEW_YEAR_DAILY_DATE = "2027-01-01";
-  const NEW_YEAR_SPECIAL_MEDAL_ID = "new-year-2027";
-  const NEW_YEAR_AWARD_START = Date.parse("2027-01-01T00:00:00.000Z");
-  const NEW_YEAR_AWARD_END = Date.parse("2027-01-02T00:00:00.000Z");
+  const SPECIAL_DAILY_MEDALS_BY_DATE = new Map(SPECIAL_MEDALS
+    .filter(medal => medal?.award?.kind === "daily-completion" && medal.award.date)
+    .map(medal => [String(medal.award.date), medal]));
+  function specialDailyMedalForDate(date) {
+    return SPECIAL_DAILY_MEDALS_BY_DATE.get(String(date || "")) || null;
+  }
+  function specialDailyMedalActiveAt(date, timestamp = Date.now()) {
+    const medal = specialDailyMedalForDate(date);
+    const start = Date.parse(medal?.award?.startUtc || "");
+    const end = Date.parse(medal?.award?.endUtc || "");
+    return medal && Number.isFinite(start) && Number.isFinite(end)
+      && timestamp >= start && timestamp < end ? medal : null;
+  }
   const DAILY_INVITE_SEEN_PREFIX = "boxxy-daily-invite-seen-";
   const DAILY_QUOTE_DISMISSED_PREFIX = "boxxy-daily-quote-dismissed-";
   const SITE_ANNOUNCEMENT_DISMISSED_PREFIX = "boxxy-site-announcement-dismissed-";
@@ -3326,7 +3336,6 @@
   const dailyCompletePackBtn = document.getElementById("dailyCompletePackBtn");
   const dailyCompleteArchiveBtn = document.getElementById("dailyCompleteArchiveBtn");
   const dailyGhostRaceBtn = document.getElementById("dailyGhostRaceBtn");
-  const dailyReplayCelebrationBtn = document.getElementById("dailyReplayCelebrationBtn");
   const dailyGhostConfirmModal = document.getElementById("dailyGhostConfirmModal");
   const dailyGhostConfirmBestTime = document.getElementById("dailyGhostConfirmBestTime");
   const dailyGhostConfirmCancel = document.getElementById("dailyGhostConfirmCancel");
@@ -3502,7 +3511,7 @@
   let playedRoute = "";
   let makerCompletedRoute = "";
   let completeMode = "normal";
-  let newYearFireworksPlaying = false;
+  let specialDayFireworksPlaying = false;
   let completionPackContext = null;
   let completionSolveData = "";
   let startedAt = 0;
@@ -4135,13 +4144,6 @@
     return pack?.id === PRIMARY_PACK_ID && pack?.levels?.length === 50 && packIsComplete(pack.id);
   }
 
-  function updateDailyReplayCelebrationButton(puzzle = dailyPuzzle) {
-    if (!dailyReplayCelebrationBtn) return;
-    const date = String(puzzle?.date || makerDailyPracticePuzzle?.date || "");
-    const supportedMode = completeMode === "daily" || (completeMode === "maker" && makerDailyPractice);
-    dailyReplayCelebrationBtn.hidden = !(supportedMode && date === NEW_YEAR_DAILY_DATE);
-  }
-
   function setCompletionActionMode(mode = "standard") {
     const daily = mode === "daily";
     const standard = mode === "standard";
@@ -4160,7 +4162,6 @@
     if (dailySharePanel) dailySharePanel.hidden = true;
     if (dailyShareStatus) dailyShareStatus.textContent = "";
     if (dailyCompletionLeaderboard) dailyCompletionLeaderboard.hidden = true;
-    if (dailyReplayCelebrationBtn) dailyReplayCelebrationBtn.hidden = true;
     if (makerTestSolvePanel) makerTestSolvePanel.hidden = true;
     if (makerTestSolveText) makerTestSolveText.value = "";
     if (dailyCompletionLeaderboardList) {
@@ -6367,18 +6368,18 @@
     const award = pendingMedalAwards().find(item => item.id === id);
     return openMedalAward(award);
   }
-  function presentNewYearMedalNow() {
+  function presentSpecialMedalNow(id) {
     return new Promise(resolve => {
       const onCollected = () => resolve(true);
       window.addEventListener("boxxyspecialmedalcollected", onCollected, { once:true });
-      if (!showSpecificPendingMedal(NEW_YEAR_SPECIAL_MEDAL_ID)) {
+      if (!showSpecificPendingMedal(id)) {
         window.removeEventListener("boxxyspecialmedalcollected", onCollected);
         resolve(false);
       }
     });
   }
-  function presentNewYearPracticeMedalPreview() {
-    const medal = specialDefinition(NEW_YEAR_SPECIAL_MEDAL_ID);
+  function presentSpecialDayPracticeMedalPreview(id) {
+    const medal = specialDefinition(id);
     if (!medal) return Promise.resolve(false);
     const preview = {
       category: "special", id: medal.id, title: medal.title, image: medal.image,
@@ -12029,11 +12030,12 @@
     if (zenStatsTime) zenStatsTime.textContent = timeEl.textContent;
     if (!makerTesting && !sharedPuzzleMode && !dailyMode) clearCurrentCheckpoint();
 
-    let runNewYearFirstCompletionCelebration = false;
-    const runNewYearPracticePreview = Boolean(
-      makerTesting && makerDailyPractice
-      && String(makerDailyPracticePuzzle?.date || "") === NEW_YEAR_DAILY_DATE
-    );
+    let specialDayCelebrationMedal = null;
+    let presentSpecialDayMedalImmediately = false;
+    const practiceSpecialDayMedal = makerTesting && makerDailyPractice
+      ? specialDailyMedalForDate(makerDailyPracticePuzzle?.date)
+      : (DAILY_PREVIEW_MODE && dailyMode ? specialDailyMedalForDate(dailyPuzzle?.date) : null);
+    const runSpecialDayPracticePreview = Boolean(practiceSpecialDayMedal);
     if (dailyMode && dailyPuzzle) {
       const scoringDailySession = dailyScoringAllowedFor(dailyPuzzle);
       const solvedWithGuidedRoute = autoplayRunning || guidedSolveUsed;
@@ -12064,10 +12066,9 @@
           instantMoveUsed: instantMoveUsedThisLevel,
           webdriverDetected: navigator.webdriver === true
         });
-        runNewYearFirstCompletionCelebration = !hadPreviousDailyCompletion
-          && String(dailyPuzzle.date) === NEW_YEAR_DAILY_DATE
-          && completedAt >= NEW_YEAR_AWARD_START && completedAt < NEW_YEAR_AWARD_END;
-        if (runNewYearFirstCompletionCelebration) awardPresentationSuspended = true;
+        specialDayCelebrationMedal = specialDailyMedalActiveAt(dailyPuzzle.date, completedAt);
+        presentSpecialDayMedalImmediately = Boolean(specialDayCelebrationMedal && !hadPreviousDailyCompletion);
+        if (presentSpecialDayMedalImmediately) awardPresentationSuspended = true;
         window.dispatchEvent(new CustomEvent("boxxydailycompletionrecorded", {
           detail: { date: String(dailyPuzzle.date) }
         }));
@@ -12123,7 +12124,6 @@
         loadDailyLeaderboardInto(dailyCompletionLeaderboardList, dailyPuzzle, 3);
       }
       setCompletionActionMode("daily");
-      updateDailyReplayCelebrationButton(dailyPuzzle);
       updateDailyGhostButton(dailyPuzzle);
       stopDailyGhost();
       updateDailyStreak();
@@ -12174,7 +12174,6 @@
       completionPackContext = null;
       hidePackCompletionStats();
       restoreStandardCompletionActions();
-      updateDailyReplayCelebrationButton(makerDailyPracticePuzzle);
       if (makerTestSolveText) makerTestSolveText.value = makerSolveData;
       if (makerTestSolvePanel) makerTestSolvePanel.hidden = !makerSolveData;
       if (finalPackPicker) finalPackPicker.hidden = true;
@@ -12334,7 +12333,8 @@
     updateCompletionSolveDataButton();
     const grandCelebrationPack = completeMode === "final" ? (completionPackContext || activePack) : null;
     showRandomCompletionSprite();
-    if (!runNewYearFirstCompletionCelebration && !runNewYearPracticePreview) burst();
+    const runSpecialDayCelebration = Boolean(specialDayCelebrationMedal || runSpecialDayPracticePreview);
+    if (!runSpecialDayCelebration) burst();
     sfx.finish();
     const openCompletionModal = () => {
       setZenNextButtonVisible(false);
@@ -12346,7 +12346,7 @@
       if (completeMode === "normal") {
         requestAnimationFrame(() => nextBtn?.focus?.({ preventScroll: true }));
       } else if (completeMode === "daily") {
-        requestAnimationFrame(() => (dailyReplayCelebrationBtn?.hidden ? dailyCompletePackBtn : dailyReplayCelebrationBtn)?.focus?.({ preventScroll:true }));
+        requestAnimationFrame(() => dailyCompletePackBtn?.focus?.({ preventScroll:true }));
       }
       if (grandCelebrationPack) {
         renderPackCompletionStats(grandCelebrationPack, true);
@@ -12354,32 +12354,36 @@
       }
     };
     setTimeout(async () => {
-      if (!runNewYearFirstCompletionCelebration && !runNewYearPracticePreview) {
+      if (!runSpecialDayCelebration) {
         openCompletionModal();
         return;
       }
-      await playNewYearBoxFireworks().catch(() => false);
-      if (runNewYearPracticePreview) {
-        await presentNewYearPracticeMedalPreview().catch(() => false);
+      await playSpecialDayBoxFireworks({
+        skippable: runSpecialDayPracticePreview || !presentSpecialDayMedalImmediately
+      }).catch(() => false);
+      if (runSpecialDayPracticePreview) {
+        await presentSpecialDayPracticeMedalPreview(practiceSpecialDayMedal.id).catch(() => false);
         openCompletionModal();
         return;
       }
-      awardPresentationSuspended = false;
-      await presentNewYearMedalNow().catch(() => false);
+      if (presentSpecialDayMedalImmediately) {
+        awardPresentationSuspended = false;
+        await presentSpecialMedalNow(specialDayCelebrationMedal.id).catch(() => false);
+      }
       openCompletionModal();
       deferMedalAwards(200);
     }, 500);
   }
 
-  async function playNewYearBoxFireworks() {
-    if (newYearFireworksPlaying || !board || !pieceLayer) return false;
+  async function playSpecialDayBoxFireworks({ skippable = false } = {}) {
+    if (specialDayFireworksPlaying || !board || !pieceLayer) return false;
     render("idle");
     const sourceBoxes = Array.from(pieceLayer.querySelectorAll(".piece.box"));
     if (!sourceBoxes.length) return false;
     if (window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches) return true;
-    newYearFireworksPlaying = true;
+    specialDayFireworksPlaying = true;
     const overlay = document.createElement("div");
-    overlay.className = "new-year-box-fireworks";
+    overlay.className = "special-day-box-fireworks";
     overlay.setAttribute("aria-hidden", "true");
     try {
       const order = sourceBoxes.slice();
@@ -12393,17 +12397,17 @@
         clone.classList.remove("pushing", "board-step");
         clone.style.visibility = "";
         source.style.visibility = "hidden";
-        clone.style.setProperty("--new-year-delay", `${index * 95}ms`);
+        clone.style.setProperty("--special-day-delay", `${index * 95}ms`);
         const burst = document.createElement("span");
-        burst.className = "new-year-box-burst";
+        burst.className = "special-day-box-burst";
         for (let sparkIndex = 0; sparkIndex < 8; sparkIndex++) {
           const spark = document.createElement("i");
-          spark.className = "new-year-box-spark";
+          spark.className = "special-day-box-spark";
           const angle = (Math.PI * 2 * sparkIndex / 8) + (Math.random() - .5) * .16;
           const distance = 30 + Math.random() * 34;
-          spark.style.setProperty("--new-year-sx", `${Math.cos(angle) * distance}px`);
-          spark.style.setProperty("--new-year-sy", `${Math.sin(angle) * distance}px`);
-          spark.style.setProperty("--new-year-spark", colours[(index + sparkIndex) % colours.length]);
+          spark.style.setProperty("--special-day-sx", `${Math.cos(angle) * distance}px`);
+          spark.style.setProperty("--special-day-sy", `${Math.sin(angle) * distance}px`);
+          spark.style.setProperty("--special-day-spark", colours[(index + sparkIndex) % colours.length]);
           burst.appendChild(spark);
         }
         clone.appendChild(burst);
@@ -12411,12 +12415,49 @@
       });
       board.appendChild(overlay);
       const duration = Math.max(900, (order.length - 1) * 95 + 820);
-      await new Promise(resolve => window.setTimeout(resolve, duration));
+      await new Promise(resolve => {
+        let finished = false;
+        let timer = window.setTimeout(finish, duration);
+        let skipTimer = 0;
+        const cleanup = () => {
+          window.removeEventListener("keydown", onKeyDown, true);
+          document.removeEventListener("pointerdown", onPointerDown, true);
+          document.removeEventListener("touchstart", onTouchStart, true);
+        };
+        function finish() {
+          if (finished) return;
+          finished = true;
+          window.clearTimeout(timer);
+          window.clearTimeout(skipTimer);
+          cleanup();
+          resolve();
+        }
+        function skip(event) {
+          if (finished || overlay.classList.contains("skip")) return;
+          event?.preventDefault?.();
+          event?.stopPropagation?.();
+          overlay.classList.add("skip");
+          window.clearTimeout(timer);
+          skipTimer = window.setTimeout(finish, 220);
+        }
+        function onKeyDown(event) {
+          if (event.code === "Space" || event.key === " ") skip(event);
+        }
+        function onPointerDown(event) {
+          if (event.pointerType === "touch" || event.pointerType === "pen") skip(event);
+        }
+        function onTouchStart(event) { skip(event); }
+        if (skippable) {
+          window.addEventListener("keydown", onKeyDown, true);
+          if ("PointerEvent" in window) document.addEventListener("pointerdown", onPointerDown, true);
+          else document.addEventListener("touchstart", onTouchStart, { capture:true, passive:false });
+        }
+      });
       return true;
     } finally {
       overlay.remove();
       sourceBoxes.forEach(source => { if (source?.isConnected) source.style.visibility = ""; });
-      newYearFireworksPlaying = false;
+      specialDayFireworksPlaying = false;
     }
   }
 
@@ -13796,14 +13837,6 @@
   settingsSolutionDataToggle?.addEventListener("click", () => setLevelSolutionAvailable(!levelSolutionAvailable));
   settingsZenStatsToggle?.addEventListener("click", () => setZenStatsEnabled(!zenStatsEnabled));
   copySolveDataBtn?.addEventListener("click", copyCompletionSolveData);
-  dailyReplayCelebrationBtn?.addEventListener("click", async () => {
-    const puzzle = dailyMode ? dailyPuzzle : (makerDailyPractice ? makerDailyPracticePuzzle : null);
-    if (!puzzle || String(puzzle.date) !== NEW_YEAR_DAILY_DATE || newYearFireworksPlaying) return;
-    if (modal) modal.hidden = true;
-    await playNewYearBoxFireworks().catch(() => false);
-    if (modal) modal.hidden = false;
-    requestAnimationFrame(() => dailyReplayCelebrationBtn?.focus?.({ preventScroll:true }));
-  });
   clickPushAccessForm?.addEventListener("submit", event => {
     event.preventDefault();
     unlockTouchClickPush(clickPushAccessPassword?.value);
