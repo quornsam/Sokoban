@@ -1,3 +1,4 @@
+/* BOXXY v556: cache January 2027 Dailys, New Year medal and celebration client assets. */
 /* BOXXY v555: refresh cached account client for serialized progress sync uploads. */
 /* BOXXY v554: new splash artwork with letter-masked shimmer; preserve cumulative offline assets. */
 /* BOXXY v548: cache editor-native pallet rendering plus pallet share/XSB support. */
@@ -123,6 +124,7 @@ const ASSETS = [
   "/assets/data/content-catalog.js",
   "/assets/medals/boxxy-special-halloween-2026.png",
   "/assets/medals/boxxy-special-christmas-2026.png",
+  "/assets/medals/boxxy-special-new-year-2027.png",
   "/assets/audio/Fading-into-Gold-296KB.mp3",
   "/assets/audio/Starry-Night-Lullaby-281KB.mp3",
   "/assets/audio/Tetris-Piano-293KB.mp3",
@@ -357,6 +359,7 @@ const ASSETS = [
   "/daily-puzzles/boxxy-daily-puzzles-2026-10.js",
   "/daily-puzzles/boxxy-daily-puzzles-2026-11.js",
   "/daily-puzzles/boxxy-daily-puzzles-2026-12.js",
+  "/daily-puzzles/boxxy-daily-puzzles-2027-01.js",
   "/daily-puzzles/boxxy-daily-puzzles.js",
   "/how-to-play.css",
   "/how-to-play.js",

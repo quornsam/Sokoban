@@ -176,6 +176,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 .complete-secondary:hover{transform:translate(-2px,-2px);box-shadow:7px 7px 0 var(--blue)}
 .complete-secondary:active{transform:translate(3px,3px);box-shadow:2px 2px 0 var(--blue)}
 .complete-secondary[hidden]{display:none!important}
+.daily-new-year-replay{grid-column:1/-1;background:var(--yellow);box-shadow:5px 5px 0 var(--blue)}
 .complete-primary{align-self:flex-start;min-width:190px;display:flex;align-items:center;justify-content:space-between;gap:18px;padding:14px 15px 14px 18px;background:var(--ink);color:#fff;border:2px solid var(--ink);box-shadow:6px 6px 0 var(--red);font-weight:950;letter-spacing:.08em;transition:transform .12s ease,box-shadow .12s ease}
 .complete-primary b{width:28px;height:28px;display:grid;place-items:center;background:var(--yellow);color:var(--ink);font-size:20px}
 .complete-primary:hover{transform:translate(-2px,-2px);box-shadow:8px 8px 0 var(--red)}
@@ -9041,3 +9042,17 @@ html.touch-ui .compact-settings-only{display:grid!important}
   background-size:28% 3px,3px 28%;background-position:left center,center top;
 }
 .maker-cell.pallet-cell:focus-visible{z-index:7}
+
+
+/* BOXXY v556 — Jan 1 Daily box-firework celebration. */
+.new-year-box-fireworks{position:absolute;inset:0;z-index:4500;pointer-events:none;overflow:visible}
+.new-year-box-fireworks .piece.box{transition:none!important;animation:newYearBoxPop 760ms ease-out both;animation-delay:var(--new-year-delay,0ms)}
+.new-year-box-fireworks .piece.box::before{animation:newYearShadowPop 760ms ease-out both;animation-delay:var(--new-year-delay,0ms)}
+.new-year-box-fireworks .piece.box .board-art-box{transform-origin:50% 75%;animation:newYearBoxWobble 480ms ease-in-out both;animation-delay:var(--new-year-delay,0ms)}
+.new-year-box-burst{position:absolute;left:50%;bottom:35%;width:0;height:0;pointer-events:none}
+.new-year-box-spark{position:absolute;left:0;top:0;width:clamp(4px,1.1vw,9px);height:clamp(4px,1.1vw,9px);border-radius:50%;color:var(--new-year-spark,#f2c121);background:currentColor;opacity:0;box-shadow:0 0 7px currentColor;animation:newYearBoxSpark 340ms ease-out both;animation-delay:calc(var(--new-year-delay,0ms) + 430ms)}
+@keyframes newYearBoxWobble{0%{transform:rotate(0) scale(1)}18%{transform:rotate(-7deg) scale(1.02)}36%{transform:rotate(7deg) scale(1.03)}54%{transform:rotate(-5deg) scale(1.04)}72%{transform:rotate(5deg) scale(1.05)}100%{transform:rotate(0) scale(1.06)}}
+@keyframes newYearBoxPop{0%,56%{opacity:1;transform:translate(-50%,-100%) scale(1)}68%{opacity:1;transform:translate(-50%,-100%) scale(1.18)}100%{opacity:0;transform:translate(-50%,-100%) scale(.18)}}
+@keyframes newYearShadowPop{0%,56%{opacity:.32}100%{opacity:0;transform:translateX(-42%) scale(.15)}}
+@keyframes newYearBoxSpark{0%{opacity:0;transform:translate(-50%,-50%) scale(.25)}15%{opacity:1}100%{opacity:0;transform:translate(calc(-50% + var(--new-year-sx,0px)),calc(-50% + var(--new-year-sy,0px))) scale(.85)}}
+@media(prefers-reduced-motion:reduce){.new-year-box-fireworks .piece.box,.new-year-box-fireworks .piece.box::before,.new-year-box-fireworks .piece.box .board-art-box,.new-year-box-spark{animation-duration:1ms!important;animation-delay:0ms!important}}

@@ -72,7 +72,8 @@
     { id: "daily-month-2026-09", month: "2026-09", name: "Daily BOXXY · September 2026", firstDate: "2026-09-01", lastDate: "2026-09-30", levels: 30 },
     { id: "daily-month-2026-10", month: "2026-10", name: "Daily BOXXY · October 2026", firstDate: "2026-10-01", lastDate: "2026-10-31", levels: 31 },
     { id: "daily-month-2026-11", month: "2026-11", name: "Daily BOXXY · November 2026", firstDate: "2026-11-01", lastDate: "2026-11-30", levels: 30 },
-    { id: "daily-month-2026-12", month: "2026-12", name: "Daily BOXXY · December 2026", firstDate: "2026-12-01", lastDate: "2026-12-31", levels: 31 }
+    { id: "daily-month-2026-12", month: "2026-12", name: "Daily BOXXY · December 2026", firstDate: "2026-12-01", lastDate: "2026-12-31", levels: 31 },
+    { id: "daily-month-2027-01", month: "2027-01", name: "Daily BOXXY · January 2027", firstDate: "2027-01-01", lastDate: "2027-01-31", levels: 31 }
   ];
 
   // Medal artwork can exist before its Daily schedule is published. Award logic
@@ -93,10 +94,16 @@
     message: "You completed the Christmas BOXXY Daily on 25 December! Your Christmas tree medal is ready for your trophy cabinet.",
     award: { kind: "daily-completion", date: "2026-12-25",
       startUtc: "2026-12-25T00:00:00.000Z", endUtc: "2026-12-26T00:00:00.000Z" }
+  }, {
+    id: "new-year-2027", category: "special", title: "New Year 2027",
+    image: "assets/medals/boxxy-special-new-year-2027.png",
+    message: "You completed the New Year's Day BOXXY Daily on 1 January! Your 2027 medal is ready for your trophy cabinet.",
+    award: { kind: "daily-completion", date: "2027-01-01",
+      startUtc: "2027-01-01T00:00:00.000Z", endUtc: "2027-01-02T00:00:00.000Z" }
   }];
 
   const legal = { dailyCollectionName: "BOXXY Dailys" };
 
-  const catalog = freeze({ version: 3, packs, dailyMonths, monthlyMedals, specialMedals, dailyDefaultAuthor: "Sam Cornwell", legal });
+  const catalog = freeze({ version: 4, packs, dailyMonths, monthlyMedals, specialMedals, dailyDefaultAuthor: "Sam Cornwell", legal });
   globalThis.BOXXY_CONTENT_CATALOG = catalog;
 })();

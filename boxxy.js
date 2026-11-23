@@ -9,6 +9,7 @@
 /* BOXXY v483: image medals use one shared pack reward definition. */
 /* BOXXY v482: add Four Leaf Clover artwork and canonical pack registration. */
 /* BOXXY v481: three-way Zen arrow mode (movable, original, wide). */
+/* BOXXY v556: January 2027 Dailys, New Year medal and first-completion box fireworks. */
 /* BOXXY v480: unnumbered gold-medal replay list with ordinal dates. */
 /* BOXXY v479: show earned trophies only, without the collection count summary. */
 /* BOXXY v478: month medal presentation and replay links for indexed, cached Daily gold dates. */
@@ -2009,6 +2010,10 @@
   }
   window.BoxxySpecialMedals = Object.freeze({ earned: earnedSpecialMedals });
   const DAILY_STREAK_KEY = "boxxy-daily-streak-v1";
+  const NEW_YEAR_DAILY_DATE = "2027-01-01";
+  const NEW_YEAR_SPECIAL_MEDAL_ID = "new-year-2027";
+  const NEW_YEAR_AWARD_START = Date.parse("2027-01-01T00:00:00.000Z");
+  const NEW_YEAR_AWARD_END = Date.parse("2027-01-02T00:00:00.000Z");
   const DAILY_INVITE_SEEN_PREFIX = "boxxy-daily-invite-seen-";
   const DAILY_QUOTE_DISMISSED_PREFIX = "boxxy-daily-quote-dismissed-";
   const SITE_ANNOUNCEMENT_DISMISSED_PREFIX = "boxxy-site-announcement-dismissed-";
@@ -3319,6 +3324,7 @@
   const dailyCompletePackBtn = document.getElementById("dailyCompletePackBtn");
   const dailyCompleteArchiveBtn = document.getElementById("dailyCompleteArchiveBtn");
   const dailyGhostRaceBtn = document.getElementById("dailyGhostRaceBtn");
+  const dailyReplayCelebrationBtn = document.getElementById("dailyReplayCelebrationBtn");
   const dailyGhostConfirmModal = document.getElementById("dailyGhostConfirmModal");
   const dailyGhostConfirmBestTime = document.getElementById("dailyGhostConfirmBestTime");
   const dailyGhostConfirmCancel = document.getElementById("dailyGhostConfirmCancel");
@@ -3494,6 +3500,7 @@
   let playedRoute = "";
   let makerCompletedRoute = "";
   let completeMode = "normal";
+  let newYearFireworksPlaying = false;
   let completionPackContext = null;
   let completionSolveData = "";
   let startedAt = 0;
@@ -4126,6 +4133,11 @@
     return pack?.id === PRIMARY_PACK_ID && pack?.levels?.length === 50 && packIsComplete(pack.id);
   }
 
+  function updateDailyReplayCelebrationButton(puzzle = dailyPuzzle) {
+    if (!dailyReplayCelebrationBtn) return;
+    dailyReplayCelebrationBtn.hidden = !(completeMode === "daily" && String(puzzle?.date || "") === NEW_YEAR_DAILY_DATE);
+  }
+
   function setCompletionActionMode(mode = "standard") {
     const daily = mode === "daily";
     const standard = mode === "standard";
@@ -4144,6 +4156,7 @@
     if (dailySharePanel) dailySharePanel.hidden = true;
     if (dailyShareStatus) dailyShareStatus.textContent = "";
     if (dailyCompletionLeaderboard) dailyCompletionLeaderboard.hidden = true;
+    if (dailyReplayCelebrationBtn) dailyReplayCelebrationBtn.hidden = true;
     if (makerTestSolvePanel) makerTestSolvePanel.hidden = true;
     if (makerTestSolveText) makerTestSolveText.value = "";
     if (dailyCompletionLeaderboardList) {
@@ -6288,6 +6301,7 @@
   let awardCheckTimer = 0;
   let currentAward = null;
   let awardAnimating = false;
+  let awardPresentationSuspended = false;
 
   function medalAwardOwner() {
     return String(window.BOXXYAccountIdentity?.id || "guest");
@@ -6318,8 +6332,19 @@
     clearTimeout(awardCheckTimer);
     awardCheckTimer = setTimeout(showNextMedalAward, delay);
   }
+  function openMedalAward(award) {
+    if (!award || !medalAwardModal || !medalAwardModal.hidden || awardAnimating) return false;
+    currentAward = award;
+    medalAwardTitle.textContent = award.title.toUpperCase();
+    medalAwardImageEl.src = award.image;
+    medalAwardImageEl.alt = `${award.title} medal`;
+    medalAwardMessage.textContent = award.message;
+    medalAwardModal.hidden = false;
+    medalAwardContinue?.focus({ preventScroll:true });
+    return true;
+  }
   function showNextMedalAward() {
-    if (!medalAwardModal || !medalAwardModal.hidden || awardAnimating) return;
+    if (awardPresentationSuspended || !medalAwardModal || !medalAwardModal.hidden || awardAnimating) return;
     if (window.BOXXYAccountIdentity && !window.BOXXYAccountIdentity.ready) return;
     const next = pendingMedalAwards()[0];
     if (!next) return;
@@ -6329,13 +6354,23 @@
       deferMedalAwards(1000);
       return;
     }
-    currentAward = next;
-    medalAwardTitle.textContent = next.title.toUpperCase();
-    medalAwardImageEl.src = next.image;
-    medalAwardImageEl.alt = `${next.title} medal`;
-    medalAwardMessage.textContent = next.message;
-    medalAwardModal.hidden = false;
-    medalAwardContinue?.focus({ preventScroll:true });
+    openMedalAward(next);
+  }
+  function showSpecificPendingMedal(id) {
+    if (!medalAwardModal || !medalAwardModal.hidden || awardAnimating) return false;
+    if (window.BOXXYAccountIdentity && !window.BOXXYAccountIdentity.ready) return false;
+    const award = pendingMedalAwards().find(item => item.id === id);
+    return openMedalAward(award);
+  }
+  function presentNewYearMedalNow() {
+    return new Promise(resolve => {
+      const onCollected = () => resolve(true);
+      window.addEventListener("boxxyspecialmedalcollected", onCollected, { once:true });
+      if (!showSpecificPendingMedal(NEW_YEAR_SPECIAL_MEDAL_ID)) {
+        window.removeEventListener("boxxyspecialmedalcollected", onCollected);
+        resolve(false);
+      }
+    });
   }
   function saveAwardNotice(award) {
     const isMonth = award.category === "month";
@@ -11963,9 +11998,11 @@
     if (zenStatsTime) zenStatsTime.textContent = timeEl.textContent;
     if (!makerTesting && !sharedPuzzleMode && !dailyMode) clearCurrentCheckpoint();
 
+    let runNewYearFirstCompletionCelebration = false;
     if (dailyMode && dailyPuzzle) {
       const scoringDailySession = dailyScoringAllowedFor(dailyPuzzle);
       const solvedWithGuidedRoute = autoplayRunning || guidedSolveUsed;
+      const hadPreviousDailyCompletion = Boolean(dailyCompletion(dailyPuzzle.date));
       let streakMessage = scoringDailySession
         ? "Guided solves do not count as a Daily completion, streak or fastest time."
         : "Preview and testing sessions do not record Daily results, streaks or fastest times.";
@@ -11992,6 +12029,10 @@
           instantMoveUsed: instantMoveUsedThisLevel,
           webdriverDetected: navigator.webdriver === true
         });
+        runNewYearFirstCompletionCelebration = !hadPreviousDailyCompletion
+          && String(dailyPuzzle.date) === NEW_YEAR_DAILY_DATE
+          && completedAt >= NEW_YEAR_AWARD_START && completedAt < NEW_YEAR_AWARD_END;
+        if (runNewYearFirstCompletionCelebration) awardPresentationSuspended = true;
         window.dispatchEvent(new CustomEvent("boxxydailycompletionrecorded", {
           detail: { date: String(dailyPuzzle.date) }
         }));
@@ -12047,6 +12088,7 @@
         loadDailyLeaderboardInto(dailyCompletionLeaderboardList, dailyPuzzle, 3);
       }
       setCompletionActionMode("daily");
+      updateDailyReplayCelebrationButton(dailyPuzzle);
       updateDailyGhostButton(dailyPuzzle);
       stopDailyGhost();
       updateDailyStreak();
@@ -12256,9 +12298,9 @@
     updateCompletionSolveDataButton();
     const grandCelebrationPack = completeMode === "final" ? (completionPackContext || activePack) : null;
     showRandomCompletionSprite();
-    burst();
+    if (!runNewYearFirstCompletionCelebration) burst();
     sfx.finish();
-    setTimeout(() => {
+    const openCompletionModal = () => {
       setZenNextButtonVisible(false);
       modal.hidden = false;
       render("idle");
@@ -12267,12 +12309,73 @@
       // can activate it instead of advancing to the next level.
       if (completeMode === "normal") {
         requestAnimationFrame(() => nextBtn?.focus?.({ preventScroll: true }));
+      } else if (completeMode === "daily") {
+        requestAnimationFrame(() => (dailyReplayCelebrationBtn?.hidden ? dailyCompletePackBtn : dailyReplayCelebrationBtn)?.focus?.({ preventScroll:true }));
       }
       if (grandCelebrationPack) {
         renderPackCompletionStats(grandCelebrationPack, true);
         grandBurst(grandCelebrationPack);
       }
+    };
+    setTimeout(async () => {
+      if (!runNewYearFirstCompletionCelebration) {
+        openCompletionModal();
+        return;
+      }
+      await playNewYearBoxFireworks().catch(() => false);
+      awardPresentationSuspended = false;
+      await presentNewYearMedalNow().catch(() => false);
+      openCompletionModal();
+      deferMedalAwards(200);
     }, 500);
+  }
+
+  async function playNewYearBoxFireworks() {
+    if (newYearFireworksPlaying || !board || !pieceLayer) return false;
+    render("idle");
+    const sourceBoxes = Array.from(pieceLayer.querySelectorAll(".piece.box"));
+    if (!sourceBoxes.length) return false;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches) return true;
+    newYearFireworksPlaying = true;
+    const overlay = document.createElement("div");
+    overlay.className = "new-year-box-fireworks";
+    overlay.setAttribute("aria-hidden", "true");
+    try {
+      const order = sourceBoxes.slice();
+      for (let i = order.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [order[i], order[j]] = [order[j], order[i]];
+      }
+      const colours = ["#f2c121", "#db3b27", "#20539a", "#2f8f5b", "#f7f0e5", "#ff8a00"];
+      order.forEach((source, index) => {
+        source.style.visibility = "hidden";
+        const clone = source.cloneNode(true);
+        clone.classList.remove("pushing", "board-step");
+        clone.style.setProperty("--new-year-delay", `${index * 95}ms`);
+        const burst = document.createElement("span");
+        burst.className = "new-year-box-burst";
+        for (let sparkIndex = 0; sparkIndex < 8; sparkIndex++) {
+          const spark = document.createElement("i");
+          spark.className = "new-year-box-spark";
+          const angle = (Math.PI * 2 * sparkIndex / 8) + (Math.random() - .5) * .16;
+          const distance = 30 + Math.random() * 34;
+          spark.style.setProperty("--new-year-sx", `${Math.cos(angle) * distance}px`);
+          spark.style.setProperty("--new-year-sy", `${Math.sin(angle) * distance}px`);
+          spark.style.setProperty("--new-year-spark", colours[(index + sparkIndex) % colours.length]);
+          burst.appendChild(spark);
+        }
+        clone.appendChild(burst);
+        overlay.appendChild(clone);
+      });
+      board.appendChild(overlay);
+      const duration = Math.max(900, (order.length - 1) * 95 + 820);
+      await new Promise(resolve => window.setTimeout(resolve, duration));
+      return true;
+    } finally {
+      overlay.remove();
+      sourceBoxes.forEach(source => { if (source?.isConnected) source.style.visibility = ""; });
+      newYearFireworksPlaying = false;
+    }
   }
 
   function burst() {
@@ -13651,6 +13754,13 @@
   settingsSolutionDataToggle?.addEventListener("click", () => setLevelSolutionAvailable(!levelSolutionAvailable));
   settingsZenStatsToggle?.addEventListener("click", () => setZenStatsEnabled(!zenStatsEnabled));
   copySolveDataBtn?.addEventListener("click", copyCompletionSolveData);
+  dailyReplayCelebrationBtn?.addEventListener("click", async () => {
+    if (String(dailyPuzzle?.date || "") !== NEW_YEAR_DAILY_DATE || newYearFireworksPlaying) return;
+    if (modal) modal.hidden = true;
+    await playNewYearBoxFireworks().catch(() => false);
+    if (modal) modal.hidden = false;
+    requestAnimationFrame(() => dailyReplayCelebrationBtn?.focus?.({ preventScroll:true }));
+  });
   clickPushAccessForm?.addEventListener("submit", event => {
     event.preventDefault();
     unlockTouchClickPush(clickPushAccessPassword?.value);
