@@ -1,3 +1,4 @@
+/* BOXXY v558: repair New Year fireworks and Basement Daily Practice preview shell. */
 /* BOXXY v557: refresh gameplay client for Daily Practice New Year celebration preview. */
 /* BOXXY v556: cache January 2027 Dailys, New Year medal and celebration client assets. */
 /* BOXXY v555: refresh cached account client for serialized progress sync uploads. */

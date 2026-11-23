@@ -10,6 +10,7 @@
 /* BOXXY v482: add Four Leaf Clover artwork and canonical pack registration. */
 /* BOXXY v481: three-way Zen arrow mode (movable, original, wide). */
 /* BOXXY v557: allow Basement Daily Practice to preview Jan 1 fireworks and medal presentation without awarding it. */
+/* BOXXY v558: repair New Year fireworks visibility and Basement Daily Practice preview integration. */
 /* BOXXY v556: January 2027 Dailys, New Year medal and first-completion box fireworks. */
 /* BOXXY v480: unnumbered gold-medal replay list with ordinal dates. */
 /* BOXXY v479: show earned trophies only, without the collection count summary. */
@@ -4136,7 +4137,9 @@
 
   function updateDailyReplayCelebrationButton(puzzle = dailyPuzzle) {
     if (!dailyReplayCelebrationBtn) return;
-    dailyReplayCelebrationBtn.hidden = !(completeMode === "daily" && String(puzzle?.date || "") === NEW_YEAR_DAILY_DATE);
+    const date = String(puzzle?.date || makerDailyPracticePuzzle?.date || "");
+    const supportedMode = completeMode === "daily" || (completeMode === "maker" && makerDailyPractice);
+    dailyReplayCelebrationBtn.hidden = !(supportedMode && date === NEW_YEAR_DAILY_DATE);
   }
 
   function setCompletionActionMode(mode = "standard") {
@@ -12171,6 +12174,7 @@
       completionPackContext = null;
       hidePackCompletionStats();
       restoreStandardCompletionActions();
+      updateDailyReplayCelebrationButton(makerDailyPracticePuzzle);
       if (makerTestSolveText) makerTestSolveText.value = makerSolveData;
       if (makerTestSolvePanel) makerTestSolvePanel.hidden = !makerSolveData;
       if (finalPackPicker) finalPackPicker.hidden = true;
@@ -12385,9 +12389,10 @@
       }
       const colours = ["#f2c121", "#db3b27", "#20539a", "#2f8f5b", "#f7f0e5", "#ff8a00"];
       order.forEach((source, index) => {
-        source.style.visibility = "hidden";
         const clone = source.cloneNode(true);
         clone.classList.remove("pushing", "board-step");
+        clone.style.visibility = "";
+        source.style.visibility = "hidden";
         clone.style.setProperty("--new-year-delay", `${index * 95}ms`);
         const burst = document.createElement("span");
         burst.className = "new-year-box-burst";
@@ -13792,7 +13797,8 @@
   settingsZenStatsToggle?.addEventListener("click", () => setZenStatsEnabled(!zenStatsEnabled));
   copySolveDataBtn?.addEventListener("click", copyCompletionSolveData);
   dailyReplayCelebrationBtn?.addEventListener("click", async () => {
-    if (String(dailyPuzzle?.date || "") !== NEW_YEAR_DAILY_DATE || newYearFireworksPlaying) return;
+    const puzzle = dailyMode ? dailyPuzzle : (makerDailyPractice ? makerDailyPracticePuzzle : null);
+    if (!puzzle || String(puzzle.date) !== NEW_YEAR_DAILY_DATE || newYearFireworksPlaying) return;
     if (modal) modal.hidden = true;
     await playNewYearBoxFireworks().catch(() => false);
     if (modal) modal.hidden = false;
