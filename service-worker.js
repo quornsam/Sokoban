@@ -1,3 +1,4 @@
+/* BOXXY v559: replace the New Year 2027 special medal artwork and refresh its cache reference. */
 /* BOXXY v558: repair New Year fireworks and Basement Daily Practice preview shell. */
 /* BOXXY v557: refresh gameplay client for Daily Practice New Year celebration preview. */
 /* BOXXY v556: cache January 2027 Dailys, New Year medal and celebration client assets. */

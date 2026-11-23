@@ -96,7 +96,7 @@
       startUtc: "2026-12-25T00:00:00.000Z", endUtc: "2026-12-26T00:00:00.000Z" }
   }, {
     id: "new-year-2027", category: "special", title: "New Year 2027",
-    image: "assets/medals/boxxy-special-new-year-2027.png",
+    image: "assets/medals/boxxy-special-new-year-2027.png?v=559",
     message: "You completed the New Year's Day BOXXY Daily on 1 January! Your 2027 medal is ready for your trophy cabinet.",
     award: { kind: "daily-completion", date: "2027-01-01",
       startUtc: "2027-01-01T00:00:00.000Z", endUtc: "2027-01-02T00:00:00.000Z" }
