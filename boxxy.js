@@ -9,6 +9,7 @@
 /* BOXXY v483: image medals use one shared pack reward definition. */
 /* BOXXY v482: add Four Leaf Clover artwork and canonical pack registration. */
 /* BOXXY v481: three-way Zen arrow mode (movable, original, wide). */
+/* BOXXY v557: allow Basement Daily Practice to preview Jan 1 fireworks and medal presentation without awarding it. */
 /* BOXXY v556: January 2027 Dailys, New Year medal and first-completion box fireworks. */
 /* BOXXY v480: unnumbered gold-medal replay list with ordinal dates. */
 /* BOXXY v479: show earned trophies only, without the collection count summary. */
@@ -6339,6 +6340,7 @@
     medalAwardImageEl.src = award.image;
     medalAwardImageEl.alt = `${award.title} medal`;
     medalAwardMessage.textContent = award.message;
+    if (medalAwardContinue) medalAwardContinue.textContent = award.preview ? "CONTINUE" : "ADD TO TROPHY CABINET";
     medalAwardModal.hidden = false;
     medalAwardContinue?.focus({ preventScroll:true });
     return true;
@@ -6368,6 +6370,22 @@
       window.addEventListener("boxxyspecialmedalcollected", onCollected, { once:true });
       if (!showSpecificPendingMedal(NEW_YEAR_SPECIAL_MEDAL_ID)) {
         window.removeEventListener("boxxyspecialmedalcollected", onCollected);
+        resolve(false);
+      }
+    });
+  }
+  function presentNewYearPracticeMedalPreview() {
+    const medal = specialDefinition(NEW_YEAR_SPECIAL_MEDAL_ID);
+    if (!medal) return Promise.resolve(false);
+    const preview = {
+      category: "special", id: medal.id, title: medal.title, image: medal.image,
+      message: medal.message, preview: true
+    };
+    return new Promise(resolve => {
+      const onClosed = () => resolve(true);
+      window.addEventListener("boxxymedalpreviewclosed", onClosed, { once:true });
+      if (!openMedalAward(preview)) {
+        window.removeEventListener("boxxymedalpreviewclosed", onClosed);
         resolve(false);
       }
     });
@@ -6419,11 +6437,21 @@
     awardAnimating = true;
     medalAwardContinue.disabled = true;
     const award = currentAward;
+    if (award.preview) {
+      currentAward = null;
+      medalAwardModal.hidden = true;
+      medalAwardContinue.disabled = false;
+      medalAwardContinue.textContent = "ADD TO TROPHY CABINET";
+      awardAnimating = false;
+      window.dispatchEvent(new CustomEvent("boxxymedalpreviewclosed"));
+      return;
+    }
     try { await animateMedalIntoCabinet(); } finally {
       saveAwardNotice(award);
       currentAward = null;
       medalAwardModal.hidden = true;
       medalAwardContinue.disabled = false;
+      medalAwardContinue.textContent = "ADD TO TROPHY CABINET";
       awardAnimating = false;
       buildTrophyCabinet();
       window.dispatchEvent(new CustomEvent("boxxymonthmedalsupdated"));
@@ -11999,6 +12027,10 @@
     if (!makerTesting && !sharedPuzzleMode && !dailyMode) clearCurrentCheckpoint();
 
     let runNewYearFirstCompletionCelebration = false;
+    const runNewYearPracticePreview = Boolean(
+      makerTesting && makerDailyPractice
+      && String(makerDailyPracticePuzzle?.date || "") === NEW_YEAR_DAILY_DATE
+    );
     if (dailyMode && dailyPuzzle) {
       const scoringDailySession = dailyScoringAllowedFor(dailyPuzzle);
       const solvedWithGuidedRoute = autoplayRunning || guidedSolveUsed;
@@ -12298,7 +12330,7 @@
     updateCompletionSolveDataButton();
     const grandCelebrationPack = completeMode === "final" ? (completionPackContext || activePack) : null;
     showRandomCompletionSprite();
-    if (!runNewYearFirstCompletionCelebration) burst();
+    if (!runNewYearFirstCompletionCelebration && !runNewYearPracticePreview) burst();
     sfx.finish();
     const openCompletionModal = () => {
       setZenNextButtonVisible(false);
@@ -12318,11 +12350,16 @@
       }
     };
     setTimeout(async () => {
-      if (!runNewYearFirstCompletionCelebration) {
+      if (!runNewYearFirstCompletionCelebration && !runNewYearPracticePreview) {
         openCompletionModal();
         return;
       }
       await playNewYearBoxFireworks().catch(() => false);
+      if (runNewYearPracticePreview) {
+        await presentNewYearPracticeMedalPreview().catch(() => false);
+        openCompletionModal();
+        return;
+      }
       awardPresentationSuspended = false;
       await presentNewYearMedalNow().catch(() => false);
       openCompletionModal();
