@@ -1,3 +1,4 @@
+/* BOXXY v561: valid Daily attempt history supplies leaderboard rows when synced Daily progress is missing. */
 /* BOXXY v446: Daily leaderboard avatar validation uses the shared public avatar registry, including FLUFFBALLS. */
 /* BOXXY v424: admin Daily scores surface navigator.webdriver evidence without affecting ranking. */
 /* BOXXY v412: public Daily leaderboards are server-paged in 30-score chunks with sort-aware ordering. */
@@ -257,6 +258,60 @@ export async function onRequestGet(context) {
             WHEN winning_seconds = tracked_seconds THEN tracked_device END AS best_moves_run_device,
           0 AS best_moves_run_mouse_or_click_push, 0 AS best_moves_run_instant_move
         FROM real_best
+      ), history_time_ranked AS (
+        SELECT h.user_id, h.seconds, h.moves, h.device, h.webdriver_detected,
+          ROW_NUMBER() OVER (
+            PARTITION BY h.user_id
+            ORDER BY h.seconds ASC, h.moves ASC, h.started_at ASC, h.id ASC
+          ) AS row_number
+        FROM level_attempt_history h
+        WHERE h.pack_id = 'daily-boxxy' AND h.level_token = ?
+          AND h.completed = 1 AND h.assisted = 0
+          AND h.mouse_or_click_push = 0 AND h.instant_move = 0
+          AND h.seconds > 0 AND h.moves IS NOT NULL AND h.moves >= 0
+          AND (h.moves <= 1 OR ((h.moves - 1.0) / h.seconds) <= ${MAX_PUBLIC_MOVES_PER_SECOND})
+      ), history_move_ranked AS (
+        SELECT h.user_id, h.seconds, h.moves, h.device, h.webdriver_detected,
+          h.mouse_or_click_push, h.instant_move, h.assisted,
+          ROW_NUMBER() OVER (
+            PARTITION BY h.user_id
+            ORDER BY h.moves ASC,
+              CASE WHEN h.assisted = 0 AND h.mouse_or_click_push = 0 AND h.instant_move = 0
+                AND (h.moves <= 1 OR ((h.moves - 1.0) / h.seconds) <= ${MAX_PUBLIC_MOVES_PER_SECOND})
+                THEN 0 ELSE 1 END ASC,
+              CASE WHEN h.assisted = 0 AND h.mouse_or_click_push = 0 AND h.instant_move = 0
+                AND (h.moves <= 1 OR ((h.moves - 1.0) / h.seconds) <= ${MAX_PUBLIC_MOVES_PER_SECOND})
+                THEN h.seconds ELSE 1.0e99 END ASC,
+              h.started_at ASC, h.id ASC
+          ) AS row_number
+        FROM level_attempt_history h
+        WHERE h.pack_id = 'daily-boxxy' AND h.level_token = ?
+          AND h.completed = 1 AND h.seconds > 0
+          AND h.moves IS NOT NULL AND h.moves >= 0
+          AND (h.assisted = 0 OR h.instant_move = 1)
+      ), history_scores AS (
+        SELECT ht.user_id AS player_id, 'real' AS player_kind,
+          u.username AS username,
+          json_extract(u.progress_json, '$."push-bauhaus-character-style-v51"') AS avatar_json,
+          ht.seconds AS seconds, ht.moves AS moves, hm.moves AS best_moves,
+          NULLIF(ht.device,'') AS leaderboard_device, COALESCE(f.enabled, 0) AS hide_scores,
+          COALESCE(ht.webdriver_detected,0) AS webdriver_detected,
+          COALESCE(hm.webdriver_detected,0) AS best_moves_run_webdriver_detected,
+          CASE WHEN hm.assisted = 0 AND hm.mouse_or_click_push = 0 AND hm.instant_move = 0
+            AND (hm.moves <= 1 OR ((hm.moves - 1.0) / hm.seconds) <= ${MAX_PUBLIC_MOVES_PER_SECOND})
+            THEN hm.seconds ELSE NULL END AS best_moves_run_seconds,
+          CASE WHEN hm.assisted = 0 AND hm.mouse_or_click_push = 0 AND hm.instant_move = 0
+            AND (hm.moves <= 1 OR ((hm.moves - 1.0) / hm.seconds) <= ${MAX_PUBLIC_MOVES_PER_SECOND})
+            THEN NULLIF(hm.device,'') ELSE NULL END AS best_moves_run_device,
+          COALESCE(hm.mouse_or_click_push,0) AS best_moves_run_mouse_or_click_push,
+          COALESCE(hm.instant_move,0) AS best_moves_run_instant_move
+        FROM history_time_ranked ht
+        JOIN users u ON u.id = ht.user_id
+        LEFT JOIN history_move_ranked hm ON hm.user_id = ht.user_id AND hm.row_number = 1
+        LEFT JOIN user_feature_flags f ON f.user_id = u.id
+          AND f.feature_key = 'hide_public_scores'
+        WHERE ht.row_number = 1
+          AND NOT EXISTS (SELECT 1 FROM real_paired rp WHERE rp.player_id = ht.user_id)
       ), synthetic_scores AS (
         SELECT s.user_id AS player_id, 'synthetic' AS player_kind,
           u.username AS username, NULLIF(u.avatar_json,'') AS avatar_json, s.seconds AS seconds, s.moves AS moves,
@@ -273,6 +328,11 @@ export async function onRequestGet(context) {
           webdriver_detected, best_moves_run_webdriver_detected,
           best_moves_run_seconds, best_moves_run_device,
           best_moves_run_mouse_or_click_push, best_moves_run_instant_move FROM real_paired
+        UNION ALL
+        SELECT player_id, player_kind, username, avatar_json, seconds, moves, best_moves, leaderboard_device, hide_scores,
+          webdriver_detected, best_moves_run_webdriver_detected,
+          best_moves_run_seconds, best_moves_run_device,
+          best_moves_run_mouse_or_click_push, best_moves_run_instant_move FROM history_scores
         UNION ALL
         SELECT player_id, player_kind, username, avatar_json, seconds, moves, best_moves, leaderboard_device, hide_scores,
           webdriver_detected, best_moves_run_webdriver_detected,
@@ -302,7 +362,8 @@ export async function onRequestGet(context) {
       leaderboardTrackedPath, leaderboardStartedAtPath,
       leaderboardTrackedPath, leaderboardCompletedAtPath,
       leaderboardTrackedPath, leaderboardDevicePath,
-      dateKey, MAX_PUBLIC_MOVES_PER_SECOND, MAX_TIMING_DRIFT_SECONDS, dateKey, dateKey
+      dateKey, MAX_PUBLIC_MOVES_PER_SECOND, MAX_TIMING_DRIFT_SECONDS,
+      dateKey, dateKey, dateKey, dateKey
     ];
     if (!adminView) bindings.push(viewerUserId, queryLimit, requestedOffset);
     const result = await statement.bind(...bindings).all();

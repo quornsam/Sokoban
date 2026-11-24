@@ -168,6 +168,9 @@ CREATE INDEX IF NOT EXISTS level_attempt_history_user_level_idx
   ON level_attempt_history(user_id, pack_id, level_token, started_at DESC);
 CREATE INDEX IF NOT EXISTS level_attempt_history_user_recent_idx
   ON level_attempt_history(user_id, started_at DESC);
+-- v561: direct Daily leaderboard lookup from canonical per-run history.
+CREATE INDEX IF NOT EXISTS level_attempt_history_daily_level_idx
+  ON level_attempt_history(pack_id, level_token, completed, user_id);
 
 -- v392: server-authoritative visibility for individual Daily leaderboard scores.
 -- Absence of a row means public. This table is not part of player progress sync.

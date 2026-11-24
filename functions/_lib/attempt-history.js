@@ -1,3 +1,4 @@
+/* BOXXY v561 — index Daily attempt history by puzzle date for direct leaderboard fallback. */
 /* BOXXY v428 — Daily medal-winning runs retain timezone and permanent gold-award metadata. */
 /* BOXXY v424 — navigator.webdriver is retained as admin-only evidence and never alters eligibility. */
 /* BOXXY v395 — independent, idempotent, account-scoped per-run history.
@@ -31,7 +32,9 @@ export async function ensureAttemptHistorySchema(db) {
     db.prepare(`CREATE INDEX IF NOT EXISTS level_attempt_history_user_level_idx
       ON level_attempt_history(user_id, pack_id, level_token, started_at DESC)`),
     db.prepare(`CREATE INDEX IF NOT EXISTS level_attempt_history_user_recent_idx
-      ON level_attempt_history(user_id, started_at DESC)`)
+      ON level_attempt_history(user_id, started_at DESC)`),
+    db.prepare(`CREATE INDEX IF NOT EXISTS level_attempt_history_daily_level_idx
+      ON level_attempt_history(pack_id, level_token, completed, user_id)`)
   ]);
   await ensureAttemptHistoryDeviceColumn(db);
 }
@@ -61,6 +64,8 @@ export async function ensureAttemptHistoryDeviceColumn(db) {
       if (!/duplicate column name/i.test(String(error?.message || error))) throw error;
     }
   }
+  await db.prepare(`CREATE INDEX IF NOT EXISTS level_attempt_history_daily_level_idx
+    ON level_attempt_history(pack_id, level_token, completed, user_id)`).run();
 }
 
 const num = (value, low, high) => typeof value === 'number' && Number.isFinite(value)
