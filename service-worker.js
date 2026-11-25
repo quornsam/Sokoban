@@ -1,3 +1,4 @@
+/* BOXXY v562: keep the installed Home Screen PWA core and every level definition current without forcing the full 70 MB offline package refresh. */
 /* BOXXY v561: release metadata refresh for server-side Daily leaderboard history fallback. */
 /* BOXXY v560: cache special-day Daily celebration and Basement date-test client updates. */
 /* BOXXY v559: replace the New Year 2027 special medal artwork and refresh its cache reference. */
@@ -113,8 +114,11 @@
 importScripts("/assets/data/release.js");
 
 const CACHE_NAME = "boxxy-offline-v2";
+const PWA_CORE_CACHE_NAME = "boxxy-pwa-core-v1";
 const RELEASE_VERSION = String(globalThis.BOXXY_RELEASE?.version || "0");
 const META_URL = "/__boxxy_offline_meta__";
+const PWA_CORE_META_URL = "/__boxxy_pwa_core_meta__";
+const PWA_CORE_STAGE_CACHE = "boxxy-pwa-core-stage-v1";
 const OFFLINE_ENTRY = "/index.html";
 const ASSETS = [
   "/account.js",
@@ -388,6 +392,39 @@ const ASSETS = [
   "/styles.css"
 ];
 
+const PWA_CORE_ASSETS = [
+  OFFLINE_ENTRY,
+  "/account.js",
+  "/attempt-history.js",
+  "/attempt-history-ui.js",
+  "/attempt-history.css",
+  "/assets/data/release.js",
+  "/assets/data/content-catalog.js",
+  "/boxxy.js",
+  "/daily-puzzles/boxxy-daily-loader.js",
+  "/daily-puzzles/boxxy-daily-puzzles-2026-08.js",
+  "/daily-puzzles/boxxy-daily-puzzles-2026-09.js",
+  "/daily-puzzles/boxxy-daily-puzzles-2026-10.js",
+  "/daily-puzzles/boxxy-daily-puzzles-2026-11.js",
+  "/daily-puzzles/boxxy-daily-puzzles-2026-12.js",
+  "/daily-puzzles/boxxy-daily-puzzles-2027-01.js",
+  "/daily-puzzles/boxxy-daily-puzzles.js",
+  "/four-leaf-clover.js",
+  "/how-to-play.css",
+  "/how-to-play.js",
+  "/legal.js",
+  "/levels.js",
+  "/locales/localisation.js",
+  "/pack-builder.js",
+  "/rainbow-intro.css",
+  "/rainbow-intro.js",
+  "/solver-worker.js",
+  "/starry-night.js",
+  "/static-noise.js",
+  "/styles.css",
+  "/the-staircase.js"
+];
+
 self.addEventListener("install", event => {
   self.skipWaiting();
 });
@@ -424,6 +461,42 @@ async function redirectSafeCopy(response) {
     statusText: source.statusText,
     headers
   });
+}
+
+async function cachePwaCore(requestedVersion) {
+  await caches.delete(PWA_CORE_STAGE_CACHE);
+  const stage = await caches.open(PWA_CORE_STAGE_CACHE);
+
+  try {
+    for (const path of PWA_CORE_ASSETS) {
+      const response = await fetch(new Request(path, {
+        cache: "reload",
+        credentials: "same-origin",
+        redirect: "follow"
+      }));
+      if (!response.ok) throw new Error(`${path}: HTTP ${response.status}`);
+      await stage.put(path, await redirectSafeCopy(response));
+    }
+
+    const cache = await caches.open(PWA_CORE_CACHE_NAME);
+    for (const path of PWA_CORE_ASSETS) {
+      const response = await stage.match(path);
+      if (!response) throw new Error(`${path}: staged response missing`);
+      await cache.put(path, response);
+    }
+
+    const meta = {
+      version: String(requestedVersion || RELEASE_VERSION),
+      savedAt: Date.now(),
+      files: PWA_CORE_ASSETS.length
+    };
+    await cache.put(PWA_CORE_META_URL, new Response(JSON.stringify(meta), {
+      headers: { "content-type": "application/json" }
+    }));
+    return meta;
+  } finally {
+    await caches.delete(PWA_CORE_STAGE_CACHE);
+  }
 }
 
 async function cacheEverything(requestedVersion) {
@@ -468,6 +541,18 @@ async function cacheEverything(requestedVersion) {
 }
 
 self.addEventListener("message", event => {
+  if (event.data?.type === "CACHE_BOXXY_PWA_CORE") {
+    event.waitUntil((async () => {
+      try {
+        const meta = await cachePwaCore(event.data?.version);
+        await tellClients({ type: "BOXXY_PWA_CORE_COMPLETE", ...meta });
+      } catch (error) {
+        await tellClients({ type: "BOXXY_PWA_CORE_ERROR", message: error?.message || "PWA core refresh failed." });
+      }
+    })());
+    return;
+  }
+
   if (event.data?.type !== "CACHE_ALL_BOXXY") return;
   event.waitUntil((async () => {
     try {
@@ -493,14 +578,15 @@ self.addEventListener("fetch", event => {
       // the deliberately downloaded offline package.
       return await fetch(request);
     } catch (_) {
-      const cache = await caches.open(CACHE_NAME);
+      const coreCache = await caches.open(PWA_CORE_CACHE_NAME);
+      const fullCache = await caches.open(CACHE_NAME);
 
       if (request.mode === "navigate") {
-        const cachedEntry = await cache.match(OFFLINE_ENTRY);
+        const cachedEntry = (await coreCache.match(OFFLINE_ENTRY)) || (await fullCache.match(OFFLINE_ENTRY));
         return cachedEntry || Response.error();
       }
 
-      return (await cache.match(url.pathname)) || Response.error();
+      return (await coreCache.match(url.pathname)) || (await fullCache.match(url.pathname)) || Response.error();
     }
   })());
 });

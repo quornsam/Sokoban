@@ -1,3 +1,4 @@
+/* BOXXY v562: Home Screen PWA silently keeps the current core game and all level definitions available offline. */
 /* BOXXY v484: cloud pack catalogue starts from the shared published-content catalogue. */
 /* BOXXY v476: wait for initial account identity before presenting monthly medal notices. */
 /* BOXXY v463: keep Secret Workshop drafts and editor preferences local to the browser. */
@@ -42,7 +43,9 @@
   const OFFLINE_ACCOUNT_SNAPSHOT_KEY = "boxxy-offline-account-snapshot-v1";
   const OFFLINE_REQUEST_COOKIE = "boxxy_offline_requested";
   const OFFLINE_CACHE_NAME = "boxxy-offline-v2";
+  const PWA_CORE_CACHE_NAME = "boxxy-pwa-core-v1";
   const OFFLINE_META_URL = "/__boxxy_offline_meta__";
+  const PWA_CORE_META_URL = "/__boxxy_pwa_core_meta__";
   const EXACT_SYNC_KEYS = new Set([
     "boxxy-active-pack-v2",
     "boxxy-additional-packs-unlocked-v1",
@@ -355,6 +358,17 @@
     }
   }
 
+  async function readPwaCoreMeta() {
+    if (!("caches" in window)) return null;
+    try {
+      const cache = await caches.open(PWA_CORE_CACHE_NAME);
+      const response = await cache.match(PWA_CORE_META_URL);
+      return response ? await response.json() : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   async function refreshOfflineButton() {
     if (!offlineBtn || !account || offlineBusy) return;
     const meta = await readOfflineMeta();
@@ -427,6 +441,7 @@
 
   async function cacheBoxxyForOffline({ automatic = false } = {}) {
     if (offlineBusy || !account) return false;
+    if (pwaCoreRefreshPromise) await pwaCoreRefreshPromise;
     offlineBusy = true;
     if (offlineBtn) {
       offlineBtn.disabled = true;
@@ -546,6 +561,47 @@
       return;
     }
     await cacheBoxxyForOffline({ automatic: true });
+  }
+
+  let pwaCoreRefreshPromise = null;
+
+  async function ensureStandalonePwaCore() {
+    if (!isStandaloneDisplay() || !navigator.onLine || !("serviceWorker" in navigator)) return false;
+    if (offlineRequestCookieValue()) return false;
+    if (pwaCoreRefreshPromise) return pwaCoreRefreshPromise;
+
+    pwaCoreRefreshPromise = (async () => {
+      const current = String(window.BOXXY_RELEASE?.version || "562");
+      const [coreMeta, fullMeta] = await Promise.all([readPwaCoreMeta(), readOfflineMeta()]);
+      if (coreMeta?.version === current || fullMeta?.version === current) return true;
+
+      try {
+        const registration = await registerOfflineWorker();
+        const worker = registration.active || registration.waiting || registration.installing;
+        if (!worker) return false;
+
+        return await new Promise(resolve => {
+          const timeout = setTimeout(() => {
+            navigator.serviceWorker.removeEventListener("message", onMessage);
+            resolve(false);
+          }, 60000);
+          const onMessage = event => {
+            const data = event.data || {};
+            if (data.type !== "BOXXY_PWA_CORE_COMPLETE" && data.type !== "BOXXY_PWA_CORE_ERROR") return;
+            clearTimeout(timeout);
+            navigator.serviceWorker.removeEventListener("message", onMessage);
+            resolve(data.type === "BOXXY_PWA_CORE_COMPLETE");
+          };
+          navigator.serviceWorker.addEventListener("message", onMessage);
+          worker.postMessage({ type: "CACHE_BOXXY_PWA_CORE", version: current });
+        });
+      } catch (error) {
+        console.warn("BOXXY PWA core offline refresh failed", error);
+        return false;
+      }
+    })().finally(() => { pwaCoreRefreshPromise = null; });
+
+    return pwaCoreRefreshPromise;
   }
 
   // Workshop creations are device-local. Ordinary pack completion, best-time and
@@ -1947,6 +2003,8 @@
   window.addEventListener("resize", scheduleGoogleButtons);
 
   prepareAndroidInstallPrompt();
+  void ensureStandalonePwaCore();
+  window.addEventListener("online", () => { void ensureStandalonePwaCore(); });
   seedLifetimeStats();
   render();
   broadcastAccountFeatures();
